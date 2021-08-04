@@ -1,0 +1,44 @@
+from building import *
+
+for sc in Glob('*/SConscript'):
+    SConscript(sc)
+
+CWD = GetCurrentDir()
+
+LL_DL = os.getenv('LL_DL')
+
+objsBL = Glob('src/*.c')
+@register_library
+class LibraryBL(Library):
+    def config(self):
+        self.include = '%s/include'%(CWD)
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsBL
+
+objsAppBL = Glob('*.c')
+class ApplicationBL(Application):
+    def config(self):
+        self.CPPDEFINES = []
+        self.LIBS = ['BL', 'StdTimer', 'Crc']
+        for libName, source in self.libsForBL.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s'%(libName.split(':')[0].upper())])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsAppBL
+
+libsForCanBL = {}
+for libName in ['Dcm', 'CanTp']:
+    libsForCanBL[libName] = Glob('config/%s_Cfg.c'%(libName))
+@register_application
+class ApplicationCanBL(ApplicationBL):
+    def platform_config(self):
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        if LL_DL != None:
+            self.Append(CPPDEFINES=['CANTP_LL_DL=%s'%(LL_DL)])
+        self.LIBS.append('Simulator')
+    def config(self):
+        self.libsForBL = libsForCanBL
+        super().config()
+        self.Append(CPPDEFINES=['USE_CAN'])
+        self.platform_config()

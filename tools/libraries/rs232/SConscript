@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+
+@register_library
+class LibraryRS232(Library):
+    def config(self):
+        self.include = CWD
+        self.source = objs
+
+    

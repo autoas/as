@@ -1,0 +1,2 @@
+for sc in Glob('*/SConscript'):
+    SConscript(sc)

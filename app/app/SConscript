@@ -1,0 +1,75 @@
+from building import *
+
+for sc in Glob('*/SConscript'):
+    SConscript(sc)
+
+CWD = GetCurrentDir()
+
+generate(Glob('config/*.json'))
+generate(Glob('config/Com/*.json'))
+
+objsApp = Glob('*.c') + Glob('src/*.c')
+
+
+class ApplicationApp(Application):
+    def config(self):
+        self.CPPDEFINES = []
+        self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]
+        self.LIBS = ['StdTimer']
+        for libName, source in self.libsForApp.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' % (libName.split(':')[0].upper())])
+        self.source = objsApp
+
+
+libsCommon = {'Dcm': Glob('config/Dcm/Dcm_Cfg.c'),
+              'Dem': Glob('config/GEN/Dem_Cfg.c'),
+              'Fls': Glob('config/Fls_Cfg.c'),
+              'Fee': Glob('config/GEN/Fee_Cfg.c'),
+              'NvM': Glob('config/GEN/NvM_Cfg.c'),
+             }
+
+libsForCanApp = {'CanTp': Glob('../bootloader/config/CanTp_Cfg.c'),
+                 'OsekNm': Glob('config/OsekNm_Cfg.c'),
+                 'CanNm': Glob('config/CanNm_Cfg.c'),
+                 'Com': Glob('config/Com/GEN/Com_Cfg.c'),
+                }
+libsForCanApp.update(libsCommon)
+
+
+@register_application
+class ApplicationCanApp(ApplicationApp):
+    def platform_config(self):
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.LIBS.append('Simulator')
+
+    def config(self):
+        self.libsForApp = libsForCanApp
+        super().config()
+        self.Append(CPPDEFINES=['USE_CAN'])
+        self.platform_config()
+
+@register_application
+class ApplicationCanNm(ApplicationApp):
+    def platform_config(self):
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.LIBS.append('Simulator')
+
+    def config(self):
+        self.libsForApp = {k: libsForCanApp[k] for k in ['CanNm']}
+        super().config()
+        self.Append(CPPDEFINES=['USE_CAN'])
+        self.platform_config()
+
+@register_application
+class ApplicationOsekNm(ApplicationApp):
+    def platform_config(self):
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.LIBS.append('Simulator')
+
+    def config(self):
+        self.libsForApp = {k: libsForCanApp[k] for k in ['OsekNm']}
+        super().config()
+        self.Append(CPPDEFINES=['USE_CAN'])
+        self.platform_config()

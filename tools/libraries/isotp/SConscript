@@ -1,0 +1,33 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('src/*.c')
+
+libsForIsoTp = {}
+for libName in ['CanTp', 'Dcm']:
+    libsForIsoTp[libName] = Glob('config/%s_Cfg.c' % (libName))
+
+@register_library
+class LibraryIsoTp(Library):
+    def config(self):
+        self.CPPDEFINES = []
+        self.include = '%s/include' % (CWD)
+        self.LIBS = ['StdTimer', 'Simulator', 'CanLib']
+        for libName, source in libsForIsoTp.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES = ['USE_%s' % (libName.split(':')[0].upper())])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs
+
+
+objsIsoTpSend = Glob('utils/isotp_send.c')
+
+
+@register_application
+class ApplicationIsoTpSend(Application):
+    def config(self):
+        self.LIBS = ['IsoTp']
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsIsoTpSend

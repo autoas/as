@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+
+@register_library
+class LibraryDcm(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', CWD]
+        self.source = objs
+
+    

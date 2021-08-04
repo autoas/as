@@ -1,0 +1,68 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('src/*.c')
+
+objsVXL = Glob('src/vxlapi/*.cpp')
+
+Import('BUILD_DIR')
+
+
+@register_library
+class LibraryCanLib(Library):
+    def config_peakcan(self):
+        peakcan = Package(
+            'https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip')
+        self.CPPPATH += ['%s/PCAN-Basic API/Include' % (peakcan)]
+        shutil.copy('%s/PCAN-Basic API/x64/VC_LIB/PCANBasic.lib' %
+                    (peakcan), '%s/libPCANBasic.a' % (BUILD_DIR))
+        self.LIBS += ['PCANBasic']
+        self.LIBPATH += [BUILD_DIR]
+
+    def config_vxl(self):
+        self.CPPPATH += ['%s/src/vxlapi' % (CWD)]
+        self.CPPDEFINES += ['DYNAMIC_XLDRIVER_DLL']
+        self.source += objsVXL
+
+    def config_zlg(self):
+        pkg = Package(
+            'https://www.zlg.cn/data/upload/software/Can/CAN_lib.rar')
+        ControlCAN = Glob('%s/ControlCAN*/ControlCANx64' % (pkg))[0].rstr()
+        self.LIBS += ['dl']
+        self.CPPPATH += [ControlCAN]
+
+    def config(self):
+        self.include = '%s/include' % (CWD)
+        self.CPPPATH = ['$INFRAS']
+        self.CPPDEFINES = []
+        self.LIBPATH = []
+        self.LIBS = []
+        self.CPPFLAGS = []
+        self.source = objs
+        if IsPlatformWindows():
+            self.LIBS += ['wsock32']
+            self.config_peakcan()
+            self.config_vxl()
+            self.config_zlg()
+
+
+objsCanSim = Glob('utils/can_simulator.c')
+
+
+@register_application
+class ApplicationCanSimulator(Application):
+    def config(self):
+        if IsPlatformWindows():
+            self.LIBS = ['wsock32']
+        self.source = objsCanSim
+
+
+objsCanSend = Glob('utils/can_send.c')
+
+
+@register_application
+class ApplicationCanSend(Application):
+    def config(self):
+        self.LIBS = ['CanLib']
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsCanSend

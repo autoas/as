@@ -1,0 +1,8 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+RegisterCPPPATH('$INFRAS', '%s/include'%(CWD))
+
+for sc in Glob('*/SConscript'):
+    SConscript(sc)

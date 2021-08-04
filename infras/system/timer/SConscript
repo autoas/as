@@ -1,0 +1,12 @@
+from building import *
+
+
+objs = Glob('*.c')
+
+@register_library
+class LibraryStdTimer(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs
+
+    

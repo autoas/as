@@ -1,0 +1,13 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+
+@register_library
+class LibraryCom(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', CWD]
+        self.LIBS = ['StdBit']
+        self.source = objs
+
+    
