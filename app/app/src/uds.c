@@ -3,6 +3,7 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef USE_DCM
 #include "Dcm.h"
 #include "Dem.h"
 #include "Std_Timer.h"
@@ -10,7 +11,6 @@
 #if defined(_WIN32)
 #include <time.h>
 #endif
-#ifdef USE_DCM
 /* ================================ [ MACROS    ] ============================================== */
 #define App_SECURITY_LEVEL_EXTDS DCM_SEC_LEVEL1
 

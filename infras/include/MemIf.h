@@ -21,8 +21,8 @@
 #define MemIf_Read(DeviceIndex, BlockNumber, BlockOffset, DataBufferPtr, Length)                   \
   Ea_Read(BlockNumber, BlockOffset, DataBufferPtr, Length)
 #define MemIf_Write(DeviceIndex, BlockNumber, DataBufferPtr) Ea_Write(BlockNumber, DataBufferPtr)
-#define MemIf_GetStatus(DeviceIndex) Ea_GetStatus(DeviceIndex)
-#define MemIf_Cancel(DeviceIndex) Ea_Cancel(DeviceIndex)
+#define MemIf_GetStatus(DeviceIndex) Ea_GetStatus()
+#define MemIf_Cancel(DeviceIndex) Ea_Cancel()
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

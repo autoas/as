@@ -50,9 +50,36 @@
 #ifdef USE_FEE
 #include "Fee.h"
 #endif
+#ifdef USE_EEP
+#include "Eep.h"
+#endif
+#ifdef USE_EA
+#include "Ea.h"
+#endif
 #ifdef USE_NVM
 #include "NvM.h"
 #endif
+
+#ifdef USE_TCPIP
+#include "TcpIp.h"
+#endif
+
+#ifdef USE_SOAD
+#include "SoAd.h"
+#endif
+
+#ifdef USE_DOIP
+#include "DoIP.h"
+#endif
+
+#ifdef USE_SD
+#include "Sd.h"
+#endif
+
+#ifdef USE_SOMEIP
+#include "SomeIp.h"
+#endif
+
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
@@ -65,6 +92,12 @@ static Std_TimerType timer10ms;
 static Std_TimerType timer100ms;
 /* ================================ [ LOCALS    ] ============================================== */
 static void MemoryTask(void) {
+#ifdef USE_EEP
+  Eep_MainFunction();
+#endif
+#ifdef USE_EA
+  Ea_MainFunction();
+#endif
 #ifdef USE_FLS
   Fls_MainFunction();
 #endif
@@ -130,6 +163,12 @@ static void BSW_Init(void) {
   Com_Init(NULL);
 #endif
 
+#ifdef USE_EEP
+  Eep_Init(NULL);
+#endif
+#ifdef USE_EA
+  Ea_Init(NULL);
+#endif
 #ifdef USE_FLS
   Fls_Init(NULL);
 #endif
@@ -153,6 +192,22 @@ static void BSW_Init(void) {
 #endif
 #ifdef USE_DCM
   Dcm_Init(NULL);
+#endif
+
+#ifdef USE_TCPIP
+  TcpIp_Init(NULL);
+#endif
+#ifdef USE_SOAD
+  SoAd_Init(NULL);
+#endif
+#ifdef USE_DOIP
+  DoIP_Init(NULL);
+#endif
+#ifdef USE_SD
+  Sd_Init(NULL);
+#endif
+#ifdef USE_SOMEIP
+  SomeIp_Init(NULL);
 #endif
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -287,6 +342,9 @@ Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr
 #ifdef USE_LINTP
   return LinTp_Transmit(TxPduId, PduInfoPtr);
 #endif
+#ifdef USE_DOIP
+  return DoIP_TpTransmit(TxPduId, PduInfoPtr);
+#endif
   return E_NOT_OK;
 }
 
@@ -319,6 +377,18 @@ int main(int argc, char *argv[]) {
 #ifdef USE_DLL
     DLL_MainFunction();
     DLL_MainFunction_Read();
+#endif
+#ifdef USE_TCPIP
+    TcpIp_MainFunction();
+#endif
+#ifdef USE_SOAD
+    SoAd_MainFunction();
+#endif
+#ifdef USE_DOIP
+    DoIP_MainFunction();
+#endif
+#ifdef USE_SD
+    Sd_MainFunction();
 #endif
     App_MainFunction();
 #if defined(_WIN32)

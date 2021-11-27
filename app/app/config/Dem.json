@@ -1,0 +1,96 @@
+{
+  "class": "Dem",
+  "DTCs": [
+    {
+      "name": "DTC0",
+      "number": "0x112200",
+      "priority": 0
+    },
+    {
+      "name": "DTC1",
+      "number": "0x112201",
+      "priority": 1
+    },
+    {
+      "name": "DTC2",
+      "number": "0x112202",
+      "priority": 2
+    },
+    {
+      "name": "DTC3",
+      "number": "0x112203",
+      "priority": 3
+    },
+    {
+      "name": "DTC4",
+      "number": "0x112204",
+      "priority": 4
+    }
+  ],
+  "Environments": [
+    {
+      "name": "Battery",
+      "id": "0x1001",
+      "type": "uint16",
+      "unit": "v"
+    },
+    {
+      "name": "VehileSpeed",
+      "id": "0x1002",
+      "type": "uint16",
+      "unit": "km/h"
+    },
+    {
+      "name": "EngineSpeed",
+      "id": "0x1003",
+      "type": "uint16",
+      "unit": "r/min"
+    },
+    {
+      "name": "Time",
+      "id": "0x1004",
+      "type": "struct",
+      "data": [
+        {
+          "name": "year",
+          "type": "uint8"
+        },
+        {
+          "name": "month",
+          "type": "uint8"
+        },
+        {
+          "name": "day",
+          "type": "uint8"
+        },
+        {
+          "name": "hour",
+          "type": "uint8"
+        },
+        {
+          "name": "minute",
+          "type": "uint8"
+        },
+        {
+          "name": "second",
+          "type": "uint8"
+        }
+      ],
+      "unit": "YY-MM-DD-HH"
+    }
+  ],
+  "ExtendedDatas": [
+    {
+      "name": "FaultOccuranceCounter",
+      "type": "uint8"
+    },
+    {
+      "name": "AgingCounter",
+      "type": "uint8"
+    },
+    {
+      "name": "AgedCounter",
+      "type": "uint8"
+    }
+  ]
+}

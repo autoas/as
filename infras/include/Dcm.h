@@ -209,4 +209,7 @@ Std_ReturnType Dcm_ResetToDefaultSession(void);
 void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew);
 
 void Dcm_PerformReset(uint8_t resetType);
+
+/* @SWS_Dcm_00950 */
+Std_ReturnType Dcm_GetVin(uint8_t *Data);
 #endif /* DCM_H */

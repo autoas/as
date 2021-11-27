@@ -10,6 +10,8 @@
 #include "Std_Types.h"
 #include "MemIf.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define E_EEP_PENDING ((Std_ReturnType)100)
+#define E_EEP_INCONSISTENT ((Std_ReturnType)101)
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint16_t Eep_AddressType;
 typedef uint16_t Eep_LengthType;

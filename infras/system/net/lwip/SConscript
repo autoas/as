@@ -1,0 +1,91 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = Glob('src/*.c')
+
+
+@register_library
+class LibraryLWIP(Library):
+    def get_lwip_objs(self, lwip):
+        sc = '%s/SConscript' % (lwip)
+        if not os.path.isfile(sc):
+            with open(sc, 'w') as f:
+                f.write("objs = Glob('src/api/*.c')\n")
+                f.write("objs += Glob('src/core/*.c')\n")
+                f.write("objs += Glob('src/core/ipv4/*.c')\n")
+                f.write("objs += Glob('src/core/ipv6/*.c')\n")
+                f.write("objs += Glob('src/netif/*.c')\n")
+                f.write("objs += Glob('src/netif/ppp/*.c')\n")
+                f.write("objs += Glob('src/netif/ppp/polarssl/*.c')\n")
+                f.write("Return('objs')")
+        return SConscript(sc, variant_dir='%s/lwip' % (BUILD_DIR), duplicate=0)
+
+    def get_lwip_contrib_objs(self, lwipc):
+        if GetOption('compiler') not in ['GCC']:
+            return []
+        sc = '%s/SConscript' % (lwipc)
+        if not os.path.isfile(sc):
+            with open(sc, 'w') as f:
+                f.write('from building import *\n')
+                f.write("objs = []\n")
+                f.write("if IsPlatformWindows():\n")
+                f.write("    objs += Glob('ports/win32/*.c')\n")
+                f.write("else:\n")
+                f.write("    objs += Glob('ports/unix/port/*.c')\n")
+                f.write("    objs += Glob('ports/unix/port/netif/*.c')\n")
+                f.write("Return('objs')")
+        if IsPlatformWindows():
+            # install the wpcap(https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip) to msys2
+            # copy and rename the *.lib to lib*.a
+            self.CPPPATH += ['%s/ports/win32/' %
+                             (lwipc), '%s/ports/win32/include/' % (lwipc)]
+            self.LIBS = ['packet', 'wpcap', 'ws2_32']
+            PACKET_LIB_ADAPTER_NR = os.getenv('PACKET_LIB_ADAPTER_NR')
+            if PACKET_LIB_ADAPTER_NR == None:
+                print('warning: PACKET_LIB_ADAPTER_NR not set')
+            else:
+                self.CPPDEFINES += ['-DPACKET_LIB_ADAPTER_NR=%s' %
+                                    (PACKET_LIB_ADAPTER_NR)]
+        else:
+            self.LIBS = ['pthread', 'util']
+            self.CPPPATH += ['%s/ports/unix/port/include/' % (lwipc)]
+        return SConscript(sc, variant_dir='%s/lwip-contrib' % (BUILD_DIR), duplicate=0)
+
+    def download(self):
+        lwip = Package(
+            url='https://git.savannah.gnu.org/git/lwip.git', version='STABLE-2_1_x')
+        lwipc = Package(
+            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE')
+        objs = self.get_lwip_objs(lwip)
+        objs += self.get_lwip_contrib_objs(lwipc)
+        self.source += objs
+        self.CPPPATH += ['%s/config' %
+                         (CWD), '%s/src/include' % (lwip)]
+        self.include = self.CPPPATH
+
+    def config(self):
+        self.source = objs
+        self.CPPPATH = []
+        self.CPPDEFINES = []
+        self.download()
+
+
+LWIPC = os.path.relpath('../../../../download/lwip-contrib/')
+objsLwipEx = Glob('%s/examples/example_app/*.c' % (LWIPC))
+objsLwipEx += Glob('%s/apps/httpserver/*.c' % (LWIPC))
+if IsPlatformWindows():
+    objsLwipEx += Glob('%s/ports/win32/example_app/*.c' % (LWIPC))
+else:
+    objsLwipEx += Glob('%s/ports/unix/example_app/*.c' % (LWIPC))
+
+
+@register_application
+class ApplicationLwipExample(Application):
+    def config(self):
+        self.Append(CPPDEFINES=['USE_LWIP', 'USE_STD_DEBUG'])
+        self.CPPPATH = ['$INFRAS', LWIPC]
+        self.CPPDEFINES = ['LWIP_HTTPD_APP', 'LWIP_HTTPD_APP_NETCONN']
+        self.LIBS = ['LWIP']
+        self.source = objsLwipEx

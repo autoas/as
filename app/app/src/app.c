@@ -19,6 +19,7 @@
 /* ================================ [ DECLARES  ] ============================================== */
 extern void User_Init(void);
 extern void User_MainTask10ms(void);
+extern void SomeIp_MainAppTask(void);
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
 static Std_TimerType timer1s;
@@ -82,6 +83,9 @@ void App_MainFunction(void) {
 #if defined(USE_COM) && defined(_WIN32)
     appUpdateComTxMsg();
     appCheckComRxMsg();
+#endif
+#ifdef USE_SOMEIP
+    SomeIp_MainAppTask();
 #endif
   }
 }

@@ -175,7 +175,11 @@ def RunSysCmd(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
     (output, err) = p.communicate()
     p_status = p.wait()
-    return p_status, output.decode('utf-8')
+    try:
+        o = output.decode('utf-8')
+    except UnicodeDecodeError:
+        o = output
+    return p_status, o
 
 
 def Download(url, tgt=None):

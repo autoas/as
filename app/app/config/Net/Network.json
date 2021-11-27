@@ -1,0 +1,75 @@
+{
+  "class": "Net",
+  "Modules": [
+    {
+      "class": "DoIp",
+      "discovery": "224.244.224.245:13400",
+      "max_connections" : 3
+    },
+    {
+      "class": "SomeIp",
+      "SD": {
+        "hostname" : "ssas",
+        "multicast" : "224.244.224.245"
+      },
+      "servers": [
+        {
+          "name": "server0",
+          "service":"0x1234",
+          "instance":"0x5678",
+          "clientId":"0x4444",
+          "unreliable":"30560",
+          "methods": [
+            {
+              "name" : "method1",
+              "methodId" : "0x421",
+              "version" : "0"
+            }
+          ],
+          "event-groups": [
+            {
+              "name": "event_group1",
+              "groupId": "0x8001",
+              "events": [
+                {
+                  "name" : "event0",
+                  "eventId": "0xbeef",
+                  "version" : "0"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "clients": [
+        {
+          "name": "client0",
+          "service":"0xabcd",
+          "instance":"0xbeef",
+          "clientId":"0x5555",
+          "unreliable":"30568",
+          "methods": [
+            {
+              "name" : "method2",
+              "methodId" : "0x424",
+              "version" : "0"
+            }
+          ],
+          "event-groups": [
+            {
+              "name": "event_group2",
+              "groupId": "0x8002",
+              "events": [
+                {
+                  "name" : "event0",
+                  "eventId": "0xabcd",
+                  "version" : "0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

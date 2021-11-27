@@ -1,0 +1,55 @@
+{
+    "class": "NvM",
+    "target": "Ea",
+    "blocks": [
+        {
+            "name": "Dem_NvmEventStatusRecord{}",
+            "repeat": 5,
+            "data": [
+                {
+                    "name": "status",
+                    "type": "uint8",
+                    "default": "0x50"
+                },
+                {
+                    "name": "testFailedCounter",
+                    "type": "uint8",
+                    "default": 0
+                },
+                {
+                    "name": "faultOccuranceCounter",
+                    "type": "uint8",
+                    "default": 0
+                },
+                {
+                    "name": "agingCounter",
+                    "type": "uint8",
+                    "default": 0
+                },
+                {
+                    "name": "agedCounter",
+                    "type": "uint8",
+                    "default": 0
+                }
+            ]
+        },
+        {
+            "name": "Dem_NvmFreezeFrameRecord{}",
+            "repeat": 5,
+            "data": [
+                {
+                    "name": "EventId",
+                    "type": "uint16",
+                    "default": "0xFFFF"
+                },
+                {
+                    "name": "record{}",
+                    "repeat": 2,
+                    "type": "uint8_n",
+                    "size": 13,
+                    "default": "[[0xFF]*13, [0xFF]*13]"
+                }
+            ]
+        }
+    ]
+}

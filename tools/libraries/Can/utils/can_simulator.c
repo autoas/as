@@ -159,7 +159,6 @@ static int init_socket(int port) {
   if (s < 0) {
     printf("socket function failed with error: %d\n", WSAGetLastError());
     return FALSE;
-    ;
   }
 
   service.sin_family = AF_INET;

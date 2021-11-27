@@ -53,6 +53,7 @@ typedef struct {
 #endif
 #ifdef NVM_BLOCK_USE_CRC
   NvM_BlockCrcType CrcType;
+  const void *Rom;
 #endif
 #if 0
   uint8_t JobPriority; /* 0 = Immediate priority */
@@ -67,6 +68,9 @@ struct NvM_Config_s {
   /* If NVM builtin Job Queue is FULL, use this masks to request read/write */
   uint16_t *readMasks;
   uint16_t *writeMasks;
+#ifdef NVM_BLOCK_USE_CRC
+  uint8_t *workingArea;
+#endif
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
