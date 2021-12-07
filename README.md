@@ -44,11 +44,11 @@ This project now provide below tools & libraries:
 
 ​	**IsoTp**: LIN or CAN(CANFD) Transport Layer(ISO15765)
 
-​	**Loader**: A library use for bootloader
+​	**Loader**: A library used for bootloader
 
 ​	**AsOne**: PyQT5 based GUI tool for Com/Dcm
 
-	**DoIPClient** : DoIP client library to access DoIP server
+​	**DoIPClient**: DoIP client library to access DoIP server
 
 
 ## prebuilt demo applications and its tools

@@ -887,7 +887,7 @@ class Library(BuildBase):
                 except KeyError:
                     pass
         if self.is_shared_library():
-            return [env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS) for c in self.source]
+            return [c if str(c).endswith('.a') else env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS) for c in self.source]
         return [c if str(c).endswith('.a') else env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS) for c in self.source]
 
     def build(self):
@@ -903,7 +903,16 @@ class Library(BuildBase):
         if self.is_shared_library():
             LIBS = env.get('LIBS', []) + self.__extra_libs__
             LINKFLAGS = getattr(self, 'LINKFLAGS', []) + \
-                env.get('LINKFLAGS', [])
+                env.get('LINKFLAGS', []) + ['-static']
+            objs2 = []
+            for obj in objs:
+                if not str(obj).endswith('.a'):
+                    objs2.append(obj)
+                else:
+                    libName = os.path.basename(obj)[3:-2]
+                    LIBPATH.append(os.path.dirname(obj))
+                    LIBS.insert(0, libName)
+            return env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         return env.Library(libName, [obj for obj in objs if isinstance(obj, SCons.Node.NodeList)])
 
 

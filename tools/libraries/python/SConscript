@@ -1,0 +1,16 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.cpp')
+
+
+@register_library
+class LibraryAsPy(Library):
+    shared = True
+    compiler = 'PYCC'
+
+    def config(self):
+        self.LIBS = ['CanLib', 'IsoTp']
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs

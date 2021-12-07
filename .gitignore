@@ -1,4 +1,5 @@
 *.o
+*.os
 *.exe
 *.so
 *.dll
