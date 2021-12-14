@@ -52,6 +52,7 @@ objsCanSim = Glob('utils/can_simulator.c')
 @register_application
 class ApplicationCanSimulator(Application):
     def config(self):
+        self.CPPPATH = ['$INFRAS']
         if IsPlatformWindows():
             self.LIBS = ['wsock32']
         self.source = objsCanSim
