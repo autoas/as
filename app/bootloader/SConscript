@@ -12,6 +12,7 @@ objsBL = Glob('src/*.c')
 class LibraryBL(Library):
     def config(self):
         self.include = '%s/include'%(CWD)
+        self.LIBS = ['Crc']
         self.CPPPATH = ['$INFRAS']
         self.source = objsBL
 
@@ -19,7 +20,7 @@ objsAppBL = Glob('*.c')
 class ApplicationBL(Application):
     def config(self):
         self.CPPDEFINES = []
-        self.LIBS = ['BL', 'StdTimer', 'Crc']
+        self.LIBS = ['StdTimer']
         for libName, source in self.libsForBL.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
@@ -28,17 +29,33 @@ class ApplicationBL(Application):
         self.source = objsAppBL
 
 libsForCanBL = {}
-for libName in ['Dcm', 'CanTp']:
+for libName in ['BL', 'Dcm', 'CanTp']:
     libsForCanBL[libName] = Glob('config/%s_Cfg.c'%(libName))
 @register_application
 class ApplicationCanBL(ApplicationBL):
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s'%(LL_DL)])
         self.LIBS.append('Simulator')
     def config(self):
+        if LL_DL != None:
+            self.Append(CPPDEFINES=['CANTP_LL_DL=%s'%(LL_DL)])
         self.libsForBL = libsForCanBL
         super().config()
         self.Append(CPPDEFINES=['USE_CAN'])
+        self.platform_config()
+
+libsForLinBL = {}
+for libName in ['BL', 'Dcm', 'LinTp']:
+    libsForLinBL[libName] = Glob('config/%s_Cfg.c'%(libName))
+libsForLinBL['Dll:lvds.slave'] = Glob('config/Dll_Cfg.c')
+@register_application
+class ApplicationLinBL(ApplicationBL):
+    def platform_config(self):
+        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.LIBS.append('Simulator')
+    def config(self):
+        if LL_DL != None:
+            self.Append(CPPDEFINES=['LINTP_LL_DL=%s'%(LL_DL)])
+        self.libsForBL = libsForLinBL
+        super().config()
         self.platform_config()

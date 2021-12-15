@@ -18,5 +18,9 @@ release
 *.pyd
 SeedToKey.py
 *.ini
+*.bin
+*.map
+*.s19
+*.s19.sign
 
 libPCANBasic.a

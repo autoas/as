@@ -47,12 +47,12 @@ libsForCanApp.update(libsCommon)
 @register_application
 class ApplicationCanApp(ApplicationApp):
     def platform_config(self):
-        if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
         self.Append(CPPDEFINES=['USE_STD_DEBUG'])
         self.LIBS.append('Simulator')
 
     def config(self):
+        if LL_DL != None:
+            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
         self.libsForApp = libsForCanApp
         super().config()
         self.Append(CPPDEFINES=['USE_CAN'])

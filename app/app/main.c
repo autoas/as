@@ -306,13 +306,12 @@ StatusType D_WindowDataReq(NetIdType NetId, NMPduType *NMPDU, uint8_t DataLength
   StatusType ercd;
   Can_PduType canPdu;
 
-  assert(0 == NetId);
   canPdu.swPduHandle = 2;
   canPdu.id = 0x500 + NMPDU->Source;
   canPdu.length = DataLengthTx;
   canPdu.sdu = &NMPDU->Destination;
 
-  ercd = Can_Write(0, &canPdu);
+  ercd = Can_Write(NetId, &canPdu);
 
   return ercd;
 }

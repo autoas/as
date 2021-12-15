@@ -14,7 +14,16 @@
 #define AS_LOG_BL 0
 #define AS_LOG_BLI 1
 #define AS_LOG_BLE 2
+
+#define BL_FLASH_IDENTIFIER 0xFF
+#define BL_EEPROM_IDENTIFIER 0xEE
+#define BL_FLSDRV_IDENTIFIER 0xFD
 /* ================================ [ TYPES     ] ============================================== */
+typedef struct {
+  uint32_t addressLow;
+  uint32_t addressHigh;
+  uint8_t identifier;
+} BL_MemoryInfoType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern boolean BL_IsUpdateRequested(void);
 extern void BL_JumpToApp(void);

@@ -25,9 +25,11 @@
 #define DCM_USE_SERVICE_REQUEST_TRANSFER_EXIT
 #define DCM_USE_SERVICE_ROUTINE_CONTROL
 #define DCM_USE_SERVICE_ECU_RESET
+#ifdef USE_DEM
 #define DCM_USE_SERVICE_CONTROL_DTC_SETTING
 #define DCM_USE_SERVICE_CLEAR_DIAGNOSTIC_INFORMATION
 #define DCM_USE_SERVICE_READ_DTC_INFORMATION
+#endif
 #define DCM_USE_SERVICE_TESTER_PRESENT
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

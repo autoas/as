@@ -551,11 +551,39 @@ def CompilerArmGCC(**kwargs):
     env['CC'] = '%s/bin/arm-none-eabi-gcc' % (cpl)
     env['CXX'] = '%s/bin/arm-none-eabi-g++' % (cpl)
     env['AS'] = '%s/bin/arm-none-eabi-gcc -c' % (cpl)
-    env['LINK'] = '%s/bin/arm-none-eabi-gcc' % (cpl)
+    env['LINK'] = '%s/bin/arm-none-eabi-ld' % (cpl)
     env['S19'] = '%s/bin/arm-none-eabi-objcopy -O srec --srec-forceS3 --srec-len 32 {0} {1}' % (
         cpl)
     env.Append(CPPFLAGS=['-ffunction-sections', '-fdata-sections'])
-    env.Append(LINKFLAGS=['-Wl,--gc-sections'])
+    env.Append(LINKFLAGS=['--gc-sections'])
+    return env
+
+
+@register_compiler
+def CompilerArm64GCC(**kwargs):
+    env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
+    env.Append(CPPFLAGS=['-Wall', '-std=gnu99', '-fno-stack-protector'])
+    if not GetOption('strip'):
+        env.Append(CPPFLAGS=['-g'])
+    if(IsPlatformWindows()):
+        gccarm64 = 'gcc-linaro-7.2.1-2017.11-i686-mingw32_aarch64-elf.tar.xz'
+    else:
+        gccarm64 = 'gcc-linaro-7.2.1-2017.11-x86_64_aarch64-elf.tar.xz'
+    ARM64GCC = os.getenv('ARM64GCC')
+    if ARM64GCC != None:
+        cpl = ARM64GCC
+    else:
+        pkg = Package(
+            'https://releases.linaro.org/components/toolchain/binaries/7.2-2017.11/aarch64-elf/%s' % (gccarm64))
+        cpl = '%s/%s' % (pkg, gccarm64[:-7])
+    env['CC'] = '%s/bin/aarch64-elf-gcc' % (cpl)
+    env['CXX'] = '%s/bin/aarch64-elf-g++' % (cpl)
+    env['AS'] = '%s/bin/aarch64-elf-gcc -c' % (cpl)
+    env['LINK'] = '%s/bin/aarch64-elf-ld' % (cpl)
+    env['S19'] = '%s/bin/aarch64-elf-objcopy -O srec --srec-forceS3 --srec-len 32 {0} {1}' % (
+        cpl)
+    env.Append(CPPFLAGS=['-ffunction-sections', '-fdata-sections'])
+    env.Append(LINKFLAGS=['--gc-sections'])
     return env
 
 
@@ -588,6 +616,9 @@ def CompilerCM0PGCC(**kwargs):
     env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m0plus'])
     env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
     env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
+    env['LINK'] = env['LINK'][:-2] + 'gcc'
+    env['LINKFLAGS'].remove('--gc-sections')
+    env.Append(LINKFLAGS=['-Wl,--gc-sections'])
     return env
 
 
@@ -734,6 +765,11 @@ class BuildBase():
         self.__extra_libs__ = []
         for name in getattr(self, 'LIBS', []):
             self.ensure_lib(name)
+
+    def AddPostAction(self, action):
+        if not hasattr(self, '__post_actions__'):
+            self.__post_actions__ = []
+        self.__post_actions__.append(action)
 
     def Append(self, **kwargs):
         env = self.ensure_env()
@@ -969,7 +1005,108 @@ class Application(BuildBase):
             action = env['S19'].format(
                 target[0].get_abspath(), '%s/%s.s19' % (BUILD_DIR, appName))
             env.AddPostAction(target, action)
+        for action in getattr(self, '__post_actions__', []):
+            env.AddPostAction(target, action)
 
+
+class Qemu():
+    def __init__(self, arch='arm64'):
+        arch_map = {'x86': 'i386', 'cortex-m': 'arm', 'arm64': 'aarch64'}
+        self.arch = arch
+        self.port = self.FindPort()
+        self.portCAN0 = self.FindPort(self.port+1)
+        self.params = '-serial tcp:127.0.0.1:%s,server -serial tcp:127.0.0.1:%s,server' % (self.port, self.portCAN0)
+        if('gdb' in COMMAND_LINE_TARGETS):
+            self.params += ' -gdb tcp::1234 -S'
+        if(self.arch in arch_map.keys()):
+            self.arch = arch_map[self.arch]
+        self.qemu = self.FindQemu()
+
+    def FindPort(self, port = 1103):
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while(port < 2000):
+            try:
+                sock.bind(("127.0.0.1", port))
+                break
+            except:
+                port += 1
+        sock.close()
+        return port
+
+    def FindQemu(self):
+        qemu = 'qemu-system-%s' % (self.arch)
+        if(IsPlatformWindows()):
+            qemu += '.exe'
+        return qemu
+
+    def Run(self, params):
+        import threading
+        self.is_running = True
+        t1 = threading.Thread(target=self.thread_stdio, args=())
+        t2 = threading.Thread(target=self.thread_can0, args=())
+        t1.start()
+        t2.start()
+        cmd = '%s %s %s'%(self.qemu, params, self.params)
+        RunCommand(cmd)
+        self.is_running = False
+        t1.join()
+        t2.join()
+        exit(0)
+
+    def thread_stdio(self):
+        import socket
+        import time
+        import keyboard
+        import threading
+        time.sleep(3)
+        self.com = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.com.connect(('127.0.0.1', self.port))
+        self.com.settimeout(0.001)
+        print('QEMU: UART terminal online')
+        def thread_key():
+            while(self.is_running):
+                p = keyboard.read_key()
+                self.com.send(p.encode('utf-8'))
+                time.sleep(1)
+        t1 = threading.Thread(target=thread_key, args=())
+        t1.start()
+        while(self.is_running):
+            try:
+                d = self.com.recv(4096)
+                if (len(d)):
+                    print(d.decode('utf-8'), end='')
+            except socket.timeout:
+                pass
+        t1.join()
+
+    def thread_can0(self):
+        import socket
+        import time
+        time.sleep(3)
+        self.canbus = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.canbus.connect(('127.0.0.1', 80))
+        self.canbus.settimeout(0.001)
+        self.can0 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.can0.connect(('127.0.0.1', self.portCAN0))
+        self.can0.settimeout(0.001)
+        while(self.is_running):
+            try:
+                frame = self.canbus.recv(69)
+                while((len(frame) < 69) and (len(frame) > 0)):
+                    frame += self.canbus.recv(69-len(frame))
+                if (len(frame) == 69):
+                    self.can0.send(frame)
+            except socket.timeout:
+                pass
+            try:
+                frame = self.can0.recv(69)
+                while((len(frame) < 69) and (len(frame) > 0)):
+                    frame += self.can0.recv(69-len(frame))
+                if (len(frame) == 69):
+                    self.canbus.send(frame)
+            except socket.timeout:
+                pass
 
 def Building():
     appName = GetOption('application')

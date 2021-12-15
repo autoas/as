@@ -16,6 +16,10 @@ class LibraryCanLib(Library):
         self.CPPPATH += ['%s/PCAN-Basic API/Include' % (peakcan)]
         shutil.copy('%s/PCAN-Basic API/x64/VC_LIB/PCANBasic.lib' %
                     (peakcan), '%s/libPCANBasic.a' % (BUILD_DIR))
+        dll = '%s/mingw64/bin/PCANBasic.dll' % (os.getenv('MSYS2'))
+        if not os.path.isfile(dll):
+            shutil.copy('%s/PCAN-Basic API/x64/PCANBasic.dll' %
+                        (peakcan), dll)
         self.LIBS += ['PCANBasic']
         self.LIBPATH += [BUILD_DIR]
 
