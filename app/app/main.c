@@ -115,7 +115,7 @@ static void MainTask_10ms(void) {
   CanTp_MainFunction();
 #endif
 #ifdef USE_OSEKNM
-  NM_MainFunction();
+  OsekNm_MainFunction();
 #endif
 #ifdef USE_CANNM
   CanNm_MainFunction();
@@ -233,7 +233,7 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
     NMPduType NMPDU;
     NMPDU.Source = Mailbox->CanId - 0x500;
     memcpy(&NMPDU.Destination, PduInfoPtr->SduDataPtr, 8);
-    NM_RxIndication(Mailbox->ControllerId, &NMPDU);
+    OsekNm_RxIndication(Mailbox->ControllerId, &NMPDU);
   }
 #endif
 #ifdef USE_CANNM
@@ -258,7 +258,7 @@ void CanIf_TxConfirmation(PduIdType CanTxPduId) {
 #endif
 #ifdef USE_OSEKNM
   case 2:
-    NM_TxConformation((NetIdType)0);
+    OsekNm_TxConformation((NetIdType)0);
     break;
 #endif
 #ifdef USE_CANNM

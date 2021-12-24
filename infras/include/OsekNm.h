@@ -8,6 +8,7 @@
 #define _OSEK_NM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#include "NmStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* @ nm253.pdf 4.3 P89 */
 typedef uint8_t NodeIdType;
@@ -63,12 +64,15 @@ StatusType SilentNM(NetIdType);
 StatusType TalkNM(NetIdType);
 StatusType GotoMode(NetIdType NetId, NMModeName NewMode);
 
-void NM_TxConformation(NetIdType NetId);
-void NM_RxIndication(NetIdType NetId, NMPduType *NMPDU);
-void NM_WakeupIndication(NetIdType NetId);
-void NM_BusErrorIndication(NetIdType NetId);
 
-void NM_MainFunction(void);
+StatusType OsekNm_GetState(NetIdType NetId, Nm_ModeType *nmModePtr);
+
+void OsekNm_TxConformation(NetIdType NetId);
+void OsekNm_RxIndication(NetIdType NetId, NMPduType *NMPDU);
+void OsekNm_WakeupIndication(NetIdType NetId);
+void OsekNm_BusErrorIndication(NetIdType NetId);
+
+void OsekNm_MainFunction(void);
 
 void D_Init(NetIdType NetId, RoutineRefType Routine);
 void D_Offline(NetIdType NetId);
