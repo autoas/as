@@ -1,0 +1,11 @@
+from building import *
+
+objs = Glob('src/*.c')
+
+
+@register_library
+class LibrarySimulator(Library):
+    def config(self):
+        self.LIBS = ['CanLib']
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs
