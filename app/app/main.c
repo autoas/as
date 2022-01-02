@@ -80,6 +80,10 @@
 #include "SomeIp.h"
 #endif
 
+#ifdef USE_PLUGIN
+#include "plugin.h"
+#endif
+
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
@@ -131,6 +135,9 @@ static void MainTask_10ms(void) {
   MemoryTask();
 #ifdef USE_DCM
   Dcm_MainFunction();
+#endif
+#ifdef USE_PLUGIN
+  plugin_main();
 #endif
 }
 
@@ -208,6 +215,9 @@ static void BSW_Init(void) {
 #endif
 #ifdef USE_SOMEIP
   SomeIp_Init(NULL);
+#endif
+#ifdef USE_PLUGIN
+  plugin_init();
 #endif
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

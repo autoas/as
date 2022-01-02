@@ -12,17 +12,17 @@ This project now provide below BSWs:
 	CanTp
 	Dem
 	Dcm
-
+	
 	OsekNm
 	CanNm
-
+	
 	Fls
 	Fee
 	Eep
 	Ea
 	MemIf (zero cost only)
 	NvM
-
+	
 	TcpIP (socket based, LWIP is supported)
 	SoAd
 	DoIP
@@ -56,4 +56,18 @@ This project now provide below tools & libraries:
 * [CAN bootloader demo](examples/CAN-BOOTLOADER.md)
 * [CanNm](examples/CanNm.md)
 * [OsekNm](examples/OsekNm.md)
+
+## Funny demos
+
+​	**Cluster & Watch**: legacy things from [as](https://github.com/autoas/as), something like:
+
+![Cluster](https://github.com/autoas/as/raw/gh-pages/images/ascore_posix_vic.gif)
+
+```sh
+git submodule update --init --recursive
+scons --app=Cluster
+scons --app=Watch
+```
+
+
 

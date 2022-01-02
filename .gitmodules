@@ -1,0 +1,3 @@
+[submodule "app/platform/static-gui"]
+    path = app/platform/static-gui
+    url = https://github.com/autoas/static-gui.git
