@@ -15,7 +15,9 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef AS_LOG_DEFAULT
 #define AS_LOG_DEFAULT 1
+#endif
 #define AS_LOG_DEBUG 1
 #define AS_LOG_INFO 2
 #define AS_LOG_WARN 3

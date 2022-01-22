@@ -11,6 +11,7 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
 Dem_NvmEventStatusRecordType Dem_NvmEventStatusRecord0_Ram;
 Dem_NvmEventStatusRecordType Dem_NvmEventStatusRecord1_Ram;
 Dem_NvmEventStatusRecordType Dem_NvmEventStatusRecord2_Ram;

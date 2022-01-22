@@ -1,0 +1,20 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.cpp')
+
+
+@register_library
+class LibraryPyFee(Library):
+    shared = True
+    compiler = 'PYCC'
+
+    def config(self):
+        self.LIBS = ['Fee', 'Fls', 'FlsAc']
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF', 'USE_FLS'])
+        self.Append(CPPDEFINES=['FLS_AC_RAM_ONLY'])
+        self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
+        self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK', 'FLS_ERASED_VALUE=0xFF'])
+        self.Append(CPPDEFINES=['AS_LOG_DEFAULT=0'])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs

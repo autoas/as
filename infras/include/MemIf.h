@@ -8,6 +8,9 @@
 #define MEMIF_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef MEMIF_ZERO_COST_FEE
 #define MemIf_Read(DeviceIndex, BlockNumber, BlockOffset, DataBufferPtr, Length)                   \
@@ -68,5 +71,8 @@ MemIf_StatusType MemIf_GetStatus(uint8_t DeviceIndex);
 MemIf_JobResultType MemIf_GetJobResult(uint8_t DeviceIndex);
 Std_ReturnType MemIf_InvalidateBlock(uint8_t DeviceIndex, uint16_t BlockNumber);
 Std_ReturnType MemIf_EraseImmediateBlock(uint8_t DeviceIndex, uint16_t BlockNumber);
+#endif
+#ifdef __cplusplus
+}
 #endif
 #endif /* MEMIF_H */

@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "MemIf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Ea_Config_s Ea_ConfigType;
@@ -31,4 +34,7 @@ void Ea_JobEndNotification(void);
 void Ea_JobErrorNotification(void);
 
 void Ea_MainFunction(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* EA_H */

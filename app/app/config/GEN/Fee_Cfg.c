@@ -68,6 +68,7 @@ const Fee_ConfigType Fee_Config = {
   (uint8_t*)Fee_WorkingArea,
   sizeof(Fee_WorkingArea),
   FEE_MAX_JOB_RETRY,
+  FEE_MAX_DATA_SIZE,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */

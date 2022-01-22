@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "MemIf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Fee_Config_s Fee_ConfigType;
@@ -31,4 +34,7 @@ void Fee_JobEndNotification(void);
 void Fee_JobErrorNotification(void);
 
 void Fee_MainFunction(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* FEE_H */

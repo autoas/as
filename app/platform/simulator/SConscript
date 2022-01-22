@@ -9,3 +9,10 @@ class LibrarySimulator(Library):
         self.LIBS = ['CanLib']
         self.CPPPATH = ['$INFRAS']
         self.source = objs
+
+objsFlsAc = Glob('src/FlsAc.c') + Glob('src/critical.c')
+@register_library
+class LibraryFlsAc(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsFlsAc

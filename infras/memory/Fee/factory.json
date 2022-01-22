@@ -1,0 +1,53 @@
+{
+  "class": "Factory",
+  "name": "Fee",
+  "events": ["End", "Error"],
+  "machines": [
+    {
+      "name" : "Init",
+      "nodes" : [
+        "ReadBankAdmin",
+        "BlankCheckInfo",
+        "BlankCheckBlock",
+        "EraseInvalidBank",
+        "CheckBankInfo",
+        "CheckBankMagic",
+        "GetWorkingBank",
+        "SearchFreeSpace"
+      ]
+    },
+    {
+      "name" : "Read",
+      "nodes" : [
+        "ReadData",
+        "SearchNext"
+      ]
+    },
+    {
+      "name" : "Write",
+      "nodes" : [
+        "WriteAdmin",
+        "WriteData"
+      ]
+    },
+    {
+      "name" : "Backup",
+      "nodes" : [
+        "ReadAdmin",
+        "CheckBankStatus",
+        "EnsureFull",
+        "ReadNextBankAdmin",
+        "BlankCheckNextBankEmpty",
+        "EnsureNextBankEmpty",
+        "EraseNextBank",
+        "SetNextBankAdmin",
+        "CopyAdmin",
+        "CopyReadData",
+        "SearchNextData",
+        "CopyData",
+        "EraseBank",
+        "SetBankAdmin"
+      ]
+    }
+  ]
+}

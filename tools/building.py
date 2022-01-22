@@ -534,7 +534,8 @@ def query_application(name):
 @register_compiler
 def CompilerArmGCC(**kwargs):
     env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
-    env.Append(CPPFLAGS=['-Wall', '-std=gnu99'])
+    env.Append(CFLAGS=['-std=gnu99'])
+    env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
     if(IsPlatformWindows()):
@@ -562,7 +563,8 @@ def CompilerArmGCC(**kwargs):
 @register_compiler
 def CompilerArm64GCC(**kwargs):
     env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
-    env.Append(CPPFLAGS=['-Wall', '-std=gnu99', '-fno-stack-protector'])
+    env.Append(CFLAGS=['-std=gnu99'])
+    env.Append(CPPFLAGS=['-Wall', '-fno-stack-protector'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
     if(IsPlatformWindows()):
@@ -625,7 +627,8 @@ def CompilerCM0PGCC(**kwargs):
 @register_compiler
 def CompilerGCC(**kwargs):
     env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
-    env.Append(CPPFLAGS=['-Wall', '-std=gnu99'])
+    env.Append(CFLAGS=['-std=gnu99'])
+    env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
     return env
@@ -676,7 +679,8 @@ def AddPythonDev(env):
 @register_compiler
 def CompilerPYCC(**kwargs):
     env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
-    env.Append(CPPFLAGS=['-Wall', '-std=gnu99'])
+    env.Append(CFLAGS=['-std=gnu99'])
+    env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
     AddPythonDev(env)
@@ -785,6 +789,10 @@ class BuildBase():
                     for vv in v:
                         env[key].remove(vv)
 
+    def ParseConfig(self, cmd):
+        env = self.ensure_env()
+        env.ParseConfig(cmd)
+
     def ensure_env(self):
         if self.env is None:
             cplName = getattr(self, 'compiler', GetOption('compiler'))
@@ -833,6 +841,9 @@ class BuildBase():
                                (name, self.user.__class__.__name__))
         else:
             RegisterConfig(name, source, force)
+        # register a special config path for the module
+        path = os.path.dirname(str(source[0]))
+        self.RegisterCPPPATH('$%s_Cfg' % (name), path)
 
     def RequireConfig(self, name):
         if hasattr(self, 'user') and self.user:
@@ -902,6 +913,7 @@ class Library(BuildBase):
         CPPPATH = getattr(self, 'CPPPATH', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
+        CFLAGS = env.get('CFLAGS', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
         CPPPATH = [self.RequireCPPPATH(p) if p.startswith(
             '$') else p for p in CPPPATH] + env.get('CPPPATH', [])
@@ -923,8 +935,8 @@ class Library(BuildBase):
                 except KeyError:
                     pass
         if self.is_shared_library():
-            return [c if str(c).endswith('.a') else env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS) for c in self.source]
-        return [c if str(c).endswith('.a') else env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS) for c in self.source]
+            return [c if str(c).endswith('.a') else env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS) for c in self.source]
+        return [c if str(c).endswith('.a') else env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS) for c in self.source]
 
     def build(self):
         libName = self.name
@@ -945,9 +957,9 @@ class Library(BuildBase):
                 if not str(obj).endswith('.a'):
                     objs2.append(obj)
                 else:
-                    libName = os.path.basename(obj)[3:-2]
+                    name = os.path.basename(obj)[3:-2]
                     LIBPATH.append(os.path.dirname(obj))
-                    LIBS.insert(0, libName)
+                    LIBS.insert(0, name)
             return env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         return env.Library(libName, [obj for obj in objs if isinstance(obj, SCons.Node.NodeList)])
 
@@ -971,7 +983,7 @@ class Application(BuildBase):
     def build(self):
         env = self.ensure_env()
         appName = self.name
-        LIBS = []
+        LIBS = env.get('LIBS', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
@@ -982,13 +994,18 @@ class Application(BuildBase):
         objs = self.source
         LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
         for name in self.__libs_order__:
+            libObjs = []
             for obj in self.__libs__[name].objs():
                 if not str(obj).endswith('.a'):
                     objs.append(obj)
+                    if '%s_Cfg' % (name) not in str(obj):
+                        libObjs.append(obj)
                 else:
                     libName = os.path.basename(obj)[3:-2]
                     LIBPATH.append(os.path.dirname(obj))
                     LIBS.append(libName)
+            if (len(libObjs) > 0):
+                env.Library(name, libObjs)
             try:
                 libInclude = self.RequireCPPPATH('$%s' % (name))
                 CPPPATH.append(libInclude)
@@ -1015,14 +1032,15 @@ class Qemu():
         self.arch = arch
         self.port = self.FindPort()
         self.portCAN0 = self.FindPort(self.port+1)
-        self.params = '-serial tcp:127.0.0.1:%s,server -serial tcp:127.0.0.1:%s,server' % (self.port, self.portCAN0)
+        self.params = '-serial tcp:127.0.0.1:%s,server -serial tcp:127.0.0.1:%s,server' % (
+            self.port, self.portCAN0)
         if('gdb' in COMMAND_LINE_TARGETS):
             self.params += ' -gdb tcp::1234 -S'
         if(self.arch in arch_map.keys()):
             self.arch = arch_map[self.arch]
         self.qemu = self.FindQemu()
 
-    def FindPort(self, port = 1103):
+    def FindPort(self, port=1103):
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         while(port < 2000):
@@ -1047,7 +1065,7 @@ class Qemu():
         t2 = threading.Thread(target=self.thread_can0, args=())
         t1.start()
         t2.start()
-        cmd = '%s %s %s'%(self.qemu, params, self.params)
+        cmd = '%s %s %s' % (self.qemu, params, self.params)
         RunCommand(cmd)
         self.is_running = False
         t1.join()
@@ -1064,6 +1082,7 @@ class Qemu():
         self.com.connect(('127.0.0.1', self.port))
         self.com.settimeout(0.001)
         print('QEMU: UART terminal online')
+
         def thread_key():
             while(self.is_running):
                 p = keyboard.read_key()
@@ -1107,6 +1126,7 @@ class Qemu():
                     self.canbus.send(frame)
             except socket.timeout:
                 pass
+
 
 def Building():
     appName = GetOption('application')

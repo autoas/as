@@ -1,4 +1,6 @@
 from building import *
+for sc in Glob('*/SConscript'):
+    SConscript(sc)
 
 CWD = GetCurrentDir()
 objs = Glob('*.cpp')

@@ -48,6 +48,8 @@ libsForCanApp.update(libsCommon)
 class ApplicationCanApp(ApplicationApp):
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_PLUGIN'])
+        self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK', 'FLS_ERASED_VALUE=0xFF'])
+        self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
         self.LIBS.append('Simulator')
         self.LIBS.append('Plugin')
 

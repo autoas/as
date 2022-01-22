@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "MemIf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define E_FLS_PENDING ((Std_ReturnType)100)
 #define E_FLS_INCONSISTENT ((Std_ReturnType)101)
@@ -62,4 +65,7 @@ void Fls_SetMode(MemIf_ModeType Mode);
 Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Length);
 
 void Fls_MainFunction(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* FLS_H */
