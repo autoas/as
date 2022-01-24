@@ -52,7 +52,7 @@ extern "C" {
  *   +------------------------+                  |
  *       | BN  | ~BN  |   Address    | ----------/
  *       | Full Magic | ~ Full Magic | <- Status -\
- *       | Number     | ~ Number     | <- Info     + <- Header
+ *       | Number     | ~ Number     | <- Info     + <- Bank Admin
  * Low:  | FEE Magic  | ~ FEE Magic  | <- Header -/
  */
 typedef struct {
