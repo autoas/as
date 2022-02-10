@@ -24,3 +24,5 @@ SeedToKey.py
 *.s19.sign
 
 libPCANBasic.a
+
+build
