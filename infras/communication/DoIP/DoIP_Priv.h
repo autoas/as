@@ -41,7 +41,19 @@
 #ifndef DOIP_MAX_ROUTINE_ACTIVATIONS
 #define DOIP_MAX_ROUTINE_ACTIVATIONS 32
 #endif
+
+#define DOIP_GATEWAY 0x00
+#define DOIP_NODE 0x01
 /* ================================ [ TYPES     ] ============================================== */
+/* Architecture of DoIP
+ *  SoAd provides one DOIP_UDP socket, which will be used both for broadcast vehicle
+ * announcement and unicast UDP service process.
+ *  SoAd provides one DOIP_TCP_SERVER socket as server, this will be used to accept
+ * new connection from the tester and socket DOIP_TCP_APTx(x < MAX_APT) will be used
+ * for the new connection.
+ *   According to DOIP Channel definition, a channel is unique connection between
+ * the configured tester and target address.
+ */
 /* @ECUC_DoIP_00035, @SWS_DoIP_00048 */
 typedef Std_ReturnType (*DoIP_RoutingActivationAuthenticationCallbackType)(
   boolean *Authentified, const uint8_t *AuthenticationReqData, uint8_t *AuthenticationResData);
@@ -53,6 +65,7 @@ typedef Std_ReturnType (*DoIP_RoutingActivationConfirmationCallbackType)(
 typedef Std_ReturnType (*DoIP_GetVinFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetEIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetGIDFncType)(uint8_t *Data);
+typedef Std_ReturnType (*DoIP_GetPowerModeStatusFncType)(uint8_t *PowerState);
 
 typedef enum
 {
@@ -79,20 +92,20 @@ typedef struct {
   PduLengthType TpSduLength;
   PduLengthType index;
   const DoIP_TargetAddressType *TargetAddressRef;
+  uint8_t *req; /* len = NumByteDiagAckNack */
 } DoIP_MessageContextType;
 
 typedef struct DoIP_Tester_s DoIP_TesterType;
 
 /* @ECUC_DoIP_00030 */
 typedef struct {
-  uint8_t Number;
+  uint8_t Number; /* @ECUC_DoIP_00033 */
   uint8_t OEMReqLen;
   uint8_t OEMResLen;
-  const DoIP_TargetAddressType *TargetAddressRefs;
-  uint8_t numOfTargetAddressRefs;
+  const DoIP_TargetAddressType *const *TargetAddressRefs; /* @ECUC_DoIP_00034 */
+  uint16_t numOfTargetAddressRefs;
   DoIP_RoutingActivationAuthenticationCallbackType AuthenticationCallback;
   DoIP_RoutingActivationConfirmationCallbackType ConfirmationCallback;
-  const DoIP_TesterType *tester;
 } DoIP_RoutingActivationType;
 
 typedef enum
@@ -122,33 +135,31 @@ typedef struct {
   boolean isAlive;
 } DoIP_TesterConnectionContextType;
 
-/* @ECUC_DoIP_00032 */
 typedef struct {
   DoIP_TesterConnectionContextType *context;
   SoAd_SoConIdType SoConId;
   PduIdType SoAdTxPdu;
-  uint16_t InitialInactivityTime;
-  uint16_t GeneralInactivityTime;
-  uint16_t AliveCheckResponseTimeout;
 } DoIP_TesterConnectionType;
 
 /* @ECUC_DoIP_00031 */
 struct DoIP_Tester_s {
-  uint16_t TesterSA;
-  const DoIP_RoutingActivationType *const *RoutingActivationRefs;
+  uint16_t NumByteDiagAckNack;                                    /* @ECUC_DoIP_00042 */
+  uint16_t TesterSA;                                              /* @ECUC_DoIP_00043 */
+  const DoIP_RoutingActivationType *const *RoutingActivationRefs; /* @ECUC_DoIP_00062 */
   uint8_t numOfRoutingActivations;
 };
 
 /* @ECUC_DoIP_00045 */
 typedef struct {
-  SoAd_SoConIdType SoConId;
+  SoAd_SoConIdType SoConId; /* TCP_SERVER */
   boolean RequestAddressAssignment;
 } DoIP_TcpConnectionType;
 
 /* @ECUC_DoIP_00052 */
 typedef struct {
   SoAd_SoConIdType SoConId;
-  boolean RequestAddressAssignment;
+  PduIdType SoAdTxPdu;
+  boolean RequestAddressAssignment; /* @ECUC_DoIP_00095 */
 } DoIP_UdpConnectionType;
 
 typedef struct {
@@ -162,10 +173,7 @@ typedef struct {
   DoIP_UdpVehicleAnnouncementConnectionContextType *context;
   SoAd_SoConIdType SoConId;
   PduIdType SoAdTxPdu;
-  uint16_t InitialVehicleAnnouncementTime;
-  uint16_t VehicleAnnouncementInterval;
-  boolean RequestAddressAssignment;
-  uint8_t VehicleAnnouncementCount;
+  boolean RequestAddressAssignment; /* @ECUC_DoIP_00095 */
 } DoIP_UdpVehicleAnnouncementConnectionType;
 
 /* @SWS_DoIP_00271 */
@@ -175,41 +183,49 @@ typedef enum
   DOIP_ACTIVATION_LINE_ACTIVE,
 } DoIP_ActivationLineType;
 
-typedef struct {
-  DoIP_ActivationLineType ActivationLineState;
-  PduLengthType txLen;
-} DoIP_ChannelContextType;
-
 /* @ECUC_DoIP_00069 */
 typedef struct {
-  DoIP_ChannelContextType *context;
-  uint8_t *txBuf;
-  PduLengthType txBufLen;
-  const DoIP_TesterType *testers;
-  uint8_t numOfTesters;
-  const DoIP_TesterConnectionType *testerConnections;
-  uint8_t numOfTesterConnections;
-  const DoIP_TcpConnectionType *TcpConnections;
-  uint8_t numOfTcpConnections;
-  const DoIP_UdpConnectionType *UdpConnections;
-  uint8_t numOfUdpConnections;
-  const DoIP_UdpVehicleAnnouncementConnectionType *UdpVehicleAnnouncementConnections;
-  uint8_t numOfUdpVehicleAnnouncementConnections;
-  DoIP_GetVinFncType GetVin;
-  DoIP_GetEIDFncType GetEID;
-  DoIP_GetGIDFncType GetGID;
-  uint16_t LogicalAddress;
-  uint8_t VinInvalidityPattern;
+  const DoIP_TesterType *SARef;        /* @ECUC_DoIP_00070 */
+  const DoIP_TargetAddressType *TARef; /* @ECUC_DoIP_00071 */
 } DoIP_ChannelConfigType;
 
 struct DoIP_Config_s {
-  const DoIP_ChannelConfigType *ChannelConfigs;
-  const uint8_t *RxPduIdToChannelMap;
-  const uint8_t *RxPduIdToConnectionMap;
-  const uint8_t *TxPduIdToChannelMap;
-  uint8_t numOfChannels;
-  uint8_t numOfRxPduIds;
-  uint8_t numOfTxPduIds;
+  uint16_t InitialInactivityTime;          /* @ECUC_DoIP_00010*/
+  uint16_t GeneralInactivityTime;          /* @ECUC_DoIP_00068 */
+  uint16_t AliveCheckResponseTimeout;      /* @ECUC_DoIP_00009 */
+  uint8_t VinInvalidityPattern;            /* @ECUC_DoIP_00066 */
+  uint16_t InitialVehicleAnnouncementTime; /* @ECUC_DoIP_00008 */
+  uint16_t VehicleAnnouncementInterval;    /* @ECUC_DoIP_00007 */
+  uint8_t VehicleAnnouncementCount;        /* @ECUC_DoIP_00094 */
+  uint8_t NodeType;                        /* @ECUC_DoIP_00021 */
+  boolean EntityStatusMaxByteFieldUse;     /* @ECUC_DoIP_00064 */
+
+  DoIP_GetVinFncType GetVin;
+  DoIP_GetEIDFncType GetEID; /* @ECUC_DoIP_00014 */
+  DoIP_GetGIDFncType GetGID; /* @ECUC_DoIP_00015 */
+  DoIP_GetPowerModeStatusFncType GetPowerModeStatus;
+  uint16_t LogicalAddress; /* @ECUC_DoIP_00020  */
+
+  /* @ECUC_DoIP_00032 */
+  const DoIP_TargetAddressType *TargetAddresss;
+  uint16_t numOfTargetAddresss;
+  const DoIP_TcpConnectionType *TcpConnections;
+  uint16_t numOfTcpConnections;
+  const DoIP_UdpConnectionType *UdpConnections;
+  uint16_t numOfUdpConnections;
+  const DoIP_UdpVehicleAnnouncementConnectionType *UdpVehicleAnnouncementConnections;
+  uint16_t numOfUdpVehicleAnnouncementConnections;
+  const DoIP_TesterConnectionType *testerConnections;
+  uint16_t MaxTesterConnections; /* @ECUC_DoIP_00012 */
+
+  const DoIP_RoutingActivationType *routingActivations;
+  uint16_t numOfRoutingActivations;
+
+  const DoIP_TesterType *testers;
+  uint16_t numOfTesters;
+
+  const uint16_t *RxPduIdToConnectionMap;
+  uint16_t numOfRxPduIds;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

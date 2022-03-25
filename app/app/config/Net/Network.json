@@ -4,7 +4,35 @@
     {
       "class": "DoIp",
       "discovery": "224.244.224.245:13400",
-      "max_connections" : 3
+      "max_connections" : 3,
+      "targets": [
+        {
+          "name": "P2P",
+          "address": "0xdead"
+        },
+        {
+          "name": "GW_P2P",
+          "address": "0xcaaa"
+        },
+        {
+          "name": "GW_P2A",
+          "address": "0xcaab"
+        }
+      ],
+      "routines": [
+        {
+          "name": "default",
+          "number": "0xda",
+          "targets": ["P2P", "GW_P2P", "GW_P2A"]
+        }
+      ],
+      "testers" : [
+        {
+          "name": "default",
+          "address": "0xbeef",
+          "routines": ["default"]
+        }
+      ]
     },
     {
       "class": "SomeIp",

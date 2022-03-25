@@ -690,7 +690,7 @@ def CompilerPYCC(**kwargs):
 if IsPlatformWindows():
     VCs = Glob(
         'C:/Program Files*/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64')
-    if len(VCs) >= 0:
+    if len(VCs) > 0:
         VC = str(VCs[-1])
 
         @register_compiler
@@ -784,10 +784,12 @@ class BuildBase():
         for key, v in kwargs.items():
             if key in env:
                 if type(v) is str:
-                    env[key].remove(v)
+                    if v in env[key]:
+                        env[key].remove(v)
                 else:
                     for vv in v:
-                        env[key].remove(vv)
+                        if vv in env[key]:
+                            env[key].remove(vv)
 
     def ParseConfig(self, cmd):
         env = self.ensure_env()
@@ -923,6 +925,9 @@ class Library(BuildBase):
             # others has provide the config for this library
             cfg_path, source = self.RequireConfig(libName)
             CPPPATH.append(cfg_path)
+            for src in source[1:]:
+                cfg_path = os.path.dirname(str(src))
+                CPPPATH.append(cfg_path)
             self.source += source
         except KeyError:
             self.get_opt_cfg(CPPPATH, libName)

@@ -14,8 +14,9 @@
 #include "Std_Debug.h"
 #include <assert.h>
 #include <string.h>
+#include "NetMem.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_DOIP 1
+#define AS_LOG_DOIP 0
 #define AS_LOG_DOIPE 2
 
 #define DOIP_PROTOCOL_VERSION 2
@@ -23,14 +24,31 @@
 
 #define DOIP_CONFIG (&DoIP_Config)
 
+#ifndef DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE
+#define DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE (DOIP_HEADER_LENGTH + 40)
+#endif
+
 /* return this when negative response buffer set */
 #define DOIP_E_NOT_OK ((Std_ReturnType)200)
 
 #define DOIP_E_NOT_OK_SILENT ((Std_ReturnType)201)
 /* ================================ [ TYPES     ] ============================================== */
+typedef struct {
+  const uint8_t *req;
+  uint8_t *res; /* response buffer for this message */
+  uint16_t payloadType;
+  uint32_t payloadLength;
+  PduLengthType reqLen;
+  PduLengthType resLen;
+} DoIP_MsgType;
+
+typedef struct {
+  DoIP_ActivationLineType ActivationLineState;
+} DoIP_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern const DoIP_ConfigType DoIP_Config;
 /* ================================ [ DATAS     ] ============================================== */
+static DoIP_ContextType DoIP_Context;
 /* ================================ [ LOCALS    ] ============================================== */
 static void doipFillHeader(uint8_t *header, uint16_t payloadType, uint32_t payloadLength) {
   header[0] = DOIP_PROTOCOL_VERSION;
@@ -43,35 +61,57 @@ static void doipFillHeader(uint8_t *header, uint16_t payloadType, uint32_t paylo
   header[7] = payloadLength & 0xFF;
 }
 
-static void doipSetupVehicleAnnouncementResponse(const DoIP_ChannelConfigType *config) {
-  Std_ReturnType ret;
-  doipFillHeader(config->txBuf, DOIP_VAN_MSG_OR_VIN_RESPONCE, 33);
-  config->context->txLen = DOIP_HEADER_LENGTH + 33;
-  /* @SWS_DoIP_00072 */
-  ret = config->GetVin(&config->txBuf[DOIP_HEADER_LENGTH]);
-  if (E_OK != ret) {
-    memset(&config->txBuf[DOIP_HEADER_LENGTH], config->VinInvalidityPattern, 17);
-    config->txBuf[DOIP_HEADER_LENGTH + 31] = 0x00; /* Further action byte */
-    config->txBuf[DOIP_HEADER_LENGTH + 32] = 0x10; /* VIN/GID Status */
-  } else {
-    config->txBuf[DOIP_HEADER_LENGTH + 31] = 0x00;
-    config->txBuf[DOIP_HEADER_LENGTH + 32] = 0x00;
+static Std_ReturnType doipDecodeMsg(const PduInfoType *PduInfoPtr, DoIP_MsgType *msg) {
+  Std_ReturnType ret = E_NOT_OK;
+
+  if ((PduInfoPtr->SduLength >= DOIP_HEADER_LENGTH) && (PduInfoPtr->SduDataPtr != NULL)) {
+    /* @SWS_DoIP_00005, @SWS_DoIP_00006 */
+    if ((DOIP_PROTOCOL_VERSION == PduInfoPtr->SduDataPtr[0]) &&
+        (PduInfoPtr->SduDataPtr[0] = ((~PduInfoPtr->SduDataPtr[1])) & 0xFF)) {
+
+      msg->payloadType = ((uint16_t)PduInfoPtr->SduDataPtr[2] << 8) + PduInfoPtr->SduDataPtr[3];
+      msg->payloadLength = ((uint32_t)PduInfoPtr->SduDataPtr[4] << 24) +
+                           ((uint32_t)PduInfoPtr->SduDataPtr[5] << 16) +
+                           ((uint32_t)PduInfoPtr->SduDataPtr[6] << 8) + PduInfoPtr->SduDataPtr[7];
+      msg->req = &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH];
+      msg->reqLen = PduInfoPtr->SduLength - DOIP_HEADER_LENGTH;
+      ret = E_OK;
+    }
   }
-
-  config->txBuf[DOIP_HEADER_LENGTH + 17] = (config->LogicalAddress >> 8) & 0xFF;
-  config->txBuf[DOIP_HEADER_LENGTH + 18] = config->LogicalAddress & 0xFF;
-
-  config->GetEID(&config->txBuf[DOIP_HEADER_LENGTH + 19]);
-  config->GetGID(&config->txBuf[DOIP_HEADER_LENGTH + 25]);
+  return ret;
 }
 
-Std_ReturnType doipTpSendResponse(PduIdType RxPduId, const DoIP_ChannelConfigType *config) {
+static PduLengthType doipSetupVehicleAnnouncementResponse(uint8_t *data) {
+  Std_ReturnType ret;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  doipFillHeader(data, DOIP_VAN_MSG_OR_VIN_RESPONCE, 33);
+  /* @SWS_DoIP_00072 */
+  ret = config->GetVin(&data[DOIP_HEADER_LENGTH]);
+  if (E_OK != ret) {
+    memset(&data[DOIP_HEADER_LENGTH], config->VinInvalidityPattern, 17);
+    data[DOIP_HEADER_LENGTH + 31] = 0x00; /* Further action byte */
+    data[DOIP_HEADER_LENGTH + 32] = 0x10; /* VIN/GID Status */
+  } else {
+    data[DOIP_HEADER_LENGTH + 31] = 0x00;
+    data[DOIP_HEADER_LENGTH + 32] = 0x00;
+  }
+
+  data[DOIP_HEADER_LENGTH + 17] = (config->LogicalAddress >> 8) & 0xFF;
+  data[DOIP_HEADER_LENGTH + 18] = config->LogicalAddress & 0xFF;
+
+  config->GetEID(&data[DOIP_HEADER_LENGTH + 19]);
+  config->GetGID(&data[DOIP_HEADER_LENGTH + 25]);
+
+  return DOIP_HEADER_LENGTH + 33;
+}
+
+Std_ReturnType doipTpSendResponse(PduIdType RxPduId, uint8_t *data, PduLengthType length) {
   PduInfoType PduInfo;
   Std_ReturnType ret;
-  if (config->context->txLen > 0) {
-    PduInfo.SduDataPtr = config->txBuf;
+  if (length > 0) {
+    PduInfo.SduDataPtr = data;
     PduInfo.MetaDataPtr = NULL;
-    PduInfo.SduLength = config->context->txLen;
+    PduInfo.SduLength = length;
     ret = SoAd_TpTransmit(RxPduId, &PduInfo);
   } else {
     ret = E_NOT_OK;
@@ -79,24 +119,125 @@ Std_ReturnType doipTpSendResponse(PduIdType RxPduId, const DoIP_ChannelConfigTyp
   return ret;
 }
 
-static Std_ReturnType doipHandleVIDRequest(PduIdType RxPduId, const uint8_t *payload,
-                                           uint32_t length, uint8_t *nack) {
+static Std_ReturnType doipHandleVIDRequest(PduIdType RxPduId, DoIP_MsgType *msg, uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint8_t Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
-  if (0 == length) {
-    doipSetupVehicleAnnouncementResponse(config);
+  if (0 == msg->payloadLength) {
+    msg->resLen = doipSetupVehicleAnnouncementResponse(msg->res);
   } else {
     *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
     ret = E_NOT_OK;
   }
-  ASLOG(DOIP, ("[%d] handle VID Request\n", Channel));
+  ASLOG(DOIP, ("[%d] handle VID Request\n", RxPduId));
   return ret;
 }
 
-static const DoIP_TesterType *doipFindTester(const DoIP_ChannelConfigType *config,
-                                             uint16_t sourceAddress) {
+static Std_ReturnType doipHandleVIDRequestWithEID(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                  uint8_t *nack) {
+  Std_ReturnType ret = E_OK;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  uint8_t myEID[6];
+  if (6 == msg->payloadLength) {
+    config->GetEID(myEID);
+    if (0 == memcmp(myEID, msg->req, 6)) {
+      msg->resLen = doipSetupVehicleAnnouncementResponse(msg->res);
+    } else {
+      ret = DOIP_E_NOT_OK_SILENT;
+    }
+  } else {
+    *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
+    ret = E_NOT_OK;
+  }
+  ASLOG(DOIP, ("[%d] handle VID Request with EID\n", RxPduId));
+  return ret;
+}
+
+static Std_ReturnType doipHandleVIDRequestWithVIN(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                  uint8_t *nack) {
+  Std_ReturnType ret = E_OK;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  uint8_t myVIN[17];
+
+  if (17 == msg->payloadLength) {
+    ret = config->GetVin(myVIN);
+    if (E_OK != ret) {
+      ret = DOIP_E_NOT_OK_SILENT;
+    } else {
+      if (0 == memcmp(myVIN, msg->req, 17)) {
+        msg->resLen = doipSetupVehicleAnnouncementResponse(msg->res);
+      } else {
+        ret = DOIP_E_NOT_OK_SILENT;
+      }
+    }
+  } else {
+    *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
+    ret = E_NOT_OK;
+  }
+  ASLOG(DOIP, ("[%d] handle VID Request with VIN\n", RxPduId));
+  return ret;
+}
+
+static Std_ReturnType doipHandleEntityStatusRequest(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                    uint8_t *nack) {
+  Std_ReturnType ret = E_OK;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  uint8_t curOpened = 0;
+  uint16_t i;
+
+  if (0 == msg->payloadLength) {
+    msg->res[DOIP_HEADER_LENGTH] = config->NodeType;
+    msg->res[DOIP_HEADER_LENGTH + 1] = config->MaxTesterConnections;
+    for (i = 0; i < config->MaxTesterConnections; i++) {
+      if (DOIP_CON_OPEN == config->testerConnections[i].context->state) {
+        curOpened++;
+      }
+    }
+    msg->res[DOIP_HEADER_LENGTH + 2] = curOpened;
+    if (config->EntityStatusMaxByteFieldUse) {
+      msg->res[DOIP_HEADER_LENGTH + 3] = (MEMPOOL_NET_MAX_SIZE >> 24) & 0xFF;
+      msg->res[DOIP_HEADER_LENGTH + 4] = (MEMPOOL_NET_MAX_SIZE >> 16) & 0xFF;
+      msg->res[DOIP_HEADER_LENGTH + 5] = (MEMPOOL_NET_MAX_SIZE >> 8) & 0xFF;
+      msg->res[DOIP_HEADER_LENGTH + 6] = MEMPOOL_NET_MAX_SIZE & 0xFF;
+      doipFillHeader(msg->res, DOIP_ENTITY_STATUS_RESPONSE, 7);
+      msg->resLen = DOIP_HEADER_LENGTH + 7;
+    } else {
+      doipFillHeader(msg->res, DOIP_ENTITY_STATUS_RESPONSE, 3);
+      msg->resLen = DOIP_HEADER_LENGTH + 3;
+    }
+  } else {
+    *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
+    ret = E_NOT_OK;
+  }
+  ASLOG(DOIP, ("[%d] handle Entity Status Request\n", RxPduId));
+  return ret;
+}
+
+static Std_ReturnType doipHandleDiagnosticPowerModeInfoRequest(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                               uint8_t *nack) {
+  Std_ReturnType ret = E_OK;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  uint8_t PowerState = 0x00;
+
+  if (0 == msg->payloadLength) {
+    doipFillHeader(msg->res, DOIP_DIAGNOSTIC_POWER_MODE_INFORMATION_RESPONSE, 1);
+    /* @SWS_DoIP_00093 */
+    ret = config->GetPowerModeStatus(&PowerState);
+    if (E_OK == ret) {
+      msg->res[DOIP_HEADER_LENGTH] = PowerState;
+    } else {
+      msg->res[DOIP_HEADER_LENGTH] = 0x00;
+    }
+    msg->resLen = DOIP_HEADER_LENGTH + 1;
+  } else {
+    *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
+    ret = E_NOT_OK;
+  }
+  ASLOG(DOIP, ("[%d] handle Power Mode Request\n", RxPduId));
+  return ret;
+}
+
+static const DoIP_TesterType *doipFindTester(uint16_t sourceAddress) {
   const DoIP_TesterType *tester = NULL;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   int i;
 
   for (i = 0; i < config->numOfTesters; i++) {
@@ -126,51 +267,53 @@ doipFindRoutingActivation(const DoIP_TesterType *tester, uint8_t activationType,
   return ra;
 };
 
-static void doipBuildRountineActivationResponse(const DoIP_ChannelConfigType *config,
-                                                const DoIP_TesterConnectionType *connection,
-                                                Std_ReturnType ret, uint16_t sa, uint8_t resCode) {
-  doipFillHeader(config->txBuf, DOIP_ROUTING_ACTIVATION_RESPONSE, 13);
-  config->txBuf[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF; /* Logical Address Tester */
-  config->txBuf[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
+static void doipBuildRountineActivationResponse(const DoIP_TesterConnectionType *connection,
+                                                DoIP_MsgType *msg, Std_ReturnType ret, uint16_t sa,
+                                                uint8_t resCode) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  doipFillHeader(msg->res, DOIP_ROUTING_ACTIVATION_RESPONSE, 13);
+  msg->res[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF; /* Logical Address Tester */
+  msg->res[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
 
-  config->txBuf[DOIP_HEADER_LENGTH + 2] =
+  msg->res[DOIP_HEADER_LENGTH + 2] =
     (config->LogicalAddress >> 8) & 0xFF; /* Logical address of DoIP entity */
-  config->txBuf[DOIP_HEADER_LENGTH + 3] = config->LogicalAddress & 0xFF;
-  config->txBuf[DOIP_HEADER_LENGTH + 4] = resCode;
-  config->context->txLen = DOIP_HEADER_LENGTH + 13;
+  msg->res[DOIP_HEADER_LENGTH + 3] = config->LogicalAddress & 0xFF;
+  msg->res[DOIP_HEADER_LENGTH + 4] = resCode;
+  msg->resLen = DOIP_HEADER_LENGTH + 13;
 
   if ((DOIP_E_PENDING == ret) && (0x11 == resCode)) {
-    (void)doipTpSendResponse(connection->SoAdTxPdu, config); /* @SWS_DoIP_00114 */
+    (void)doipTpSendResponse(connection->SoAdTxPdu, msg->res, msg->resLen); /* @SWS_DoIP_00114 */
   }
 }
 
-static Std_ReturnType doipCheckTesterConnectionAlive(const DoIP_ChannelConfigType *config,
-                                                     const DoIP_TesterConnectionType *connection) {
+static Std_ReturnType doipCheckTesterConnectionAlive(const DoIP_TesterConnectionType *connection) {
   Std_ReturnType ret = E_OK;
+  uint8_t data[DOIP_HEADER_LENGTH];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+
   if (0 == connection->context->AliveCheckResponseTimer) {
     /* no request is already on going, start one */
-    doipFillHeader(config->txBuf, DOIP_ALIVE_CHECK_REQUEST, 0);
-    config->context->txLen = DOIP_HEADER_LENGTH;
+    doipFillHeader(data, DOIP_ALIVE_CHECK_REQUEST, 0);
     connection->context->isAlive = FALSE;
-    connection->context->AliveCheckResponseTimer = connection->AliveCheckResponseTimeout;
-    ret = doipTpSendResponse(connection->SoAdTxPdu, config);
+    connection->context->AliveCheckResponseTimer = config->AliveCheckResponseTimeout;
+    ret = doipTpSendResponse(connection->SoAdTxPdu, data, DOIP_HEADER_LENGTH);
   }
   return ret;
 }
 
-static Std_ReturnType doipSocketHandler(const DoIP_ChannelConfigType *config,
-                                        const DoIP_TesterConnectionType *tstcon, uint8_t *resCode) {
+static Std_ReturnType doipSocketHandler(const DoIP_TesterConnectionType *tstcon, uint8_t *resCode) {
   Std_ReturnType ret = E_OK;
   boolean isAliveCheckOngoing = FALSE;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   int i;
   const DoIP_TesterConnectionType *connection;
-  for (i = 0; (i < config->numOfTesterConnections) && (E_OK == ret); i++) {
+  for (i = 0; (i < config->MaxTesterConnections) && (E_OK == ret); i++) {
     connection = &config->testerConnections[i];
     if ((tstcon != connection) && (DOIP_CON_OPEN == connection->context->state) &&
         (tstcon->context->ramgr.tester == connection->context->TesterRef)) {
       ASLOG(DOIP, ("Tester 0x%x is already active on connection %d, check alive\n",
                    tstcon->context->ramgr.tester->TesterSA, i));
-      ret = doipCheckTesterConnectionAlive(config, connection);
+      ret = doipCheckTesterConnectionAlive(connection);
       if (E_OK == ret) {
         isAliveCheckOngoing = TRUE;
       } else {
@@ -183,7 +326,7 @@ static Std_ReturnType doipSocketHandler(const DoIP_ChannelConfigType *config,
     }
   }
 
-  if (ret == E_OK) {
+  if (E_OK == ret) {
     if (isAliveCheckOngoing) {
       ret = DOIP_E_PENDING;
     }
@@ -192,14 +335,14 @@ static Std_ReturnType doipSocketHandler(const DoIP_ChannelConfigType *config,
   return ret;
 }
 
-static Std_ReturnType doipSocketHandler2(const DoIP_ChannelConfigType *config,
-                                         const DoIP_TesterConnectionType *tstcon,
+static Std_ReturnType doipSocketHandler2(const DoIP_TesterConnectionType *tstcon,
                                          uint8_t *resCode) {
   Std_ReturnType ret = E_OK;
   boolean isAliveCheckOngoing = FALSE;
   int i;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection;
-  for (i = 0; (i < config->numOfTesterConnections) && (E_OK == ret); i++) {
+  for (i = 0; (i < config->MaxTesterConnections) && (E_OK == ret); i++) {
     connection = &config->testerConnections[i];
     if ((tstcon != connection) && (DOIP_CON_OPEN == connection->context->state) &&
         (tstcon->context->ramgr.tester == connection->context->TesterRef)) {
@@ -226,22 +369,20 @@ static Std_ReturnType doipSocketHandler2(const DoIP_ChannelConfigType *config,
   return ret;
 }
 
-static Std_ReturnType doipRoutingActivationManager(const DoIP_ChannelConfigType *config,
-                                                   const DoIP_TesterConnectionType *connection,
-                                                   uint8_t *resCode) {
+static Std_ReturnType doipRoutingActivationManager(const DoIP_TesterConnectionType *connection,
+                                                   DoIP_MsgType *msg, uint8_t *resCode) {
   Std_ReturnType ret = E_OK;
   const DoIP_TesterType *tester = connection->context->ramgr.tester;
   uint8_t raid = connection->context->ramgr.raid;
   const DoIP_RoutingActivationType *ra = tester->RoutingActivationRefs[raid];
-  boolean Authentified;
-  boolean Confirmed;
-
+  boolean Authentified = FALSE;
+  boolean Confirmed = FALSE;
   boolean ongoing = FALSE;
 
   do {
     switch (connection->context->ramgr.state) {
     case DOIP_RA_SOCKET_HANDLER:
-      ret = doipSocketHandler(config, connection, resCode);
+      ret = doipSocketHandler(connection, resCode);
       if (DOIP_E_NOT_OK != ret) {
         connection->context->ramgr.state = DOIP_RA_SOCKET_HANDLER_2;
         ongoing = TRUE;
@@ -250,7 +391,7 @@ static Std_ReturnType doipRoutingActivationManager(const DoIP_ChannelConfigType 
       }
       break;
     case DOIP_RA_SOCKET_HANDLER_2:
-      ret = doipSocketHandler2(config, connection, resCode);
+      ret = doipSocketHandler2(connection, resCode);
       if (E_OK == ret) {
         connection->context->ramgr.state = DOIP_RA_CHECK_AUTHENTICATION;
         ongoing = TRUE;
@@ -261,7 +402,7 @@ static Std_ReturnType doipRoutingActivationManager(const DoIP_ChannelConfigType 
     case DOIP_RA_CHECK_AUTHENTICATION:
       ongoing = FALSE;
       ret = ra->AuthenticationCallback(&Authentified, connection->context->ramgr.OEM,
-                                       &config->txBuf[DOIP_HEADER_LENGTH + 9]);
+                                       &msg->res[DOIP_HEADER_LENGTH + 9]);
       if ((E_OK == ret) && (Authentified)) {
         /* pass, going to check confirmed or not */
         connection->context->ramgr.state = DOIP_RA_CHECK_CONFIRMATION;
@@ -276,7 +417,7 @@ static Std_ReturnType doipRoutingActivationManager(const DoIP_ChannelConfigType 
     case DOIP_RA_CHECK_CONFIRMATION:
       ongoing = FALSE;
       ret = ra->ConfirmationCallback(&Confirmed, connection->context->ramgr.OEM,
-                                     &config->txBuf[DOIP_HEADER_LENGTH + 9]);
+                                     &msg->res[DOIP_HEADER_LENGTH + 9]);
       if ((E_OK == ret) && (Confirmed)) {
         *resCode = 0x10; /* @SWS_DoIP_00113 */
         connection->context->RAMask |= (1u << raid);
@@ -301,23 +442,22 @@ static Std_ReturnType doipRoutingActivationManager(const DoIP_ChannelConfigType 
 }
 
 /* ref https://zhuanlan.zhihu.com/p/359138097 */
-static Std_ReturnType doipHandleRoutineActivation(PduIdType RxPduId, const uint8_t *payload,
-                                                  uint32_t length, uint8_t *nack) {
+static Std_ReturnType doipHandleRoutineActivation(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                  uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint8_t Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection =
-    &config->testerConnections[DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId]];
+    &config->testerConnections[config->RxPduIdToConnectionMap[RxPduId]];
   const DoIP_TesterType *tester = NULL;
   const DoIP_RoutingActivationType *ra = NULL;
   uint8_t raid;
   uint16_t sourceAddress;
   uint8_t activationType;
   uint8_t resCode = 0xFF;
-  if ((7 == length) || (11 == length)) { /* @SWS_DoIP_00117 */
-    sourceAddress = ((uint16_t)payload[0] << 8) + payload[1];
-    activationType = payload[2];
-    tester = doipFindTester(config, sourceAddress);
+  if ((7 == msg->payloadLength) || (11 == msg->payloadLength)) { /* @SWS_DoIP_00117 */
+    sourceAddress = ((uint16_t)msg->req[0] << 8) + msg->req[1];
+    activationType = msg->req[2];
+    tester = doipFindTester(sourceAddress);
     if (NULL == tester) {
       resCode = 0x00; /* @SWS_DoIP_00104 */
     } else {
@@ -338,12 +478,12 @@ static Std_ReturnType doipHandleRoutineActivation(PduIdType RxPduId, const uint8
     if (E_OK == ret) {
       connection->context->ramgr.tester = tester;
       connection->context->ramgr.raid = raid;
-      memcpy(connection->context->ramgr.OEM, &payload[7], 4);
+      memcpy(connection->context->ramgr.OEM, &msg->req[7], 4);
       connection->context->ramgr.state = DOIP_RA_SOCKET_HANDLER;
-      ret = doipRoutingActivationManager(config, connection, &resCode);
+      ret = doipRoutingActivationManager(connection, msg, &resCode);
     }
 
-    doipBuildRountineActivationResponse(config, connection, ret, sourceAddress, resCode);
+    doipBuildRountineActivationResponse(connection, msg, ret, sourceAddress, resCode);
     if (DOIP_E_NOT_OK == ret) {
       connection->context->InactivityTimer = 1; /* close it the next MainFunction */
     }
@@ -351,34 +491,38 @@ static Std_ReturnType doipHandleRoutineActivation(PduIdType RxPduId, const uint8
     *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
     ret = E_NOT_OK;
   }
-  ASLOG(DOIP, ("[%d] handle Routine Activation Request\n", Channel));
+  ASLOG(DOIP, ("[%d] handle Routine Activation Request\n", RxPduId));
   return ret;
 }
 
-static void doipHandleRoutineActivationMain(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+static void doipHandleRoutineActivationMain() {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection;
   int i;
   uint8_t resCode = 0xFE;
   Std_ReturnType ret;
+  DoIP_MsgType msg;
+  uint8_t logcalMsg[DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE];
+  msg.res = logcalMsg;
+  msg.resLen = sizeof(logcalMsg);
 
-  for (i = 0; i < config->numOfTesterConnections; i++) {
+  for (i = 0; i < config->MaxTesterConnections; i++) {
     connection = &config->testerConnections[i];
     if (DOIP_CON_CLOSED != connection->context->state) {
       if (DOIP_RA_IDLE != connection->context->ramgr.state) {
-        ret = doipRoutingActivationManager(config, connection, &resCode);
-        doipBuildRountineActivationResponse(config, connection, ret,
+        ret = doipRoutingActivationManager(connection, &msg, &resCode);
+        doipBuildRountineActivationResponse(connection, &msg, ret,
                                             connection->context->ramgr.tester->TesterSA, resCode);
         if (DOIP_E_NOT_OK == ret) {
           connection->context->InactivityTimer = 1; /* close it the next MainFunction */
         }
 
         if (E_OK == ret) {
-          connection->context->InactivityTimer = connection->GeneralInactivityTime;
-          (void)doipTpSendResponse(connection->SoAdTxPdu, config);
+          connection->context->InactivityTimer = config->GeneralInactivityTime;
+          (void)doipTpSendResponse(connection->SoAdTxPdu, msg.res, msg.resLen);
         } else if (DOIP_E_PENDING == ret) {
         } else {
-          (void)doipTpSendResponse(connection->SoAdTxPdu, config);
+          (void)doipTpSendResponse(connection->SoAdTxPdu, msg.res, msg.resLen);
           ret = BUFREQ_E_NOT_OK;
         }
       }
@@ -386,34 +530,34 @@ static void doipHandleRoutineActivationMain(uint8_t Channel) {
   }
 }
 
-static Std_ReturnType doIpIfHandleMessage(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
-                                          uint8_t *nack) {
+static Std_ReturnType doIpIfHandleMessage(PduIdType RxPduId, DoIP_MsgType *msg, uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint16_t payloadType;
-  uint32_t payloadLength;
-  payloadType = ((uint16_t)PduInfoPtr->SduDataPtr[2] << 8) + PduInfoPtr->SduDataPtr[3];
-  payloadLength = ((uint32_t)PduInfoPtr->SduDataPtr[4] << 24) +
-                  ((uint32_t)PduInfoPtr->SduDataPtr[5] << 16) +
-                  ((uint32_t)PduInfoPtr->SduDataPtr[6] << 8) + PduInfoPtr->SduDataPtr[7];
-  if ((payloadLength + DOIP_HEADER_LENGTH) <= PduInfoPtr->SduLength) {
-    switch (payloadType) {
-    case DOIP_VID_REQUEST:
-      ret = doipHandleVIDRequest(RxPduId, &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH],
-                                 payloadLength, nack);
-      break;
-    case DOIP_VAN_MSG_OR_VIN_RESPONCE:
-      /* @SWS_DoIP_00293 */
-      ret = DOIP_E_NOT_OK_SILENT;
-      break;
-    default:
-      /* @SWS_DoIP_00016 */
-      *nack = DOIP_UNKNOW_PAYLOAD_TYPE_NACK;
-      ret = E_NOT_OK;
-      break;
-    }
-  } else {
-    *nack = DOIP_TOO_MUCH_PAYLOAD_NACK;
+
+  switch (msg->payloadType) {
+  case DOIP_VID_REQUEST:
+    ret = doipHandleVIDRequest(RxPduId, msg, nack);
+    break;
+  case DOIP_VID_REQUEST_WITH_EID:
+    ret = doipHandleVIDRequestWithEID(RxPduId, msg, nack);
+    break;
+  case DOIP_VID_REQUEST_WITH_VIN:
+    ret = doipHandleVIDRequestWithVIN(RxPduId, msg, nack);
+    break;
+  case DOIP_VAN_MSG_OR_VIN_RESPONCE:
+    /* @SWS_DoIP_00293 */
+    ret = DOIP_E_NOT_OK_SILENT;
+    break;
+  case DOIP_ENTITY_STATUS_REQUEST:
+    ret = doipHandleEntityStatusRequest(RxPduId, msg, nack);
+    break;
+  case DOIP_DIAGNOSTIC_POWER_MODE_INFORMATION_REQUEST:
+    ret = doipHandleDiagnosticPowerModeInfoRequest(RxPduId, msg, nack);
+    break;
+  default:
+    /* @SWS_DoIP_00016 */
+    *nack = DOIP_UNKNOW_PAYLOAD_TYPE_NACK;
     ret = E_NOT_OK;
+    break;
   }
 
   return ret;
@@ -430,8 +574,8 @@ doipFindTargetAddress(const DoIP_TesterType *tester, const DoIP_TesterConnection
     if (connection->context->RAMask & (1u << i)) {
       ra = tester->RoutingActivationRefs[i];
       for (j = 0; (j < ra->numOfTargetAddressRefs) && (NULL == TargetAddressRef); j++) {
-        if (ta == ra->TargetAddressRefs[i].TargetAddress) {
-          TargetAddressRef = &ra->TargetAddressRefs[j];
+        if (ta == ra->TargetAddressRefs[j]->TargetAddress) {
+          TargetAddressRef = ra->TargetAddressRefs[j];
         }
       }
     }
@@ -440,13 +584,76 @@ doipFindTargetAddress(const DoIP_TesterType *tester, const DoIP_TesterConnection
   return TargetAddressRef;
 }
 
-static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8_t *payload,
-                                                  uint32_t length, uint32_t curLen, uint8_t *nack) {
+static void doipRememberDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_MsgType *msg) {
+  PduLengthType bufferSize;
+  if (DOIP_MSG_IDLE == connection->context->msg.state) {
+    bufferSize = msg->payloadLength - 4;
+    if (bufferSize > connection->context->TesterRef->NumByteDiagAckNack) {
+      bufferSize = connection->context->TesterRef->NumByteDiagAckNack;
+    }
+    bufferSize += DOIP_HEADER_LENGTH + 5; /* for header */
+    if (NULL != connection->context->msg.req) {
+      Net_MemFree(connection->context->msg.req);
+    }
+    connection->context->msg.req = Net_MemAlloc(bufferSize);
+    if (NULL != connection->context->msg.req) {
+      /* save sa&ta and uds message */
+      memcpy(&(connection->context->msg.req[DOIP_HEADER_LENGTH]), msg->req, 4);
+      memcpy(&(connection->context->msg.req[DOIP_HEADER_LENGTH + 5]), &msg->req[4],
+             msg->reqLen - 4);
+    }
+  } else {
+    if (NULL != connection->context->msg.req) {
+      if (connection->context->msg.index < connection->context->TesterRef->NumByteDiagAckNack) {
+        bufferSize =
+          connection->context->TesterRef->NumByteDiagAckNack - connection->context->msg.index;
+        if (bufferSize > msg->reqLen) {
+          bufferSize = msg->reqLen;
+        }
+        memcpy(
+          &(connection->context->msg.req[DOIP_HEADER_LENGTH + 5 + connection->context->msg.index]),
+          msg->req, bufferSize);
+      }
+    }
+  }
+}
+
+static void doipForgetDiagMsg(const DoIP_TesterConnectionType *connection) {
+  if (NULL != connection->context->msg.req) {
+    /* @SWS_DoIP_00138 */
+    Net_MemFree(connection->context->msg.req);
+    connection->context->msg.req = NULL;
+  }
+}
+
+static void doipReplyDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_MsgType *msg,
+                             uint8_t resCode) {
+  PduLengthType resLen = 5;
+  uint16_t payloadType = DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK;
+  if (NULL != connection->context->msg.req) {
+    /* @SWS_DoIP_00138 */
+    msg->res = connection->context->msg.req;
+    resLen = connection->context->msg.index;
+    if (resLen > connection->context->TesterRef->NumByteDiagAckNack) {
+      resLen = connection->context->TesterRef->NumByteDiagAckNack;
+    }
+    resLen += 5;
+  }
+
+  if (0x0 != resCode) {
+    payloadType = DOIP_DIAGNOSTIC_MESSAGE_NEGATIVE_ACK;
+  }
+  doipFillHeader(msg->res, payloadType, resLen);
+  msg->res[DOIP_HEADER_LENGTH + 4] = resCode;
+  msg->resLen = DOIP_HEADER_LENGTH + resLen;
+}
+
+static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                  uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint8_t Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection =
-    &config->testerConnections[DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId]];
+    &config->testerConnections[config->RxPduIdToConnectionMap[RxPduId]];
   const DoIP_TargetAddressType *TargetAddressRef;
   uint16_t sa, ta;
   uint8_t resCode = 0xFF;
@@ -455,27 +662,30 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
   PduLengthType bufferSize;
 
   if (DOIP_MSG_IDLE == connection->context->msg.state) {
-    if (length < 5) {
+    if (msg->payloadLength < 5) {
       *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
       ret = E_NOT_OK;
     }
 
-    if (curLen < 5) {
+    if (msg->reqLen < 5) {
       *nack = 0x99; /* TODO: internal error */
       ret = E_NOT_OK;
     }
   }
 
-  if ((0u == connection->context->RAMask) || (NULL == connection->context->TesterRef)) {
-    resCode = 0x02; /* @SWS_DoIP_00123 */
-    ASLOG(DOIPE, ("not activated\n"));
-    ret = DOIP_E_NOT_OK;
+  if (E_OK == ret) {
+    doipRememberDiagMsg(connection, msg);
+    if ((0u == connection->context->RAMask) || (NULL == connection->context->TesterRef)) {
+      resCode = 0x02; /* @SWS_DoIP_00123 */
+      ASLOG(DOIPE, ("not activated\n"));
+      ret = DOIP_E_NOT_OK;
+    }
   }
 
   if (E_OK == ret) {
     if (DOIP_MSG_IDLE == connection->context->msg.state) {
-      sa = ((uint16_t)payload[0] << 8) + payload[1];
-      ta = ((uint16_t)payload[2] << 8) + payload[3];
+      sa = ((uint16_t)msg->req[0] << 8) + msg->req[1];
+      ta = ((uint16_t)msg->req[2] << 8) + msg->req[3];
 
       if (sa != connection->context->TesterRef->TesterSA) {
         ASLOG(DOIPE,
@@ -494,12 +704,11 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
 
   if (E_OK == ret) {
     if (DOIP_MSG_IDLE == connection->context->msg.state) {
-      connection->context->msg.TpSduLength = length;
       connection->context->msg.TargetAddressRef = TargetAddressRef;
-      pduInfo.SduDataPtr = (uint8_t *)&payload[4];
-      pduInfo.SduLength = curLen - 4;
-      bufReq =
-        PduR_DoIPStartOfReception(TargetAddressRef->RxPduId, &pduInfo, length - 4, &bufferSize);
+      pduInfo.SduDataPtr = (uint8_t *)&msg->req[4];
+      pduInfo.SduLength = msg->reqLen - 4;
+      bufReq = PduR_DoIPStartOfReception(TargetAddressRef->RxPduId, &pduInfo,
+                                         msg->payloadLength - 4, &bufferSize);
       if (bufReq != BUFREQ_OK) {
         resCode = 0x08; /* @SWS_DoIP_00174 */
         ret = DOIP_E_NOT_OK;
@@ -512,15 +721,15 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
           ret = DOIP_E_NOT_OK;
         } else {
           connection->context->msg.state = DOIP_MSG_RX;
-          connection->context->msg.index = curLen - 4;
-          connection->context->msg.TpSduLength = length - 4;
+          connection->context->msg.index = msg->reqLen - 4;
+          connection->context->msg.TpSduLength = msg->payloadLength - 4;
         }
       }
     } else {
       TargetAddressRef = connection->context->msg.TargetAddressRef;
       assert(TargetAddressRef != NULL);
-      pduInfo.SduDataPtr = (uint8_t *)payload;
-      pduInfo.SduLength = curLen;
+      pduInfo.SduDataPtr = (uint8_t *)msg->req;
+      pduInfo.SduLength = msg->reqLen;
       bufReq = PduR_DoIPCopyRxData(TargetAddressRef->RxPduId, &pduInfo, &bufferSize);
       if (bufReq != BUFREQ_OK) {
         PduR_DoIPRxIndication(TargetAddressRef->RxPduId, E_NOT_OK);
@@ -528,7 +737,7 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
         resCode = 0x08; /* @SWS_DoIP_00174 */
         ret = DOIP_E_NOT_OK;
       } else {
-        connection->context->msg.index += curLen;
+        connection->context->msg.index += msg->reqLen;
       }
     }
   }
@@ -537,9 +746,10 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
     if (connection->context->msg.index >= connection->context->msg.TpSduLength) {
       connection->context->msg.state = DOIP_MSG_IDLE;
       PduR_DoIPRxIndication(TargetAddressRef->RxPduId, E_OK);
-      doipFillHeader(config->txBuf, DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK, 5);
-      config->txBuf[DOIP_HEADER_LENGTH + 4] = 0x0; /* ack code */
-      config->context->txLen = DOIP_HEADER_LENGTH + 5;
+      doipFillHeader(msg->res, DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK, 5);
+      msg->res[DOIP_HEADER_LENGTH + 4] = 0x0; /* ack code */
+      msg->resLen = DOIP_HEADER_LENGTH + 5;
+      doipReplyDiagMsg(connection, msg, 0x0);
     } else {
       connection->context->msg.state = DOIP_MSG_RX;
       ret = DOIP_E_PENDING;
@@ -547,48 +757,44 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, const uint8
   }
 
   if (ret == DOIP_E_NOT_OK) {
-    doipFillHeader(config->txBuf, DOIP_DIAGNOSTIC_MESSAGE_NEGATIVE_ACK, 5);
-    config->txBuf[DOIP_HEADER_LENGTH + 4] = resCode;
-    config->context->txLen = DOIP_HEADER_LENGTH + 5;
+    doipReplyDiagMsg(connection, msg, resCode);
   }
 
-  ASLOG(DOIP, ("[%d] handle Diagnostic Message\n", Channel));
+  ASLOG(DOIP, ("[%d] handle Diagnostic Message\n", RxPduId));
 
   return ret;
 }
 
-static Std_ReturnType doipHandleAliveCheckRequest(PduIdType RxPduId, const uint8_t *payload,
-                                                  uint32_t length, uint8_t *nack) {
+static Std_ReturnType doipHandleAliveCheckRequest(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                  uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint8_t Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
 
-  if (0 == length) {
-    doipFillHeader(config->txBuf, DOIP_ALIVE_CHECK_RESPONSE, 2);
-    config->txBuf[DOIP_HEADER_LENGTH + 0] = (config->LogicalAddress >> 8) & 0xFF;
-    config->txBuf[DOIP_HEADER_LENGTH + 1] = config->LogicalAddress & 0xFF;
-    config->context->txLen = DOIP_HEADER_LENGTH + 2;
+  if (0 == msg->payloadLength) {
+    doipFillHeader(msg->res, DOIP_ALIVE_CHECK_RESPONSE, 2);
+    msg->res[DOIP_HEADER_LENGTH + 0] = (config->LogicalAddress >> 8) & 0xFF;
+    msg->res[DOIP_HEADER_LENGTH + 1] = config->LogicalAddress & 0xFF;
+    msg->resLen = DOIP_HEADER_LENGTH + 2;
   } else {
     *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
     ret = E_NOT_OK;
   }
 
-  ASLOG(DOIP, ("[%d] handle Alive Check Request\n", Channel));
+  ASLOG(DOIP, ("[%d] handle Alive Check Request\n", RxPduId));
 
   return ret;
 }
 
-static Std_ReturnType doipHandleAliveCheckResponse(PduIdType RxPduId, const uint8_t *payload,
-                                                   uint32_t length, uint8_t *nack) {
+static Std_ReturnType doipHandleAliveCheckResponse(PduIdType RxPduId, DoIP_MsgType *msg,
+                                                   uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint8_t Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection =
-    &config->testerConnections[DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId]];
+    &config->testerConnections[config->RxPduIdToConnectionMap[RxPduId]];
   uint16_t sa;
 
-  if (2 == length) {
-    sa = ((uint16_t)payload[0] << 8) + payload[1];
+  if (2 == msg->payloadLength) {
+    sa = ((uint16_t)msg->req[0] << 8) + msg->req[1];
     if (sa != connection->context->TesterRef->TesterSA) {
       /* @SWS_DoIP_00141 */
       ASLOG(DOIPE, ("sa %X not right, expected %X, close it\n", sa,
@@ -598,60 +804,48 @@ static Std_ReturnType doipHandleAliveCheckResponse(PduIdType RxPduId, const uint
     } else {
       connection->context->isAlive = TRUE;
       connection->context->AliveCheckResponseTimer = 0;
-      config->context->txLen = 0; /* no response */
+      msg->resLen = 0; /* no response */
     }
   } else {
     *nack = DOIP_INVALID_PAYLOAD_LENGTH_NACK;
     ret = E_NOT_OK;
   }
 
-  ASLOG(DOIP, ("[%d] handle Alive Check Response\n", Channel));
+  ASLOG(DOIP, ("[%d] handle Alive Check Response\n", RxPduId));
 
   return ret;
 }
 
-static Std_ReturnType doipTpStartOfReception(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
-                                             PduLengthType *bufferSizePtr, uint8_t *nack) {
+static Std_ReturnType doipTpStartOfReception(PduIdType RxPduId, DoIP_MsgType *msg, uint8_t *nack) {
   Std_ReturnType ret = E_OK;
-  uint16_t payloadType;
-  uint32_t payloadLength;
-  payloadType = ((uint16_t)PduInfoPtr->SduDataPtr[2] << 8) + PduInfoPtr->SduDataPtr[3];
-  payloadLength = ((uint32_t)PduInfoPtr->SduDataPtr[4] << 24) +
-                  ((uint32_t)PduInfoPtr->SduDataPtr[5] << 16) +
-                  ((uint32_t)PduInfoPtr->SduDataPtr[6] << 8) + PduInfoPtr->SduDataPtr[7];
 
-  switch (payloadType) {
+  switch (msg->payloadType) {
   case DOIP_ROUTING_ACTIVATION_REQUEST:
-    if ((payloadLength + DOIP_HEADER_LENGTH) <= PduInfoPtr->SduLength) {
-      ret = doipHandleRoutineActivation(RxPduId, &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH],
-                                        payloadLength, nack);
+    if (msg->reqLen >= msg->payloadLength) {
+      ret = doipHandleRoutineActivation(RxPduId, msg, nack);
     } else {
       *nack = DOIP_TOO_MUCH_PAYLOAD_NACK;
       ret = E_NOT_OK;
     }
     break;
   case DOIP_ALIVE_CHECK_REQUEST:
-    if ((payloadLength + DOIP_HEADER_LENGTH) <= PduInfoPtr->SduLength) {
-      ret = doipHandleAliveCheckRequest(RxPduId, &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH],
-                                        payloadLength, nack);
+    if (msg->reqLen >= msg->payloadLength) {
+      ret = doipHandleAliveCheckRequest(RxPduId, msg, nack);
     } else {
       *nack = DOIP_TOO_MUCH_PAYLOAD_NACK;
       ret = E_NOT_OK;
     }
     break;
   case DOIP_ALIVE_CHECK_RESPONSE:
-    if ((payloadLength + DOIP_HEADER_LENGTH) <= PduInfoPtr->SduLength) {
-      ret = doipHandleAliveCheckResponse(RxPduId, &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH],
-                                         payloadLength, nack);
+    if (msg->reqLen >= msg->payloadLength) {
+      ret = doipHandleAliveCheckResponse(RxPduId, msg, nack);
     } else {
       *nack = DOIP_TOO_MUCH_PAYLOAD_NACK;
       ret = E_NOT_OK;
     }
     break;
   case DOIP_DIAGNOSTIC_MESSAGE:
-    ret =
-      doipHandleDiagnosticMessage(RxPduId, &PduInfoPtr->SduDataPtr[DOIP_HEADER_LENGTH],
-                                  payloadLength, PduInfoPtr->SduLength - DOIP_HEADER_LENGTH, nack);
+    ret = doipHandleDiagnosticMessage(RxPduId, msg, nack);
     break;
   default:
     *nack = DOIP_UNKNOW_PAYLOAD_TYPE_NACK;
@@ -662,30 +856,29 @@ static Std_ReturnType doipTpStartOfReception(PduIdType RxPduId, const PduInfoTyp
   return ret;
 }
 
-static Std_ReturnType doipTpCopyRxData(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
-                                       PduLengthType *bufferSizePtr, uint8_t *nack) {
+static Std_ReturnType doipTpCopyRxData(PduIdType RxPduId, DoIP_MsgType *msg, uint8_t *nack) {
   Std_ReturnType ret = E_OK;
   /* only DIAGNOSTIC_MESSAGE allow this */
 
-  ret =
-    doipHandleDiagnosticMessage(RxPduId, PduInfoPtr->SduDataPtr, 0, PduInfoPtr->SduLength, nack);
+  ret = doipHandleDiagnosticMessage(RxPduId, msg, nack);
 
   return ret;
 }
 
-static void doipHandleInactivityTimer(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+static void doipHandleInactivityTimer(void) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection;
   int i;
 
-  for (i = 0; i < config->numOfTesterConnections; i++) {
+  for (i = 0; i < config->MaxTesterConnections; i++) {
     connection = &config->testerConnections[i];
     if (DOIP_CON_CLOSED != connection->context->state) {
       if (connection->context->InactivityTimer > 0) {
         connection->context->InactivityTimer--;
         if (0 == connection->context->InactivityTimer) {
-          ASLOG(DOIP, ("[%d] Tester SoCon %d InactivityTimer timeout\n", Channel, i));
+          ASLOG(DOIP, ("Tester SoCon %d InactivityTimer timeout\n", i));
           SoAd_CloseSoCon(connection->SoConId, TRUE);
+          doipForgetDiagMsg(connection);
           memset(connection->context, 0, sizeof(DoIP_TesterConnectionContextType));
         }
       }
@@ -693,18 +886,18 @@ static void doipHandleInactivityTimer(uint8_t Channel) {
   }
 }
 
-static void doipHandleAliveCheckResponseTimer(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+static void doipHandleAliveCheckResponseTimer(void) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection;
   int i;
 
-  for (i = 0; i < config->numOfTesterConnections; i++) {
+  for (i = 0; i < config->MaxTesterConnections; i++) {
     connection = &config->testerConnections[i];
     if (DOIP_CON_CLOSED != connection->context->state) {
       if (connection->context->AliveCheckResponseTimer > 0) {
         connection->context->AliveCheckResponseTimer--;
         if (0 == connection->context->AliveCheckResponseTimer) {
-          ASLOG(DOIP, ("[%d] Tester SoCon %d AliveCheckResponseTimer timeout\n", Channel, i));
+          ASLOG(DOIP, ("Tester SoCon %d AliveCheckResponseTimer timeout\n", i));
           SoAd_CloseSoCon(connection->SoConId, TRUE);
           memset(connection->context, 0, sizeof(DoIP_TesterConnectionContextType));
         }
@@ -713,27 +906,27 @@ static void doipHandleAliveCheckResponseTimer(uint8_t Channel) {
   }
 }
 
-static void doipHandleVehicleAnnouncement(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+static void doipHandleVehicleAnnouncement(void) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   int i;
   PduInfoType PduInfo;
+  uint8_t logcamMsg[DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE];
 
   for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
     if (DOIP_CON_CLOSED != config->UdpVehicleAnnouncementConnections[i].context->state) {
       if (config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer > 0) {
         config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer--;
         if (0 == config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer) {
-          ASLOG(DOIP, ("[%d] Udp %d VehicleAnnouncement\n", Channel, i));
-          doipSetupVehicleAnnouncementResponse(config);
-          PduInfo.SduDataPtr = config->txBuf;
+          ASLOG(DOIP, ("Udp %d VehicleAnnouncement\n", i));
+          PduInfo.SduLength = doipSetupVehicleAnnouncementResponse(logcamMsg);
+          PduInfo.SduDataPtr = logcamMsg;
           PduInfo.MetaDataPtr = NULL;
-          PduInfo.SduLength = config->context->txLen;
           (void)SoAd_IfTransmit(config->UdpVehicleAnnouncementConnections[i].SoAdTxPdu, &PduInfo);
           config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter++;
           if (config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter <
-              config->UdpVehicleAnnouncementConnections[i].VehicleAnnouncementCount) {
+              config->VehicleAnnouncementCount) {
             config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
-              config->UdpVehicleAnnouncementConnections[i].VehicleAnnouncementInterval;
+              config->VehicleAnnouncementInterval;
           }
         }
       }
@@ -741,188 +934,186 @@ static void doipHandleVehicleAnnouncement(uint8_t Channel) {
   }
 }
 
-static void doipHandleDiagMsgResponse(uint8_t Channel) {
-  Std_ReturnType ret;
+static void doipHandleDiagMsgResponse(void) {
+  Std_ReturnType ret = E_NOT_OK;
   BufReq_ReturnType bret;
   PduInfoType PduInfo;
   PduLengthType left;
   PduIdType TxPduId;
   const DoIP_TargetAddressType *TargetAddressRef;
-  const DoIP_ChannelConfigType *config = &DOIP_CONFIG->ChannelConfigs[Channel];
+  const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection = NULL;
   int i;
-  for (i = 0; i < (NULL == connection) && (config->numOfTesterConnections); i++) {
+  uint8_t *res;
+  uint32_t resLen;
+
+  for (i = 0; i < (NULL == connection) && (config->MaxTesterConnections); i++) {
     connection = &config->testerConnections[i];
     if (DOIP_CON_CLOSED != connection->context->state) {
       TargetAddressRef = connection->context->msg.TargetAddressRef;
       if (NULL != TargetAddressRef) {
         if (DOIP_MSG_TX == connection->context->msg.state) {
-          ret = E_OK;
           TxPduId = TargetAddressRef->TxPduId;
           connection = &config->testerConnections[i];
-          PduInfo.SduDataPtr = config->txBuf;
-          PduInfo.SduLength = config->txBufLen;
-          if (PduInfo.SduLength >
-              (connection->context->msg.TpSduLength - connection->context->msg.index)) {
-            PduInfo.SduLength =
-              connection->context->msg.TpSduLength - connection->context->msg.index;
-          }
-          bret = PduR_DoIPCopyTxData(TxPduId, &PduInfo, NULL, &left);
-          if (BUFREQ_OK == bret) {
-            config->context->txLen = PduInfo.SduLength;
-            ret = doipTpSendResponse(connection->SoAdTxPdu, config);
-            if (E_OK != ret) {
-              connection->context->msg.state = DOIP_MSG_IDLE;
-              PduR_DoIPTxConfirmation(TxPduId, E_NOT_OK);
-            }
-          } else {
-            ret = E_NOT_OK;
-          }
-
-          if (E_OK == ret) {
-            if (PduInfo.SduLength >= connection->context->msg.TpSduLength) {
-              connection->context->msg.state = DOIP_MSG_IDLE;
-              PduR_DoIPTxConfirmation(TxPduId, E_OK);
-              ASLOG(DOIP, ("[%d] send UDS response done\n", Channel));
-            } else {
-              ASLOG(DOIP, ("[%d] send UDS response on going\n", Channel));
-            }
+          resLen = connection->context->msg.TpSduLength - connection->context->msg.index;
+          res = Net_MemGet(&resLen);
+          if (NULL != res) {
+            ret = E_OK;
           }
         }
       }
     }
+  }
+
+  if (E_OK == ret) {
+    PduInfo.SduDataPtr = res;
+    PduInfo.SduLength = resLen;
+    if (PduInfo.SduLength >
+        (connection->context->msg.TpSduLength - connection->context->msg.index)) {
+      PduInfo.SduLength = connection->context->msg.TpSduLength - connection->context->msg.index;
+    }
+    bret = PduR_DoIPCopyTxData(TxPduId, &PduInfo, NULL, &left);
+    if (BUFREQ_OK == bret) {
+      ret = doipTpSendResponse(connection->SoAdTxPdu, PduInfo.SduDataPtr, PduInfo.SduLength);
+      if (E_OK != ret) {
+        connection->context->msg.state = DOIP_MSG_IDLE;
+        PduR_DoIPTxConfirmation(TxPduId, E_NOT_OK);
+      }
+    } else {
+      ret = E_NOT_OK;
+    }
+
+    if (E_OK == ret) {
+      if (PduInfo.SduLength >= connection->context->msg.TpSduLength) {
+        connection->context->msg.state = DOIP_MSG_IDLE;
+        PduR_DoIPTxConfirmation(TxPduId, E_OK);
+        ASLOG(DOIP, ("[%d] send UDS response done\n", TxPduId));
+      } else {
+        ASLOG(DOIP, ("[%d] send UDS response on going\n", TxPduId));
+      }
+    }
+
+    Net_MemFree(res);
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void DoIP_Init(const DoIP_ConfigType *ConfigPtr) {
   int i;
-  uint8_t Channel;
-  const DoIP_ChannelConfigType *config;
-  for (Channel = 0; Channel < DOIP_CONFIG->numOfChannels; Channel++) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    config->context->txLen = 0;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
+    memset(config->UdpVehicleAnnouncementConnections[i].context, 0,
+           sizeof(DoIP_UdpVehicleAnnouncementConnectionContextType));
+  }
+  for (i = 0; i < config->MaxTesterConnections; i++) {
+    memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
+  }
+}
+
+void DoIP_ActivationLineSwitchActive(void) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
+  int i;
+
+  if (DOIP_ACTIVATION_LINE_INACTIVE == context->ActivationLineState) {
+    ASLOG(DOIP, ("switch to active\n"));
+    context->ActivationLineState = DOIP_ACTIVATION_LINE_ACTIVE;
+    /* @SWS_DoIP_00204 */
+    for (i = 0; i < config->numOfTcpConnections; i++) {
+      if (config->TcpConnections[i].RequestAddressAssignment) {
+        SoAd_OpenSoCon(config->TcpConnections[i].SoConId);
+      }
+    }
+    for (i = 0; i < config->numOfUdpConnections; i++) {
+      if (config->UdpConnections[i].RequestAddressAssignment) {
+        SoAd_OpenSoCon(config->UdpConnections[i].SoConId);
+      }
+    }
     for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
-      memset(config->UdpVehicleAnnouncementConnections[i].context, 0,
-             sizeof(DoIP_UdpVehicleAnnouncementConnectionContextType));
-    }
-    for (i = 0; i < config->numOfTesterConnections; i++) {
-      memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
-    }
-  }
-}
-
-void DoIP_ActivationLineSwitchActive(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config;
-  int i;
-  if (Channel < DOIP_CONFIG->numOfChannels) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_INACTIVE == config->context->ActivationLineState) {
-      ASLOG(DOIP, ("[%d] switch to active\n", Channel));
-      config->context->ActivationLineState = DOIP_ACTIVATION_LINE_ACTIVE;
-      /* @SWS_DoIP_00204 */
-      for (i = 0; i < config->numOfTcpConnections; i++) {
-        if (config->TcpConnections[i].RequestAddressAssignment) {
-          SoAd_OpenSoCon(config->TcpConnections[i].SoConId);
-        }
-      }
-      for (i = 0; i < config->numOfUdpConnections; i++) {
-        if (config->UdpConnections[i].RequestAddressAssignment) {
-          SoAd_OpenSoCon(config->UdpConnections[i].SoConId);
-        }
-      }
-      for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
-        if (config->UdpVehicleAnnouncementConnections[i].RequestAddressAssignment) {
-          SoAd_OpenSoCon(config->UdpVehicleAnnouncementConnections[i].SoConId);
-        }
+      if (config->UdpVehicleAnnouncementConnections[i].RequestAddressAssignment) {
+        SoAd_OpenSoCon(config->UdpVehicleAnnouncementConnections[i].SoConId);
       }
     }
   }
 }
 
-void DoIP_ActivationLineSwitchInactive(uint8_t Channel) {
-  const DoIP_ChannelConfigType *config;
+void DoIP_ActivationLineSwitchInactive(void) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
   int i;
-
-  if (Channel < DOIP_CONFIG->numOfChannels) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_ACTIVE == config->context->ActivationLineState) {
-      ASLOG(DOIP, ("[%d] switch to inactive\n", Channel));
-      for (i = 0; i < config->numOfTcpConnections; i++) {
-        if (config->TcpConnections[i].RequestAddressAssignment) {
-          SoAd_CloseSoCon(config->TcpConnections[i].SoConId, TRUE);
-        }
+  if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
+    ASLOG(DOIP, ("switch to inactive\n"));
+    for (i = 0; i < config->numOfTcpConnections; i++) {
+      if (config->TcpConnections[i].RequestAddressAssignment) {
+        SoAd_CloseSoCon(config->TcpConnections[i].SoConId, TRUE);
       }
-      for (i = 0; i < config->numOfUdpConnections; i++) {
-        if (config->UdpConnections[i].RequestAddressAssignment) {
-          SoAd_CloseSoCon(config->UdpConnections[i].SoConId, TRUE);
-        }
-      }
-      for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
-        if (config->UdpVehicleAnnouncementConnections[i].RequestAddressAssignment) {
-          SoAd_CloseSoCon(config->UdpVehicleAnnouncementConnections[i].SoConId, TRUE);
-          config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_CLOSED;
-        }
-      }
-      for (i = 0; i < config->numOfTesterConnections; i++) {
-        if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
-          SoAd_CloseSoCon(config->testerConnections[i].SoConId, TRUE);
-          config->testerConnections[i].context->state = DOIP_CON_CLOSED;
-        }
-      }
-      config->context->ActivationLineState = DOIP_ACTIVATION_LINE_INACTIVE;
     }
+    for (i = 0; i < config->numOfUdpConnections; i++) {
+      if (config->UdpConnections[i].RequestAddressAssignment) {
+        SoAd_CloseSoCon(config->UdpConnections[i].SoConId, TRUE);
+      }
+    }
+    for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
+      if (config->UdpVehicleAnnouncementConnections[i].RequestAddressAssignment) {
+        SoAd_CloseSoCon(config->UdpVehicleAnnouncementConnections[i].SoConId, TRUE);
+        config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_CLOSED;
+      }
+    }
+    for (i = 0; i < config->MaxTesterConnections; i++) {
+      if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
+        SoAd_CloseSoCon(config->testerConnections[i].SoConId, TRUE);
+        config->testerConnections[i].context->state = DOIP_CON_CLOSED;
+      }
+    }
+    context->ActivationLineState = DOIP_ACTIVATION_LINE_INACTIVE;
   }
 }
 
 void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   Std_ReturnType ret = E_NOT_OK;
-  const DoIP_ChannelConfigType *config;
-  uint8_t Channel;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
   int i;
-  for (Channel = 0; Channel < DOIP_CONFIG->numOfChannels; Channel++) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    for (i = 0; i < config->numOfTcpConnections; i++) {
-      if (SoConId == config->TcpConnections[i].SoConId) {
-        ASLOG(DOIP, ("[%d] Tcp %d SoCon Mode %d\n", Channel, i, Mode));
-        ret = E_OK;
-        break;
-      }
-    }
 
-    for (i = 0; (i < config->numOfUdpConnections) && (E_NOT_OK == ret); i++) {
-      if (SoConId == config->UdpConnections[i].SoConId) {
-        ASLOG(DOIP, ("[%d] Udp SoCon %d Mode %d\n", Channel, i, Mode));
-        ret = E_OK;
-      }
+  for (i = 0; i < config->numOfTcpConnections; i++) {
+    if (SoConId == config->TcpConnections[i].SoConId) {
+      ASLOG(DOIP, ("Tcp %d SoCon Mode %d\n", i, Mode));
+      ret = E_OK;
+      break;
     }
+  }
 
-    for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
-      if (SoConId == config->UdpVehicleAnnouncementConnections[i].SoConId) {
-        if (SOAD_SOCON_ONLINE == Mode) {
-          assert(DOIP_ACTIVATION_LINE_ACTIVE == config->context->ActivationLineState);
-          config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_OPEN;
-          config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
-            config->UdpVehicleAnnouncementConnections[i].InitialVehicleAnnouncementTime;
-          config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter = 0;
-        }
-        ASLOG(DOIP, ("[%d] UdpVehicleAnnouncement SoCon %d Mode %d\n", Channel, i, Mode));
-        ret = E_OK;
-        break;
-      }
+  for (i = 0; (i < config->numOfUdpConnections) && (E_NOT_OK == ret); i++) {
+    if (SoConId == config->UdpConnections[i].SoConId) {
+      ASLOG(DOIP, ("Udp SoCon %d Mode %d\n", i, Mode));
+      ret = E_OK;
     }
+  }
 
-    for (i = 0; (i < config->numOfTesterConnections) && (E_NOT_OK == ret); i++) {
-      if (SoConId == config->testerConnections[i].SoConId) {
-        if (SOAD_SOCON_ONLINE == Mode) {
-          assert(DOIP_ACTIVATION_LINE_ACTIVE == config->context->ActivationLineState);
-          memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
-          config->testerConnections[i].context->InactivityTimer =
-            config->testerConnections[i].InitialInactivityTime;
-          config->testerConnections[i].context->state = DOIP_CON_OPEN;
-        }
-        ASLOG(DOIP, ("[%d] Tester SoCon %d Mode %d\n", Channel, i, Mode));
-        ret = E_OK;
+  for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
+    if (SoConId == config->UdpVehicleAnnouncementConnections[i].SoConId) {
+      if (SOAD_SOCON_ONLINE == Mode) {
+        assert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
+        config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_OPEN;
+        config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
+          config->InitialVehicleAnnouncementTime;
+        config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter = 0;
       }
+      ASLOG(DOIP, ("UdpVehicleAnnouncement SoCon %d Mode %d\n", i, Mode));
+      ret = E_OK;
+      break;
+    }
+  }
+
+  for (i = 0; (i < config->MaxTesterConnections) && (E_NOT_OK == ret); i++) {
+    if (SoConId == config->testerConnections[i].SoConId) {
+      if (SOAD_SOCON_ONLINE == Mode) {
+        assert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
+        memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
+        config->testerConnections[i].context->InactivityTimer = config->InitialInactivityTime;
+        config->testerConnections[i].context->state = DOIP_CON_OPEN;
+      }
+      ASLOG(DOIP, ("Tester SoCon %d Mode %d\n", i, Mode));
+      ret = E_OK;
     }
   }
 }
@@ -931,12 +1122,14 @@ void DoIP_SoAdIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   Std_ReturnType ret = E_OK;
   uint8_t nack = DOIP_INVALID_PROTOCOL_NACK;
   PduInfoType PduInfo;
-  uint8_t Channel;
-  const DoIP_ChannelConfigType *config;
+  DoIP_ContextType *context = &DoIP_Context;
+  DoIP_MsgType msg;
+  uint8_t localMsg[DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE];
+  msg.res = localMsg;
+  msg.resLen = sizeof(localMsg);
+
   if (RxPduId < DOIP_CONFIG->numOfRxPduIds) {
-    Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_INACTIVE == config->context->ActivationLineState) {
+    if (DOIP_ACTIVATION_LINE_INACTIVE == context->ActivationLineState) {
       /* @SWS_DoIP_00202 */
       ret = DOIP_E_NOT_OK_SILENT;
     }
@@ -946,32 +1139,29 @@ void DoIP_SoAdIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   }
 
   if (E_OK == ret) {
-    /* @SWS_DoIP_00004 */
-    if ((PduInfoPtr->SduLength >= DOIP_HEADER_LENGTH) && (PduInfoPtr->SduDataPtr != NULL)) {
-      /* @SWS_DoIP_00005, @SWS_DoIP_00006 */
-      if ((DOIP_PROTOCOL_VERSION == PduInfoPtr->SduDataPtr[0]) &&
-          (PduInfoPtr->SduDataPtr[0] = ((~PduInfoPtr->SduDataPtr[1])) & 0xFF)) {
-        ret = doIpIfHandleMessage(RxPduId, PduInfoPtr, &nack);
-      } else {
-        ret = E_NOT_OK;
-      }
-    } else {
+    ret = doipDecodeMsg(PduInfoPtr, &msg);
+    if ((E_OK == ret) && (msg.reqLen < msg.payloadLength)) {
+      nack = DOIP_TOO_MUCH_PAYLOAD_NACK;
       ret = E_NOT_OK;
     }
+  }
+
+  if (E_OK == ret) {
+    ret = doIpIfHandleMessage(RxPduId, &msg, &nack);
   }
 
   if (DOIP_E_NOT_OK_SILENT == ret) {
     /* slient as inactive or ... */
   } else {
     if (E_OK != ret) {
-      doipFillHeader(config->txBuf, DOIP_GENERAL_HEADER_NEGATIVE_ACK, 1);
-      config->txBuf[8] = nack;
-      config->context->txLen = 9;
+      doipFillHeader(msg.res, DOIP_GENERAL_HEADER_NEGATIVE_ACK, 1);
+      msg.res[8] = nack;
+      msg.resLen = 9;
     }
 
-    PduInfo.SduDataPtr = config->txBuf;
+    PduInfo.SduDataPtr = msg.res;
     PduInfo.MetaDataPtr = PduInfoPtr->MetaDataPtr;
-    PduInfo.SduLength = config->context->txLen;
+    PduInfo.SduLength = msg.resLen;
     (void)SoAd_IfTransmit(RxPduId, &PduInfo);
   }
 }
@@ -983,20 +1173,18 @@ BufReq_ReturnType DoIP_SoAdTpStartOfReception(PduIdType RxPduId, const PduInfoTy
                                               PduLengthType TpSduLength,
                                               PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_OK;
-  const DoIP_ChannelConfigType *config;
-  uint8_t Channel;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
 
   if (RxPduId < DOIP_CONFIG->numOfRxPduIds) {
-    Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_INACTIVE == config->context->ActivationLineState) {
+    if (DOIP_ACTIVATION_LINE_INACTIVE == context->ActivationLineState) {
       /* @SWS_DoIP_00202 */
       ret = BUFREQ_E_NOT_OK;
     } else {
-      if (DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId] >= config->numOfTesterConnections) {
+      if (DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId] >= config->MaxTesterConnections) {
         /* @SWS_DoIP_00101 */
         ret = BUFREQ_E_NOT_OK;
-        ASLOG(DOIPE, ("[%d] RxPduId %d get invalid connection map\n", Channel, RxPduId));
+        ASLOG(DOIPE, ("RxPduId %d get invalid connection map\n", RxPduId));
       }
     }
   } else {
@@ -1011,19 +1199,21 @@ BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *Pd
                                         PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_OK;
   Std_ReturnType r = E_OK;
-  const DoIP_ChannelConfigType *config;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
   const DoIP_TesterConnectionType *connection;
-  uint8_t Channel;
   uint8_t nack = DOIP_INVALID_PROTOCOL_NACK;
+  DoIP_MsgType msg;
+  uint8_t localMsg[DOIP_SHORT_MSG_LOCAL_BUFFER_SIZE];
+  msg.res = localMsg;
+  msg.resLen = sizeof(localMsg);
 
   if (RxPduId < DOIP_CONFIG->numOfRxPduIds) {
-    Channel = DOIP_CONFIG->RxPduIdToChannelMap[RxPduId];
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_INACTIVE == config->context->ActivationLineState) {
+    if (DOIP_ACTIVATION_LINE_INACTIVE == context->ActivationLineState) {
       ret = BUFREQ_E_NOT_OK;
       r = DOIP_E_NOT_OK_SILENT;
     } else {
-      if (DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId] < config->numOfTesterConnections) {
+      if (DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId] < config->MaxTesterConnections) {
         connection = &config->testerConnections[DOIP_CONFIG->RxPduIdToConnectionMap[RxPduId]];
       } else {
         ret = BUFREQ_E_NOT_OK;
@@ -1038,31 +1228,32 @@ BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *Pd
 
   if (E_OK == r) {
     if (DOIP_MSG_IDLE == connection->context->msg.state) {
-      if (PduInfoPtr->SduLength >= DOIP_HEADER_LENGTH) {
-        r = doipTpStartOfReception(RxPduId, PduInfoPtr, bufferSizePtr, &nack);
-      } else {
-        r = E_NOT_OK;
+      r = doipDecodeMsg(PduInfoPtr, &msg);
+      if (E_OK == r) {
+        r = doipTpStartOfReception(RxPduId, &msg, &nack);
       }
     } else {
-      r = doipTpCopyRxData(RxPduId, PduInfoPtr, bufferSizePtr, &nack);
+      msg.req = PduInfoPtr->SduDataPtr;
+      msg.reqLen = PduInfoPtr->SduLength;
+      r = doipTpCopyRxData(RxPduId, &msg, &nack);
     }
   }
 
   if (E_NOT_OK == r) {
-    doipFillHeader(config->txBuf, DOIP_GENERAL_HEADER_NEGATIVE_ACK, 1);
-    config->txBuf[DOIP_HEADER_LENGTH] = nack;
-    config->context->txLen = DOIP_HEADER_LENGTH + 1;
+    doipFillHeader(msg.res, DOIP_GENERAL_HEADER_NEGATIVE_ACK, 1);
+    msg.res[DOIP_HEADER_LENGTH] = nack;
+    msg.resLen = DOIP_HEADER_LENGTH + 1;
   }
 
   if (E_OK == r) {
-    connection->context->InactivityTimer = connection->GeneralInactivityTime;
-    (void)doipTpSendResponse(connection->SoAdTxPdu, config);
+    connection->context->InactivityTimer = config->GeneralInactivityTime;
+    (void)doipTpSendResponse(connection->SoAdTxPdu, msg.res, msg.resLen);
   } else if (DOIP_E_NOT_OK_SILENT == r) {
     /* slient */
   } else if (DOIP_E_PENDING == r) {
     /* TODO */
   } else {
-    (void)doipTpSendResponse(connection->SoAdTxPdu, config);
+    (void)doipTpSendResponse(connection->SoAdTxPdu, msg.res, msg.resLen);
     ret = BUFREQ_E_NOT_OK;
   }
 
@@ -1070,41 +1261,37 @@ BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *Pd
 }
 
 void DoIP_MainFunction(void) {
-  uint8_t Channel;
-  const DoIP_ChannelConfigType *config;
-  for (Channel = 0; Channel < DOIP_CONFIG->numOfChannels; Channel++) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_ACTIVE == config->context->ActivationLineState) {
-      doipHandleInactivityTimer(Channel);
-      doipHandleAliveCheckResponseTimer(Channel);
-      doipHandleVehicleAnnouncement(Channel);
-      doipHandleDiagMsgResponse(Channel);
-      doipHandleRoutineActivationMain(Channel);
-    }
+  DoIP_ContextType *context = &DoIP_Context;
+
+  if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
+    doipHandleInactivityTimer();
+    doipHandleAliveCheckResponseTimer();
+    doipHandleVehicleAnnouncement();
+    doipHandleDiagMsgResponse();
+    doipHandleRoutineActivationMain();
   }
 }
 
 Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
   Std_ReturnType ret = E_NOT_OK;
   BufReq_ReturnType bret;
-  uint8_t Channel;
   int i;
-  const DoIP_ChannelConfigType *config;
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
   const DoIP_TesterConnectionType *connection = NULL;
   PduInfoType PduInfo;
   PduLengthType left;
   uint16_t sa, ta;
+  uint8_t *res;
+  uint32_t resLen;
 
-  for (Channel = 0; (NULL == connection) && (Channel < DOIP_CONFIG->numOfChannels); Channel++) {
-    config = &DOIP_CONFIG->ChannelConfigs[Channel];
-    if (DOIP_ACTIVATION_LINE_ACTIVE == config->context->ActivationLineState) {
-      for (i = 0; (NULL == connection) && (i < config->numOfTesterConnections); i++) {
-        if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
-          if (NULL != config->testerConnections[i].context->msg.TargetAddressRef) {
-            if (config->testerConnections[i].context->msg.TargetAddressRef->TxPduId == TxPduId) {
-              connection = &config->testerConnections[i];
-              ret = E_OK;
-            }
+  if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
+    for (i = 0; (NULL == connection) && (i < config->MaxTesterConnections); i++) {
+      if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
+        if (NULL != config->testerConnections[i].context->msg.TargetAddressRef) {
+          if (config->testerConnections[i].context->msg.TargetAddressRef->TxPduId == TxPduId) {
+            connection = &config->testerConnections[i];
+            ret = E_OK;
           }
         }
       }
@@ -1114,29 +1301,38 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   if (E_OK == ret) {
     if (connection->context->msg.state != DOIP_MSG_IDLE) {
       ASLOG(DOIPE,
-            ("[%d] UDS response when state is %d\n", Channel, connection->context->msg.state));
+            ("[%d] UDS response when state is %d\n", TxPduId, connection->context->msg.state));
       ret = E_NOT_OK;
     }
+  } else {
+    ASLOG(DOIPE, ("[%d] no UDS request\n", TxPduId));
   }
 
   if (E_OK == ret) {
-    ASLOG(DOIP, ("[%d] UDS response, len = %d\n", Channel, PduInfoPtr->SduLength));
-    doipFillHeader(config->txBuf, DOIP_DIAGNOSTIC_MESSAGE, PduInfoPtr->SduLength + 4);
+    ASLOG(DOIP, ("[%d] UDS response, len = %d\n", TxPduId, PduInfoPtr->SduLength));
+    resLen = DOIP_HEADER_LENGTH + 4 + PduInfoPtr->SduLength;
+    res = Net_MemGet(&resLen);
+    if (NULL == res) {
+      ret = E_NOT_OK;
+    }
+  }
+  if (E_OK == ret) {
+    doipFillHeader(res, DOIP_DIAGNOSTIC_MESSAGE, PduInfoPtr->SduLength + 4);
     sa = connection->context->msg.TargetAddressRef->TargetAddress;
     ta = connection->context->TesterRef->TesterSA;
-    config->txBuf[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF;
-    config->txBuf[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
-    config->txBuf[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
-    config->txBuf[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
-    PduInfo.SduDataPtr = &config->txBuf[DOIP_HEADER_LENGTH + 4];
+    res[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF;
+    res[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
+    res[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
+    res[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
+    PduInfo.SduDataPtr = &res[DOIP_HEADER_LENGTH + 4];
     PduInfo.SduLength = PduInfoPtr->SduLength;
-    if (PduInfo.SduLength > (config->txBufLen - DOIP_HEADER_LENGTH - 4)) {
-      PduInfo.SduLength = config->txBufLen - DOIP_HEADER_LENGTH - 4;
+    if (PduInfo.SduLength > (resLen - DOIP_HEADER_LENGTH - 4)) {
+      PduInfo.SduLength = resLen - DOIP_HEADER_LENGTH - 4;
     }
     bret = PduR_DoIPCopyTxData(TxPduId, &PduInfo, NULL, &left);
     if (BUFREQ_OK == bret) {
-      config->context->txLen = DOIP_HEADER_LENGTH + PduInfo.SduLength + 4;
-      ret = doipTpSendResponse(connection->SoAdTxPdu, config);
+      resLen = DOIP_HEADER_LENGTH + PduInfo.SduLength + 4;
+      ret = doipTpSendResponse(connection->SoAdTxPdu, res, resLen);
       if (E_OK != ret) {
         PduR_DoIPTxConfirmation(TxPduId, E_NOT_OK);
       }
@@ -1147,14 +1343,16 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     if (E_OK == ret) {
       if (PduInfo.SduLength >= PduInfoPtr->SduLength) {
         PduR_DoIPTxConfirmation(TxPduId, E_OK);
-        ASLOG(DOIP, ("[%d] send UDS response done\n", Channel));
+        ASLOG(DOIP, ("[%d] send UDS response done\n", TxPduId));
       } else {
         connection->context->msg.state = DOIP_MSG_TX;
         connection->context->msg.TpSduLength = PduInfoPtr->SduLength;
         connection->context->msg.index = PduInfo.SduLength;
-        ASLOG(DOIP, ("[%d] send UDS response on going\n", Channel));
+        ASLOG(DOIP, ("[%d] send UDS response on going\n", TxPduId));
       }
     }
+
+    Net_MemFree(res);
   }
 
   return ret;

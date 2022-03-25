@@ -51,6 +51,10 @@
 #define AS_LOG_TCPIPI 1
 #define AS_LOG_TCPIPE 2
 #define NETIF_ADDRS ipaddr, netmask, gw,
+
+#ifndef TCPIP_MAX_DATA_SIZE
+#define TCPIP_MAX_DATA_SIZE 1400
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -484,4 +488,20 @@ Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr) {
   memcpy(addr->addr, &u32Addr, 4);
   return E_OK;
 #endif
+}
+
+uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId) {
+#if defined(_WIN32) && !defined(USE_LWIP)
+  u_long Length = 0;
+  ioctlsocket(SocketId, FIONREAD, &Length);
+#else
+  int Length = 0;
+  ioctl(SocketId, FIONREAD, &Length);
+#endif
+
+  if (Length > TCPIP_MAX_DATA_SIZE) {
+    Length = TCPIP_MAX_DATA_SIZE;
+  }
+
+  return Length;
 }

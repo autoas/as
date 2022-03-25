@@ -1,0 +1,35 @@
+{
+  "class": "PduR",
+  "routines" : [
+    {
+      "name": "P2P_RX",
+      "from": "DoIP",
+      "to": "Dcm"
+    },
+    {
+      "name": "P2P_TX",
+      "from": "Dcm",
+      "to": "DoIP"
+    },
+    {
+      "name": "GW_P2P_RX",
+      "from": "DoIP",
+      "to": "CanTp"
+    },
+    {
+      "name": "GW_P2P_TX",
+      "from": "CanTp",
+      "to": "DoIP"
+    },
+    {
+      "name": "GW_P2A_RX",
+      "from": "DoIP",
+      "to": "CanTp"
+    },
+    {
+      "name": "GW_P2A_TX",
+      "from": "CanTp",
+      "to": "DoIP"
+    }
+  ]
+}

@@ -119,11 +119,11 @@ static void *KeyMonitorThread(void *arg) {
       static int avtive = FALSE;
       if (FALSE == avtive) {
         printf("DoIP request\n");
-        DoIP_ActivationLineSwitchActive(0);
+        DoIP_ActivationLineSwitchActive();
         avtive = TRUE;
       } else {
         printf("DoIP release\n");
-        DoIP_ActivationLineSwitchInactive(0);
+        DoIP_ActivationLineSwitchInactive();
         avtive = FALSE;
       }
     }

@@ -7,6 +7,6 @@ objs = Glob('*.c')
 class LibrarySoAd(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS', CWD]
-        self.LIBS = ['TcpIp']
+        self.LIBS = ['TcpIp', 'MemPool']
         self.source = objs
 

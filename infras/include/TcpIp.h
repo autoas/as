@@ -62,9 +62,10 @@ typedef struct TcpIp_Config_s TcpIp_ConfigType;
 /* @SWS_TCPIP_00002 */
 void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr);
 
-Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, const char* ip, uint16_t port);
+Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, const char *ip,
+                                   uint16_t port);
 
-Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType * addr);
+Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr);
 
 /* @SWS_TCPIP_00026 */
 void TcpIp_MainFunction(void);
@@ -108,4 +109,7 @@ Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, ui
  **/
 Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, uint32_t Interval,
                                   uint32_t Count);
+
+uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId);
+
 #endif /* _TCPIP_H */

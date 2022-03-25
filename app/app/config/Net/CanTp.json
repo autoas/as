@@ -1,0 +1,11 @@
+{
+  "class": "CanTp",
+  "channels": [
+    {
+      "name": "GW_P2P"
+    },
+    {
+      "name": "GW_P2A"
+    }
+  ]
+}

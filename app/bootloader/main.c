@@ -101,6 +101,7 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
 }
 #endif
 
+#ifndef USE_PDUR
 Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
 #ifdef USE_CANTP
   return CanTp_Transmit(TxPduId, PduInfoPtr);
@@ -109,6 +110,7 @@ Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr
   return LinTp_Transmit(TxPduId, PduInfoPtr);
 #endif
 }
+#endif
 
 void BL_MainTask_500ms(void) {
   BL_AliveIndicate();

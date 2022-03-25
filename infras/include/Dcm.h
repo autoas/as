@@ -11,8 +11,12 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* For DCM physical addressing */
 #define DCM_P2P_PDU 0
+#define DCM_P2P_RX 0
+#define DCM_P2P_TX 0
 /* For DCM functional addressing */
 #define DCM_P2A_PDU 1
+#define DCM_P2A_RX 1
+#define DCM_P2A_TX 1
 
 /* @SWS_Dcm_00976 */
 #define DCM_E_OK (Dcm_StatusType)0x00

@@ -7,16 +7,23 @@ CWD = GetCurrentDir()
 
 LL_DL = os.getenv('LL_DL')
 
+generate(Glob('config/*.json'))
+
 objsBL = Glob('src/*.c')
+
+
 @register_library
 class LibraryBL(Library):
     def config(self):
-        self.include = '%s/include'%(CWD)
+        self.include = '%s/include' % (CWD)
         self.LIBS = ['Crc']
         self.CPPPATH = ['$INFRAS']
         self.source = objsBL
 
+
 objsAppBL = Glob('*.c')
+
+
 class ApplicationBL(Application):
     def config(self):
         self.CPPDEFINES = []
@@ -24,38 +31,49 @@ class ApplicationBL(Application):
         for libName, source in self.libsForBL.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s'%(libName.split(':')[0].upper())])
+            self.Append(CPPDEFINES=['USE_%s' %
+                        (libName.split(':')[0].upper())])
         self.CPPPATH = ['$INFRAS']
         self.source = objsAppBL
 
+
 libsForCanBL = {}
-for libName in ['BL', 'Dcm', 'CanTp']:
-    libsForCanBL[libName] = Glob('config/%s_Cfg.c'%(libName))
+for libName in ['BL', 'Dcm']:
+    libsForCanBL[libName] = Glob('config/%s_Cfg.c' % (libName))
+for libName in ['CanTp', 'PduR']:
+    libsForCanBL[libName] = Glob('config/GEN/%s_Cfg.c' % (libName))
+
+
 @register_application
 class ApplicationCanBL(ApplicationBL):
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG'])
         self.LIBS.append('Simulator')
+
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s'%(LL_DL)])
+            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
         self.libsForBL = libsForCanBL
         super().config()
         self.Append(CPPDEFINES=['USE_CAN'])
         self.platform_config()
 
+
 libsForLinBL = {}
 for libName in ['BL', 'Dcm', 'LinTp']:
-    libsForLinBL[libName] = Glob('config/%s_Cfg.c'%(libName))
+    libsForLinBL[libName] = Glob('config/%s_Cfg.c' % (libName))
 libsForLinBL['Dll:lvds.slave'] = Glob('config/Dll_Cfg.c')
+
+
 @register_application
 class ApplicationLinBL(ApplicationBL):
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG'])
         self.LIBS.append('Simulator')
+
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['LINTP_LL_DL=%s'%(LL_DL)])
+            self.Append(CPPDEFINES=['LINTP_LL_DL=%s' % (LL_DL)])
         self.libsForBL = libsForLinBL
         super().config()
         self.platform_config()

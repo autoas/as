@@ -10,6 +10,9 @@
 #include "Std_Debug.h"
 #include <string.h>
 #include <stdio.h>
+#ifndef DISABLE_NET_MEM
+#include "NetMem.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOAD 0
 #define AS_LOG_SOADE 2
@@ -80,11 +83,12 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
 }
 
 static void soAdSocketIfRxNotify(SoAd_SocketContextType *context,
-                                 const SoAd_SocketConnectionType *connection, uint16_t rxLen) {
+                                 const SoAd_SocketConnectionType *connection, uint8_t *data,
+                                 uint16_t rxLen) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   const SoAd_IfInterfaceType *IF = (const SoAd_IfInterfaceType *)conG->Interface;
   PduInfoType PduInfo;
-  PduInfo.SduDataPtr = connection->rxBuf;
+  PduInfo.SduDataPtr = data;
   PduInfo.SduLength = rxLen;
   PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
 
@@ -94,11 +98,12 @@ static void soAdSocketIfRxNotify(SoAd_SocketContextType *context,
 }
 
 static void soAdSocketTpRxNotify(SoAd_SocketContextType *context,
-                                 const SoAd_SocketConnectionType *connection, uint16_t rxLen) {
+                                 const SoAd_SocketConnectionType *connection, uint8_t *data,
+                                 uint16_t rxLen) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   const SoAd_TpInterfaceType *IF = (const SoAd_TpInterfaceType *)conG->Interface;
   PduInfoType PduInfo;
-  PduInfo.SduDataPtr = connection->rxBuf;
+  PduInfo.SduDataPtr = data;
   PduInfo.SduLength = rxLen;
   PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
   PduLengthType bufferSize;
@@ -112,26 +117,47 @@ static void soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
-  Std_ReturnType ret;
-  uint16_t rxLen = connection->rxBufLen;
+  Std_ReturnType ret = E_NOT_OK;
+  uint16_t rxLen;
+  uint8_t *data = NULL;
 
-  if (connection->rxBuf) {
-    ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, connection->rxBuf, &rxLen);
+#ifndef DISABLE_NET_MEM
+  rxLen = TcpIp_Tell(context->sock);
+  if (rxLen > 0) {
+    data = Net_MemAlloc((uint32_t)rxLen);
+    if (NULL != data) {
+      ret = E_OK;
+    } else {
+      ASLOG(SOADE, ("[%d] Failed to malloc for %d\n", SoConId, rxLen));
+    }
+  }
+#else
+  data = connection->rxBuf;
+  rxLen = connection->rxBufLen;
+  if (data != NULL) {
+    ret = E_OK;
+  } else {
+    ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
+  }
+#endif
+
+  if (E_OK == ret) {
+    ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, &rxLen);
     if (E_OK == ret) {
       if (rxLen > 0) {
         ASLOG(SOAD, ("[%d] UDP read %d bytes\n", SoConId, rxLen));
         if (conG->IsTP) {
-          soAdSocketTpRxNotify(context, connection, rxLen);
+          soAdSocketTpRxNotify(context, connection, data, rxLen);
         } else {
-          soAdSocketIfRxNotify(context, connection, rxLen);
+          soAdSocketIfRxNotify(context, connection, data, rxLen);
         }
       }
     } else {
       ASLOG(SOADE, ("[%d] UDP read failed\n", SoConId));
     }
-
-  } else {
-    ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
+#ifndef DISABLE_NET_MEM
+    Net_MemFree(data);
+#endif
   }
 }
 
@@ -140,26 +166,48 @@ static void soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret;
-  uint16_t rxLen = connection->rxBufLen;
+  uint16_t rxLen;
+  uint8_t *data = NULL;
 
   ret = TcpIp_IsTcpStatusOK(context->sock);
   if (E_OK == ret) {
-    if (connection->rxBuf) {
-      ret = TcpIp_Recv(context->sock, connection->rxBuf, &rxLen);
+#ifndef DISABLE_NET_MEM
+    rxLen = TcpIp_Tell(context->sock);
+    if (rxLen > 0) {
+      data = Net_MemAlloc((uint32_t)rxLen);
+      if (NULL == data) {
+        ret = E_NOT_OK;
+        ASLOG(SOADE, ("[%d] Failed to malloc for %d\n", SoConId, rxLen));
+      }
+    } else {
+      ret = E_NOT_OK;
+    }
+#else
+    data = connection->rxBuf;
+    rxLen = connection->rxBufLen;
+    if (data != NULL) {
+      ret = E_OK;
+    } else {
+      ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
+    }
+#endif
+    if (E_OK == ret) {
+      ret = TcpIp_Recv(context->sock, data, &rxLen);
       if (E_OK == ret) {
         if (rxLen > 0) {
           ASLOG(SOAD, ("[%d] TCP read %d bytes\n", SoConId, rxLen));
           if (conG->IsTP) {
-            soAdSocketTpRxNotify(context, connection, rxLen);
+            soAdSocketTpRxNotify(context, connection, data, rxLen);
           } else {
-            soAdSocketIfRxNotify(context, connection, rxLen);
+            soAdSocketIfRxNotify(context, connection, data, rxLen);
           }
         }
       } else {
         ASLOG(SOADE, ("[%d] TCP read failed\n", SoConId));
       }
-    } else {
-      ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
+#ifndef DISABLE_NET_MEM
+      Net_MemFree(data);
+#endif
     }
   } else {
     TcpIp_Close(context->sock, TRUE);
@@ -236,6 +284,7 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
   const SoAd_SocketConnectionGroupType *conG;
   SoAd_SocketContextType *context;
 
+  Net_MemInit();
   for (i = 0; i < SOAD_CONFIG->numOfConnections; i++) {
     connection = &SOAD_CONFIG->Connections[i];
     context = &SOAD_CONFIG->Contexts[i];

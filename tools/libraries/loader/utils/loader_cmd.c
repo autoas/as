@@ -28,7 +28,11 @@ int std_printf(const char *fmt, ...) {
 
   va_start(args, fmt);
   length = vsnprintf(buf, sizeof(buf), fmt, args);
-  fprintf(_stddebug, buf);
+  if (_stddebug) {
+    fprintf(_stddebug, buf);
+  } else {
+    fprintf(stdout, buf);
+  }
   va_end(args);
 
   return length;

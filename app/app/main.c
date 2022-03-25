@@ -26,6 +26,10 @@
 #endif
 #endif
 
+#ifdef USE_PDUR
+#include "PduR.h"
+#endif
+
 #ifdef USE_COM
 #include "Com.h"
 #include "./config/Com/GEN/Com_Cfg.h"
@@ -88,6 +92,15 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
 #define AS_LOG_OSEKNM 1
+
+#ifdef USE_DOIP
+#define CANID_P2P_RX 0x732
+#define CANID_P2P_TX 0x731
+#else
+#define CANID_P2P_RX 0x731
+#define CANID_P2P_TX 0x732
+#endif
+#define CANID_P2A_RX 0x7DF
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void App_AliveIndicate(void);
@@ -166,6 +179,10 @@ static void BSW_Init(void) {
   LinTp_Init(NULL);
 #endif
 
+#ifdef USE_PDUR
+  PduR_Init(NULL);
+#endif
+
 #ifdef USE_COM
   Com_Init(NULL);
 #endif
@@ -229,11 +246,11 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
                 PduInfoPtr->SduDataPtr[3], PduInfoPtr->SduDataPtr[4], PduInfoPtr->SduDataPtr[5],
                 PduInfoPtr->SduDataPtr[6], PduInfoPtr->SduDataPtr[7]));
 
-  if (0x731 == Mailbox->CanId) {
+  if (CANID_P2P_RX == Mailbox->CanId) {
 #ifdef USE_CANTP
     CanTp_RxIndication((PduIdType)0, PduInfoPtr);
 #endif
-  } else if (0x7DF == Mailbox->CanId) {
+  } else if (CANID_P2A_RX == Mailbox->CanId) {
 #ifdef USE_CANTP
     CanTp_RxIndication((PduIdType)1, PduInfoPtr);
 #endif
@@ -295,7 +312,12 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
   canPdu.sdu = PduInfoPtr->SduDataPtr;
 
   if ((0 == TxPduId) || (1 == TxPduId)) {
-    canPdu.id = 0x732;
+    canPdu.id = CANID_P2P_TX;
+#ifdef USE_DOIP
+    if (1 == TxPduId) {
+      canPdu.id = CANID_P2A_RX;
+    }
+#endif
     ret = Can_Write(0, &canPdu);
   }
 #ifdef USE_CANNM
@@ -344,6 +366,7 @@ Std_ReturnType PduR_ComTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr
 #endif
 #endif /* USE_CAN */
 
+#ifndef USE_PDUR
 Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
 #ifdef USE_CANTP
   return CanTp_Transmit(TxPduId, PduInfoPtr);
@@ -356,6 +379,7 @@ Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr
 #endif
   return E_NOT_OK;
 }
+#endif
 
 int main(int argc, char *argv[]) {
   ASLOG(INFO, ("application build @ %s %s\n", __DATE__, __TIME__));

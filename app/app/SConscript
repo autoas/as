@@ -29,17 +29,22 @@ class ApplicationApp(Application):
 
 libsCommon = {'Dcm': Glob('config/Dcm/Dcm_Cfg.c'),
               'Dem': Glob('config/GEN/Dem_Cfg.c'),
-              'Fls': Glob('config/Fls_Cfg.c'),
-              'Fee': Glob('config/GEN/Fee_Cfg.c'),
               'NvM': Glob('config/GEN/NvM_Cfg.c'),
-              'Eep': Glob('config/Eep_Cfg.c'),
-              'Ea': Glob('config/GEN/Ea_Cfg.c'),
               }
+for libName in ['Fee', 'Ea']:
+    nvSrcs = Glob('config/GEN/%s_Cfg.c' % (libName))
+    if len(nvSrcs) > 0:
+        libsCommon[libName] = nvSrcs
+if 'Fee' in libsCommon:
+    libsCommon['Fls'] = Glob('config/Fls_Cfg.c')
+if 'Ea' in libsCommon:
+    libsCommon['Eep'] = Glob('config/Eep_Cfg.c')
 
-libsForCanApp = {'CanTp': Glob('../bootloader/config/CanTp_Cfg.c'),
-                 'OsekNm': Glob('config/OsekNm_Cfg.c'),
+libsForCanApp = {'OsekNm': Glob('config/OsekNm_Cfg.c'),
                  'CanNm': Glob('config/CanNm_Cfg.c'),
                  'Com': Glob('config/Com/GEN/Com_Cfg.c'),
+                 'CanTp': Glob('config/Com/GEN/CanTp_Cfg.c'),
+                 'PduR': Glob('config/Com/GEN/PduR_Cfg.c'),
                  }
 libsForCanApp.update(libsCommon)
 
@@ -48,7 +53,8 @@ libsForCanApp.update(libsCommon)
 class ApplicationCanApp(ApplicationApp):
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_PLUGIN'])
-        self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK', 'FLS_ERASED_VALUE=0xFF'])
+        self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK',
+                    'FLS_ERASED_VALUE=0xFF'])
         self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
         self.LIBS.append('Simulator')
         self.LIBS.append('Plugin')
@@ -89,10 +95,12 @@ class ApplicationOsekNm(ApplicationApp):
 
 
 libsForNetApp = {
-    'SoAd': Glob('config/Net/GEN/SoAd_*.c'),
+    'SoAd': Glob('config/Net/GEN/SoAd_*.c') + Glob('config/Net/GEN/NetMem.c'),
     'DoIP': Glob('config/Net/GEN/DoIp_*.c'),
     'Sd': Glob('config/Net/GEN/Sd_*.c'),
     'SomeIp': Glob('config/Net/GEN/SomeIp_*.c'),
+    'PduR': Glob('config/Net/GEN/PduR*.c'),
+    'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
 }
 libsForNetApp.update(libsCommon)
 
@@ -109,6 +117,10 @@ class ApplicationNetApp(Application):
 
     def platform_config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        # self.Append(CPPDEFINES=['DISABLE_NET_MEM'])
+        if LL_DL != None:
+            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
+        self.Append(CPPDEFINES=['USE_CAN'])
         self.LIBS.append('Simulator')
 
     def config(self):

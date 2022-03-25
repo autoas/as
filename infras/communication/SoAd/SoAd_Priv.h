@@ -12,7 +12,8 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 
-typedef void (*SoAd_SoConModeChgNotificationFncType)(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
+typedef void (*SoAd_SoConModeChgNotificationFncType)(SoAd_SoConIdType SoConId,
+                                                     SoAd_SoConModeType Mode);
 /* @SWS_SoAd_00106 */
 typedef void (*SoAd_IfRxIndicationFncType)(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 
@@ -84,10 +85,14 @@ typedef struct {
 
 /* @ECUC_SoAd_00009 */
 typedef struct {
+#ifdef DISABLE_NET_MEM
   uint8_t *rxBuf;
+#endif
   PduIdType RxPduId;
   SoAd_SoConIdType SoConId;
+#ifdef DISABLE_NET_MEM
   uint16_t rxBufLen;
+#endif
   uint16_t GID;
   boolean isGroup;
 } SoAd_SocketConnectionType;

@@ -22,6 +22,16 @@ class LibraryLWIP(Library):
                 f.write("Return('objs')")
         return SConscript(sc, variant_dir='%s/lwip' % (BUILD_DIR), duplicate=0)
 
+    def install_pcap(self):
+        pkg = Package('https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip')
+        self.CPPPATH += ['%s/WpdPack/Include' % (pkg)]
+        libP = '%s/WpdPack/Lib/x64' % (pkg)
+        if not os.path.isfile('%s/libpacket.a' % (libP)):
+            shutil.copy('%s/Packet.lib' % (libP), '%s/libpacket.a' % (libP))
+        if not os.path.isfile('%s/libwpcap.a' % (libP)):
+            shutil.copy('%s/wpcap.lib' % (libP), '%s/libwpcap.a' % (libP))
+        self.LIBPATH += [libP]
+
     def get_lwip_contrib_objs(self, lwipc):
         if GetOption('compiler') not in ['GCC']:
             return []
@@ -39,6 +49,7 @@ class LibraryLWIP(Library):
         if IsPlatformWindows():
             # install the wpcap(https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip) to msys2
             # copy and rename the *.lib to lib*.a
+            self.install_pcap()
             self.CPPPATH += ['%s/ports/win32/' %
                              (lwipc), '%s/ports/win32/include/' % (lwipc)]
             self.LIBS = ['packet', 'wpcap', 'ws2_32']

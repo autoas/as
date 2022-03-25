@@ -59,7 +59,7 @@ struct doip_node_s {
   uint8_t FA;
   uint8_t status;
   uint16_t SA;
-  uint16_t TA;
+  uint16_t LA;
   TcpIp_SockAddrType RemoteAddr;
   TcpIp_SocketIdType sock;
   bool connected;
@@ -304,16 +304,16 @@ static void *node_daemon(void *arg) {
 static int doip_handle_activate_response(struct doip_node_s *node, uint8_t *payload,
                                          uint32_t length) {
   int r = 0;
-  uint16_t sa, ta;
+  uint16_t sa, la;
   uint8_t resCode;
   if (13 == length) {
     sa = ((uint16_t)payload[0] << 8) + payload[1];
-    ta = ((uint16_t)payload[2] << 8) + payload[3];
+    la = ((uint16_t)payload[2] << 8) + payload[3];
     resCode = payload[4];
     if (0x10 == resCode) {
       node->SA = sa;
-      node->TA = ta;
-      ASLOG(DOIP, ("activated okay with SA=%X, TA=%X\n", sa, ta));
+      node->LA = la;
+      ASLOG(DOIPI, ("activated okay with SA=%X, LA=%X\n", sa, la));
     } else {
       ASLOG(DOIPE, ("activate failed with response code 0x%x\n", resCode));
       r = DOIP_E_NEGATIVE;
@@ -672,8 +672,8 @@ int doip_activate(doip_node_t *node, uint16_t sa, uint8_t at, uint8_t *oem, uint
   return r;
 }
 
-int doip_transmit(doip_node_t *node, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
-                  size_t rxSize) {
+int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_t txSize,
+                  uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
   Std_ReturnType ret;
   struct doip_node_s *n = (struct doip_node_s *)node;
@@ -690,8 +690,8 @@ int doip_transmit(doip_node_t *node, const uint8_t *txBuffer, size_t txSize, uin
     doip_fill_header(n->buffer, DOIP_DIAGNOSTIC_MESSAGE, 4 + txSize);
     n->buffer[DOIP_HEADER_LENGTH] = (n->SA >> 8) & 0xFF;
     n->buffer[DOIP_HEADER_LENGTH + 1] = n->SA & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 2] = (n->TA >> 8) & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 3] = n->TA & 0xFF;
+    n->buffer[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
+    n->buffer[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
     memcpy(&n->buffer[DOIP_HEADER_LENGTH + 4], txBuffer, txSize);
     ret = TcpIp_Send(n->sock, n->buffer, DOIP_HEADER_LENGTH + 4 + txSize);
     if (E_OK == ret) {

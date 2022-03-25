@@ -1,0 +1,25 @@
+{
+  "class": "PduR",
+  "routines" : [
+    {
+      "name": "P2P_RX",
+      "from": "CanTp",
+      "to": "Dcm"
+    },
+    {
+      "name": "P2P_TX",
+      "from": "Dcm",
+      "to": "CanTp"
+    },
+    {
+      "name": "P2A_RX",
+      "from": "CanTp",
+      "to": "Dcm"
+    },
+    {
+      "name": "P2A_TX",
+      "from": "Dcm",
+      "to": "CanTp"
+    }
+  ]
+}

@@ -56,8 +56,28 @@ extern "C" {
       PRINTF msg;                                                                                  \
     }                                                                                              \
   } while (0)
+
+#define ASHEXDUMP(level, msg, data, size)                                                          \
+  do {                                                                                             \
+    if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
+      uint8_t *pData = (uint8_t *)(data);                                                          \
+      uint32_t __index;                                                                            \
+      PRINTF("%-8s:", #level);                                                                     \
+      PRINTF msg;                                                                                  \
+      for (__index = 0; __index < (size); __index++) {                                             \
+        if (0 == (__index & 0x1F)) {                                                               \
+          PRINTF("\n  %08X ", __index);                                                            \
+        }                                                                                          \
+        PRINTF("%02X ", pData[__index]);                                                           \
+      }                                                                                            \
+      if (0 != (__index & 0x1F)) {                                                                 \
+        PRINTF("\n");                                                                              \
+      }                                                                                            \
+    }                                                                                              \
+  } while (0)
 #else
 #define ASLOG(level, msg)
+#define ASHEXDUMP(level, msg, data, size)
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

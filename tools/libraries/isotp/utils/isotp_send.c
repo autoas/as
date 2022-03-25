@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   int rxid = 0x732, txid = 0x731;
   int ll_dl = 8;
   int length = 0;
-  static uint8_t data[4095];
+  uint8_t data[4095];
   char bytes[3] = {0, 0, 0};
   int i;
   int r = 0;

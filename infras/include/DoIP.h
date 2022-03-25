@@ -22,10 +22,10 @@ typedef struct DoIP_Config_s DoIP_ConfigType;
 void DoIP_Init(const DoIP_ConfigType *ConfigPtr);
 
 /* @SWS_DoIP_00251 */
-void DoIP_ActivationLineSwitchActive(uint8_t Channel);
+void DoIP_ActivationLineSwitchActive(void);
 
 /* @SWS_DoIP_91001 */
-void DoIP_ActivationLineSwitchInactive(uint8_t Channel);
+void DoIP_ActivationLineSwitchInactive(void);
 
 /* @SWS_DoIP_00022 */
 Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);

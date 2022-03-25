@@ -1,0 +1,19 @@
+{
+  "class": "Com",
+  "networks": [
+    {
+      "name": "CAN0",
+      "network": "CAN",
+      "device": "simulator",
+      "port": 0,
+      "baudrate": 500000,
+      "me": "AS",
+      "groups": [
+        {
+          "SystemTime": ["year", "month", "day", "hour", "minute", "second"]
+        }
+      ],
+      "dbc": "CAN0.dbc"
+    }
+  ]
+}

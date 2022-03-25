@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+
+@register_library
+class LibraryPduR(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', CWD]
+        self.LIBS = ['MemPool']
+        self.source = objs
+

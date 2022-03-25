@@ -1,6 +1,6 @@
 {
     "class": "NvM",
-    "target": "Ea",
+    "target": "Fee",
     "blocks": [
         {
             "name": "Dem_NvmEventStatusRecord{}",
