@@ -6,22 +6,34 @@
 #define _LWIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
-#define LWIP_MAC_ADDR_BASE { 0xde ,0xad ,0xbe ,0xef, 0xfe, 0xed }
+#define LWIP_MAC_ADDR_BASE                                                                         \
+  { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed }
 
-#define LWIP_AS_LOCAL_IP_ADDR    "172.18.0.200"
+#define LWIP_AS_LOCAL_IP_ADDR "172.18.0.200"
 #define LWIP_AS_LOCAL_IP_NETMASK "255.255.255.0"
 #define LWIP_AS_LOCAL_IP_GATEWAY "172.18.0.1"
 
-#define LWIP_PORT_INIT_IPADDR(ip) do { (ip)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_ADDR); } while(0)
-#define LWIP_PORT_INIT_NETMASK(mask) do { (mask)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_NETMASK); } while(0)
-#define LWIP_PORT_INIT_GW(gw) do { (gw)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_GATEWAY); } while(0)
+#define LWIP_PORT_INIT_IPADDR(ip)                                                                  \
+  do {                                                                                             \
+    (ip)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_ADDR);                                               \
+  } while (0)
+#define LWIP_PORT_INIT_NETMASK(mask)                                                               \
+  do {                                                                                             \
+    (mask)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_NETMASK);                                          \
+  } while (0)
+#define LWIP_PORT_INIT_GW(gw)                                                                      \
+  do {                                                                                             \
+    (gw)->addr = ipaddr_addr(LWIP_AS_LOCAL_IP_GATEWAY);                                            \
+  } while (0)
+
+#define LWIP_SO_RCVBUF 1 /* enable ioctl FIONREAD */
 
 #ifndef LWIP_DEBUG
 #define LWIP_DEBUG 0
 #endif
 #if LWIP_DEBUG == 1
-#define LWIP_DBG_MIN_LEVEL              LWIP_DBG_LEVEL_ALL
-#define LWIP_DBG_TYPES_ON               LWIP_DBG_ON
+#define LWIP_DBG_MIN_LEVEL LWIP_DBG_LEVEL_ALL
+#define LWIP_DBG_TYPES_ON LWIP_DBG_ON
 // #define ETHARP_DEBUG                    LWIP_DBG_ON
 // #define NETIF_DEBUG                     LWIP_DBG_ON
 // #define PBUF_DEBUG                      LWIP_DBG_OFF
@@ -31,15 +43,15 @@
 // #define ICMP_DEBUG                      LWIP_DBG_ON
 // #define IGMP_DEBUG                      LWIP_DBG_ON
 // #define INET_DEBUG                      LWIP_DBG_ON
-#define IP_DEBUG                        LWIP_DBG_ON
+#define IP_DEBUG LWIP_DBG_ON
 // #define IP_REASS_DEBUG                  LWIP_DBG_ON
 // #define RAW_DEBUG                       LWIP_DBG_ON
 // #define MEM_DEBUG                       LWIP_DBG_ON
 // #define MEMP_DEBUG                      LWIP_DBG_ON
 // #define SYS_DEBUG                       LWIP_DBG_OFF
 // #define TIMERS_DEBUG                    LWIP_DBG_OFF
-#define TCP_DEBUG                       LWIP_DBG_ON
-#define TCP_INPUT_DEBUG                 LWIP_DBG_ON
+#define TCP_DEBUG LWIP_DBG_ON
+#define TCP_INPUT_DEBUG LWIP_DBG_ON
 // #define TCP_FR_DEBUG                    LWIP_DBG_ON
 // #define TCP_RTO_DEBUG                   LWIP_DBG_ON
 // #define TCP_CWND_DEBUG                  LWIP_DBG_ON

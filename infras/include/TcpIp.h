@@ -8,6 +8,9 @@
 #define _TCPIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define TCPIP_AF_INET ((TcpIp_DomainType)0x02)
 #define TCPIP_AF_INET6 ((TcpIp_DomainType)0x1c)
@@ -111,5 +114,7 @@ Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, ui
                                   uint32_t Count);
 
 uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId);
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* _TCPIP_H */

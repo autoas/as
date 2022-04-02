@@ -79,6 +79,7 @@ class LibraryLWIP(Library):
     def config(self):
         self.source = objs
         self.CPPPATH = []
+        self.LIBPATH = []
         self.CPPDEFINES = []
         self.download()
 

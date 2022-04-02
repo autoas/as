@@ -1,0 +1,17 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.cpp')
+
+
+@register_library
+class LibraryPyIP(Library):
+    shared = True
+    compiler = 'PYCC'
+
+    def config(self):
+        self.LIBS = ['TcpIp']
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
+        self.Append(CPPDEFINES=['AS_LOG_DEFAULT=0'])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs

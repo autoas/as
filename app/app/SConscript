@@ -96,7 +96,7 @@ class ApplicationOsekNm(ApplicationApp):
 
 libsForNetApp = {
     'SoAd': Glob('config/Net/GEN/SoAd_*.c') + Glob('config/Net/GEN/NetMem.c'),
-    'DoIP': Glob('config/Net/GEN/DoIp_*.c'),
+    'DoIP': Glob('config/Net/GEN/DoIP_*.c'),
     'Sd': Glob('config/Net/GEN/Sd_*.c'),
     'SomeIp': Glob('config/Net/GEN/SomeIp_*.c'),
     'PduR': Glob('config/Net/GEN/PduR*.c'),
@@ -138,6 +138,7 @@ class ApplicationNetApp(Application):
                         (libName.split(':')[0].upper())])
 
 
+netMemSrc = Glob('config/Net/GEN/NetMem.c')
 @register_application
 class ApplicationNetAppT(query_application('NetApp')):
     mylibs = libsForNetAppT
@@ -145,3 +146,5 @@ class ApplicationNetAppT(query_application('NetApp')):
     def config(self):
         super().config()
         self.Append(CPPDEFINES=['LWIP_AS_LOCAL_IP_TEST'])
+        self.Append(CPPPATH=['%s/config/Net/GEN'%(CWD)])
+        self.source += netMemSrc

@@ -90,18 +90,16 @@ def GenAnitTestForSomeIp(cfgj):
     for mod in cfg['Modules']:
         if mod['class'] == 'SomeIp':
             someIpCfg = mod
-            servers = None
-            clients = None
+            servers = []
+            clients = []
             if 'servers' in mod:
                 servers = mod['servers']
                 del mod['servers']
             if 'clients' in mod:
                 clients = mod['clients']
                 del mod['clients']
-            if servers:
-                mod['clients'] = servers
-            if clients:
-                mod['servers'] = clients
+            mod['clients'] = servers
+            mod['servers'] = clients
     if someIpCfg:
         cfg['Modules'] = [someIpCfg]
     ProcSoAd(cfg, dir)

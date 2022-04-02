@@ -66,12 +66,12 @@ static Std_ReturnType SomeIp_DecodeHeader(const uint8_t *data, uint32_t length,
         header->messageType = data[14];
         header->returnCode = data[15];
       } else {
-        ASLOG(SOMEIP, ("length not valid\n"));
+        ASLOG(SOMEIPE, ("length not valid\n"));
         ret = SOMEIPXF_E_MALFORMED_MESSAGE;
       }
     }
   } else {
-    ASLOG(SOMEIP, ("message too short\n"));
+    ASLOG(SOMEIPE, ("message too short\n"));
     ret = SOMEIPXF_E_MALFORMED_MESSAGE;
   }
   return ret;
@@ -97,6 +97,11 @@ static void SomeIp_BuildHeader(uint8_t *header, uint16_t serviceId, uint16_t met
   header[13] = interfaceVersion;
   header[14] = messageType;
   header[15] = returnCode;
+
+  ASLOG(SOMEIP, ("build: service 0x%x:0x%x:%d message type %d return code %d payload %d bytes from "
+                 "client 0x%x:%d\n",
+                 serviceId, methodId, interfaceVersion, messageType, returnCode, payloadLength,
+                 clientId, sessionId));
 }
 
 static void SomeIp_InitServer(const SomeIp_ServerServiceType *config) {
@@ -194,7 +199,7 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
       ret = SomeIp_HandleServerMessage_Request(config, conId, header, payload, length);
       break;
     default:
-      ASLOG(SOMEIPE, ("unsupported message type 0x%x\n", header->messageType));
+      ASLOG(SOMEIPE, ("server: unsupported message type 0x%x\n", header->messageType));
       ret = SOMEIPXF_E_WRONG_MESSAGE_TYPE;
       break;
     }
@@ -255,7 +260,7 @@ static Std_ReturnType SomeIp_HandleClientMessage(const SomeIp_ClientServiceType 
     ret = SomeIp_HandleClientMessage_Respose(config, header, payload, length);
     break;
   default:
-    ASLOG(SOMEIP, ("unsupported message type 0x%x\n", header->messageType));
+    ASLOG(SOMEIPE, ("client: unsupported message type 0x%x\n", header->messageType));
     ret = SOMEIPXF_E_WRONG_MESSAGE_TYPE;
     break;
   }
@@ -271,11 +276,12 @@ void SomeIp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
 
   ret = SomeIp_DecodeHeader(PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength, &header);
   if (E_OK == ret) {
-    ASLOG(SOMEIP,
-          ("[%d] service 0x%x:0x%x:%d message type %d return code %d payload %d bytes from client "
-           "0x%x:%d\n",
-           RxPduId, header.serviceId, header.methodId, header.interfaceVersion, header.messageType,
-           header.returnCode, header.length - 8, header.clientId, header.sessionId));
+    ASLOG(SOMEIP, ("[%d] service 0x%x:0x%x:%d message type %d return code %d payload %d bytes "
+                   "from client 0x%x:%d %d.%d.%d.%d:%d\n",
+                   RxPduId, header.serviceId, header.methodId, header.interfaceVersion,
+                   header.messageType, header.returnCode, header.length - 8, header.clientId,
+                   header.sessionId, RemoteAddr->addr[0], RemoteAddr->addr[1], RemoteAddr->addr[2],
+                   RemoteAddr->addr[3], RemoteAddr->port));
     if (RxPduId < SOMEIP_CONFIG->numOfPIDs) {
       index = SOMEIP_CONFIG->PID2ServiceMap[RxPduId];
       if (index < SOMEIP_CONFIG->numOfService) {

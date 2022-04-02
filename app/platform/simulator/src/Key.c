@@ -12,7 +12,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "DoIP.h"
-#include "SD.h"
+#include "Sd.h"
 
 #ifdef _WIN32
 #include <windows.h>

@@ -340,12 +340,12 @@ static Std_ReturnType Sd_DecodeIpV4Option(const uint8_t *od, uint8_t type,
     if ((SD_OPT_IP4_ENDPOINT == opt[2]) || (SD_OPT_IP4_MULTICAST == opt[2])) {
       opt += length + 3;
       if (length != 9) {
-        ASLOG(SD, ("Invalid option length for ipv4 endpoint\n"));
+        ASLOG(SDE, ("Invalid option length for ipv4 endpoint\n"));
         ret = E_NOT_OK;
       }
     } else {
       ret = E_NOT_OK;
-      ASLOG(SD, ("TODO: unsupported option type %d\n", opt[2]));
+      ASLOG(SDE, ("TODO: unsupported option type %d\n", opt[2]));
     }
   }
 
@@ -360,7 +360,7 @@ static Std_ReturnType Sd_DecodeIpV4Option(const uint8_t *od, uint8_t type,
         optFound = TRUE;
       } else {
         ret = E_NOT_OK;
-        ASLOG(SD, ("TODO: unsupported ipv4 endpoint protocol type %d\n", ipv4Opt->ProtocolType));
+        ASLOG(SDE, ("TODO: unsupported ipv4 endpoint protocol type %d\n", ipv4Opt->ProtocolType));
       }
     } else {
       ret = E_NOT_OK;
@@ -389,7 +389,7 @@ static Std_ReturnType Sd_DecodeEntryType1OF(const uint8_t *ed, const uint8_t *od
   if (ipv4Opt != NULL) { /* Offer Service, ipv4 endpoint must be provided */
     ret = Sd_DecodeIpV4Option(od, SD_OPT_IP4_ENDPOINT, ipv4Opt, ed[1], (ed[3] >> 4));
     if (E_OK != ret) {
-      ASLOG(SD, ("ipv4 endpoint option not found for %04x:%04x\n", entry1->serviceId,
+      ASLOG(SDE, ("ipv4 endpoint option not found for %04x:%04x\n", entry1->serviceId,
                  entry1->instanceId));
     } else {
       ASLOG(SD, ("%sOffer Service %04x:%04x version %d.%d TTL %d s by %s %d.%d.%d.%d:%d\n",
@@ -420,7 +420,7 @@ static Std_ReturnType Sd_DecodeEntryType2SEG(const uint8_t *ed, const uint8_t *o
   entry2->eventGroupId = ((uint16_t)ed[14] << 8) + ed[15];
   ret = Sd_DecodeIpV4Option(od, SD_OPT_IP4_ENDPOINT, ipv4Opt, ed[1], (ed[3] >> 4));
   if (E_OK != ret) {
-    ASLOG(SD, ("ipv4 endpoint option not found for %04x:%04x:%04x\n", entry2->serviceId,
+    ASLOG(SDE, ("ipv4 endpoint option not found for %04x:%04x:%04x\n", entry2->serviceId,
                entry2->instanceId, entry2->eventGroupId));
   } else {
     ASLOG(SD, ("%sSubscribe Event Group %04x:%04x:%04x version %d TTL %d s by %s %d.%d.%d.%d:%d\n",

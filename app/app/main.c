@@ -149,6 +149,14 @@ static void MainTask_10ms(void) {
 #ifdef USE_DCM
   Dcm_MainFunction();
 #endif
+
+#ifdef USE_DOIP
+    DoIP_MainFunction();
+#endif
+#ifdef USE_SD
+    Sd_MainFunction();
+#endif
+
 #ifdef USE_PLUGIN
   plugin_main();
 #endif
@@ -417,15 +425,9 @@ int main(int argc, char *argv[]) {
 #ifdef USE_SOAD
     SoAd_MainFunction();
 #endif
-#ifdef USE_DOIP
-    DoIP_MainFunction();
-#endif
-#ifdef USE_SD
-    Sd_MainFunction();
-#endif
     App_MainFunction();
 #if defined(_WIN32)
-#if !defined(USE_OSEKNM)
+#if !defined(USE_OSEKNM) && !defined(USE_TCPIP)
     usleep(1000);
 #endif
 #endif

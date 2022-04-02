@@ -631,6 +631,8 @@ def CompilerGCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
+    if IsPlatformWindows():
+        env.Append(LINKFLAGS=['-static'])
     return env
 
 
@@ -683,6 +685,8 @@ def CompilerPYCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
+    if IsPlatformWindows():
+        env.Append(LINKFLAGS=['-static'])
     AddPythonDev(env)
     return env
 
@@ -717,10 +721,10 @@ def GetCurrentDir():
     return path
 
 
-def RegisterCPPPATH(name, path):
+def RegisterCPPPATH(name, path, force=False):
     if not name.startswith('$'):
         raise Exception('CPPPATH name %s not starts with "$"' % (name))
-    if name not in __cpppath__:
+    if name not in __cpppath__ or force == True:
         __cpppath__[name] = path
     else:
         raise KeyError('CPPPATH %s already registered' % (name))
@@ -806,17 +810,17 @@ class BuildBase():
             self.env = CreateCompiler(cplName)
         return self.env
 
-    def RegisterCPPPATH(self, name, path):
+    def RegisterCPPPATH(self, name, path, force=False):
         if not name.startswith('$'):
             raise Exception('CPPPATH name %s not starts with "$"' % (name))
         if hasattr(self, 'user') and self.user:
-            if name not in self.user.__cpppath__:
+            if name not in self.user.__cpppath__ or force == True:
                 self.user.__cpppath__[name] = path
             else:
                 raise KeyError('CPPPATH %s already registered for %s' %
                                (name, self.user.__class__.__name__))
         else:
-            RegisterCPPPATH(name, path)
+            RegisterCPPPATH(name, path, force)
 
     def RequireCPPPATH(self, name):
         if not name.startswith('$'):
@@ -845,7 +849,7 @@ class BuildBase():
             RegisterConfig(name, source, force)
         # register a special config path for the module
         path = os.path.dirname(str(source[0]))
-        self.RegisterCPPPATH('$%s_Cfg' % (name), path)
+        self.RegisterCPPPATH('$%s_Cfg' % (name), path, force)
 
     def RequireConfig(self, name):
         if hasattr(self, 'user') and self.user:
@@ -956,7 +960,7 @@ class Library(BuildBase):
         if self.is_shared_library():
             LIBS = env.get('LIBS', []) + self.__extra_libs__
             LINKFLAGS = getattr(self, 'LINKFLAGS', []) + \
-                env.get('LINKFLAGS', []) + ['-static']
+                env.get('LINKFLAGS', [])
             objs2 = []
             for obj in objs:
                 if not str(obj).endswith('.a'):
