@@ -46,11 +46,12 @@
           "service":"0x1234",
           "instance":"0x5678",
           "clientId":"0x4444",
-          "unreliable":"30560",
+          "reliable":"30560",
           "methods": [
             {
               "name" : "method1",
               "methodId" : "0x421",
+              "tp": true,
               "version" : "0"
             }
           ],
@@ -75,11 +76,12 @@
           "service":"0xabcd",
           "instance":"0xbeef",
           "clientId":"0x5555",
-          "unreliable":"30568",
+          "reliable":"30568",
           "methods": [
             {
               "name" : "method2",
               "methodId" : "0x424",
+              "tp": true,
               "version" : "0"
             }
           ],

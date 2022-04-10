@@ -151,10 +151,13 @@ static void MainTask_10ms(void) {
 #endif
 
 #ifdef USE_DOIP
-    DoIP_MainFunction();
+  DoIP_MainFunction();
 #endif
 #ifdef USE_SD
-    Sd_MainFunction();
+  Sd_MainFunction();
+#endif
+#ifdef USE_SOMEIP
+  SomeIp_MainFunction();
 #endif
 
 #ifdef USE_PLUGIN

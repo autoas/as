@@ -67,8 +67,9 @@ class LibraryLWIP(Library):
     def download(self):
         lwip = Package(
             url='https://git.savannah.gnu.org/git/lwip.git', version='STABLE-2_1_x')
+        cmd = 'sed -i "s/#define LWIP_PROVIDE_ERRNO/\/\/#define LWIP_PROVIDE_ERRNO/g" ports/win32/include/arch/cc.h'
         lwipc = Package(
-            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE')
+            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE', cmd = cmd)
         objs = self.get_lwip_objs(lwip)
         objs += self.get_lwip_contrib_objs(lwipc)
         self.source += objs

@@ -14,6 +14,10 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 #define TCPIP_AF_INET ((TcpIp_DomainType)0x02)
 #define TCPIP_AF_INET6 ((TcpIp_DomainType)0x1c)
+
+
+#define TCPIP_E_NOSPACE ((Std_ReturnType)0x10)
+
 /* ================================ [ TYPES     ] ============================================== */
 typedef int TcpIp_SocketIdType;
 

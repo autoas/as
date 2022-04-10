@@ -53,7 +53,7 @@
 #define NETIF_ADDRS ipaddr, netmask, gw,
 
 #ifndef TCPIP_MAX_DATA_SIZE
-#define TCPIP_MAX_DATA_SIZE 1400
+#define TCPIP_MAX_DATA_SIZE 1420
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -409,7 +409,12 @@ Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrTyp
                 RemoteAddrPtr->port, nbytes, Length));
 
   if (nbytes != Length) {
-    ret = E_NOT_OK;
+    ASLOG(TCPIPE, ("[%d] sendto(%d), error is %d\n", SocketId, Length, nbytes));
+    if (nbytes >= 0) {
+      ret = TCPIP_E_NOSPACE;
+    } else {
+      ret = E_NOT_OK;
+    }
   }
 
   return ret;
@@ -423,7 +428,12 @@ Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, ui
   ASLOG(TCPIP, ("[%d] send(%d/%d)\n", SocketId, nbytes, Length));
 
   if (nbytes != Length) {
-    ret = E_NOT_OK;
+    ASLOG(TCPIPE, ("[%d] send(%d), error is %d\n", SocketId, Length, nbytes));
+    if (nbytes >= 0) {
+      ret = TCPIP_E_NOSPACE;
+    } else {
+      ret = E_NOT_OK;
+    }
   }
 
   return ret;

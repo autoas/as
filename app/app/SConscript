@@ -98,7 +98,7 @@ libsForNetApp = {
     'SoAd': Glob('config/Net/GEN/SoAd_*.c') + Glob('config/Net/GEN/NetMem.c'),
     'DoIP': Glob('config/Net/GEN/DoIP_*.c'),
     'Sd': Glob('config/Net/GEN/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GEN/SomeIp_*.c'),
+    'SomeIp': Glob('config/Net/GEN/SomeIp_*.c') + Glob('config/Net/GEN/SS_*.c') + Glob('config/Net/GEN/CS_*.c'),
     'PduR': Glob('config/Net/GEN/PduR*.c'),
     'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
 }
@@ -107,7 +107,7 @@ libsForNetApp.update(libsCommon)
 libsForNetAppT = {
     'SoAd': Glob('config/Net/GENT/SoAd_*.c'),
     'Sd': Glob('config/Net/GENT/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GENT/SomeIp_*.c'),
+    'SomeIp': Glob('config/Net/GENT/SomeIp_*.c') + Glob('config/Net/GENT/SS_*.c') + Glob('config/Net/GENT/CS_*.c'),
 }
 
 
@@ -146,5 +146,5 @@ class ApplicationNetAppT(query_application('NetApp')):
     def config(self):
         super().config()
         self.Append(CPPDEFINES=['LWIP_AS_LOCAL_IP_TEST'])
-        self.Append(CPPPATH=['%s/config/Net/GEN'%(CWD)])
+        self.Append(CPPPATH=['%s/config/Net/GEN' % (CWD)])
         self.source += netMemSrc

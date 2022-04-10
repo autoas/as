@@ -11,6 +11,10 @@
 #include "SoAd.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define SOMEIP_E_PENDING 100
+#define SOMEIP_E_OK_SILENT SOMEIP_E_PENDING
+#define SOMEIP_E_NOMEM 101
+#define SOMEIP_E_MSG_TOO_SHORT 102
+#define SOMEIP_E_MSG_TOO_LARGE 103
 
 /* @SWS_SomeIpXf_00168 @SWS_SomeIpXf_00115 */
 #define SOMEIPXF_E_UNKNOWN_SERVICE 0x02
@@ -24,6 +28,18 @@
 #define SOMEIPXF_E_WRONG_MESSAGE_TYPE 0x0a
 
 /* ================================ [ TYPES     ] ============================================== */
+typedef struct {
+  uint8_t *data;
+  uint32_t offset;
+  uint32_t length;
+  boolean moreSegmentsFlag;
+} SomeIp_TpMessageType;
+
+typedef struct {
+  uint8_t *data;
+  uint32_t length;
+} SomeIp_MessageType;
+
 typedef struct SomeIp_Config_s SomeIp_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -32,8 +48,16 @@ typedef struct SomeIp_Config_s SomeIp_ConfigType;
 void SomeIp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 void SomeIp_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
 
+BufReq_ReturnType SomeIp_SoAdTpStartOfReception(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
+                                                PduLengthType TpSduLength,
+                                                PduLengthType *bufferSizePtr);
+
+BufReq_ReturnType SomeIp_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
+                                          PduLengthType *bufferSizePtr);
+
 Std_ReturnType SomeIp_Request(uint16_t TxMethodId, uint8_t *data, uint32_t length);
 Std_ReturnType SomeIp_Notification(uint16_t TxEventId, uint8_t *data, uint32_t length);
 
 void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr);
+void SomeIp_MainFunction(void);
 #endif /* _SOMEIP_H */

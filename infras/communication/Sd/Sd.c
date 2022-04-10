@@ -903,6 +903,21 @@ static void Sd_InitClientService(const Sd_InstanceType *Instance) {
   }
 }
 
+static void Sd_ServerServiceLinkControl(const Sd_ServerServiceType *config) {
+  Sd_ServerServiceContextType *context = config->context;
+  if (context->phase != SD_PHASE_DOWN) {
+    if (0 == (SD_FLG_LINK_UP & context->flags)) {
+      (void)SoAd_OpenSoCon(config->SoConId);
+      SD_SET(context->flags, SD_FLG_LINK_UP);
+    }
+  } else {
+    if (SD_FLG_LINK_UP & context->flags) {
+      (void)SoAd_CloseSoCon(config->SoConId, TRUE);
+      SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+    }
+  }
+}
+
 static void Sd_ServerServiceMain_Down(const Sd_InstanceType *Instance,
                                       const Sd_ServerServiceType *config) {
   Sd_ServerServiceContextType *context = config->context;
@@ -913,7 +928,6 @@ static void Sd_ServerServiceMain_Down(const Sd_InstanceType *Instance,
     context->phase = SD_PHASE_INITIAL_WAIT;
     context->offerTimer = Sd_RandTime(config->ServerTimer->InitialOfferDelayMin,
                                       config->ServerTimer->InitialOfferDelayMax);
-    (void)SoAd_OpenSoCon(config->SoConId);
     ASLOG(SD, ("Service %X:%X going up\n", config->ServiceId, config->InstanceId));
   }
 }
@@ -1222,6 +1236,7 @@ static void Sd_ServerServiceMain(const Sd_InstanceType *Instance) {
   for (i = 0; i < Instance->numOfServerServices; i++) {
     config = &Instance->ServerServices[i];
     context = config->context;
+    Sd_ServerServiceLinkControl(config);
     switch (context->phase) {
     case SD_PHASE_DOWN:
       Sd_ServerServiceMain_Down(Instance, config);

@@ -105,8 +105,11 @@ def Gen_SoAd(cfg, dir):
         C.write('};\n\n')
 
         C.write('static const SoAd_TpInterfaceType SoAd_DoIP_TP_IF = {\n')
-        C.write(
-            '  DoIP_SoAdTpStartOfReception, DoIP_SoAdTpCopyRxData, NULL, NULL, NULL,\n')
+        C.write('  DoIP_SoAdTpStartOfReception,\n')
+        C.write('  DoIP_SoAdTpCopyRxData,\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
         C.write('};\n\n')
 
     if any(sock['up'] == 'SD' for sock in cfg['sockets']):
@@ -116,9 +119,17 @@ def Gen_SoAd(cfg, dir):
         C.write('  NULL,\n')
         C.write('};\n\n')
 
-    if any(sock['up'] == 'SOMEIP' for sock in cfg['sockets']):
+    if any(sock['up'] == 'SOMEIP' and sock['protocol'] == 'UDP' for sock in cfg['sockets']):
         C.write('static const SoAd_IfInterfaceType SoAd_SOMEIP_IF = {\n')
         C.write('  SomeIp_RxIndication,\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
+        C.write('};\n\n')
+    if any(sock['up'] == 'SOMEIP' and sock['protocol'] == 'TCP' for sock in cfg['sockets']):
+        C.write('static const SoAd_TpInterfaceType SoAd_SOMEIP_TP_IF = {\n')
+        C.write('  SomeIp_SoAdTpStartOfReception,\n')
+        C.write('  SomeIp_SoAdTpCopyRxData,\n')
+        C.write('  NULL,\n')
         C.write('  NULL,\n')
         C.write('  NULL,\n')
         C.write('};\n\n')
@@ -177,7 +188,11 @@ def Gen_SoAd(cfg, dir):
             IF = 'SoAd_SD_IF'
         elif sock['up'] == 'SOMEIP':
             SoConModeChgNotification = 'SomeIp_SoConModeChg'
-            IF = 'SoAd_SOMEIP_IF'
+            if sock['protocol'] == 'UDP':
+                IF = 'SoAd_SOMEIP_IF'
+            else:
+                IF = 'SoAd_SOMEIP_TP_IF'
+                IsTP = 'TRUE'
         else:
             raise
         if 'server' in sock:

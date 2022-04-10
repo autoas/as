@@ -28,6 +28,9 @@
 
 #define LWIP_SO_RCVBUF 1 /* enable ioctl FIONREAD */
 
+#define TCP_MSS 1412
+#define TCP_SND_BUF 8096
+
 #ifndef LWIP_DEBUG
 #define LWIP_DEBUG 0
 #endif

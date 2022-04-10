@@ -211,6 +211,9 @@ static void soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
     }
   } else {
     TcpIp_Close(context->sock, TRUE);
+    if (conG->SoConModeChgNotification) {
+      conG->SoConModeChgNotification(SoConId, SOAD_SOCON_OFFLINE);
+    }
     context->state = SOAD_SOCKET_CLOSED;
     ASLOG(SOADE, ("[%d] close, goto accept\n", SoConId));
   }

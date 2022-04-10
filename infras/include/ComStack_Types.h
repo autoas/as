@@ -16,7 +16,11 @@
 typedef uint16_t PduIdType;
 
 /* @SWS_COMTYPE_00008 */
+#ifdef USE_SOAD
+typedef uint32_t PduLengthType;
+#else
 typedef uint16_t PduLengthType;
+#endif
 
 /* @SWS_COMTYPE_00011 */
 typedef struct {

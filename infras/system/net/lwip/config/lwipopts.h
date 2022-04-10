@@ -80,7 +80,7 @@
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
-#define MEM_SIZE                        1600
+#define MEM_SIZE                        (64*1024)
 
 /*
    ------------------------------------------------
@@ -123,7 +123,7 @@
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_SEG                16
+#define MEMP_NUM_TCP_SEG                TCP_SND_QUEUELEN
 
 /**
  * MEMP_NUM_REASSDATA: the number of simultaneously IP packets queued for
