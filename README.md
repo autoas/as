@@ -8,7 +8,7 @@ This project now provide below BSWs:
 
 	LinIf
 	LinTp
-	PduR (zero cost only)
+	PduR
 	CanTp
 	Dem
 	Dcm
@@ -26,6 +26,7 @@ This project now provide below BSWs:
 	TcpIP (socket based, LWIP is supported)
 	SoAd
 	DoIP
+	SD
 	SOMEIP
 
 ## Tools & Libraries

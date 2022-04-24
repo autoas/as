@@ -7,6 +7,8 @@ objs = Glob('src/*.c')
 class LibrarySimulator(Library):
     def config(self):
         self.LIBS = ['CanLib']
+        if not IsBuildForAndroid():
+            self.LIBS.append('pthread')
         self.CPPPATH = ['$INFRAS']
         self.source = objs
 

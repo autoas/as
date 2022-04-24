@@ -5,6 +5,7 @@ objs = Glob('*.c')
 
 use_lwip = os.getenv('USE_LWIP')
 
+
 @register_library
 class LibraryTcpIp(Library):
     def config(self):
@@ -13,7 +14,6 @@ class LibraryTcpIp(Library):
             self.LIBS = ['LWIP']
             self.CPPDEFINES = ['USE_LWIP']
         else:
-            if IsPlatformWindows():
+            if IsBuildForWindows():
                 self.LIBS = ['ws2_32']
         self.source = objs
-

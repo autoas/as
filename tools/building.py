@@ -84,6 +84,9 @@ __cfgs__ = {}
 
 __default_compiler__ = 'GCC'
 
+def aslog(*arg):
+    if GetOption('verbose'):
+        print(*arg)
 
 class Win32Spawn:
     def spawn(self, sh, escape, cmd, args, env):
@@ -124,6 +127,18 @@ class Win32Spawn:
         return proc.wait()
 
 
+def IsBuildForWindows():
+    if IsPlatformWindows():
+        return GetOption('compiler') in ['GCC', 'MSVC']
+    return False
+
+
+def IsBuildForAndroid():
+    return GetOption('compiler') in ['NDK']
+
+def IsBuildForHost():
+    return GetOption('compiler') in ['GCC', 'MSVC', 'NDK']
+
 def IsPlatformWindows():
     bYes = False
     if(os.name == 'nt'):
@@ -160,8 +175,7 @@ def RMFile(p):
 
 
 def RunCommand(cmd, e=True):
-    if(GetOption('verbose')):
-        print(' >> RunCommand "%s"' % (cmd))
+    aslog(' >> RunCommand "%s"' % (cmd))
     if(os.name == 'nt'):
         cmd = cmd.replace('&&', '&')
     ret = os.system(cmd)
@@ -219,6 +233,8 @@ def Package(url, ** parameters):
     cwd = GetCurrentDir()
     bsw = os.path.basename(cwd)
     download = '%s/download' % (RootDir)
+    if 'dir' in parameters:
+        download = '%s/%s' % (download, parameters['dir'])
     MKDir(download)
     pkgBaseName = os.path.basename(url)
     if(pkgBaseName.endswith('.zip')):
@@ -631,8 +647,53 @@ def CompilerGCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
-    if IsPlatformWindows():
+    if IsBuildForWindows():
         env.Append(LINKFLAGS=['-static'])
+    return env
+
+
+@register_compiler
+def CompilerNDK(**kwargs):
+    import glob
+    HOME = os.getenv('HOME')
+    if HOME is None:
+        HOME = os.getenv('USERPROFILE')
+    NDK = os.path.join(HOME, 'AppData/Local/Android/Sdk/ndk-bundle')
+    if(not os.path.exists(NDK)):
+        NDK = os.getenv('ANDROID_NDK')
+    if(NDK is None or not os.path.exists(NDK)):
+        print(
+            '==> Please set environment ANDROID_NDK\n\tset ANDROID_NDK=/path/to/android-ndk')
+        exit()
+    if(IsPlatformWindows()):
+        host = 'windows'
+        NDK = NDK.replace(os.sep, '/')
+    else:
+        host = 'linux'
+    env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
+    env['ANDROID_NDK'] = NDK
+    agcc = glob.glob(
+        NDK + '/toolchains/aarch64-linux-android-*/prebuilt/%s-x86_64/bin/aarch64-linux-android-gcc*' % (host))
+    if len(agcc) > 0:
+        agcc = agcc[-1]
+        sysroot = glob.glob(NDK + '/platforms/android-2*/arch-arm64')[-1]
+        env['CC'] = agcc
+        env['CC'] = agcc
+        env['AS'] = agcc
+        env['CXX'] = os.path.dirname(agcc) + '/aarch64-linux-android-g++'
+        env['LINK'] = env['CXX']
+        env.Append(CCFLAGS=['--sysroot', sysroot, '-fPIE', '-pie'])
+        env.Append(LINKFLAGS=['--sysroot', sysroot, '-fPIE',  '-pie'])
+        env.Append(CFLAGS=['-std=gnu99'])
+        env.Append(CPPFLAGS=['-Wall'])
+        if not GetOption('strip'):
+            env.Append(CPPFLAGS=['-g'])
+    else:
+        GCC = NDK + '/toolchains/llvm/prebuilt/%s-x86_64' % (host)
+        env['CC'] = GCC + '/bin/aarch64-linux-android28-clang'
+        env['AS'] = GCC + '/bin/aarch64-linux-android28-clang'
+        env['CXX'] = GCC + '/bin/aarch64-linux-android28-clang++'
+        env['LINK'] = GCC + '/bin/aarch64-linux-android28-clang++'
     return env
 
 
@@ -813,28 +874,34 @@ class BuildBase():
     def RegisterCPPPATH(self, name, path, force=False):
         if not name.startswith('$'):
             raise Exception('CPPPATH name %s not starts with "$"' % (name))
-        if hasattr(self, 'user') and self.user:
-            if name not in self.user.__cpppath__ or force == True:
-                self.user.__cpppath__[name] = path
+        if getattr(self, 'user', None):
+            if getattr(self.user, 'user', None):
+                self.user.RegisterCPPPATH(name, path, force)
             else:
-                raise KeyError('CPPPATH %s already registered for %s' %
-                               (name, self.user.__class__.__name__))
+                if name not in self.user.__cpppath__ or force == True:
+                    self.user.__cpppath__[name] = path
+                else:
+                    raise KeyError('CPPPATH %s already registered for %s' %
+                                   (name, self.user.__class__.__name__))
         else:
             RegisterCPPPATH(name, path, force)
 
     def RequireCPPPATH(self, name):
         if not name.startswith('$'):
             raise Exception('CPPPATH name %s not starts with "$"' % (name))
-        if hasattr(self, 'user') and self.user:
-            if name in self.user.__cpppath__:
-                return self.user.__cpppath__[name]
+        if getattr(self, 'user', None):
+            if getattr(self.user, 'user', None):
+                self.user.RequireCPPPATH(name)
+            else:
+                if name in self.user.__cpppath__:
+                    return self.user.__cpppath__[name]
         elif hasattr(self, '__cpppath__'):
             if name in self.__cpppath__:
                 return self.__cpppath__[name]
         return RequireCPPPATH(name)
 
     def RegisterConfig(self, name, source, force=False):
-        if hasattr(self, 'user') and self.user:
+        if getattr(self, 'user', None):
             if name not in self.user.__cfgs__ or force == True:
                 if (len(source) == 0):
                     if GetOption('prebuilt'):
@@ -852,7 +919,7 @@ class BuildBase():
         self.RegisterCPPPATH('$%s_Cfg' % (name), path, force)
 
     def RequireConfig(self, name):
-        if hasattr(self, 'user') and self.user:
+        if getattr(self, 'user', None):
             if name in self.user.__cfgs__:
                 return self.user.__cfgs__[name]
         elif hasattr(self, '__cfgs__'):
@@ -861,12 +928,14 @@ class BuildBase():
         return RequireConfig(name)
 
     def is_shared_library(self):
-        if hasattr(self, 'user') and self.user:
+        if getattr(self, 'shared', False):
+            return True
+        if getattr(self, 'user', None):
             return self.user.is_shared_library()
-        return getattr(self, 'shared', False)
+        return False
 
     def ensure_lib(self, name):
-        if hasattr(self, 'user') and self.user:
+        if getattr(self, 'user', None) and not getattr(self, 'shared', False):
             self.user.ensure_lib(name)
         else:
             if (name in __libraries__):
@@ -878,12 +947,49 @@ class BuildBase():
                 if name not in self.__extra_libs__:
                     self.__extra_libs__.append(name)
 
+    def get_libs(self):
+        libs = {}
+        if getattr(self, 'user', None) and not getattr(self, 'shared', False):
+            libs = self.user.get_libs()
+        else:
+            libs = self.__libs__
+        return libs
+
+    def get_includes(self, searched_libs):
+        CPPPATH = []
+        if getattr(self, 'include', None):
+            if type(self.include) == str:
+                CPPPATH.append(self.include)
+            else:
+                CPPPATH.extend(self.include)
+        elif getattr(self, 'INCLUDE', None):
+            if type(self.INCLUDE) == str:
+                CPPPATH.append(self.INCLUDE)
+            else:
+                CPPPATH.extend(self.INCLUDE)
+
+        libs = self.get_libs()
+        for libName in getattr(self, 'LIBS', []):
+            if (libName in libs and libName not in searched_libs):
+                searched_libs.append(libName)
+                lib = libs[libName]
+                if type(lib) is type:
+                    CPPPATH.extend(lib.get_includes(lib, searched_libs))
+                else:
+                    CPPPATH.extend(lib.get_includes(searched_libs))
+        CPPPATH2 = []
+        for x in CPPPATH:
+            if x not in CPPPATH2:
+                CPPPATH2.append(x)
+        return CPPPATH2
+
 
 class Library(BuildBase):
     # for a library, it provides header files(*.h) and the library(*.a)
     def __init__(self, **kwargs):
         if not hasattr(self, 'name'):
             self.name = self.__class__.__name__[7:]
+        aslog('init library %s'%(self. name))
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
@@ -894,6 +1000,8 @@ class Library(BuildBase):
             self.compiler = compiler
         self.include = None
         self.config()
+        if hasattr(self, 'INCLUDE'):
+            self.include = self.INCLUDE
         if GetOption('prebuilt') and GetOption('library') != self.name:
             liba = os.path.abspath('%s/../%s/lib%s.a' %
                                    (BUILD_DIR, self.name, self.name))
@@ -915,6 +1023,7 @@ class Library(BuildBase):
 
     def objs(self):
         libName = self.name
+        aslog('build objs of %s'%(libName))
         env = self.ensure_env()
         CPPPATH = getattr(self, 'CPPPATH', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
@@ -923,8 +1032,8 @@ class Library(BuildBase):
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
         CPPPATH = [self.RequireCPPPATH(p) if p.startswith(
             '$') else p for p in CPPPATH] + env.get('CPPPATH', [])
-        if self.include != None:
-            CPPPATH.append(self.include)
+        searched_libs = []
+        CPPPATH += self.get_includes(searched_libs)
         try:
             # others has provide the config for this library
             cfg_path, source = self.RequireConfig(libName)
@@ -943,9 +1052,17 @@ class Library(BuildBase):
                     CPPPATH.append(libInclude)
                 except KeyError:
                     pass
-        if self.is_shared_library():
-            return [c if str(c).endswith('.a') else env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS) for c in self.source]
-        return [c if str(c).endswith('.a') else env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS) for c in self.source]
+        objs = []
+        for c in self.source:
+            if str(c).endswith('.a'):
+                objs.append(c)
+            elif self.is_shared_library():
+                objs += env.SharedObject(c, CPPPATH=CPPPATH,
+                                         CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
+            else:
+                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES,
+                                   CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
+        return objs
 
     def build(self):
         libName = self.name
@@ -954,7 +1071,7 @@ class Library(BuildBase):
         env = self.ensure_env()
         objs = self.objs()
         LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
-        for _, lib in self.__libs__.items():
+        for libName_, lib in self.__libs__.items():
             objs += lib.objs()
             LIBPATH += getattr(lib, 'LIBPATH', [])
         if self.is_shared_library():
@@ -970,7 +1087,7 @@ class Library(BuildBase):
                     LIBPATH.append(os.path.dirname(obj))
                     LIBS.insert(0, name)
             return env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
-        return env.Library(libName, [obj for obj in objs if isinstance(obj, SCons.Node.NodeList)])
+        return env.Library(libName, objs)
 
 
 class Driver(Library):
@@ -982,6 +1099,7 @@ class Driver(Library):
 class Application(BuildBase):
     def __init__(self, **kwargs):
         self.name = self.__class__.__name__[11:]
+        aslog('init application %s'%(self. name))
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
@@ -992,6 +1110,7 @@ class Application(BuildBase):
     def build(self):
         env = self.ensure_env()
         appName = self.name
+        aslog('build application %s'%(appName))
         LIBS = env.get('LIBS', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
@@ -1002,27 +1121,44 @@ class Application(BuildBase):
         CPPPATH += env.get('CPPPATH', [])
         objs = self.source
         LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
+        searched_libs = []
+        CPPPATH += self.get_includes(searched_libs)
         for name in self.__libs_order__:
+            if self.__libs__[name].is_shared_library():
+                aslog('build shared library %s'%(name))
+                self.__libs__[name].build()
+                continue
+            aslog('build library %s'%(name))
+            objs_ = self.__libs__[name].objs()
+            tooMuch = True if (len(objs) + len(objs_)) > 200 else False
             libObjs = []
-            for obj in self.__libs__[name].objs():
+            for obj in objs_:
                 if not str(obj).endswith('.a'):
-                    objs.append(obj)
-                    if '%s_Cfg' % (name) not in str(obj):
+                    if not tooMuch:
+                        objs.append(obj)
+                        if '%s_Cfg' % (name) not in str(obj):
+                            libObjs.append(obj)
+                    else:
                         libObjs.append(obj)
                 else:
-                    libName = os.path.basename(obj)[3:-2]
-                    LIBPATH.append(os.path.dirname(obj))
+                    libName = os.path.basename(str(obj))[3:-2]
+                    p = os.path.dirname(str(obj))
+                    if p not in LIBPATH:
+                        LIBPATH.append(p)
                     LIBS.append(libName)
             if (len(libObjs) > 0):
-                env.Library(name, libObjs)
-            try:
-                libInclude = self.RequireCPPPATH('$%s' % (name))
-                CPPPATH.append(libInclude)
-            except KeyError:
-                pass
+                if ':' in name:
+                    libName = name.split(':')[0]
+                else:
+                    libName = name
+                lib = env.Library(libName, libObjs)[0]
+                if tooMuch:
+                    p = os.path.dirname(lib.get_abspath())
+                    if p not in LIBPATH:
+                        LIBPATH.append(p)
+                    LIBS.append(name)
             LIBPATH += getattr(self.__libs__[name], 'LIBPATH', [])
         LIBS += self.__extra_libs__
-
         target = env.Program(appName, objs, CPPPATH=CPPPATH,
                              CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, LIBS=LIBS,
                              LINKFLAGS=LINKFLAGS, LIBPATH=LIBPATH)

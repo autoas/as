@@ -55,6 +55,7 @@
 #ifndef TCPIP_MAX_DATA_SIZE
 #define TCPIP_MAX_DATA_SIZE 1420
 #endif
+
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -494,7 +495,14 @@ Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr) {
   memcpy(addr->addr, &netif.ip_addr.addr, 4);
   return E_OK;
 #else
-  uint32_t u32Addr = inet_addr("172.18.0.1");
+  uint32_t u32Addr;
+  char *ip;
+
+  ip = getenv("AS_LOCAL_IP");
+  if (NULL == ip) {
+    ip = "172.18.0.1";
+  }
+  u32Addr = inet_addr(ip);
   memcpy(addr->addr, &u32Addr, 4);
   return E_OK;
 #endif

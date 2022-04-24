@@ -27,3 +27,5 @@ libPCANBasic.a
 
 build
 GEN*
+
+*.pcap

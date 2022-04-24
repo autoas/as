@@ -28,6 +28,7 @@ typedef Std_ReturnType (*SomeIp_OnTpCopyRxDataFncType)(uint16_t conId, SomeIp_Tp
 typedef Std_ReturnType (*SomeIp_OnTpCopyTxDataFncType)(uint16_t conId, SomeIp_TpMessageType *msg);
 
 typedef Std_ReturnType (*SomeIp_OnResponseFncType)(SomeIp_MessageType *res);
+typedef Std_ReturnType (*SomeIp_OnErrorFncType)(Std_ReturnType ercd);
 
 /* API for events */
 typedef Std_ReturnType (*SomeIp_OnNotificationFncType)(SomeIp_MessageType *evt);
@@ -47,12 +48,14 @@ typedef struct {
   uint16_t sdHandleID;
   uint16_t eventId;
   uint8_t interfaceVersion;
+  SomeIp_OnTpCopyTxDataFncType onTpCopyTxData;
 } SomeIp_ServerEventType;
 
 typedef struct {
   uint16_t methodId;
   uint8_t interfaceVersion;
   SomeIp_OnResponseFncType onResponse;
+  SomeIp_OnErrorFncType onError;
   SomeIp_OnTpCopyRxDataFncType onTpCopyRxData;
   SomeIp_OnTpCopyTxDataFncType onTpCopyTxData;
 } SomeIp_ClientMethodType;
@@ -61,6 +64,7 @@ typedef struct {
   uint16_t eventId;
   uint8_t interfaceVersion;
   SomeIp_OnNotificationFncType onNotification;
+  SomeIp_OnTpCopyRxDataFncType onTpCopyRxData;
 } SomeIp_ClientEventType;
 
 /* @SWS_SomeIpXf_00152 */
@@ -106,6 +110,9 @@ typedef struct SomeIp_RxTpMsg_s {
   uint16_t timer;
 } SomeIp_RxTpMsgType;
 
+#define SomeIp_RxTpEvtMsg_s SomeIp_RxTpMsg_s
+typedef SomeIp_RxTpMsgType SomeIp_RxTpEvtMsgType;
+
 typedef struct SomeIp_TxTpMsg_s {
   STAILQ_ENTRY(SomeIp_TxTpMsg_s) entry;
   TcpIp_SockAddrType RemoteAddr;
@@ -114,10 +121,20 @@ typedef struct SomeIp_TxTpMsg_s {
   uint16_t methodId; /* this is the key */
   uint16_t clientId;
   uint16_t sessionId;
+  uint16_t timer;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
   uint8_t retryCounter;
 #endif
 } SomeIp_TxTpMsgType;
+
+typedef struct SomeIp_TxTpEvtMsg_s {
+  STAILQ_ENTRY(SomeIp_TxTpEvtMsg_s) entry;
+  uint32_t mask; /* going to support maximum 32 subscribers */
+  uint32_t offset;
+  uint32_t length;
+  uint16_t eventId; /* this is the key */
+  uint16_t timer;
+} SomeIp_TxTpEvtMsgType;
 
 /* For TCP large messages */
 typedef struct {
@@ -130,15 +147,18 @@ typedef struct {
 
 typedef STAILQ_HEAD(rxTpMsgHead, SomeIp_RxTpMsg_s) SomeIp_RxTpMsgList;
 typedef STAILQ_HEAD(txTpMsgHead, SomeIp_TxTpMsg_s) SomeIp_TxTpMsgList;
+typedef STAILQ_HEAD(txTpEvtMsgHead, SomeIp_TxTpEvtMsg_s) SomeIp_TxTpEvtMsgList;
 
 typedef struct {
   STAILQ_HEAD(reqMsgHead, SomeIp_AsyncReqMsg_s) pendingAsyncReqMsgs;
   SomeIp_RxTpMsgList pendingRxTpMsgs;
   SomeIp_TxTpMsgList pendingTxTpMsgs;
+  SomeIp_TxTpEvtMsgList pendingTxTpEvtMsgs;
   bool online;
-} SomeIp_ServerServiceContextType;
+} SomeIp_ServerConnectionContextType;
 
 typedef struct {
+  SomeIp_RxTpMsgList pendingRxTpEvtMsgs;
   SomeIp_RxTpMsgList pendingRxTpMsgs;
   SomeIp_TxTpMsgList pendingTxTpMsgs;
   uint16_t sessionId;
@@ -146,11 +166,16 @@ typedef struct {
 } SomeIp_ClientServiceContextType;
 
 typedef struct {
-  SomeIp_ServerServiceContextType *context;
+  SomeIp_ServerConnectionContextType *context;
   PduIdType TxPduId;
   SoAd_SoConIdType SoConId;
   SomeIp_TcpBufferType *tcpBuf;
 } SomeIp_ServerConnectionType;
+
+typedef struct {
+  SomeIp_TxTpEvtMsgList pendingTxTpEvtMsgs;
+  bool online;
+} SomeIp_ServerContextType;
 
 typedef struct {
   uint16_t serviceId;
@@ -161,6 +186,9 @@ typedef struct {
   uint16_t numOfEvents;
   const SomeIp_ServerConnectionType *connections;
   uint8_t numOfConnections;
+  TcpIp_ProtocolType protocol;
+  SomeIp_ServerContextType *context;
+  uint16_t SeparationTime; /* @ECUC_SomeIpTp_00006 */
 } SomeIp_ServerServiceType;
 
 typedef struct {
@@ -175,6 +203,7 @@ typedef struct {
   PduIdType TxPduId;
   SomeIp_OnAvailabilityFncType onAvailability;
   SomeIp_TcpBufferType *tcpBuf;
+  uint16_t SeparationTime; /* @ECUC_SomeIpTp_00006 */
 } SomeIp_ClientServiceType;
 
 typedef struct {

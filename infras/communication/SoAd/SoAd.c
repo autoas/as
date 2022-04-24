@@ -433,6 +433,22 @@ Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
 
   return ret;
 }
+
+Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *IpAddrPtr) {
+  Std_ReturnType ret = E_NOT_OK;
+  SoAd_SocketContextType *context;
+
+  if (SoConId < SOAD_CONFIG->numOfConnections) {
+    context = &SOAD_CONFIG->Contexts[SoConId];
+    if (SOAD_SOCKET_READY == context->state) {
+      *IpAddrPtr = context->RemoteAddr;
+      ret = E_OK;
+    }
+  }
+
+  return ret;
+}
+
 Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId) {
   Std_ReturnType ret = E_NOT_OK;
   SoAd_SocketContextType *context;

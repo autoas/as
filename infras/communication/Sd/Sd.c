@@ -16,6 +16,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef USE_PCAP
+#include "pcap.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SD 0
 #define AS_LOG_SDI 2
@@ -90,8 +93,13 @@
 #define SD_SUBSCRIBE_EVENT_GROUP 0x06
 #define SD_SUBSCRIBE_EVENT_GROUP_ACK 0x07
 #define SD_SUBSCRIBE_EVENT_GROUP_NACK 0x07
-/* ================================ [ TYPES     ] ==============================================
- */
+
+#ifdef USE_PCAP
+#define PCAP_TRACE PCap_SD
+#else
+#define PCAP_TRACE(data, length, RemoteAddr, isRx)
+#endif
+/* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint32_t length;
   uint32_t lengthOfEntries;
@@ -390,7 +398,7 @@ static Std_ReturnType Sd_DecodeEntryType1OF(const uint8_t *ed, const uint8_t *od
     ret = Sd_DecodeIpV4Option(od, SD_OPT_IP4_ENDPOINT, ipv4Opt, ed[1], (ed[3] >> 4));
     if (E_OK != ret) {
       ASLOG(SDE, ("ipv4 endpoint option not found for %04x:%04x\n", entry1->serviceId,
-                 entry1->instanceId));
+                  entry1->instanceId));
     } else {
       ASLOG(SD, ("%sOffer Service %04x:%04x version %d.%d TTL %d s by %s %d.%d.%d.%d:%d\n",
                  (0 == entry1->TTL) ? "Stop " : "", entry1->serviceId, entry1->instanceId,
@@ -421,7 +429,7 @@ static Std_ReturnType Sd_DecodeEntryType2SEG(const uint8_t *ed, const uint8_t *o
   ret = Sd_DecodeIpV4Option(od, SD_OPT_IP4_ENDPOINT, ipv4Opt, ed[1], (ed[3] >> 4));
   if (E_OK != ret) {
     ASLOG(SDE, ("ipv4 endpoint option not found for %04x:%04x:%04x\n", entry2->serviceId,
-               entry2->instanceId, entry2->eventGroupId));
+                entry2->instanceId, entry2->eventGroupId));
   } else {
     ASLOG(SD, ("%sSubscribe Event Group %04x:%04x:%04x version %d TTL %d s by %s %d.%d.%d.%d:%d\n",
                (0 == entry2->TTL) ? "Stop " : "", entry2->serviceId, entry2->instanceId,
@@ -464,6 +472,24 @@ static Std_ReturnType Sd_DecodeEntryType2SEGAck(const uint8_t *ed, const uint8_t
   return ret;
 }
 
+Std_ReturnType Sd_Transmit(PduIdType TxPduId, uint8_t *data, uint32_t length,
+                           const TcpIp_SockAddrType *RemoteAddr) {
+  Std_ReturnType ret;
+  PduInfoType pduInfo;
+
+  pduInfo.MetaDataPtr = (uint8_t *)RemoteAddr;
+  pduInfo.SduDataPtr = data;
+  pduInfo.SduLength = length;
+  ret = SoAd_IfTransmit(TxPduId, &pduInfo);
+  if (E_OK != ret) {
+    ASLOG(SDE, ("Tx Failed\n"));
+  } else {
+    PCAP_TRACE(data, length, RemoteAddr, FALSE);
+  }
+
+  return ret;
+}
+
 static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
                                            const TcpIp_SockAddrType *RemoteAddr,
                                            const Sd_HeaderType *header,
@@ -473,7 +499,6 @@ static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
   TcpIp_SockAddrType LocalAddr;
   const Sd_ServerServiceType *config;
   Sd_ServerServiceContextType *context;
-  PduInfoType pduInfo;
 
   for (i = 0; i < Instance->numOfServerServices; i++) {
     config = &Instance->ServerServices[i];
@@ -510,10 +535,7 @@ static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
       Instance->context->multicastSessionId = 1;
       Instance->context->flags &= ~SD_REBOOT_FLAG;
     }
-    pduInfo.MetaDataPtr = (uint8_t *)RemoteAddr;
-    pduInfo.SduDataPtr = Instance->buffer;
-    pduInfo.SduLength = 56;
-    ret = SoAd_IfTransmit(Instance->TxPdu.UnicastTxPduId, &pduInfo);
+    ret = Sd_Transmit(Instance->TxPdu.UnicastTxPduId, Instance->buffer, 56, RemoteAddr);
     if (E_OK != ret) {
       ASLOG(SDE, ("response to find service failed\n"));
     }
@@ -582,8 +604,9 @@ static Std_ReturnType Sd_HandleOfferService(const Sd_InstanceType *Instance,
   if (E_OK == ret) {
     if ((0 != context->sessionId) && (header->flags & SD_REBOOT_FLAG) &&
         (header->sessionId <= context->sessionId)) {
-      ASLOG(SDE, ("%d.%d.%d.%d:%d reboot detected\n", ipv4Opt->Addr.addr[0], ipv4Opt->Addr.addr[1],
-                  ipv4Opt->Addr.addr[2], ipv4Opt->Addr.addr[3], ipv4Opt->Addr.port));
+      ASLOG(SDE, ("%d.%d.%d.%d:%d reboot detected, session ID %d <= %d\n", ipv4Opt->Addr.addr[0],
+                  ipv4Opt->Addr.addr[1], ipv4Opt->Addr.addr[2], ipv4Opt->Addr.addr[3],
+                  ipv4Opt->Addr.port, header->sessionId, context->sessionId));
       Sd_InitClientServiceConsumedEventGroups(config);
     }
     context->sessionId = header->sessionId;
@@ -612,7 +635,6 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
                                                      const Sd_ServerServiceType *config,
                                                      const Sd_EventHandlerType *EventHandler,
                                                      Sd_EventHandlerSubscriberType *sub) {
-  PduInfoType pduInfo;
   TcpIp_SockAddrType RemoteAddr;
   Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0, 0, 1, 0,
                      config->ServiceId, config->InstanceId, config->MajorVersion, 0,
@@ -627,10 +649,7 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
   }
   RemoteAddr = sub->RemoteAddr;
   RemoteAddr.port = sub->port;
-  pduInfo.MetaDataPtr = (uint8_t *)&RemoteAddr;
-  pduInfo.SduDataPtr = Instance->buffer;
-  pduInfo.SduLength = 44;
-  return SoAd_IfTransmit(Instance->TxPdu.UnicastTxPduId, &pduInfo);
+  return Sd_Transmit(Instance->TxPdu.UnicastTxPduId, Instance->buffer, 44, &RemoteAddr);
 }
 
 static Sd_EventHandlerSubscriberType *Sd_LookupSubscribe(const Sd_EventHandlerType *EventHandler,
@@ -728,11 +747,13 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
       if (E_OK != ret) { /* retry next time */
         SD_SET(sub->flags, SD_FLG_PENDING_EVENT_GROUP_ACK);
       }
+      EventHandler->onSubscribe(TRUE, &sub->RemoteAddr);
     } else {
       sub->flags = 0;
       if (EventHandler->context->numOfSubscribers > 0) {
         EventHandler->context->numOfSubscribers--;
       }
+      EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
     }
   }
 
@@ -1273,10 +1294,17 @@ static void Sd_ClientServiceMain_TTL(const Sd_ClientServiceType *config) {
 static void Sd_ClientServiceLinkControl(const Sd_ClientServiceType *config) {
   Sd_ClientServiceContextType *context = config->context;
   if (context->phase != SD_PHASE_DOWN) {
-    if (context->isOffered && (0 == (SD_FLG_LINK_UP & context->flags))) {
-      (void)SoAd_SetRemoteAddr(config->SoConId, &(context->RemoteAddr));
-      (void)SoAd_OpenSoCon(config->SoConId);
-      SD_SET(context->flags, SD_FLG_LINK_UP);
+    if (context->isOffered) {
+      if (0 == (SD_FLG_LINK_UP & context->flags)) {
+        (void)SoAd_SetRemoteAddr(config->SoConId, &(context->RemoteAddr));
+        (void)SoAd_OpenSoCon(config->SoConId);
+        SD_SET(context->flags, SD_FLG_LINK_UP);
+      }
+    } else {
+      if (SD_FLG_LINK_UP & context->flags) {
+        (void)SoAd_CloseSoCon(config->SoConId, TRUE);
+        SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+      }
     }
   } else {
     if (SD_FLG_LINK_UP & context->flags) {
@@ -1349,7 +1377,6 @@ Sd_SendSubscribeEventGroup(const Sd_InstanceType *Instance, const Sd_ClientServi
                            const Sd_ConsumedEventGroupType *ConsumedEventGroup) {
   Std_ReturnType ret = E_OK;
   TcpIp_SockAddrType LocalAddr;
-  PduInfoType pduInfo;
   uint32_t TTL = 0;
 
   if (0 == (ConsumedEventGroup->context->flags & SD_FLG_PENDING_STOP_SUBSCRIBE)) {
@@ -1372,10 +1399,7 @@ Sd_SendSubscribeEventGroup(const Sd_InstanceType *Instance, const Sd_ClientServi
   }
   memcpy(LocalAddr.addr, config->context->RemoteAddr.addr, 4);
   LocalAddr.port = config->context->port;
-  pduInfo.MetaDataPtr = (uint8_t *)&LocalAddr;
-  pduInfo.SduDataPtr = Instance->buffer;
-  pduInfo.SduLength = 56;
-  ret = SoAd_IfTransmit(Instance->TxPdu.UnicastTxPduId, &pduInfo);
+  ret = Sd_Transmit(Instance->TxPdu.UnicastTxPduId, Instance->buffer, 56, &LocalAddr);
   if (E_OK != ret) {
     ASLOG(SDE, ("Sending Subscribe Event Group Ack Failed\n"));
   }
@@ -1416,7 +1440,6 @@ static void Sd_ServerClientServiceMain(const Sd_InstanceType *Instance) {
   uint8_t numOfOptions = 0;
   uint32_t offsetOfOptions;
   uint32_t freeSpace;
-  PduInfoType pduInfo;
   boolean TxOne = FALSE;
   Std_ReturnType ret;
 
@@ -1438,10 +1461,8 @@ static void Sd_ServerClientServiceMain(const Sd_InstanceType *Instance) {
       Instance->context->flags &= ~SD_REBOOT_FLAG;
     }
 
-    pduInfo.MetaDataPtr = NULL;
-    pduInfo.SduDataPtr = Instance->buffer;
-    pduInfo.SduLength = 28 + lengthOfEntries + lengthOfOptions;
-    ret = SoAd_IfTransmit(Instance->TxPdu.MulticastTxPduId, &pduInfo);
+    ret = Sd_Transmit(Instance->TxPdu.MulticastTxPduId, Instance->buffer,
+                      28 + lengthOfEntries + lengthOfOptions, NULL);
     if (E_OK == ret) {
       TxOne = TRUE;
     }
@@ -1480,6 +1501,8 @@ void Sd_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   int i;
   boolean isMulticast = TRUE;
   const Sd_InstanceType *Instance = NULL;
+  PCAP_TRACE(PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength,
+             (TcpIp_SockAddrType *)PduInfoPtr->MetaDataPtr, TRUE);
   for (i = 0; i < SD_CONFIG->numOfInstances; i++) {
     if (RxPduId == SD_CONFIG->Instances[i].MulticastRxPdu.RxPduId) {
       Instance = &SD_CONFIG->Instances[i];

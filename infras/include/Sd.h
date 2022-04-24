@@ -57,6 +57,7 @@ typedef struct {
   /* subscriber response port */
   uint16_t port;
   uint16_t sessionId;
+  uint16_t TxPduId;
   /* remote subscriber address */
   TcpIp_SockAddrType RemoteAddr;
   uint8_t flags;

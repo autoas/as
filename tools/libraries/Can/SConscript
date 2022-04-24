@@ -43,7 +43,7 @@ class LibraryCanLib(Library):
         self.LIBS = []
         self.CPPFLAGS = []
         self.source = objs
-        if IsPlatformWindows():
+        if IsBuildForWindows():
             self.LIBS += ['wsock32']
             self.config_peakcan()
             self.config_vxl()
@@ -57,7 +57,7 @@ objsCanSim = Glob('utils/can_simulator.c')
 class ApplicationCanSimulator(Application):
     def config(self):
         self.CPPPATH = ['$INFRAS']
-        if IsPlatformWindows():
+        if IsBuildForWindows():
             self.LIBS = ['wsock32']
         self.source = objsCanSim
 

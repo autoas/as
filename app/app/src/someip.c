@@ -16,7 +16,15 @@ __attribute__((weak)) Std_ReturnType server0_method1_request(uint8_t *data, uint
   return E_NOT_OK;
 }
 __attribute__((weak)) Std_ReturnType client0_method2_request(uint8_t *data, uint32_t length) {
-   return E_NOT_OK;
+  return E_NOT_OK;
+}
+__attribute__((weak)) Std_ReturnType server0_event_group1_event0_notify(uint8_t *data,
+                                                                        uint32_t length) {
+  return E_NOT_OK;
+}
+__attribute__((weak)) Std_ReturnType client0_event_group2_event0_notify(uint8_t *data,
+                                                                        uint32_t length) {
+  return E_NOT_OK;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void SomeIp_MainAppTask(void) {
@@ -27,7 +35,8 @@ void SomeIp_MainAppTask(void) {
   for (i = 0; i < sizeof(data); i++) {
     data[i] = (uint8_t)(i + counter);
   }
-  SomeIp_Notification(0, data, sizeof(data));
+  server0_event_group1_event0_notify(data, sizeof(data));
+  client0_event_group2_event0_notify(data, sizeof(data));
   server0_method1_request(data, sizeof(data));
   client0_method2_request(data, sizeof(data));
 }

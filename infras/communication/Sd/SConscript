@@ -6,7 +6,10 @@ objs = Glob('*.c')
 @register_library
 class LibrarySd(Library):
     def config(self):
+        self.CPPDEFINES = []
         self.CPPPATH = ['$INFRAS', CWD]
         self.LIBS = ['SoAd', 'MemPool']
         self.source = objs
-
+        if IsBuildForHost():
+            self.LIBS += ['PCap']
+            self.CPPDEFINES += ['USE_PCAP']

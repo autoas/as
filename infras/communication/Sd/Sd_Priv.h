@@ -70,6 +70,9 @@ typedef struct {
   uint16_t numOfSubscribers;
 } Sd_EventHandlerContextType;
 
+typedef void (*SomeIp_EventGroupOnSubscribeFncType)(boolean isSubscribe,
+                                                    TcpIp_SockAddrType *RemoteAddr);
+
 /* @ECUC_SD_00055 */
 typedef struct {
   uint16_t HandleId;
@@ -78,6 +81,7 @@ typedef struct {
   Sd_EventHandlerContextType *context;
   Sd_EventHandlerSubscriberType *Subscribers;
   uint16_t numOfSubscribers;
+  SomeIp_EventGroupOnSubscribeFncType onSubscribe;
 } Sd_EventHandlerType;
 
 typedef struct {

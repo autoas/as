@@ -5,35 +5,42 @@ import os
 from .helper import *
 
 
-def Gen_MethodRxTxTp(C, service, method):
-    C.write('Std_ReturnType SomeIp_%s_%s_OnTpCopyRxData(uint16_t conId, SomeIp_TpMessageType *msg) {\n' % (
-        service['name'], method['name']))
+def Gen_DemoRxTp(C, name):
+    C.write('Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint16_t conId, SomeIp_TpMessageType *msg) {\n' % (
+        name))
     C.write('  Std_ReturnType ret = E_OK;\n')
-    C.write('  if ((msg->offset + msg->length) < sizeof(%s_%sTpRxBuf)) {\n' % (
-        service['name'], method['name']))
-    C.write('    memcpy(&%s_%sTpRxBuf[msg->offset], msg->data, msg->length);\n' % (
-        service['name'], method['name']))
+    C.write(
+        '  if ((msg->offset + msg->length) < sizeof(%sTpRxBuf)) {\n' % (name))
+    C.write(
+        '    memcpy(&%sTpRxBuf[msg->offset], msg->data, msg->length);\n' % (name))
     C.write('    if (FALSE == msg->moreSegmentsFlag) {\n')
-    C.write('      msg->data = %s_%sTpRxBuf;\n' %
-            (service['name'], method['name']))
+    C.write('      msg->data = %sTpRxBuf;\n' % (name))
     C.write('    }\n')
     C.write('  } else {\n')
     C.write('    ret = E_NOT_OK;\n')
     C.write('  }\n')
     C.write('  return ret;\n')
     C.write('}\n\n')
-    C.write('Std_ReturnType SomeIp_%s_%s_OnTpCopyTxData(uint16_t conId, SomeIp_TpMessageType *msg) {\n' % (
-        service['name'], method['name']))
+
+
+def Gen_DemoTxTp(C, name):
+    C.write('Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint16_t conId, SomeIp_TpMessageType *msg) {\n' % (
+        name))
     C.write('  Std_ReturnType ret = E_OK;\n')
-    C.write('  if ((msg->offset + msg->length) < sizeof(%s_%sTpTxBuf)) {\n' % (
-        service['name'], method['name']))
-    C.write('    memcpy(msg->data, &%s_%sTpTxBuf[msg->offset], msg->length);\n' % (
-        service['name'], method['name']))
+    C.write(
+        '  if ((msg->offset + msg->length) < sizeof(%sTpTxBuf)) {\n' % (name))
+    C.write(
+        '    memcpy(msg->data, &%sTpTxBuf[msg->offset], msg->length);\n' % (name))
     C.write('  } else {\n')
     C.write('    ret = E_NOT_OK;\n')
     C.write('  }\n')
     C.write('  return ret;\n')
     C.write('}\n\n')
+
+
+def Gen_MethodRxTxTp(C, service, method):
+    Gen_DemoRxTp(C, '%s_%s' % (service['name'], method['name']))
+    Gen_DemoTxTp(C, '%s_%s' % (service['name'], method['name']))
 
 
 def Gen_ServerService(service, dir):
@@ -68,6 +75,13 @@ def Gen_ServerService(service, dir):
                     (service['name'], method['name']))
             H.write('Std_ReturnType SomeIp_%s_%s_OnTpCopyTxData(uint16_t conId, SomeIp_TpMessageType *msg);\n' %
                     (service['name'], method['name']))
+    for egroup in service['event-groups']:
+        H.write('void SomeIp_%s_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);\n' % (
+            service['name'], egroup['name']))
+        for event in egroup['events']:
+            if event.get('tp', False):
+                H.write('Std_ReturnType SomeIp_%s_%s_%s_OnTpCopyTxData(uint16_t conId, SomeIp_TpMessageType *msg);\n' %
+                        (service['name'], egroup['name'], event['name']))
     H.write('#endif /* _SS_%s_H */\n' % (service['name'].upper()))
     H.close()
     C = open('%s/SS_%s.c' % (dir, service['name']), 'w')
@@ -76,6 +90,7 @@ def Gen_ServerService(service, dir):
     C.write(
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     C.write('#include "SS_%s.h"\n' % (service['name']))
+    C.write('#include "SomeIp_Cfg.h"\n')
     C.write('#include "Std_Debug.h"\n')
     C.write('#include <string.h>\n')
     C.write(
@@ -93,6 +108,11 @@ def Gen_ServerService(service, dir):
                 service['name'], method['name'], method.get('tpRxSize', 1*1024*1024)))
             C.write('static uint8_t %s_%sTpTxBuf[%d];\n' % (
                 service['name'], method['name'], method.get('tpTxSize', 1*1024*1024)))
+    for egroup in service['event-groups']:
+        for event in egroup['events']:
+            if event.get('tp', False):
+                C.write('static uint8_t %s_%s_%sTpTxBuf[%d];\n' % (
+                    service['name'], egroup['name'], event['name'], event.get('tpTxSize', 1*1024*1024)))
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     C.write(
@@ -130,6 +150,37 @@ def Gen_ServerService(service, dir):
         C.write('}\n\n')
         if method.get('tp', False):
             Gen_MethodRxTxTp(C, service, method)
+    for egroup in service['event-groups']:
+        C.write('void SomeIp_%s_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr) {\n' % (
+            service['name'], egroup['name']))
+        C.write(
+            '  ASLOG(%s, ("%s %%ssubscribed by %%d.%%d.%%d.%%d:%%d\\n", isSubscribe ? "" : "stop ",\n'
+            '        RemoteAddr->addr[0], RemoteAddr->addr[1], RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port));\n'
+            % (service['name'].upper(), egroup['name']))
+        C.write('}\n\n')
+        for event in egroup['events']:
+            if event.get('tp', False):
+                Gen_DemoTxTp(C, '%s_%s_%s' %
+                             (service['name'], egroup['name'], event['name']))
+            C.write('Std_ReturnType %s_%s_%s_notify(uint8_t *data, uint32_t length) {\n' % (
+                service['name'], egroup['name'], event['name']))
+            C.write('  Std_ReturnType ercd = E_NOT_OK;\n')
+            if event.get('tp', False):
+                C.write('  static uint8_t counter = 0;\n')
+                C.write('  uint32_t i;\n')
+                C.write('  counter++;\n')
+                C.write(
+                    '  for (i = 0; i < sizeof(%s_%s_%sTpTxBuf); i++) {\n' % (service['name'], egroup['name'], event['name']))
+                C.write('    %s_%s_%sTpTxBuf[i] = (uint8_t)(counter + i);\n' % (
+                        service['name'], egroup['name'], event['name']))
+                C.write('  }\n')
+                C.write('  data = %s_%s_%sTpTxBuf;\n' % (
+                        service['name'], egroup['name'], event['name']))
+                C.write('  length = 8000;\n')
+            C.write('  ercd = SomeIp_Notification(SOMEIP_TX_EVT_%s_%s_%s, data, length);\n' % (
+                service['name'].upper(), egroup['name'].upper(), event['name'].upper()))
+            C.write('  return ercd;\n')
+            C.write('}\n\n')
     C.close()
 
 
@@ -158,6 +209,8 @@ def Gen_ClientService(service, dir):
     for method in service['methods']:
         H.write('Std_ReturnType SomeIp_%s_%s_OnResponse(SomeIp_MessageType* res);\n' %
                 (service['name'], method['name']))
+        H.write('Std_ReturnType SomeIp_%s_%s_OnError(Std_ReturnType ercd);\n' %
+                (service['name'], method['name']))
         if method.get('tp', False):
             H.write('Std_ReturnType SomeIp_%s_%s_OnTpCopyRxData(uint16_t conId, SomeIp_TpMessageType *msg);\n' %
                     (service['name'], method['name']))
@@ -168,6 +221,10 @@ def Gen_ClientService(service, dir):
             H.write('Std_ReturnType SomeIp_%s_%s_%s_OnNotification(SomeIp_MessageType* evt);\n' % (
                 service['name'], egroup['name'], event['name']
             ))
+        for event in egroup['events']:
+            if event.get('tp', False):
+                H.write('Std_ReturnType SomeIp_%s_%s_%s_OnTpCopyRxData(uint16_t conId, SomeIp_TpMessageType *msg);\n' %
+                        (service['name'], egroup['name'], event['name']))
     H.write('#endif /* _CS_%s_H */\n' % (service['name'].upper()))
     H.close()
     C = open('%s/CS_%s.c' % (dir, service['name']), 'w')
@@ -188,12 +245,18 @@ def Gen_ClientService(service, dir):
         '/* ================================ [ DECLARES  ] ============================================== */\n')
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write('static boolean lIsAvailable = FALSE;')
     for method in service['methods']:
         if method.get('tp', False):
             C.write('static uint8_t %s_%sTpRxBuf[%d];\n' % (
                 service['name'], method['name'], method.get('tpRxSize', 1*1024*1024)))
             C.write('static uint8_t %s_%sTpTxBuf[%d];\n' % (
                 service['name'], method['name'], method.get('tpTxSize', 1*1024*1024)))
+    for egroup in service['event-groups']:
+        for event in egroup['events']:
+            if event.get('tp', False):
+                C.write('static uint8_t %s_%s_%sTpRxBuf[%d];\n' % (
+                    service['name'], egroup['name'], event['name'], event.get('tpTxSize', 1*1024*1024)))
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     C.write(
@@ -202,10 +265,12 @@ def Gen_ClientService(service, dir):
             (service['name']))
     C.write(
         '  ASLOG(%s, ("%%s\\n", isAvailable?"online":"offline"));\n' % (service['name'].upper()))
+    C.write('  lIsAvailable = isAvailable;')
     C.write('}\n\n')
     for method in service['methods']:
         C.write('Std_ReturnType %s_%s_request(uint8_t *data, uint32_t length) {\n' % (
             service['name'], method['name']))
+        C.write('  Std_ReturnType ercd = E_NOT_OK;\n')
         if method.get('tp', False):
             C.write('  static uint8_t counter = 0;\n')
             C.write('  uint32_t i;\n')
@@ -218,15 +283,27 @@ def Gen_ClientService(service, dir):
             C.write('  data = %s_%sTpTxBuf;\n' %
                     (service['name'], method['name']))
             C.write('  length = 5000;\n')
-        C.write('  return SomeIp_Request(SOMEIP_TX_METHOD_%s_%s, data, length);\n' % (
+        C.write('  if (lIsAvailable) {\n')
+        C.write('    ASLOG(%s, ("%s Request: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n' % (
+            service['name'].upper(), method['name']))
+        C.write('          length, data[0], data[1], data[2], data[3]));\n')
+        C.write('    ercd = SomeIp_Request(SOMEIP_TX_METHOD_%s_%s, data, length);\n' % (
             service['name'].upper(), method['name'].upper()))
+        C.write('  }\n')
+        C.write('  return ercd;\n')
         C.write('}\n\n')
         C.write('Std_ReturnType SomeIp_%s_%s_OnResponse(SomeIp_MessageType* res) {\n' %
                 (service['name'], method['name']))
         C.write(
-            '  ASLOG(%s, ("%s OnResponse: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",res->length,\n' % (service['name'].upper(), method['name']))
+            '  ASLOG(%s, ("%s OnResponse: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n' % (service['name'].upper(), method['name']))
         C.write(
-            '                 res->data[0], res->data[1], res->data[2], res->data[3]));\n')
+            '        res->length, res->data[0], res->data[1], res->data[2], res->data[3]));\n')
+        C.write('  return E_OK;\n')
+        C.write('}\n\n')
+        C.write('Std_ReturnType SomeIp_%s_%s_OnError(Std_ReturnType ercd) {\n' %
+                (service['name'], method['name']))
+        C.write(
+            '  ASLOG(%s, ("%s OnError: %%d\\n", ercd));\n' % (service['name'].upper(), method['name']))
         C.write('  return E_OK;\n')
         C.write('}\n\n')
         if method.get('tp', False):
@@ -242,6 +319,9 @@ def Gen_ClientService(service, dir):
                 '                 evt->data[0], evt->data[1], evt->data[2], evt->data[3]));\n')
             C.write('  return E_OK;\n')
             C.write('}\n\n')
+            if event.get('tp', False):
+                Gen_DemoRxTp(C, '%s_%s_%s' %
+                             (service['name'], egroup['name'], event['name']))
     C.close()
 
 
@@ -314,6 +394,10 @@ def Gen_SD(cfg, dir):
     C.write('                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,\n')
     C.write('                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,\n')
     C.write('                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);\n')
+    for service in cfg['servers']:
+        for egroup in service['event-groups']:
+            C.write('void SomeIp_%s_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);\n' % (
+                service['name'], egroup['name']))
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
     C.write('static Sd_ServerTimerType Sd_ServerTimerDefault = {\n')
@@ -325,7 +409,7 @@ def Gen_SD(cfg, dir):
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(3000), /* OfferCyclicDelay */\n')
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
-    C.write('  DEFAULT_TTL,\n')
+    C.write('  5, /* TTL seconds */\n')
     C.write('};\n\n')
 
     C.write('static Sd_ClientTimerType Sd_ClientTimerDefault = {\n')
@@ -336,7 +420,7 @@ def Gen_SD(cfg, dir):
     C.write('  3,                                  /* InitialFindRepetitionsMax */\n')
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
-    C.write('  DEFAULT_TTL,\n')
+    C.write('  5, /* TTL seconds */\n')
     C.write('};\n\n')
     for service in cfg['servers']:
         if 'event-groups' not in service:
@@ -360,6 +444,8 @@ def Gen_SD(cfg, dir):
                 service['name'], ge['name']))
             C.write('    ARRAY_SIZE(Sd_EventHandlerSubscriber_%s_%s),\n' % (
                 service['name'], ge['name']))
+            C.write('   SomeIp_%s_%s_OnSubscribe,\n' %
+                    (service['name'], ge['name']))
             C.write('  },\n')
         C.write('};\n\n')
     for service in cfg['clients']:
@@ -697,6 +783,11 @@ def Gen_SOMEIP(cfg, dir):
                 C.write('    %s, /* Event ID */\n' % (event['eventId']))
                 C.write('    %s, /* interface version */\n' %
                         (event['version']))
+                if event.get('tp', False):
+                    C.write('    SomeIp_%s_%s_%s_OnTpCopyTxData,\n' % (
+                        service['name'], egroup['name'], event['name']))
+                else:
+                    C.write('  NULL,\n')
                 C.write('  },\n')
         C.write("};\n\n")
     for service in cfg['clients']:
@@ -709,6 +800,8 @@ def Gen_SOMEIP(cfg, dir):
             C.write('    %s, /* Method ID */\n' % (method['methodId']))
             C.write('    %s, /* interface version */\n' % (method['version']))
             C.write('    SomeIp_%s_%s_OnResponse,\n' %
+                    (service['name'], method['name']))
+            C.write('    SomeIp_%s_%s_OnError,\n' %
                     (service['name'], method['name']))
             if method.get('tp', False):
                 C.write('    SomeIp_%s_%s_OnTpCopyRxData,\n' %
@@ -733,6 +826,11 @@ def Gen_SOMEIP(cfg, dir):
                         (event['version']))
                 C.write('    SomeIp_%s_%s_%s_OnNotification,\n' % (
                     service['name'], egroup['name'], event['name']))
+                if event.get('tp', False):
+                    C.write('    SomeIp_%s_%s_%s_OnTpCopyRxData,\n' % (
+                        service['name'], egroup['name'], event['name']))
+                else:
+                    C.write('  NULL,\n')
                 C.write('  },\n')
         C.write("};\n\n")
     for service in cfg['servers']:
@@ -742,13 +840,15 @@ def Gen_SOMEIP(cfg, dir):
                 service['name'], numOfConnections))
         else:
             numOfConnections = 1
-        C.write('static SomeIp_ServerServiceContextType someIpServerServiceContext_%s[%s];\n\n' % (
+        C.write('static SomeIp_ServerContextType someIpServerContext_%s;\n\n' % (
+            service['name']))
+        C.write('static SomeIp_ServerConnectionContextType someIpServerConnectionContext_%s[%s];\n\n' % (
             service['name'], numOfConnections))
         C.write('static const SomeIp_ServerConnectionType someIpServerServiceConnections_%s[%s] = {\n' % (
             service['name'], numOfConnections))
         for i in range(numOfConnections):
             C.write('  {\n')
-            C.write('    &someIpServerServiceContext_%s[%s],\n' %
+            C.write('    &someIpServerConnectionContext_%s[%s],\n' %
                     (service['name'], i))
             if 'reliable' in service:
                 C.write('    SOAD_TX_PID_SOMEIP_%s_APT%s,\n' %
@@ -784,6 +884,13 @@ def Gen_SOMEIP(cfg, dir):
         C.write('  someIpServerServiceConnections_%s,\n' % (service['name']))
         C.write('  ARRAY_SIZE(someIpServerServiceConnections_%s),\n' %
                 (service['name']))
+        if 'reliable' in service:
+            C.write('  TCPIP_IPPROTO_TCP,\n')
+        else:
+            C.write('  TCPIP_IPPROTO_UDP,\n')
+        C.write('  &someIpServerContext_%s,\n' % (service['name']))
+        C.write('  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n' %
+                (service.get('SeparationTime', 10)))
         C.write('};\n\n')
     for service in cfg['clients']:
         if 'reliable' in service:
@@ -817,6 +924,8 @@ def Gen_SOMEIP(cfg, dir):
             C.write('  &someIpTcpBuffer_%s,\n' % (service['name']))
         else:
             C.write('  NULL,\n')
+        C.write('  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n' %
+                (service.get('SeparationTime', 10)))
         C.write('};\n\n')
     C.write('static const SomeIp_ServiceType SomeIp_Services[] = {\n')
     for service in cfg['servers']:
@@ -895,7 +1004,7 @@ def Gen_SOMEIP(cfg, dir):
     C.write('  -1\n};\n\n')
     C.write('const SomeIp_ConfigType SomeIp_Config = {\n')
     C.write('  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n' %
-            (cfg.get('TpRxTimeoutTime', 100)))
+            (cfg.get('TpRxTimeoutTime', 200)))
     C.write('  SomeIp_Services,\n')
     C.write('  ARRAY_SIZE(SomeIp_Services),\n')
     C.write('  Sd_PID2ServiceMap,\n')
