@@ -14,6 +14,7 @@ from .Factory import Gen as FactoryGen
 from .MemCluster import Gen as MCGen
 from .PduR import Gen as PduRGen
 from .CanTp import Gen as CanTpGen
+from .CanIf import Gen as CanIfGen
 
 __GEN__ = {
   'NvM': NvMGen,
@@ -24,6 +25,7 @@ __GEN__ = {
   'MemCluster': MCGen,
   'PduR': PduRGen,
   'CanTp': CanTpGen,
+  'CanIf': CanIfGen,
 }
 
 RootDir = os.path.abspath(os.path.dirname(__file__)+ '/../..')

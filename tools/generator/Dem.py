@@ -5,6 +5,7 @@ import os
 import json
 from .helper import *
 
+__all__ = ['Gen']
 
 def GetSnapshotSize(cfg):
     size = 0

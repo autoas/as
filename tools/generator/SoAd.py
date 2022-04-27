@@ -5,6 +5,8 @@ import os
 from .helper import *
 
 
+__all__ = ['Gen_SoAd']
+
 def Gen_Sock(C, RxPduId, SoConId, GID, isGroup):
     C.write('  {\n')
     C.write('#ifdef DISABLE_NET_MEM\n')

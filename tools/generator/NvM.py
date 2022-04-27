@@ -5,6 +5,7 @@ import os
 import json
 from .helper import *
 
+__all__ = ['Gen']
 
 def GetName(node):
     return node['name'].replace('{', '').replace('}', '')

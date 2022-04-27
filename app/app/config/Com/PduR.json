@@ -21,5 +21,13 @@
       "from": "Dcm",
       "to": "CanTp"
     }
+  ],
+  "networks": [
+    {
+      "name": "CAN0",
+      "network": "CAN",
+      "me": "AS",
+      "dbc": "CAN0.dbc"
+    }
   ]
 }

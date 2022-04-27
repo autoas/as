@@ -31,6 +31,9 @@ def toMacro(s):
     return sss
 
 
+def toPduSymbol(names):
+    return '_'.join([toMacro(n) for n in names])
+
 def GenHeader(f):
     GenTime = time.asctime(time.localtime(time.time()))
     f.write('/**\n')

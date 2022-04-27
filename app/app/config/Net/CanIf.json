@@ -1,0 +1,16 @@
+{
+  "class": "CanIf",
+  "networks": [
+    {
+      "name": "CAN0",
+      "RxPdus": [
+        { "name": "GW_P2P_RX", "id": "0x732", "hoh": 0, "up": "CanTp" },
+        { "name": "GW_P2A_RX", "id": "0x732", "hoh": 0, "up": "CanTp" }
+      ],
+      "TxPdus": [
+        { "name": "GW_P2P_TX", "id": "0x731", "hoh": 0, "up": "CanTp" },
+        { "name": "GW_P2A_TX", "id": "0x7DF", "hoh": 0, "up": "CanTp" }
+      ]
+    }
+  ]
+}

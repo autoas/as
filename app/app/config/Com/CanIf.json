@@ -1,0 +1,22 @@
+{
+  "class": "CanIf",
+  "networks": [
+    {
+      "name": "CAN0",
+      "me": "AS",
+      "dbc": "CAN0.dbc",
+      "RxPdus": [
+        { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
+        { "name": "P2A_RX", "id": "0x7DF", "hoh": 0, "up": "CanTp" },
+        { "name": "OSEKNM_RX", "id": "0x400", "mask": "0x700", "hoh": 0, "up": "OsekNm" },
+        { "name": "CANNM_RX", "id": "0x500", "mask": "0x700", "hoh": 0, "up": "CanNm" }
+      ],
+      "TxPdus": [
+        { "name": "P2P_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
+        { "name": "P2A_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
+        { "name": "OSEKNM_TX", "id": "0x400", "dynamic": true, "hoh": 0, "up": "OsekNm" },
+        { "name": "CANNM_TX", "id": "0x500", "dynamic": true, "hoh": 0, "up": "CanNm" }
+      ]
+    }
+  ]
+}

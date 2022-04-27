@@ -5,6 +5,7 @@ import os
 import json
 from .helper import *
 
+__all__ = ['Gen']
 
 def Gen_CanTp(cfg, dir):
     H = open('%s/CanTp_Cfg.h' % (dir), 'w')
@@ -21,8 +22,10 @@ def Gen_CanTp(cfg, dir):
     for i, chl in enumerate(cfg['channels']):
         H.write('#define CANTP_%s_RX %s\n' % (chl['name'], i))
         H.write('#define CANTP_%s_TX %s\n' % (chl['name'], i))
+        H.write('#ifndef USE_CANIF\n')
         H.write('#define CANIF_%s_TX (CANIF_CANTP_BASEID+%s)\n' %
                 (chl['name'], i))
+        H.write('#endif\n')
     H.write('\n')
     if 'zero_cost' in cfg:
         H.write('#define PDUR_%s_CANTP_ZERO_COST\n\n' %
@@ -47,6 +50,9 @@ def Gen_CanTp(cfg, dir):
     GenHeader(C)
     C.write(
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('#ifdef USE_CANIF\n')
+    C.write('#include "CanIf_Cfg.h"\n')
+    C.write('#endif\n')
     C.write('#include "CanTp_Cfg.h"\n')
     C.write('#include "CanTp.h"\n')
     C.write('#include "CanTp_Types.h"\n')

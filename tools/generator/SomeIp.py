@@ -4,6 +4,7 @@
 import os
 from .helper import *
 
+__all__ = ['Gen_SomeIp']
 
 def Gen_DemoRxTp(C, name):
     C.write('Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint16_t conId, SomeIp_TpMessageType *msg) {\n' % (

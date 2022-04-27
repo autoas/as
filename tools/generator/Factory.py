@@ -5,6 +5,7 @@ import os
 import json
 from .helper import *
 
+__all__ = ['Gen']
 
 def Gen_Factory(dir, cfg):
     factoryName = cfg['name']

@@ -8,6 +8,8 @@ from .DoIp import Gen_DoIp
 from .SomeIp import Gen_SomeIp
 from .SoAd import Gen_SoAd
 
+__all__ = ['Gen']
+
 __GENNET__ = {
     'DoIp': Gen_DoIp,
     'SomeIp': Gen_SomeIp,

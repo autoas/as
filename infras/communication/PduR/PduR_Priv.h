@@ -8,9 +8,10 @@
 #define _PDUR_PRIV_H_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#include "mempool.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define PDUR_CONFIG (&PduR_Config)
 /* ================================ [ TYPES     ] ============================================== */
-
 typedef enum
 {
   PDUR_MODULE_CANIF,
@@ -38,6 +39,7 @@ typedef struct {
   BufReq_ReturnType (*CopyRxData)(PduIdType id, const PduInfoType *info,
                                   PduLengthType *bufferSizePtr);
   union {
+    void *ptr;
     void (*TpRxIndication)(PduIdType id, Std_ReturnType result);
     void (*RxIndication)(PduIdType id, const PduInfoType *PduInfoPtr);
   } Ind;
@@ -54,7 +56,7 @@ typedef struct {
 } PduR_PduType;
 
 typedef struct {
-  uint8_t* data;
+  uint8_t *data;
   PduLengthType size;
   PduLengthType index;
 } PduR_BufferType;
@@ -68,10 +70,17 @@ typedef struct {
 } PduR_RoutingPathType;
 
 struct PduR_Config_s {
+  const mem_cluster_t *mc;
   const PduR_RoutingPathType *RoutingPaths;
   uint16_t numOfRoutingPaths;
+  const PduIdType DCM_TX_BASE_ID;
+  const PduIdType DOIP_RX_BASE_ID;
+  const PduIdType DOIP_TX_BASE_ID;
+  const PduIdType CANTP_RX_BASE_ID;
+  const PduIdType CANTP_TX_BASE_ID;
 };
 /* ================================ [ DECLARES  ] ============================================== */
+extern const PduR_ConfigType PduR_Config;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -79,6 +88,8 @@ Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *PduInfoPtr);
 BufReq_ReturnType PduR_CopyTxData(PduIdType pathId, const PduInfoType *info,
                                   const RetryInfoType *retry, PduLengthType *availableDataPtr);
 void PduR_TxConfirmation(PduIdType pathId, Std_ReturnType result);
+void PduR_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *PduInfoPtr);
 
 BufReq_ReturnType PduR_StartOfReception(PduIdType pathId, const PduInfoType *info,
                                         PduLengthType TpSduLength, PduLengthType *bufferSizePtr);
@@ -108,16 +119,20 @@ BufReq_ReturnType PduR_CanTpGwCopyRxData(PduIdType id, const PduInfoType *info,
                                          PduLengthType *bufferSizePtr);
 void PduR_CanTpGwRxIndication(PduIdType id, Std_ReturnType result);
 
-
 BufReq_ReturnType PduR_DoIPGwCopyTxData(PduIdType id, const PduInfoType *info,
-                                         const RetryInfoType *retry,
-                                         PduLengthType *availableDataPtr);
+                                        const RetryInfoType *retry,
+                                        PduLengthType *availableDataPtr);
 void PduR_DoIPGwTxConfirmation(PduIdType id, Std_ReturnType result);
 
 BufReq_ReturnType PduR_DoIPGwStartOfReception(PduIdType id, const PduInfoType *info,
-                                               PduLengthType TpSduLength,
-                                               PduLengthType *bufferSizePtr);
+                                              PduLengthType TpSduLength,
+                                              PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
-                                         PduLengthType *bufferSizePtr);
+                                        PduLengthType *bufferSizePtr);
 void PduR_DoIPGwRxIndication(PduIdType id, Std_ReturnType result);
+
+void PduR_MemInit(void);
+uint8_t *PduR_MemAlloc(uint32_t size);
+uint8_t *PduR_MemGet(uint32_t *size);
+void PduR_MemFree(uint8_t *buffer);
 #endif /* _PDUR_PRIV_H_ */

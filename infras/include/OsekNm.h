@@ -67,8 +67,8 @@ StatusType GotoMode(NetIdType NetId, NMModeName NewMode);
 
 StatusType OsekNm_GetState(NetIdType NetId, Nm_ModeType *nmModePtr);
 
-void OsekNm_TxConformation(NetIdType NetId);
-void OsekNm_RxIndication(NetIdType NetId, NMPduType *NMPDU);
+void OsekNm_TxConfirmation(PduIdType NetId, Std_ReturnType result);
+void OsekNm_RxIndication(PduIdType NetId, const PduInfoType *PduInfoPtr);
 void OsekNm_WakeupIndication(NetIdType NetId);
 void OsekNm_BusErrorIndication(NetIdType NetId);
 
@@ -77,5 +77,5 @@ void OsekNm_MainFunction(void);
 void D_Init(NetIdType NetId, RoutineRefType Routine);
 void D_Offline(NetIdType NetId);
 void D_Online(NetIdType NetId);
-StatusType D_WindowDataReq(NetIdType NetId, NMPduType *NMPDU, uint8_t DataLengthTx);
+StatusType D_WindowDataReq(NetIdType NetId, NMPduType *nmPdu, uint8_t DataLengthTx);
 #endif /* _OSEK_NM_H */

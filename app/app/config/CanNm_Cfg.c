@@ -6,9 +6,13 @@
 #include "CanNm.h"
 #include "CanNm_Cfg.h"
 #include "CanNm_Priv.h"
-#include <Std_Debug.h>
+#include "Std_Debug.h"
+#include "CanIf.h"
 #ifdef _WIN32
 #include <stdlib.h>
+#endif
+#ifdef USE_CANIF
+#include "Com/GEN/CanIf_Cfg.h"
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 #define CANNM_ImmediateNmCycleTime CANNM_CONVERT_MS_TO_MAIN_CYCLES(100)
@@ -47,7 +51,11 @@ static L_CONST CanNm_ChannelConfigType CanNm_ChannelConfigs[] = {
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
     CANNM_RemoteSleepIndTime,
 #endif
-    3, /* TxPdu */
+#ifdef USE_CANIF
+    CANIF_CANNM_TX, /* TxPdu */
+#else
+    0, /* TxPdu */
+#endif
     CANNM_NODE_ID,
     0, /* nmNetworkHandle */
     CANNM_ImmediateNmTransmissions,
@@ -84,7 +92,30 @@ static void __attribute__((constructor)) _cannm_start(void) {
       CANNM_CONVERT_MS_TO_MAIN_CYCLES(500 + (CanNm_ChannelConfigs[0].NodeId * 100));
     ASLOG(INFO, ("CanNm NodeId=%d, ReduceTime=%d\n", CanNm_ChannelConfigs[0].NodeId,
                  CanNm_ChannelConfigs[0].MsgReducedTime));
+#ifdef USE_CANIF
+    CanIf_SetDynamicTxId(CANIF_CANNM_TX, 0x500 + CanNm_ChannelConfigs[0].NodeId);
+#endif
   }
 }
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
+
+#ifndef USE_CANIF
+void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
+  CanNm_RxIndication(Mailbox->ControllerId, PduInfoPtr);
+}
+
+void CanIf_TxConfirmation(PduIdType CanTxPduId) {
+  CanNm_TxConfirmation(CanTxPduId, E_OK);
+}
+
+Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+  Can_PduType canPdu;
+
+  canPdu.swPduHandle = TxPduId;
+  canPdu.length = PduInfoPtr->SduLength;
+  canPdu.sdu = PduInfoPtr->SduDataPtr;
+  canPdu.id = 0x500 + CanNm_ChannelConfigs[0].NodeId;
+  return Can_Write(0, &canPdu);
+}
+#endif

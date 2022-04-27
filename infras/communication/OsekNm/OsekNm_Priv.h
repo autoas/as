@@ -34,9 +34,11 @@ typedef struct {
   uint16_t _TMax;
   uint16_t _TError;
   uint16_t _TWbs;
+  uint16_t NodeMask;
   NodeIdType NodeId;
   uint8_t rx_limit;
   uint8_t tx_limit;
+  PduIdType txPduId;
 } OsekNm_ChannelConfigType;
 
 typedef union {

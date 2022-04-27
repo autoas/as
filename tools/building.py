@@ -1003,8 +1003,8 @@ class Library(BuildBase):
         if hasattr(self, 'INCLUDE'):
             self.include = self.INCLUDE
         if GetOption('prebuilt') and GetOption('library') != self.name:
-            liba = os.path.abspath('%s/../%s/lib%s.a' %
-                                   (BUILD_DIR, self.name, self.name))
+            liba = os.path.abspath('%s/../prebuilt/lib%s.a' %
+                                   (BUILD_DIR, self.name))
             if os.path.isfile(liba):
                 self.source = [liba]
         if self.include != None:
@@ -1145,7 +1145,10 @@ class Application(BuildBase):
                     p = os.path.dirname(str(obj))
                     if p not in LIBPATH:
                         LIBPATH.append(p)
-                    LIBS.append(libName)
+                    if (libName in ['Dcm', 'Com']):
+                        LIBS.insert(0, name)
+                    else:
+                        LIBS.append(libName)
             if (len(libObjs) > 0):
                 if ':' in name:
                     libName = name.split(':')[0]

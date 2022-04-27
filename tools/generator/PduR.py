@@ -6,6 +6,11 @@ import os
 import json
 from .helper import *
 
+from .Com import get_messages
+from . import MemCluster as MC
+
+__all__ = ['Gen']
+
 HIGH_MODULES = ['Dcm']
 TP_MODULES = ['DoIP', 'CanTp', 'LinTp']
 LOW_MODULES = TP_MODULES + ['CanIf']
@@ -26,6 +31,8 @@ def getBaseId(groups, modsFrom=[], modsTo=[]):
 
 
 def Gen_PduR(cfg, dir):
+    if 'memory' in cfg:
+        mcfg = {'name': 'PduR', 'clusters': cfg['memory']}
     groups = {}
     modules = []
     hasGW = False
@@ -68,6 +75,16 @@ def Gen_PduR(cfg, dir):
             (getBaseId(groups, modsFrom=['CanTp'])))
     H.write('#define PDUR_CANTP_TX_BASE_ID %s\n' %
             (getBaseId(groups, modsTo=['CanTp'])))
+    H.write('\n')
+    index = 0
+    for fr, grphls in groups.items():
+        for hl, grptos in grphls.items():
+            for to, rts in grptos.items():
+                for rt in rts:
+                    H.write('#define PDUR_%s %s\n' % (rt['name'], index))
+                    index += 1
+    if 'memory' in cfg:
+        MC.Gen_Macros(mcfg, H)
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
     H.write(
@@ -87,6 +104,7 @@ def Gen_PduR(cfg, dir):
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     C.write('#include "PduR.h"\n')
     C.write('#include "PduR_Priv.h"\n')
+    C.write('#include "PduR_Cfg.h"\n')
     for mod in modules:
         C.write('#include "%s.h"\n' % (mod))
         if mod not in ['Dcm']:
@@ -99,21 +117,32 @@ def Gen_PduR(cfg, dir):
         '/* ================================ [ DECLARES  ] ============================================== */\n')
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
+    if 'memory' in cfg:
+        MC.Gen_Defs(mcfg, C)
     if 'Dcm' in modules:
         C.write('const PduR_ApiType PduR_DcmApi = {\n')
         C.write('  Dcm_StartOfReception,\n')
         C.write('  Dcm_CopyRxData,\n')
-        C.write('  { Dcm_TpRxIndication },\n')
+        C.write('  { (void*)Dcm_TpRxIndication },\n')
         C.write('  NULL,\n')
         C.write('  Dcm_CopyTxData,\n')
         C.write('  Dcm_TpTxConfirmation,\n')
+        C.write('};\n\n')
+    if 'Com' in modules:
+        C.write('const PduR_ApiType PduR_ComApi = {\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
+        C.write('  { (void*)Com_RxIndication },\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
+        C.write('  Com_TxConfirmation,\n')
         C.write('};\n\n')
     if 'DoIP' in modules:
         C.write('const PduR_ApiType PduR_DoIPApi = {\n')
         if(hasGW):
             C.write('  PduR_DoIPGwStartOfReception,\n')
             C.write('  PduR_DoIPGwCopyRxData,\n')
-            C.write('  { PduR_DoIPGwRxIndication },\n')
+            C.write('  { (void*)PduR_DoIPGwRxIndication },\n')
         else:
             C.write('  NULL,\n')
             C.write('  NULL,\n')
@@ -131,7 +160,7 @@ def Gen_PduR(cfg, dir):
         if(hasGW):
             C.write('  PduR_CanTpGwStartOfReception,\n')
             C.write('  PduR_CanTpGwCopyRxData,\n')
-            C.write('  {PduR_CanTpGwRxIndication},\n')
+            C.write('  { (void*)PduR_CanTpGwRxIndication },\n')
         else:
             C.write('  NULL,\n')
             C.write('  NULL,\n')
@@ -143,6 +172,15 @@ def Gen_PduR(cfg, dir):
         else:
             C.write('  NULL,\n')
             C.write('  NULL,\n')
+        C.write('};\n\n')
+    if 'CanIf' in modules:
+        C.write('const PduR_ApiType PduR_CanIfApi = {\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
+        C.write('  { NULL },\n')
+        C.write('  CanIf_Transmit,\n')
+        C.write('  NULL,\n')
+        C.write('  NULL,\n')
         C.write('};\n\n')
     for rt in cfg['routines']:
         fr, to, name = rt['from'], rt['to'], rt['name']
@@ -178,15 +216,24 @@ def Gen_PduR(cfg, dir):
                     C.write('    ARRAY_SIZE(PduR_DstPdu_%s_%s_%s),\n' %
                             (fr, to, name))
                     if fr in TP_MODULES and to in TP_MODULES:
-                        C.write('  &PduR_Buffer_%s,\n' % (name))
+                        C.write('    &PduR_Buffer_%s,\n' % (name))
                     else:
-                        C.write('  NULL,\n')
+                        C.write('    NULL,\n')
                     C.write('  },\n')
                     index += 1
     C.write('};\n\n')
     C.write('const PduR_ConfigType PduR_Config = {\n')
-    C.write('PduR_RoutingPaths,\n')
-    C.write('ARRAY_SIZE(PduR_RoutingPaths),\n')
+    if 'memory' in cfg:
+        C.write('  &MC_PduR,\n')
+    else:
+        C.write('  NULL,\n')
+    C.write('  PduR_RoutingPaths,\n')
+    C.write('  ARRAY_SIZE(PduR_RoutingPaths),\n')
+    C.write('  PDUR_DCM_TX_BASE_ID,\n')
+    C.write('  PDUR_DOIP_RX_BASE_ID,\n')
+    C.write('  PDUR_DOIP_TX_BASE_ID,\n')
+    C.write('  PDUR_CANTP_RX_BASE_ID,\n')
+    C.write('  PDUR_CANTP_TX_BASE_ID,\n')
     C.write('};\n')
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
@@ -195,9 +242,49 @@ def Gen_PduR(cfg, dir):
     C.close()
 
 
+def extract(cfg, dir):
+    cfg_ = {'class': 'PduR', 'routines': cfg.get('routines', [])}
+    if 'memory' in cfg:
+        cfg_['memory'] = cfg['memory']
+    bNew = False
+    for network in cfg.get('networks', []):
+        if 'dbc' in network:
+            path = network['dbc']
+            me = network['me']
+            name = network['name']
+            ll = network['network']
+            if ll.upper() == 'CAN':
+                ll = 'CanIf'
+            if ll.upper() == 'LIN':
+                ll = 'LinIf'
+            if not os.path.isfile(path):
+                path = os.path.abspath(os.path.join(dir, '..', path))
+            if not os.path.isfile(path):
+                raise Exception('File %s not exists' % (path))
+            messages = get_messages(path)
+            for msg in messages:
+                rn = toPduSymbol((name, msg['name']))
+                if msg['node'] == me:
+                    fr = 'Com'
+                    to = ll
+                else:
+                    fr = ll
+                    to = 'Com'
+                routine = {'name': rn, 'from': fr, 'to': to, 'id': msg['id']}
+                cfg_['routines'].append(routine)
+            bNew = True
+        else:
+            raise
+    if bNew:
+        with open('%s/PduR.json' % (dir), 'w') as f:
+            json.dump(cfg_, f, indent=2)
+    return cfg_
+
+
 def Gen(cfg):
     dir = os.path.join(os.path.dirname(cfg), 'GEN')
     os.makedirs(dir, exist_ok=True)
     with open(cfg) as f:
         cfg = json.load(f)
-    Gen_PduR(cfg, dir)
+    cfg_ = extract(cfg, dir)
+    Gen_PduR(cfg_, dir)

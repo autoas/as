@@ -105,7 +105,7 @@ void PduR_CanTpRxIndication(PduIdType id, Std_ReturnType result) {
 }
 
 void PduR_CanTpTxConfirmation(PduIdType id, Std_ReturnType result) {
-  Dcm_TxConfirmation(id, result);
+  Dcm_TpTxConfirmation(id, result);
 }
 
 BufReq_ReturnType PduR_CanTpStartOfReception(PduIdType id, const PduInfoType *info,

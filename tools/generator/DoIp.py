@@ -4,6 +4,7 @@
 import os
 from .helper import *
 
+__all__ = ['Gen_DoIp']
 
 def Gen_DoIp(cfg, dir):
     H = open('%s/DoIP_Cfg.h' % (dir), 'w')

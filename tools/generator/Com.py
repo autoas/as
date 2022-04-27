@@ -6,6 +6,7 @@ import json
 from .helper import *
 from .dbc import dbc
 
+__all__ = ['Gen', 'get_messages']
 
 def gen_rx_sig_cfg(sig, C):
     C.write('static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n' % (
@@ -122,7 +123,7 @@ def gen_sig(sig, msg, C, isTx):
     C.write('  },\n')
 
 
-def gen_rx_msg_cfg(msg, C):
+def gen_rx_msg_cfg(network, msg, C):
     C.write(
         'static const Com_IPduRxConfigType Com_IPduRxConfig_%s = {\n' % (msg['name']))
     RxNotification = msg.get('RxNotification', 'NULL')
@@ -138,7 +139,8 @@ def gen_rx_msg_cfg(msg, C):
     C.write('};\n\n')
 
 
-def gen_tx_msg_cfg(msg, C):
+def gen_tx_msg_cfg(network, msg, C):
+    name = toPduSymbol((network['name'], msg['name']))
     C.write(
         'static const Com_IPduTxConfigType Com_IPduTxConfig_%s = {\n' % (msg['name']))
     ErrorNotification = msg.get('ErrorNotification', 'NULL')
@@ -152,7 +154,11 @@ def gen_tx_msg_cfg(msg, C):
             (FirstTime))
     C.write('  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* CycleTime */\n' %
             (CycleTime))
-    C.write('  COM_ECUC_PDUID_OFFSET + COM_PID_%s,\n' % (msg['name']))
+    C.write('#ifdef USE_PDUR\n')
+    C.write('  PDUR_%s,\n' % (name.upper()))
+    C.write('#else\n')
+    C.write('  COM_ECUC_PDUID_OFFSET + COM_%s,\n' % (name.upper()))
+    C.write('#endif\n')
     C.write('};\n\n')
 
 
@@ -207,14 +213,15 @@ def Gen_Com(cfg, dir):
         IF = 'if'
         for msg in network['messages']:
             if msg['node'] != network['me']:
+                name = '%s_%s'%(network['name'], toMacro(msg['name']))
                 H.write('  %s (0x%X == id) { \\\n' % (IF, msg['id']))
                 H.write(
-                    '    Com_RxIndication(COM_PID_%s, PduInfoPtr); \\\n' % (msg['name']))
+                    '    Com_RxIndication(COM_%s, PduInfoPtr); \\\n' % (name.upper()))
                 H.write('  }')
                 IF = 'else if'
         H.write('\n\n')
     H.write('#ifndef COM_ECUC_PDUID_OFFSET\n')
-    H.write('#define COM_ECUC_PDUID_OFFSET 10\n')
+    H.write('#define COM_ECUC_PDUID_OFFSET 0\n')
     H.write('#endif\n\n')
     last_end = 'COM_ECUC_PDUID_OFFSET'
     for network in cfg['networks']:
@@ -229,8 +236,9 @@ def Gen_Com(cfg, dir):
         IF = 'if'
         for msg in network['messages']:
             if msg['node'] == network['me']:
+                name = '%s_%s'%(network['name'], toMacro(msg['name']))
                 H.write(
-                    '  %s ((COM_PID_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n' % (IF, msg['name']))
+                    '  %s ((COM_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n' % (IF, name.upper()))
                 if network['network'] == 'CAN':
                     H.write('    dlPdu.id = 0x%X; \\\n' % (msg['id']))
                     H.write('    ret = Can_Write(0, &dlPdu); \\\n')
@@ -245,14 +253,15 @@ def Gen_Com(cfg, dir):
     for network in cfg['networks']:
         H.write('/* messages for network %s */\n' % (network['name']))
         for msg in network['messages']:
-            H.write('#define COM_PID_%s %s\n' % (msg['name'], PDU_ID))
+            name = '%s_%s'%(network['name'], toMacro(msg['name']))
+            H.write('#define COM_%s %s\n' % (name.upper(), PDU_ID))
             PDU_ID += 1
         H.write('\n')
     SIG_ID = 0
     for network in cfg['networks']:
         H.write('/* signals for network %s */\n' % (network['name']))
         for msg in network['messages']:
-            H.write('/* signals for message %s: id=0x%X dlc=%d, dir=%s */\n' %
+            H.write('/* signals for message %s: id=%s dlc=%d, dir=%s */\n' %
                     (msg['name'], msg['id'], msg['dlc'],
                      'TX' if msg['node'] == network['me'] else 'RX'))
             for sig in msg['signals']:
@@ -288,6 +297,9 @@ def Gen_Com(cfg, dir):
     C.write('#include "Com_Cfg.h"\n')
     C.write('#include "Com.h"\n')
     C.write('#include "Com_Priv.h"\n')
+    C.write('#ifdef USE_PDUR\n')
+    C.write('#include "PduR_Cfg.h"\n')
+    C.write('#endif\n')
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
     C.write(
@@ -391,7 +403,7 @@ def Gen_Com(cfg, dir):
                 gen_cfg = gen_tx_msg_cfg
                 if (network['network'] in ['LIN']):
                     continue
-            gen_cfg(msg, C)
+            gen_cfg(network, msg, C)
     C.write('static const Com_IPduConfigType Com_IPduConfigs[] = {\n')
     for network in cfg['networks']:
         for msg in network['messages']:
@@ -482,6 +494,15 @@ def post(cfg):
         for msg in network['messages']:
             if any('group' in sig for sig in msg['signals']):
                 add_group_signal(msg)
+    # make sure TX fist then RX
+    for network in cfg['networks']:
+        txmsgs, rxmsgs = [], []
+        for msg in network['messages']:
+            if (msg['node'] == network['me']):
+                txmsgs.append(msg)
+            else:
+                rxmsgs.append(msg)
+        network['messages'] = txmsgs + rxmsgs
 
 
 def extract(cfg, dir):

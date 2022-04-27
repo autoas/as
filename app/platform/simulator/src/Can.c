@@ -126,7 +126,7 @@ void Can_MainFunction_Read(void) {
         Mailbox.Hoh = i;
         PduInfo.SduLength = dlc;
         PduInfo.SduDataPtr = data;
-        PduInfo.MetaDataPtr = NULL;
+        PduInfo.MetaDataPtr = (uint8_t*)&Mailbox;
         CanIf_RxIndication(&Mailbox, &PduInfo);
       }
     }

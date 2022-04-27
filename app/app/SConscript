@@ -45,6 +45,7 @@ libsForCanApp = {'OsekNm': Glob('config/OsekNm_Cfg.c'),
                  'Com': Glob('config/Com/GEN/Com_Cfg.c'),
                  'CanTp': Glob('config/Com/GEN/CanTp_Cfg.c'),
                  'PduR': Glob('config/Com/GEN/PduR_Cfg.c'),
+                 'CanIf': Glob('config/Com/GEN/CanIf_Cfg.c'),
                  }
 libsForCanApp.update(libsCommon)
 
@@ -99,8 +100,9 @@ libsForNetApp = {
     'DoIP': Glob('config/Net/GEN/DoIP_*.c'),
     'Sd': Glob('config/Net/GEN/Sd_*.c'),
     'SomeIp': Glob('config/Net/GEN/SomeIp_*.c') + Glob('config/Net/GEN/SS_*.c') + Glob('config/Net/GEN/CS_*.c'),
-    'PduR': Glob('config/Net/GEN/PduR*.c'),
+    'PduR': Glob('config/Net/GEN/PduR_Cfg.c'),
     'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
+    'CanIf': Glob('config/Net/GEN/CanIf_Cfg.c'),
 }
 libsForNetApp.update(libsCommon)
 
