@@ -149,6 +149,11 @@
     ExitCritical();                                                                                \
   } while (0)
 
+#define SQP_ALLOC(T)                                                                               \
+  do {                                                                                             \
+    var = (SomeIp_##T##Type *)mp_alloc(&someIp##T##Pool);                                          \
+  } while (0)
+
 #define SQP_FREE(T)                                                                                \
   do {                                                                                             \
     mp_free(&someIp##T##Pool, (uint8_t *)var);                                                     \
@@ -431,7 +436,7 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
       if ((0 == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
         ASLOG(SOMEIP, ("%x:%x:%x:%d FF lenght = %d\n", msg->header.serviceId, msg->header.methodId,
                        msg->header.clientId, msg->header.sessionId, msg->req.length));
-        var = (SomeIp_RxTpMsgType *)mp_alloc(&someIpRxTpMsgPool);
+        SQP_ALLOC(RxTpMsg);
         if (NULL == var) {
           ret = SOMEIP_E_NOMEM;
           ASLOG(SOMEIPE, ("%x:%x:%x:%d OoM for Tp Rx\n", msg->header.serviceId,
@@ -442,6 +447,7 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
           var->sessionId = msg->header.sessionId;
           var->RemoteAddr = msg->RemoteAddr;
           var->methodId = methodId;
+          var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
           SQP_LAPPEND(RxTpMsg);
         }
       } else {
@@ -453,6 +459,7 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
       if ((var->clientId == msg->header.clientId) && (var->sessionId == msg->header.sessionId) &&
           (var->offset == msg->tpHeader.offset) &&
           (0 == memcmp(&var->RemoteAddr, &msg->RemoteAddr, sizeof(TcpIp_SockAddrType)))) {
+        var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
         ASLOG(SOMEIP, ("%x:%x:%x:%d %s lenght = %d, offset = %d\n", msg->header.serviceId,
                        msg->header.methodId, msg->header.clientId, msg->header.sessionId,
                        msg->tpHeader.moreSegmentsFlag ? "CF" : "LF", msg->req.length, var->offset));
@@ -475,7 +482,6 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
     tpMsg.moreSegmentsFlag = msg->tpHeader.moreSegmentsFlag;
     ret = onTpCopyRxData(conId, &tpMsg);
     if (E_OK == ret) {
-      var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
       var->offset += msg->req.length;
       if (msg->tpHeader.moreSegmentsFlag) {
         ret = SOMEIP_E_OK_SILENT;
@@ -642,7 +648,7 @@ static Std_ReturnType SomeIp_ReplyRequest(const SomeIp_ServerServiceType *config
   SomeIp_TxTpMsgType *var;
 
   if (IS_TP_ENABLED(method) && (res->length > SOMEIP_SF_MAX)) {
-    var = (SomeIp_TxTpMsgType *)mp_alloc(&someIpTxTpMsgPool);
+    SQP_ALLOC(TxTpMsg);
     if (NULL != var) {
       var->clientId = clientId;
       var->sessionId = sessionId;
@@ -685,7 +691,7 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
   uint8_t *data;
 
   if (IS_TP_ENABLED(method) && (req->length > SOMEIP_SF_MAX)) {
-    var = (SomeIp_TxTpMsgType *)mp_alloc(&someIpTxTpMsgPool);
+    SQP_ALLOC(TxTpMsg);
     if (NULL != var) {
       var->clientId = clientId;
       var->sessionId = sessionId;
@@ -735,7 +741,7 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
   uint8_t *data;
 
   if (IS_TP_ENABLED(event) && (req->length > SOMEIP_SF_MAX)) {
-    var = (SomeIp_TxTpEvtMsgType *)mp_alloc(&someIpTxTpEvtMsgPool);
+    SQP_ALLOC(TxTpEvtMsg);
     if (NULL != var) {
       var->eventId = eventId;
       var->offset = 0;
@@ -772,7 +778,7 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
   const SomeIp_ServerConnectionType *connection = &config->connections[conId];
   SomeIp_ServerConnectionContextType *context = connection->context;
   const SomeIp_ServerMethodType *method = &config->methods[methodId];
-  SomeIp_AsyncReqMsgType *asyncReqMsg;
+  SomeIp_AsyncReqMsgType *var;
   SomeIp_MessageType res;
 
   resData = Net_MemAlloc(method->resMaxLen + 16);
@@ -798,15 +804,13 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
                               &msg->RemoteAddr, &res);
   } else if (SOMEIP_E_PENDING == ret) {
     /* response pending */
-    asyncReqMsg = (SomeIp_AsyncReqMsgType *)mp_alloc(&someIpAsyncReqMsgPool);
-    if (NULL != asyncReqMsg) {
-      asyncReqMsg->clientId = msg->header.clientId;
-      asyncReqMsg->sessionId = msg->header.sessionId;
-      asyncReqMsg->methodId = methodId;
-      asyncReqMsg->RemoteAddr = msg->RemoteAddr;
-      EnterCritical();
-      STAILQ_INSERT_TAIL(&context->pendingAsyncReqMsgs, asyncReqMsg, entry);
-      ExitCritical();
+    SQP_ALLOC(AsyncReqMsg);
+    if (NULL != var) {
+      var->clientId = msg->header.clientId;
+      var->sessionId = msg->header.sessionId;
+      var->methodId = methodId;
+      var->RemoteAddr = msg->RemoteAddr;
+      SQP_CAPPEND(AsyncReqMsg);
     } else {
       ret = SOMEIP_E_NOMEM;
       ASLOG(SOMEIPE, ("OoM for cache request\n"));

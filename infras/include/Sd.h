@@ -54,12 +54,14 @@ typedef enum
 } Sd_EventHandlerCurrentStateType;
 
 typedef struct {
+  /* remote subscriber address */
+  TcpIp_SockAddrType RemoteAddr;
+  uint32_t TTL;
+
   /* subscriber response port */
   uint16_t port;
   uint16_t sessionId;
   uint16_t TxPduId;
-  /* remote subscriber address */
-  TcpIp_SockAddrType RemoteAddr;
   uint8_t flags;
 } Sd_EventHandlerSubscriberType;
 

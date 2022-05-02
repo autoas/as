@@ -1,6 +1,7 @@
 /**
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * ref https://wiki.wireshark.org/Development/LibpcapFileFormat
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "pcap.h"
@@ -32,19 +33,47 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static FILE *lPCap = NULL;
+static FILE *lWPCap = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static void _pcap_stop(void) {
-  fclose(lPCap);
+  if (NULL != lPCap) {
+    fclose(lPCap);
+  }
+  if (NULL != lWPCap) {
+    fclose(lWPCap);
+  }
 }
 
 static void __attribute__((constructor)) _pcap_start(void) {
-  char *path = getenv("PCAP_PATH");
+  char path[256];
+  char *name = getenv("PCAP_PATH");
 
-  if (NULL == path) {
-    path = ".as.pcap";
+  if (NULL == name) {
+    snprintf(path, sizeof(path), "net.log");
+  } else {
+    snprintf(path, sizeof(path), "%s.log", name);
   }
   lPCap = fopen(path, "wb");
-  if (NULL != lPCap) {
+
+  if (NULL == name) {
+    snprintf(path, sizeof(path), "wireshark.pcap");
+  } else {
+    snprintf(path, sizeof(path), "%s.pcap", name);
+  }
+  lWPCap = fopen(path, "wb");
+  if (NULL != lWPCap) {
+    static const uint8_t global_header[] = {
+      0xD4, 0xC3, 0xB2, 0xA1, /* magic number */
+      0x02, 0x00, 0x04, 0x00, /* major/minor version number: 2.4 */
+      0x00, 0x00, 0x00, 0x00, /* GMT to local correction */
+      0x00, 0x00, 0x00, 0x00, /* accuracy of timestamps */
+      0xFF, 0xFF, 0x00, 0x00, /* max length of captured packets, in octets */
+      0x01, 0x00, 0x00, 0x00, /* data link type: LINKTYPE_ETHERNET */
+    };
+    fwrite(global_header, sizeof(global_header), 1, lWPCap);
+  }
+
+  if ((NULL != lPCap) || (NULL != lWPCap)) {
     atexit(_pcap_stop);
   }
 }
@@ -159,8 +188,16 @@ uint32_t pcap_sd_entry2(char *ts, uint8_t *data) {
   uint32_t TTL = ((uint32_t)data[9] << 16) + ((uint32_t)data[10] << 8) + data[11];
   uint8_t counter = data[13] & 0x0F;
   uint16_t eventGroupId = ((uint16_t)data[14] << 8) + data[15];
+  if (0 == TTL) {
+    if (SD_SUBSCRIBE_EVENT_GROUP_ACK == data[0]) {
+      ts = "subscribe nack";
+    } else if (SD_SUBSCRIBE_EVENT_GROUP == data[0]) {
+      ts = "stop subscribe";
+    } else {
+    }
+  }
   fprintf(lPCap,
-          "  %s: service:instance:group %x:%x:%x version %d TTL %u counter %dopt1<@%d, #%d> "
+          "  %s: service:instance:group %x:%x:%x version %d TTL %u counter %d opt1<@%d, #%d> "
           "opt2<@%d, #%d>\n",
           ts, serviceId, instanceId, eventGroupId, major, TTL, counter, indexOf1st, numOfOpt1,
           indexOf2nd, numOfOpt2);
@@ -342,4 +379,34 @@ void PCap_SD(uint8_t *data, uint32_t length, const TcpIp_SockAddrType *RemoteAdd
       }
     }
   }
+}
+
+void PCap_Packet(const void *packet, uint32_t length) {
+  uint8_t pcaprec_hdr[16];
+  float rtim = get_rel_time();
+  uint32_t ts_sec = (uint32_t)rtim;
+  uint32_t ts_usec = (uint32_t)((rtim - ts_sec) * 1000000);
+
+  pcaprec_hdr[0] = ts_sec & 0xFF;
+  pcaprec_hdr[1] = (ts_sec >> 8) & 0xFF;
+  pcaprec_hdr[2] = (ts_sec >> 16) & 0xFF;
+  pcaprec_hdr[3] = (ts_sec >> 24) & 0xFF;
+
+  pcaprec_hdr[4] = ts_usec & 0xFF;
+  pcaprec_hdr[5] = (ts_usec >> 8) & 0xFF;
+  pcaprec_hdr[6] = (ts_usec >> 16) & 0xFF;
+  pcaprec_hdr[7] = (ts_usec >> 24) & 0xFF;
+
+  pcaprec_hdr[8] = length & 0xFF;
+  pcaprec_hdr[9] = (length >> 8) & 0xFF;
+  pcaprec_hdr[10] = (length >> 16) & 0xFF;
+  pcaprec_hdr[11] = (length >> 24) & 0xFF;
+
+  pcaprec_hdr[12] = length & 0xFF;
+  pcaprec_hdr[13] = (length >> 8) & 0xFF;
+  pcaprec_hdr[14] = (length >> 16) & 0xFF;
+  pcaprec_hdr[15] = (length >> 24) & 0xFF;
+
+  fwrite(pcaprec_hdr, sizeof(pcaprec_hdr), 1, lWPCap);
+  fwrite(packet, length, 1, lWPCap);
 }

@@ -27,6 +27,12 @@ AddOption('--lib',
           default=None,
           help='to choose which library to be build')
 
+AddOption('--os',
+          dest='os',
+          type=str,
+          default=None,
+          help='to choose which os to be used')
+
 AddOption('--cpl',
           dest='compiler',
           type=str,
@@ -72,21 +78,27 @@ elif libName != None:
 BUILD_DIR = os.path.join(*paths)
 Export('BUILD_DIR')
 
+TARGET_OS = GetOption('os')
+Export('TARGET_OS')
+
 _cfg_path = GetOption('cfg')
 if _cfg_path != None:
     _cfg_path = os.path.abspath(_cfg_path)
 
 __compilers__ = {}
 __libraries__ = {}
+__OSs__ = {}
 __apps__ = {}
 __cpppath__ = {}
 __cfgs__ = {}
 
 __default_compiler__ = 'GCC'
 
+
 def aslog(*arg):
     if GetOption('verbose'):
         print(*arg)
+
 
 class Win32Spawn:
     def spawn(self, sh, escape, cmd, args, env):
@@ -136,8 +148,10 @@ def IsBuildForWindows():
 def IsBuildForAndroid():
     return GetOption('compiler') in ['NDK']
 
+
 def IsBuildForHost():
     return GetOption('compiler') in ['GCC', 'MSVC', 'NDK']
+
 
 def IsPlatformWindows():
     bYes = False
@@ -224,6 +238,24 @@ def Download(url, tgt=None):
             print('temporarily saving to %s' % (os.path.abspath(tf)))
             RunCommand('wget %s' % (url))
             RunCommand('mv -v %s %s' % (tf, tgt))
+
+
+def PkgGlob(pkg, objs):
+    sc = '%s/SConscript' % (pkg)
+    cstr = "objs = []\n"
+    for obj in objs:
+        cstr += "objs += Glob('%s')\n" % (obj)
+    cstr += "Return('objs')"
+    if not os.path.isfile(sc):
+        with open(sc, 'w') as f:
+            f.write(cstr)
+    else:
+        with open(sc) as f:
+            cstr2 = f.read()
+        if (cstr != cstr2):
+            with open(sc, 'w') as f:
+                f.write(cstr)
+    return SConscript(sc, variant_dir='%s/%s' % (BUILD_DIR, os.path.basename(pkg)), duplicate=0)
 
 
 def Package(url, ** parameters):
@@ -314,6 +346,13 @@ def Package(url, ** parameters):
         if(not os.path.exists(flag)):
             parameters['pyfnc'](pkg)
             MKFile(flag)
+    if 'patch' in parameters:
+        flag = '%s/.%s.patch.done' % (pkg, bsw)
+        cmd = 'cd %s && ' % (pkg)
+        cmd += 'patch -p1 < %s' % (parameters['patch'])
+        if(not os.path.exists(flag)):
+            RunCommand(cmd)
+            MKFile(flag, cmd)
     # post check
     verList = Glob('%s/.*.version.done' % (pkg))
     cmdList = Glob('%s/.*.cmd.done' % (pkg))
@@ -498,7 +537,7 @@ def register_compiler(compiler):
             env = ReleaseEnv(env)
         return env
     if name not in __compilers__:
-        #print('register compiler %s'%(name))
+        aslog('register compiler %s' % (name))
         __compilers__[name] = create_compiler
     else:
         raise KeyError('compiler %s already registered' % (name))
@@ -510,7 +549,7 @@ def register_driver(driver):
                         (driver.__name__))
     name = '%s:%s' % (driver.__name__[6:], driver.cls)
     if name not in __libraries__:
-        #print('register driver %s'%(name))
+        aslog('register driver %s' % (name))
         __libraries__[name] = driver
     else:
         raise KeyError('driver %s already registered' % (name))
@@ -522,10 +561,17 @@ def register_library(library):
                         (library.__name__))
     name = library.__name__[7:]
     if name not in __libraries__:
-        #print('register library %s'%(name))
+        aslog('register library %s' % (name))
         __libraries__[name] = library
     else:
         raise KeyError('library %s already registered' % (name))
+
+
+def register_os(library):
+    register_library(library)
+    name = library.__name__[7:]
+    aslog('register OS %s' % (name))
+    __OSs__[name] = library
 
 
 def register_application(app):
@@ -534,7 +580,7 @@ def register_application(app):
             'application name %s not starts with "Application"' % (app.__name__))
     name = app.__name__[11:]
     if name not in __apps__:
-        #print('register app %s'%(name))
+        aslog('register app %s' % (name))
         __apps__[name] = app
     else:
         raise KeyError('app %s already registered' % (name))
@@ -735,7 +781,7 @@ def AddPythonDev(env):
         pybind11 = '%s/lib/%s/site-packages/pybind11/include' % (
             pyp, pylib[:9])
     env.Append(CPPPATH=[pybind11])
-    #print('%s PYTHONHOME=%s if see error " Py_Initialize: unable to load the file system codec"'%(istr, pyp))
+    aslog('%s PYTHONHOME=%s if see error " Py_Initialize: unable to load the file system codec"' % (istr, pyp))
     env.Append(LIBS=[pylib, 'pthread', 'stdc++', 'm'])
 
 
@@ -834,6 +880,14 @@ class BuildBase():
         self.__extra_libs__ = []
         for name in getattr(self, 'LIBS', []):
             self.ensure_lib(name)
+
+    def init_base(self):
+        self.CPPPATH = []
+        self.LIBPATH = []
+        self.include = []
+        self.LIBS = []
+        self.CPPDEFINES = []
+        self.source = []
 
     def AddPostAction(self, action):
         if not hasattr(self, '__post_actions__'):
@@ -989,7 +1043,7 @@ class Library(BuildBase):
     def __init__(self, **kwargs):
         if not hasattr(self, 'name'):
             self.name = self.__class__.__name__[7:]
-        aslog('init library %s'%(self. name))
+        aslog('init library %s' % (self. name))
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
@@ -998,7 +1052,7 @@ class Library(BuildBase):
         compiler = kwargs.get('compiler', getattr(self, 'compiler', None))
         if compiler != None:
             self.compiler = compiler
-        self.include = None
+        self.init_base()
         self.config()
         if hasattr(self, 'INCLUDE'):
             self.include = self.INCLUDE
@@ -1007,7 +1061,7 @@ class Library(BuildBase):
                                    (BUILD_DIR, self.name))
             if os.path.isfile(liba):
                 self.source = [liba]
-        if self.include != None:
+        if self.include != None and len(self.include):
             self.RegisterCPPPATH('$%s' % (self.name), self.include)
         super().__init__()
 
@@ -1023,15 +1077,15 @@ class Library(BuildBase):
 
     def objs(self):
         libName = self.name
-        aslog('build objs of %s'%(libName))
+        aslog('build objs of %s' % (libName))
         env = self.ensure_env()
         CPPPATH = getattr(self, 'CPPPATH', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
         CFLAGS = env.get('CFLAGS', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
-        CPPPATH = [self.RequireCPPPATH(p) if p.startswith(
-            '$') else p for p in CPPPATH] + env.get('CPPPATH', [])
+        CPPPATH = [self.RequireCPPPATH(p) if p.startswith('$') else p
+                   for p in CPPPATH] + env.get('CPPPATH', [])
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
         try:
@@ -1099,25 +1153,31 @@ class Driver(Library):
 class Application(BuildBase):
     def __init__(self, **kwargs):
         self.name = self.__class__.__name__[11:]
-        aslog('init application %s'%(self. name))
+        aslog('init application %s' % (self. name))
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
         self.env = None
+        self.init_base()
         self.config()
+        if TARGET_OS != None:
+            if TARGET_OS not in __OSs__:
+                raise Exception('Invalid OS %s' % (TARGET_OS))
+            self.LIBS += [TARGET_OS]
+            self.Append(CPPDEFINES=['USE_%s' % (TARGET_OS.upper())])
         super().__init__()
 
     def build(self):
         env = self.ensure_env()
         appName = self.name
-        aslog('build application %s'%(appName))
+        aslog('build application %s' % (appName))
         LIBS = env.get('LIBS', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
         LINKFLAGS = getattr(self, 'LINKFLAGS', []) + env.get('LINKFLAGS', [])
-        CPPPATH = [self.RequireCPPPATH(p) if p.startswith(
-            '$') else p for p in getattr(self, 'CPPPATH', [])]
+        CPPPATH = [self.RequireCPPPATH(p) if p.startswith('$') else p
+                   for p in getattr(self, 'CPPPATH', [])]
         CPPPATH += env.get('CPPPATH', [])
         objs = self.source
         LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
@@ -1125,10 +1185,10 @@ class Application(BuildBase):
         CPPPATH += self.get_includes(searched_libs)
         for name in self.__libs_order__:
             if self.__libs__[name].is_shared_library():
-                aslog('build shared library %s'%(name))
+                aslog('build shared library %s' % (name))
                 self.__libs__[name].build()
                 continue
-            aslog('build library %s'%(name))
+            aslog('build library %s' % (name))
             objs_ = self.__libs__[name].objs()
             tooMuch = True if (len(objs) + len(objs_)) > 200 else False
             libObjs = []
@@ -1283,9 +1343,11 @@ def Building():
         print('avaliable apps:', [k for k in __apps__.keys()])
         print('avaliable libraries:', [k for k in __libraries__.keys()])
         print('avaliable compilers:', [k for k in __compilers__.keys()])
+        print('avaliable OS:', [k for k in __OSs__.keys()])
         print('use option "--app=?" to choose an application to build or,')
         print('use option "--lib=?" to choose a library to build.')
         print('use option "--cpl=?" to choose a compiler to build.')
+        print('use option "--os=?" to choose an OS to be used.')
         exit(-1)
 
     if appName in __apps__:

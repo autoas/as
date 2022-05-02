@@ -19,6 +19,7 @@ class ApplicationApp(Application):
         self.CPPDEFINES = []
         self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]
         self.LIBS = ['StdTimer']
+
         for libName, source in self.libsForApp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
@@ -124,6 +125,7 @@ class ApplicationNetApp(Application):
             self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
         self.Append(CPPDEFINES=['USE_CAN'])
         self.LIBS.append('Simulator')
+
 
     def config(self):
         self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]

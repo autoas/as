@@ -17,4 +17,5 @@ void PCap_SomeIp(uint16_t serviceId, uint16_t methodId, uint8_t interfaceVersion
                  uint8_t messageType, uint8_t returnCode, uint8_t *payload, uint32_t payloadLength,
                  uint16_t clientId, uint16_t sessionId, const TcpIp_SockAddrType *RemoteAddr,
                  boolean isTp, uint32_t offset, boolean more, boolean isRx);
+void PCap_Packet(const void *packet, uint32_t length);
 #endif /* _PCAP_H */

@@ -113,7 +113,7 @@ static void soAdSocketTpRxNotify(SoAd_SocketContextType *context,
   }
 }
 
-static void soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
+static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
@@ -159,9 +159,11 @@ static void soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
     Net_MemFree(data);
 #endif
   }
+
+  return ret;
 }
 
-static void soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
+static Std_ReturnType soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
@@ -217,6 +219,8 @@ static void soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
     context->state = SOAD_SOCKET_CLOSED;
     ASLOG(SOADE, ("[%d] close, goto accept\n", SoConId));
   }
+
+  return ret;
 }
 
 static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
@@ -274,10 +278,14 @@ static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
 static void soAdSocketReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
-  if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
-    soAdSocketTcpReadyMain(SoConId);
-  } else {
-    soAdSocketUdpReadyMain(SoConId);
+  Std_ReturnType ret = E_OK;
+
+  while (E_OK == ret) {
+    if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
+      ret = soAdSocketTcpReadyMain(SoConId);
+    } else {
+      ret = soAdSocketUdpReadyMain(SoConId);
+    }
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

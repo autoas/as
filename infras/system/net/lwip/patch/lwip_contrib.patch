@@ -1,0 +1,127 @@
+diff --git a/ports/freertos/sys_arch.c b/ports/freertos/sys_arch.c
+index 84bd463..0bd5696 100644
+--- a/ports/freertos/sys_arch.c
++++ b/ports/freertos/sys_arch.c
+@@ -29,10 +29,11 @@
+  * Author: Simon Goldschmidt <goldsimon@gmx.de>
+  *
+  */
+-
++#define LWIP_DONT_PROVIDE_BYTEORDER_FUNCTIONS
+ /* lwIP includes. */
+ #include "lwip/debug.h"
+ #include "lwip/def.h"
++#include "lwip/tcpip.h"
+ #include "lwip/sys.h"
+ #include "lwip/mem.h"
+ #include "lwip/stats.h"
+@@ -607,3 +608,52 @@ sys_check_core_locking(void)
+ }
+ 
+ #endif /* LWIP_FREERTOS_CHECK_CORE_LOCKING*/
++
++#ifdef _WIN32
++#include <windows.h>
++
++static HCRYPTPROV hcrypt;
++void
++lwip_win32_platform_diag(const char *format, ...)
++{
++  va_list ap;
++  /* get the varargs */
++  va_start(ap, format);
++  /* print via varargs; to use another output function, you could use
++     vsnprintf here */
++  vprintf(format, ap);
++  va_end(ap);
++}
++
++static void
++sys_win_rand_init(void)
++{
++  if (!CryptAcquireContext(&hcrypt, NULL, NULL, PROV_RSA_FULL, 0)) {
++    DWORD err = GetLastError();
++    LWIP_PLATFORM_DIAG(("CryptAcquireContext failed with error %d, trying to create NEWKEYSET", (int)err));
++    if(!CryptAcquireContext(&hcrypt, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET)) {
++      char errbuf[128];
++      err = GetLastError();
++      snprintf(errbuf, sizeof(errbuf), "CryptAcquireContext failed with error %d", (int)err);
++      LWIP_UNUSED_ARG(err);
++      LWIP_ASSERT(errbuf, 0);
++    }
++  }
++}
++
++u32_t
++sys_win_rand(void)
++{
++  u32_t ret;
++  static int initialized = 0;
++  if (0 == initialized) {
++    sys_win_rand_init();
++    initialized = 1;
++  }
++  if (CryptGenRandom(hcrypt, sizeof(ret), (BYTE*)&ret)) {
++    return ret;
++  }
++  LWIP_ASSERT("CryptGenRandom failed", 0);
++  return 0;
++}
++#endif
+\ No newline at end of file
+diff --git a/ports/win32/include/arch/cc.h b/ports/win32/include/arch/cc.h
+index cb7d500..4e9c7d4 100644
+--- a/ports/win32/include/arch/cc.h
++++ b/ports/win32/include/arch/cc.h
+@@ -44,10 +44,10 @@
+ #if _MSC_VER >= 1910
+ #include <errno.h> /* use MSVC errno for >= 2017 */
+ #else
+-#define LWIP_PROVIDE_ERRNO /* provide errno for MSVC pre-2017 */
++//#define LWIP_PROVIDE_ERRNO /* provide errno for MSVC pre-2017 */
+ #endif
+ #else /* _MSC_VER */
+-#define LWIP_PROVIDE_ERRNO /* provide errno for non-MSVC */
++//#define LWIP_PROVIDE_ERRNO /* provide errno for non-MSVC */
+ #endif /* _MSC_VER */
+ 
+ /* Define platform endianness (might already be defined) */
+diff --git a/ports/win32/pcapif.c b/ports/win32/pcapif.c
+index e5e1ec9..e5b9b33 100644
+--- a/ports/win32/pcapif.c
++++ b/ports/win32/pcapif.c
+@@ -76,6 +76,8 @@
+ 
+ #include "lwip/etharp.h"
+ 
++#include <pthread.h>
++
+ /* For compatibility with old pcap */
+ #ifndef PCAP_OPENFLAG_PROMISCUOUS
+ #define PCAP_OPENFLAG_PROMISCUOUS     1
+@@ -784,7 +786,7 @@ pcapif_low_level_init(struct netif *netif)
+ #if PCAPIF_RX_USE_THREAD
+   pa->rx_run = 1;
+   pa->rx_running = 1;
+-  sys_thread_new("pcapif_rxthread", pcapif_input_thread, netif, 0, 0);
++  sys_thread_new("pcapif_rxthread", pcapif_input_thread, netif, 4096, 0);
+ #endif
+ 
+   LWIP_DEBUGF(NETIF_DEBUG, ("pcapif: eth_addr %02X%02X%02X%02X%02X%02X\n",netif->hwaddr[0],netif->hwaddr[1],netif->hwaddr[2],netif->hwaddr[3],netif->hwaddr[4],netif->hwaddr[5]));
+@@ -987,6 +989,7 @@ pcapif_rx_ref(struct pbuf* p)
+ }
+ #endif /* PCAPIF_RX_REF */
+ 
++void PCap_Packet(const void *packet, uint32_t length);
+ /** pcapif_input: This function is called when a packet is ready to be read
+  * from the interface. It uses the function low_level_input() that should
+  * handle the actual reception of bytes from the network interface.
+@@ -1000,7 +1003,7 @@ pcapif_input(u_char *user, const struct pcap_pkthdr *pkt_header, const u_char *p
+   struct pbuf *p;
+ 
+   PCAPIF_RX_LOCK_LWIP();
+-
++  PCap_Packet(packet, packet_len);
+   /* move received packet into a new pbuf */
+   p = pcapif_low_level_input(netif, packet, packet_len);
+   /* if no packet could be read, silently ignore this */

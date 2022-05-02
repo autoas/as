@@ -88,6 +88,11 @@
 #include "plugin.h"
 #endif
 
+#ifdef USE_FREERTOS
+#include "FreeRTOS.h"
+#include "task.h"
+#endif
+
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
@@ -165,6 +170,24 @@ static void MainTask_10ms(void) {
 #endif
 }
 
+static void Net_Init(void) {
+#ifdef USE_TCPIP
+  TcpIp_Init(NULL);
+#endif
+#ifdef USE_SOAD
+  SoAd_Init(NULL);
+#endif
+#ifdef USE_DOIP
+  DoIP_Init(NULL);
+#endif
+#ifdef USE_SD
+  Sd_Init(NULL);
+#endif
+#ifdef USE_SOMEIP
+  SomeIp_Init(NULL);
+#endif
+}
+
 static void BSW_Init(void) {
 #ifdef USE_CAN
   Can_Init(NULL);
@@ -229,32 +252,13 @@ static void BSW_Init(void) {
   Dcm_Init(NULL);
 #endif
 
-#ifdef USE_TCPIP
-  TcpIp_Init(NULL);
-#endif
-#ifdef USE_SOAD
-  SoAd_Init(NULL);
-#endif
-#ifdef USE_DOIP
-  DoIP_Init(NULL);
-#endif
-#ifdef USE_SD
-  Sd_Init(NULL);
-#endif
-#ifdef USE_SOMEIP
-  SomeIp_Init(NULL);
-#endif
 #ifdef USE_PLUGIN
   plugin_init();
 #endif
 }
-/* ================================ [ FUNCTIONS ] ============================================== */
-int main(int argc, char *argv[]) {
-  ASLOG(INFO, ("application build @ %s %s\n", __DATE__, __TIME__));
 
-  Mcu_Init(NULL);
-
-  BSW_Init();
+void Task_MainLoop(void) {
+  Net_Init();
   App_Init();
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer100ms);
@@ -286,7 +290,26 @@ int main(int argc, char *argv[]) {
     SoAd_MainFunction();
 #endif
     App_MainFunction();
+#ifdef USE_FREERTOS
+    vTaskDelay(1);
+#endif
   }
+}
+/* ================================ [ FUNCTIONS ] ============================================== */
+int main(int argc, char *argv[]) {
+  ASLOG(INFO, ("application build @ %s %s\n", __DATE__, __TIME__));
+
+  Mcu_Init(NULL);
+
+  BSW_Init();
+
+#ifdef USE_FREERTOS
+  xTaskCreate((TaskFunction_t)Task_MainLoop, "MainLoop", configMINIMAL_STACK_SIZE, NULL,
+              tskIDLE_PRIORITY + 1, NULL);
+  vTaskStartScheduler();
+#else
+  Task_MainLoop();
+#endif
 
   return 0;
 }

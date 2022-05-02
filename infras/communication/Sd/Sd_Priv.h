@@ -32,7 +32,7 @@ typedef struct {
   uint8_t InitialFindRepetitionsMax;
   uint16_t RequestResponseMaxDelay;
   uint16_t RequestResponseMinDelay;
-  uint32_t TTL;
+  uint32_t TTL; /* Time to live for find and subscribe messages */
 } Sd_ClientTimerType;
 
 /* @ECUC_SD_00035 */
@@ -44,7 +44,7 @@ typedef struct {
   uint16_t OfferCyclicDelay;
   uint16_t RequestResponseMaxDelay;
   uint16_t RequestResponseMinDelay;
-  uint32_t TTL;
+  uint32_t TTL; /* Time to live for offer service */
 } Sd_ServerTimerType;
 
 /* @SWS_SD_91001 */
@@ -54,6 +54,7 @@ typedef boolean (*Sd_CapabilityRecordMatchCalloutFncType)(
   const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);
 
 typedef struct {
+  uint32_t TTL; /* TTL to do resubscribe before timeout */
   boolean isSubscribed;
   uint8_t flags;
 } Sd_ConsumedEventGroupContextType;
@@ -88,7 +89,7 @@ typedef struct {
   uint32_t TTL;
   Sd_PhaseType phase;
   uint16_t offerTimer;
-  uint16_t flags;
+  uint8_t flags;
   uint8_t counter;
 } Sd_ServerServiceContextType;
 
@@ -118,7 +119,7 @@ typedef struct {
   uint32_t TTL;
   Sd_PhaseType phase;
   uint16_t findTimer;
-  uint16_t flags;
+  uint8_t flags;
   uint8_t counter;
   boolean isOffered;
   /* remote server ip:port which provide this service */

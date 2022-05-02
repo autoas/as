@@ -1,5 +1,7 @@
 from building import *
 
+USE_FREERTOS = os.getenv('USE_FREERTOS')
+
 Import('BUILD_DIR')
 CWD = GetCurrentDir()
 
@@ -9,18 +11,9 @@ objs = Glob('src/*.c')
 @register_library
 class LibraryLWIP(Library):
     def get_lwip_objs(self, lwip):
-        sc = '%s/SConscript' % (lwip)
-        if not os.path.isfile(sc):
-            with open(sc, 'w') as f:
-                f.write("objs = Glob('src/api/*.c')\n")
-                f.write("objs += Glob('src/core/*.c')\n")
-                f.write("objs += Glob('src/core/ipv4/*.c')\n")
-                f.write("objs += Glob('src/core/ipv6/*.c')\n")
-                f.write("objs += Glob('src/netif/*.c')\n")
-                f.write("objs += Glob('src/netif/ppp/*.c')\n")
-                f.write("objs += Glob('src/netif/ppp/polarssl/*.c')\n")
-                f.write("Return('objs')")
-        return SConscript(sc, variant_dir='%s/lwip' % (BUILD_DIR), duplicate=0)
+        objs = ['src/api/*.c', 'src/core/*.c', 'src/core/ipv4/*.c', 'src/core/ipv6/*.c',
+                'src/netif/*.c', 'src/netif/ppp/*.c', 'src/netif/ppp/polarssl/*.c']
+        return PkgGlob(lwip, objs)
 
     def install_pcap(self):
         pkg = Package('https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip')
@@ -35,24 +28,26 @@ class LibraryLWIP(Library):
     def get_lwip_contrib_objs(self, lwipc):
         if GetOption('compiler') not in ['GCC']:
             return []
-        sc = '%s/SConscript' % (lwipc)
-        if not os.path.isfile(sc):
-            with open(sc, 'w') as f:
-                f.write('from building import *\n')
-                f.write("objs = []\n")
-                f.write("if IsBuildForWindows():\n")
-                f.write("    objs += Glob('ports/win32/*.c')\n")
-                f.write("else:\n")
-                f.write("    objs += Glob('ports/unix/port/*.c')\n")
-                f.write("    objs += Glob('ports/unix/port/netif/*.c')\n")
-                f.write("Return('objs')")
+        objs = []
+        if IsBuildForWindows():
+            if TARGET_OS == 'FreeRTOS':
+                objs += ['ports/win32/pcapif*.c',
+                         'ports/win32/sio.c', 'ports/freertos/*.c']
+            else:
+                objs += ['ports/win32/*.c']
+        else:
+            objs += ['ports/unix/port/*.c', 'ports/unix/port/netif/*.c']
+
         if IsBuildForWindows():
             # install the wpcap(https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip) to msys2
             # copy and rename the *.lib to lib*.a
             self.install_pcap()
-            self.include += ['%s/ports/win32/' %
-                             (lwipc), '%s/ports/win32/include/' % (lwipc)]
-            self.LIBS = ['packet', 'wpcap', 'ws2_32']
+            if TARGET_OS == 'FreeRTOS':
+                self.LIBS += ['FreeRTOS']
+                self.include += ['%s/ports/freertos/include/' % (lwipc)]
+            self.include += ['%s/ports/win32/' % (lwipc),
+                             '%s/ports/win32/include/' % (lwipc)]
+            self.LIBS += ['packet', 'wpcap', 'ws2_32']
             PACKET_LIB_ADAPTER_NR = os.getenv('PACKET_LIB_ADAPTER_NR')
             if PACKET_LIB_ADAPTER_NR == None:
                 print('warning: PACKET_LIB_ADAPTER_NR not set')
@@ -60,16 +55,16 @@ class LibraryLWIP(Library):
                 self.CPPDEFINES += ['-DPACKET_LIB_ADAPTER_NR=%s' %
                                     (PACKET_LIB_ADAPTER_NR)]
         else:
-            self.LIBS = ['pthread', 'util']
+            self.LIBS += ['pthread', 'util']
             self.include += ['%s/ports/unix/port/include/' % (lwipc)]
-        return SConscript(sc, variant_dir='%s/lwip-contrib' % (BUILD_DIR), duplicate=0)
+        return PkgGlob(lwipc, objs)
 
     def download(self):
         lwip = Package(
             url='https://git.savannah.gnu.org/git/lwip.git', version='STABLE-2_1_x')
-        cmd = 'sed -i "s/#define LWIP_PROVIDE_ERRNO/\/\/#define LWIP_PROVIDE_ERRNO/g" ports/win32/include/arch/cc.h'
         lwipc = Package(
-            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE', cmd=cmd)
+            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE',
+            patch='%s/patch/lwip_contrib.patch' % (CWD))
         objs = self.get_lwip_objs(lwip)
         objs += self.get_lwip_contrib_objs(lwipc)
         self.source += objs
@@ -77,10 +72,6 @@ class LibraryLWIP(Library):
 
     def config(self):
         self.source = objs
-        self.CPPPATH = []
-        self.LIBPATH = []
-        self.include = []
-        self.CPPDEFINES = []
         self.download()
 
 

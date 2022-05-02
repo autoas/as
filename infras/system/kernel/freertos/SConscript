@@ -1,0 +1,32 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = []
+
+
+@register_os
+class LibraryFreeRTOS(Library):
+    def get_objs(self, pkg):
+        objs = ['*.c', 'portable/MemMang/heap_3.c']
+        if IsBuildForWindows():
+            objs += ['portable/MSVC-MingW/*.c']
+        else:
+            objs += ['portable/ThirdParty/GCC/Posix/*.c',
+                     'portable/ThirdParty/GCC/Posix/utils/*.c']
+        return PkgGlob(pkg, objs)
+
+    def config(self):
+        self.source = objs
+        pkg = Package(
+            url='https://github.com/FreeRTOS/FreeRTOS-Kernel.git', version='V10.4.6')
+        self.source += self.get_objs(pkg)
+        self.include += ['%s/include' % (pkg), '%s/config' % (CWD)]
+        if IsBuildForWindows():
+            self.include += ['%s/portable/MSVC-MingW' % (pkg)]
+            self.LIBS += ['winmm']
+        else:
+            self.include += [
+                '%s/portable/ThirdParty/GCC/Posix' % (pkg),
+                '%s/portable/ThirdParty/GCC/Posix/utils' % (pkg)]
