@@ -15,6 +15,7 @@
 #define SOMEIP_E_NOMEM 101
 #define SOMEIP_E_MSG_TOO_SHORT 102
 #define SOMEIP_E_MSG_TOO_LARGE 103
+#define SOMEIP_E_BUSY 104
 
 /* @SWS_SomeIpXf_00168 @SWS_SomeIpXf_00115 @PRS_SOMEIP_00191 */
 #define SOMEIPXF_E_UNKNOWN_SERVICE 0x02
@@ -55,8 +56,9 @@ BufReq_ReturnType SomeIp_SoAdTpStartOfReception(PduIdType RxPduId, const PduInfo
 BufReq_ReturnType SomeIp_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *PduInfoPtr,
                                           PduLengthType *bufferSizePtr);
 
-Std_ReturnType SomeIp_Request(uint16_t TxMethodId, uint8_t *data, uint32_t length);
-Std_ReturnType SomeIp_Notification(uint16_t TxEventId, uint8_t *data, uint32_t length);
+Std_ReturnType SomeIp_Request(uint32_t requestId, uint8_t *data, uint32_t length);
+Std_ReturnType SomeIp_FireForgot(uint32_t requestId, uint8_t *data, uint32_t length);
+Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t length);
 
 void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr);
 void SomeIp_MainFunction(void);

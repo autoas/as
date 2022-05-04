@@ -738,7 +738,6 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
       sub->RemoteAddr = ipv4Opt->Addr;
       sub->port = RemoteAddr->port;
       if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED == sub->flags) {
-        sub->sessionId = 0;
         EventHandler->context->numOfSubscribers++;
         EventHandler->onSubscribe(TRUE, &sub->RemoteAddr);
       }

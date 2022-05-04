@@ -17,21 +17,23 @@ typedef void (*SomeIp_OnAvailabilityFncType)(boolean isAvailable);
 typedef void (*SomeIp_OnSubscribeFncType)(boolean isSubscribe);
 
 /* API for method */
-typedef Std_ReturnType (*SomeIp_OnRequestFncType)(uint16_t conId, SomeIp_MessageType *req,
+typedef Std_ReturnType (*SomeIp_OnRequestFncType)(uint32_t requestId, SomeIp_MessageType *req,
                                                   SomeIp_MessageType *res);
-typedef Std_ReturnType (*SomeIp_OnFireForgotFncType)(uint16_t conId, SomeIp_MessageType *req);
-typedef Std_ReturnType (*SomeIp_OnAsyncRequestFncType)(uint16_t conId, SomeIp_MessageType *res);
+typedef Std_ReturnType (*SomeIp_OnFireForgotFncType)(uint32_t requestId, SomeIp_MessageType *req);
+typedef Std_ReturnType (*SomeIp_OnAsyncRequestFncType)(uint32_t requestId, SomeIp_MessageType *res);
 
 /* For the LF, set the msg->data as beginning of the buffer */
-typedef Std_ReturnType (*SomeIp_OnTpCopyRxDataFncType)(uint16_t conId, SomeIp_TpMessageType *msg);
+typedef Std_ReturnType (*SomeIp_OnTpCopyRxDataFncType)(uint32_t requestId,
+                                                       SomeIp_TpMessageType *msg);
 
-typedef Std_ReturnType (*SomeIp_OnTpCopyTxDataFncType)(uint16_t conId, SomeIp_TpMessageType *msg);
+typedef Std_ReturnType (*SomeIp_OnTpCopyTxDataFncType)(uint32_t requestId,
+                                                       SomeIp_TpMessageType *msg);
 
-typedef Std_ReturnType (*SomeIp_OnResponseFncType)(SomeIp_MessageType *res);
-typedef Std_ReturnType (*SomeIp_OnErrorFncType)(Std_ReturnType ercd);
+typedef Std_ReturnType (*SomeIp_OnResponseFncType)(uint32_t requestId, SomeIp_MessageType *res);
+typedef Std_ReturnType (*SomeIp_OnErrorFncType)(uint32_t requestId, Std_ReturnType ercd);
 
 /* API for events */
-typedef Std_ReturnType (*SomeIp_OnNotificationFncType)(SomeIp_MessageType *evt);
+typedef Std_ReturnType (*SomeIp_OnNotificationFncType)(uint32_t requestId, SomeIp_MessageType *evt);
 
 typedef struct {
   uint16_t methodId;
@@ -122,6 +124,7 @@ typedef struct SomeIp_TxTpMsg_s {
   uint16_t clientId;
   uint16_t sessionId;
   uint16_t timer;
+  uint8_t messageType;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
   uint8_t retryCounter;
 #endif
@@ -133,8 +136,16 @@ typedef struct SomeIp_TxTpEvtMsg_s {
   uint32_t offset;
   uint32_t length;
   uint16_t eventId; /* this is the key */
+  uint16_t sessionId;
   uint16_t timer;
 } SomeIp_TxTpEvtMsgType;
+
+typedef struct SomeIp_WaitResMsg_s {
+  STAILQ_ENTRY(SomeIp_WaitResMsg_s) entry;
+  uint16_t methodId;
+  uint16_t sessionId;
+  uint16_t timer;
+} SomeIp_WaitResMsgType;
 
 /* For TCP large messages */
 typedef struct {
@@ -148,6 +159,7 @@ typedef struct {
 typedef STAILQ_HEAD(rxTpMsgHead, SomeIp_RxTpMsg_s) SomeIp_RxTpMsgList;
 typedef STAILQ_HEAD(txTpMsgHead, SomeIp_TxTpMsg_s) SomeIp_TxTpMsgList;
 typedef STAILQ_HEAD(txTpEvtMsgHead, SomeIp_TxTpEvtMsg_s) SomeIp_TxTpEvtMsgList;
+typedef STAILQ_HEAD(txWaitResMsgHead, SomeIp_WaitResMsg_s) SomeIp_WaitResMsgList;
 
 typedef struct {
   STAILQ_HEAD(reqMsgHead, SomeIp_AsyncReqMsg_s) pendingAsyncReqMsgs;
@@ -161,7 +173,7 @@ typedef struct {
   SomeIp_RxTpMsgList pendingRxTpEvtMsgs;
   SomeIp_RxTpMsgList pendingRxTpMsgs;
   SomeIp_TxTpMsgList pendingTxTpMsgs;
-  uint16_t sessionId;
+  SomeIp_WaitResMsgList pendingWaitResMsgs;
   bool online;
 } SomeIp_ClientServiceContextType;
 
@@ -204,6 +216,7 @@ typedef struct {
   SomeIp_OnAvailabilityFncType onAvailability;
   SomeIp_TcpBufferType *tcpBuf;
   uint16_t SeparationTime; /* @ECUC_SomeIpTp_00006 */
+  uint16_t ResponseTimeout;
 } SomeIp_ClientServiceType;
 
 typedef struct {

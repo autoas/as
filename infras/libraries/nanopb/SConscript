@@ -1,0 +1,20 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = []
+
+
+@register_library
+class LibraryNanopb(Library):
+    def get_objs(self, pkg):
+        objs = ['*.c']
+        return PkgGlob(pkg, objs)
+
+    def config(self):
+        self.source = objs
+        pkg = Package(
+            url='https://github.com/nanopb/nanopb.git', version='0.4.5')
+        self.source += self.get_objs(pkg)
+        self.include += [pkg]

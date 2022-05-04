@@ -60,7 +60,6 @@ typedef struct {
 
   /* subscriber response port */
   uint16_t port;
-  uint16_t sessionId;
   uint16_t TxPduId;
   uint8_t flags;
 } Sd_EventHandlerSubscriberType;
