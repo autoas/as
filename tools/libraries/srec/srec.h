@@ -6,6 +6,9 @@
 #define SREC_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define SREC_MAX_BLK 32
 /* ================================ [ TYPES     ] ============================================== */
@@ -26,9 +29,12 @@ typedef struct {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-srec_t *srec_open(char *path);
-int srec_sign(char *path, size_t total);
+srec_t *srec_open(const char *path);
+int srec_sign(const char *path, size_t total);
 void srec_print(srec_t *srec);
 uint32_t srec_range(srec_t *srec, uint32_t *length);
 void srec_close(srec_t *srec);
+#ifdef __cplusplus
+}
+#endif
 #endif /* SREC_H */

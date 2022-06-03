@@ -30,14 +30,8 @@ extern "C" {
 #ifndef USE_STD_PRINTF
 #define USE_STD_PRINTF
 #endif
-#if defined(linux)
 #ifndef WEAK_ALIAS_PRINTF
 #define WEAK_ALIAS_PRINTF __attribute__((weak, alias("_asprintf")));
-#endif
-#else
-#ifndef WEAK_ALIAS_PRINTF
-#define WEAK_ALIAS_PRINTF __attribute__((weak, nonnull, alias("printf")));
-#endif
 #endif
 #else
 #define WEAK_ALIAS_PRINTF
@@ -87,7 +81,7 @@ extern int std_printf(const char *fmt, ...) WEAK_ALIAS_PRINTF;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#if defined(linux)
+#if defined(linux) || defined(_WIN32)
 int __attribute__((weak)) _asprintf(const char *fmt, ...) {
   va_list args;
   int length;

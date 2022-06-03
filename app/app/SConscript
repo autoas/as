@@ -100,7 +100,7 @@ libsForNetApp = {
     'SoAd': Glob('config/Net/GEN/SoAd_*.c') + Glob('config/Net/GEN/NetMem.c'),
     'DoIP': Glob('config/Net/GEN/DoIP_*.c'),
     'Sd': Glob('config/Net/GEN/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GEN/SomeIp_*.c') + Glob('config/Net/GEN/SS_*.c') + Glob('config/Net/GEN/CS_*.c'),
+    'SomeIp': Glob('config/Net/GEN/SomeIp_*.c') + Glob('config/Net/GEN/SS_*.cpp') + Glob('config/Net/GEN/CS_*.cpp'),
     'PduR': Glob('config/Net/GEN/PduR_Cfg.c'),
     'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
     'CanIf': Glob('config/Net/GEN/CanIf_Cfg.c'),
@@ -110,7 +110,7 @@ libsForNetApp.update(libsCommon)
 libsForNetAppT = {
     'SoAd': Glob('config/Net/GENT/SoAd_*.c'),
     'Sd': Glob('config/Net/GENT/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GENT/SomeIp_*.c') + Glob('config/Net/GENT/SS_*.c') + Glob('config/Net/GENT/CS_*.c'),
+    'SomeIp': Glob('config/Net/GENT/SomeIp_*.c') + Glob('config/Net/GENT/SS_*.cpp') + Glob('config/Net/GENT/CS_*.cpp'),
 }
 
 
@@ -119,13 +119,12 @@ class ApplicationNetApp(Application):
     mylibs = libsForNetApp
 
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_PLUGIN'])
         # self.Append(CPPDEFINES=['DISABLE_NET_MEM'])
         if LL_DL != None:
             self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
         self.Append(CPPDEFINES=['USE_CAN'])
-        self.LIBS.append('Simulator')
-
+        self.LIBS+= ['Simulator', 'Plugin']
 
     def config(self):
         self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]

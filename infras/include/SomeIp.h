@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "SoAd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define SOMEIP_E_PENDING 100
 #define SOMEIP_E_OK_SILENT SOMEIP_E_PENDING
@@ -62,4 +65,7 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
 
 void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr);
 void SomeIp_MainFunction(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _SOMEIP_H */

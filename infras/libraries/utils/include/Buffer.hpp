@@ -1,37 +1,42 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef ISOTP_TYPES_H
-#define ISOTP_TYPES_H
+#ifndef _BUFFER_HPP_
+#define _BUFFER_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "isotp.h"
-#include <pthread.h>
-#include <semaphore.h>
-#include "Std_Types.h"
-#include "Std_Timer.h"
+#include <stdlib.h>
+#include <stdint.h>
+namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-struct isotp_s {
-  uint8_t Channel;
-  Std_TimerType timerErrorNotify;
-  volatile uint32_t errorTimeout;
-  pthread_t serverThread;
-  uint8_t *data;
-  size_t length;
-  size_t index;
+struct Buffer {
+  Buffer(void *data, size_t size, size_t idx = 0) : data(data), size(size), idx(idx) {
+  }
 
-  pthread_mutex_t mutex;
-  sem_t sem;
+  Buffer(size_t size, size_t idx = 0) : size(size), idx(idx) {
+    data = malloc(size);
+    if (nullptr != data) {
+      allocated = true;
+    }
+  }
 
-  volatile boolean running;
-  volatile int result;
+  ~Buffer() {
+    if (allocated and (nullptr != data)) {
+      free(data);
+    }
+  }
 
-  isotp_parameter_t *params;
+  void *data;
+  size_t size;
+  size_t idx;
+
+private:
+  bool allocated = false;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-
-#endif /* ISOTP_TYPES_H */
+} /* namespace as */
+#endif /* _BUFFER_HPP_ */

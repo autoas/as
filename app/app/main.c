@@ -95,17 +95,6 @@
 
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_CANIF 0
-#define AS_LOG_OSEKNM 1
-
-#ifdef USE_DOIP
-#define CANID_P2P_RX 0x732
-#define CANID_P2P_TX 0x731
-#else
-#define CANID_P2P_RX 0x731
-#define CANID_P2P_TX 0x732
-#endif
-#define CANID_P2A_RX 0x7DF
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void App_AliveIndicate(void);

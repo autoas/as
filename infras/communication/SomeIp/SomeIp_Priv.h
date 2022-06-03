@@ -23,9 +23,9 @@ typedef Std_ReturnType (*SomeIp_OnFireForgotFncType)(uint32_t requestId, SomeIp_
 typedef Std_ReturnType (*SomeIp_OnAsyncRequestFncType)(uint32_t requestId, SomeIp_MessageType *res);
 
 /* For the LF, set the msg->data as beginning of the buffer */
+/* msg == NULL to indicate transmission error, abort current transmit */
 typedef Std_ReturnType (*SomeIp_OnTpCopyRxDataFncType)(uint32_t requestId,
                                                        SomeIp_TpMessageType *msg);
-
 typedef Std_ReturnType (*SomeIp_OnTpCopyTxDataFncType)(uint32_t requestId,
                                                        SomeIp_TpMessageType *msg);
 

@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "SoAd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_SD_00118 */
@@ -101,4 +104,7 @@ Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddr
 Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId,
                                  Sd_EventHandlerSubscriberType **Subscribers,
                                  uint16_t *numOfSubscribers);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _SD_H */

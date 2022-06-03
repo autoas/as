@@ -12,7 +12,7 @@ def Gen_DemoRxTp(C, name):
         name))
     C.write('  Std_ReturnType ret = E_OK;\n')
     C.write(
-        '  if ((msg->offset + msg->length) < sizeof(%sTpRxBuf)) {\n' % (name))
+        '  if ((NULL != msg) && ((msg->offset + msg->length)) < sizeof(%sTpRxBuf)) {\n' % (name))
     C.write(
         '    memcpy(&%sTpRxBuf[msg->offset], msg->data, msg->length);\n' % (name))
     C.write('    if (FALSE == msg->moreSegmentsFlag) {\n')
@@ -30,7 +30,7 @@ def Gen_DemoTxTp(C, name):
         name))
     C.write('  Std_ReturnType ret = E_OK;\n')
     C.write(
-        '  if ((msg->offset + msg->length) < sizeof(%sTpTxBuf)) {\n' % (name))
+        '  if ((NULL != msg) && ((msg->offset + msg->length) < sizeof(%sTpTxBuf))) {\n' % (name))
     C.write(
         '    memcpy(msg->data, &%sTpTxBuf[msg->offset], msg->length);\n' % (name))
     C.write('  } else {\n')
@@ -43,6 +43,125 @@ def Gen_DemoTxTp(C, name):
 def Gen_MethodRxTxTp(C, service, method):
     Gen_DemoRxTp(C, '%s_%s' % (service['name'], method['name']))
     Gen_DemoTxTp(C, '%s_%s' % (service['name'], method['name']))
+
+
+def Gen_ServerServiceExCpp(service, dir):
+    C = open('%s/SS_Ex%s.cpp' % (dir, service['name']), 'w')
+    GenHeader(C)
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('#include "usomeip/usomeip.hpp"\n')
+    C.write('#include "usomeip/server.hpp"\n')
+    C.write('extern "C" {\n')
+    C.write('#include "SS_%s.h"\n' % (service['name']))
+    C.write('#include "SomeIp_Cfg.h"\n')
+    C.write('#include "Sd_Cfg.h"\n')
+    C.write('}\n')
+    C.write('#include "plugin.h"\n')
+    C.write('#include "Std_Timer.h"\n')
+    C.write('using namespace as;\n')
+    C.write('using namespace as::usomeip;\n')
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write('class SS_%s;\n' % (service['name']))
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write('static std::shared_ptr<SS_%s> SS_Instance = nullptr;\n' %
+            (service['name']))
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('class SS_%s: public server::Server {\n' % (service['name']))
+    C.write('public:\n')
+    C.write('  SS_%s() {\n' % (service['name']))
+    C.write('  }\n')
+    C.write('  ~SS_%s() {\n' % (service['name']))
+    C.write('  }\n')
+
+    C.write('  void start() {\n')
+    C.write('    m_BufferPool.create("SS_%s", 5, 1024 * 1024);\n' %
+            (service['name']))
+    for method in service['methods']:
+        bName = '%s_%s' % (service['name'], method['name'])
+        C.write('    listen(SOMEIP_RX_METHOD_%s, &m_BufferPool);\n' %
+                (bName.upper()))
+    for event_group in service['event-groups']:
+        bName = '%s_%s' % (service['name'], event_group['name'])
+        C.write('    provide(SD_EVENT_HANDLER_%s);\n' % (bName.upper()))
+    C.write('    Std_TimerStart(&m_Timer);\n')
+    C.write('  }\n\n')
+
+    C.write('  void stop() {\n')
+    C.write('    Std_TimerStop(&m_Timer);\n')
+    C.write('  }\n\n')
+
+    C.write('  void onRequest(std::shared_ptr<Message> msg) {\n')
+    C.write('    usLOG(INFO, "%s: on request: %%s\\n", msg->str().c_str());\n' %
+            (service['name']))
+    C.write('    msg->reply(E_OK, msg->payload);\n')
+    C.write('  }\n\n')
+
+    C.write('  void onFireForgot(std::shared_ptr<Message> msg) {\n')
+    C.write('    usLOG(INFO, "%s: on fire forgot: %%s\\n", msg->str().c_str());\n' %
+            (service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void onError(std::shared_ptr<Message> msg) {\n')
+    C.write('  }\n\n')
+
+    C.write('  void onSubscribe(uint16_t eventGroupId, bool isSubscribe) {\n')
+    C.write('    usLOG(INFO, "%s: event group %%d %%s\\n", eventGroupId, isSubscribe ? "subscribed" : "unsubscribed");\n' % (
+        service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void run() {\n')
+    C.write('    if (Std_GetTimerElapsedTime(&m_Timer) >= 1000000) {\n')
+    C.write('      Std_TimerStart(&m_Timer);\n')
+    for event_group in service['event-groups']:
+        for event in event_group['events']:
+            beName = '%s_%s_%s' % (
+                service['name'], event_group['name'], event['name'])
+            C.write('      uint32_t requestId =\n')
+            C.write(
+                '        ((uint32_t)SOMEIP_TX_EVT_%s << 16) + (++m_SessionId);\n' % (beName.upper()))
+            C.write('      auto buffer = m_BufferPool.get();\n')
+            C.write('      if (nullptr != buffer) {\n')
+            C.write('        buffer->size = 8000;\n')
+            C.write('        uint8_t *data = (uint8_t *)buffer->data;\n')
+            C.write('        for (size_t i = 0; i < buffer->size; i++) {\n')
+            C.write('          data[i] = m_SessionId + i;\n')
+            C.write('        }\n')
+            C.write('        notify(requestId, buffer);\n')
+            C.write('      }\n')
+            break
+    C.write('    }\n')
+    C.write('  }\n\n')
+
+    C.write('private:\n')
+    C.write('  Std_TimerType m_Timer;\n')
+    C.write('  BufferPool m_BufferPool;\n')
+    C.write('  uint16_t m_SessionId = 0;\n')
+    C.write('};\n\n')
+
+    C.write('void SS_Ex%s_init(void) {\n' % (service['name']))
+    C.write('  SS_Instance = std::make_shared<SS_%s>();\n' % (service['name']))
+    C.write('  SS_Instance->start();\n')
+    C.write('}\n\n')
+
+    C.write('void SS_Ex%s_main(void) {\n' % (service['name']))
+    C.write('  SS_Instance->run();\n')
+    C.write('}\n\n')
+
+    C.write('void SS_Ex%s_deinit(void) {\n' % (service['name']))
+    C.write('  SS_Instance->stop();\n')
+    C.write('}\n\n')
+    C.write('REGISTER_PLUGIN(SS_Ex%s);\n' % (service['name']))
+    C.close()
 
 
 def Gen_ServerService(service, dir):
@@ -182,6 +301,203 @@ def Gen_ServerService(service, dir):
             C.write('  return ercd;\n')
             C.write('}\n\n')
     C.close()
+    C = open('%s/SS_%s.cpp' % (dir, service['name']), 'w')
+    GenHeader(C)
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('extern "C" {\n')
+    C.write('#include "SS_%s.h"\n' % (service['name']))
+    C.write('#include "SomeIp_Cfg.h"\n')
+    C.write('#include "Sd_Cfg.h"\n')
+    C.write('}\n')
+    C.write('#include "usomeip/usomeip.hpp"\n')
+    C.write('#include "usomeip/server.hpp"\n')
+    C.write('#include "Std_Debug.h"\n')
+    C.write('#include <string.h>\n')
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write('#define AS_LOG_%s 1\n' % (service['name'].upper()))
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('extern "C" {\n')
+    for method in service['methods']:
+        bName = '%s_%s' % (service['name'], method['name'])
+        C.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {\n' %
+                (bName))
+        C.write('  return as::usomeip::server::on_request(SOMEIP_RX_METHOD_%s, requestId, req, res);\n' % (
+            bName.upper()))
+        C.write('}\n\n')
+        C.write(
+            'Std_ReturnType SomeIp_%s_OnFireForgot(uint32_t requestId,SomeIp_MessageType* req) {\n' % (bName))
+        C.write('  return as::usomeip::server::on_fire_forgot(SOMEIP_RX_METHOD_%s, requestId, req);\n' % (
+            bName.upper()))
+        C.write('}\n\n')
+        C.write(
+            'Std_ReturnType SomeIp_%s_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res) {\n' % (bName))
+        C.write('  return as::usomeip::server::on_async_request(SOMEIP_RX_METHOD_%s, requestId, res);\n' % (
+            bName.upper()))
+        C.write('}\n\n')
+        if method.get('tp', False):
+            C.write(
+                'Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (bName))
+            C.write('  return as::usomeip::server::on_method_tp_rx_data(SOMEIP_RX_METHOD_%s, requestId, msg);\n' % (
+                bName.upper()))
+            C.write('}\n\n')
+            C.write(
+                'Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (bName))
+            C.write('  return as::usomeip::server::on_method_tp_tx_data(SOMEIP_RX_METHOD_%s, requestId, msg);\n' % (
+                bName.upper()))
+            C.write('}\n\n')
+
+    for egroup in service['event-groups']:
+        bName = '%s_%s' % (service['name'], egroup['name'])
+        C.write(
+            'void SomeIp_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr) {\n' % (bName))
+        C.write('return as::usomeip::server::on_subscribe(SD_EVENT_HANDLER_%s, isSubscribe, RemoteAddr);\n' % (
+            bName.upper()))
+        C.write('}\n\n')
+        for event in egroup['events']:
+            beName = '%s_%s_%s' % (
+                service['name'], egroup['name'], event['name'])
+            if event.get('tp', False):
+                C.write(
+                    'Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (beName))
+                C.write(
+                    '  return as::usomeip::server::on_event_tp_tx_data(requestId, msg);\n')
+                C.write('}\n\n')
+    C.write('}\n')
+    C.close()
+
+
+def Gen_ClientServiceExCpp(service, dir):
+    C = open('%s/CS_Ex%s.cpp' % (dir, service['name']), 'w')
+    GenHeader(C)
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('#include "usomeip/usomeip.hpp"\n')
+    C.write('#include "usomeip/client.hpp"\n')
+    C.write('extern "C" {\n')
+    C.write('#include "SS_server0.h"\n')
+    C.write('#include "SomeIp_Cfg.h"\n')
+    C.write('#include "Sd_Cfg.h"\n')
+    C.write('}\n')
+    C.write('#include "plugin.h"\n')
+    C.write('#include "Std_Timer.h"\n')
+    C.write('using namespace as;\n')
+    C.write('using namespace as::usomeip;\n')
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write('class CS_%s;\n' % (service['name']))
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write('static std::shared_ptr<CS_%s> CS_Instance = nullptr;\n' %
+            (service['name']))
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('class CS_%s : public client::Client {\n' % (service['name']))
+    C.write('public:\n')
+    C.write('  CS_%s() {\n' % (service['name']))
+    C.write('  }\n\n')
+    C.write('  ~CS_%s() {\n' % (service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void start() {\n')
+    C.write('    identity(SOMEIP_CSID_%s);\n'%(service['name'].upper()))
+    C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' %
+            (service['name']))
+    for method in service['methods']:
+        bName = '%s_%s' % (service['name'], method['name'])
+        C.write('    bind(SOMEIP_TX_METHOD_%s, &m_BufferPool);\n' %
+                (bName.upper()))
+    for event_group in service['event-groups']:
+        bName = '%s_%s' % (service['name'], event_group['name'])
+        C.write('    subscribe(SD_CONSUMED_EVENT_GROUP_%s);\n' %
+                (bName.upper()))
+        for event in event_group['events']:
+            beName = '%s_%s_%s' % (
+                service['name'], event_group['name'], event['name'])
+            C.write('    listen(SOMEIP_RX_EVT_%s, &m_BufferPool);\n' %
+                    (beName.upper()))
+    C.write('    Std_TimerStart(&m_Timer);\n')
+    C.write('  }\n\n')
+
+    C.write('  void stop() {\n')
+    C.write('    Std_TimerStop(&m_Timer);\n')
+    C.write('  }\n\n')
+
+    C.write('  void onResponse(std::shared_ptr<Message> msg) {\n')
+    C.write('    usLOG(INFO, "%s: on response: %%s\\n", msg->str().c_str());\n' %
+            (service['name']))
+    C.write('  }\n\n')
+    C.write('  void onNotification(std::shared_ptr<Message> msg) {\n')
+    C.write('    usLOG(INFO, "%s: on notification: %%s\\n", msg->str().c_str());\n' %
+            (service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void onError(std::shared_ptr<Message> msg) {\n')
+    C.write('    usLOG(INFO, "%s: on error: %%s\\n", msg->str().c_str());\n' %
+            (service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void onAvailability(bool isAvailable) {\n')
+    C.write('    usLOG(INFO, "%s: %%s\\n", isAvailable?"online":"offline");\n'%(service['name']))
+    C.write('  }\n\n')
+
+    C.write('  void run() {\n')
+    C.write('    if (Std_GetTimerElapsedTime(&m_Timer) >= 1000000) {\n')
+    C.write('      Std_TimerStart(&m_Timer);\n')
+    for method in service['methods']:
+        bName = '%s_%s' % (service['name'], method['name'])
+        C.write('      uint32_t requestId =\n')
+        C.write('        ((uint32_t)SOMEIP_TX_METHOD_%s << 16) + (++m_SessionId);\n' %
+                (bName.upper()))
+        C.write('      auto buffer = m_BufferPool.get();\n')
+        C.write('      if (nullptr != buffer) {\n')
+        C.write('        buffer->size = 5000;\n')
+        C.write('        uint8_t *data = (uint8_t *)buffer->data;\n')
+        C.write('        for (size_t i = 0; i < buffer->size; i++) {\n')
+        C.write('          data[i] = m_SessionId + i;\n')
+        C.write('        }\n')
+        C.write('        request(requestId, buffer);\n')
+        C.write('      }\n')
+
+        break
+    C.write('    }\n')
+    C.write('  }\n\n')
+
+    C.write('private:\n')
+    C.write('  Std_TimerType m_Timer;\n')
+    C.write('  BufferPool m_BufferPool;\n')
+    C.write('  uint16_t m_SessionId = 0;\n')
+    C.write('};\n\n')
+
+    C.write('void CS_%s_init(void) {\n' % (service['name']))
+    C.write('  CS_Instance = std::make_shared<CS_%s>();\n' % (service['name']))
+    C.write('  CS_Instance->start();\n')
+    C.write('}\n\n')
+
+    C.write('void CS_%s_main(void) {\n' % (service['name']))
+    C.write('  CS_Instance->run();\n')
+    C.write('}\n\n')
+
+    C.write('void CS_%s_deinit(void) {\n' % (service['name']))
+    C.write('  CS_Instance->stop();\n')
+    C.write('}\n\n')
+    C.write('REGISTER_PLUGIN(CS_%s);\n' % (service['name']))
 
 
 def Gen_ClientService(service, dir):
@@ -326,6 +642,74 @@ def Gen_ClientService(service, dir):
             C.write('}\n\n')
             if event.get('tp', False):
                 Gen_DemoRxTp(C, beName)
+    C.close()
+    C = open('%s/CS_%s.cpp' % (dir, service['name']), 'w')
+    GenHeader(C)
+    C.write('/* TODO: This is default demo code */\n')
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('extern "C" {\n')
+    C.write('#include "CS_%s.h"\n' % (service['name']))
+    C.write('#include "SomeIp_Cfg.h"\n')
+    C.write('}\n')
+    C.write('#include "usomeip/usomeip.hpp"\n')
+    C.write('#include "usomeip/client.hpp"\n')
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('void SomeIp_%s_OnAvailability(boolean isAvailable) {\n' %
+            (service['name']))
+    C.write(
+        '  as::usomeip::client::on_availability(SOMEIP_CSID_%s, isAvailable);\n' % (service['name'].upper()))
+    C.write('}\n\n')
+    for method in service['methods']:
+        bName = '%s_%s' % (service['name'], method['name'])
+        C.write('Std_ReturnType SomeIp_%s_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {\n' %
+                (bName))
+        C.write(
+            '  return as::usomeip::client::on_response(SOMEIP_TX_METHOD_%s, requestId, res);\n' % (bName.upper()))
+        C.write('}\n\n')
+        C.write('Std_ReturnType SomeIp_%s_OnError(uint32_t requestId, Std_ReturnType ercd) {\n' %
+                (bName))
+        C.write(
+            '  return as::usomeip::client::on_error(SOMEIP_TX_METHOD_%s, requestId, ercd);\n' % (bName.upper()))
+        C.write('}\n\n')
+        if method.get('tp', False):
+            C.write(
+                'Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (bName))
+            C.write('  return as::usomeip::client::on_method_tp_rx_data(SOMEIP_TX_METHOD_%s, requestId, msg);\n' % (
+                bName.upper()))
+            C.write('}\n\n')
+            C.write(
+                'Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (bName))
+            C.write('  return as::usomeip::client::on_method_tp_tx_data(SOMEIP_TX_METHOD_%s, requestId, msg);\n' % (
+                bName.upper()))
+            C.write('}\n\n')
+    for egroup in service['event-groups']:
+        for event in egroup['events']:
+            beName = '%s_%s_%s' % (
+                service['name'], egroup['name'], event['name'])
+            C.write('Std_ReturnType SomeIp_%s_OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {\n' % (
+                beName
+            ))
+            C.write('  return as::usomeip::client::on_notification(SOMEIP_RX_EVT_%s, requestId, evt);\n' % (
+                beName.upper()))
+            C.write('}\n\n')
+            if event.get('tp', False):
+                C.write(
+                    'Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n' % (beName))
+                C.write('  return as::usomeip::client::on_event_tp_rx_data(SOMEIP_RX_EVT_%s, requestId, msg);\n' % (
+                    beName.upper()))
+                C.write('}\n\n')
     C.close()
 
 
@@ -743,8 +1127,10 @@ def Gen_SOMEIP(cfg, dir):
         '/* ================================ [ DECLARES  ] ============================================== */\n')
     for service in cfg['servers']:
         Gen_ServerService(service, dir)
+        Gen_ServerServiceExCpp(service, dir)
     for service in cfg['clients']:
         Gen_ClientService(service, dir)
+        Gen_ClientServiceExCpp(service, dir)
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
     for service in cfg['servers']:

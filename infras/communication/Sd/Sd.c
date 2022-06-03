@@ -753,11 +753,13 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
         sub->TTL = SD_CONVERT_MS_TO_MAIN_CYCLES(entry2->TTL * 1000);
       }
     } else {
-      sub->flags = 0;
-      if (EventHandler->context->numOfSubscribers > 0) {
-        EventHandler->context->numOfSubscribers--;
+      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
+        EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+        if (EventHandler->context->numOfSubscribers > 0) {
+          EventHandler->context->numOfSubscribers--;
+        }
       }
-      EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+      sub->flags = 0;
     }
   }
 
@@ -880,6 +882,24 @@ static void Sd_InitServerServiceEventHandlers(const Sd_ServerServiceType *config
   }
 }
 
+static void Sd_ReInitServerServiceEventHandlers(const Sd_ServerServiceType *config) {
+  uint16_t i, j;
+  const Sd_EventHandlerType *EventHandler;
+  Sd_EventHandlerSubscriberType *sub;
+  for (i = 0; i < config->numOfEventHandlers; i++) {
+    EventHandler = &config->EventHandlers[i];
+    memset(EventHandler->context, 0, sizeof(Sd_EventHandlerContextType));
+    for (j = 0; j < EventHandler->numOfSubscribers; j++) {
+      sub = &EventHandler->Subscribers[j];
+      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
+        EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+      }
+    }
+    memset(EventHandler->Subscribers, 0,
+           EventHandler->numOfSubscribers * sizeof(Sd_EventHandlerSubscriberType));
+  }
+}
+
 static void Sd_InitServerService(const Sd_InstanceType *Instance) {
   uint16_t i;
   const Sd_ServerServiceType *config;
@@ -964,7 +984,7 @@ static void Sd_ServerServiceMain_InitialWait(const Sd_InstanceType *Instance,
   Sd_ServerServiceContextType *context = config->context;
   if (0 == (context->flags & SD_FLG_STATE_REQUEST_ONLINE)) {
     context->offerTimer = 0;
-    Sd_InitServerServiceEventHandlers(config);
+    Sd_ReInitServerServiceEventHandlers(config);
     context->phase = SD_PHASE_DOWN;
   } else {
     if (context->offerTimer > 0) {
@@ -995,7 +1015,7 @@ static void Sd_ServerServiceMain_Repetition(const Sd_InstanceType *Instance,
   Sd_ServerServiceContextType *context = config->context;
   if (0 == (context->flags & SD_FLG_STATE_REQUEST_ONLINE)) {
     SD_SET(context->flags, SD_FLG_PENDING_STOP_OFFER);
-    Sd_InitServerServiceEventHandlers(config);
+    Sd_ReInitServerServiceEventHandlers(config);
     context->offerTimer = 0;
     context->phase = SD_PHASE_DOWN;
   } else {
@@ -1023,7 +1043,7 @@ static void Sd_ServerServiceMain_Main(const Sd_InstanceType *Instance,
                                       const Sd_ServerServiceType *config) {
   Sd_ServerServiceContextType *context = config->context;
   if (0 == (context->flags & SD_FLG_STATE_REQUEST_ONLINE)) {
-    Sd_InitServerServiceEventHandlers(config);
+    Sd_ReInitServerServiceEventHandlers(config);
     SD_SET(context->flags, SD_FLG_PENDING_STOP_OFFER);
     context->offerTimer = 0;
     context->phase = SD_PHASE_DOWN;

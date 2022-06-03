@@ -18,6 +18,8 @@ typedef struct CanTp_Config_s CanTp_ConfigType;
 /* @SWS_CanTp_00208 */
 void CanTp_Init(const CanTp_ConfigType *CfgPtr);
 
+void CanTp_InitChannel(uint8_t Channel);
+
 /* @SWS_CanTp_00214 */
 void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 /* @SWS_CanTp_00215 */
@@ -28,4 +30,6 @@ Std_ReturnType CanTp_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
 
 /* @SWS_CanTp_00213 */
 void CanTp_MainFunction(void);
+
+void CanTp_MainFunction_Channel(uint8_t Channel);
 #endif /* CANTP_H */

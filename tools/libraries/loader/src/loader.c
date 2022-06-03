@@ -466,7 +466,7 @@ loader_t *loader_create(isotp_t *isotp, srec_t *appSRec, srec_t *flsSRec) {
       loader->totalSize += flsSRec->totalSize;
     }
     loader->status = LOADER_STS_CREATED;
-    flogPath[6] = '0' + (lLoaderId % 10);
+    flogPath[6] = '0' + (lLoaderId++ % 10);
     loader->flog = fopen(flogPath, "w");
     if (NULL == loader->flog) {
       r = -1;

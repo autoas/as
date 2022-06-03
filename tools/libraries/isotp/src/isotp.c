@@ -26,13 +26,11 @@ int isotp_lin_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
 extern void isotp_lin_destory(isotp_t *isotp);
 
 /* ================================ [ DATAS     ] ============================================== */
-static pthread_mutex_t lMutex = PTHREAD_MUTEX_INITIALIZER;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 isotp_t *isotp_create(isotp_parameter_t *params) {
   isotp_t *isotp = NULL;
 
-  pthread_mutex_lock(&lMutex);
   switch (params->protocol) {
   case ISOTP_OVER_CAN:
     isotp = isotp_can_create(params);
@@ -45,7 +43,6 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
   default:
     break;
   }
-  pthread_mutex_unlock(&lMutex);
 
   return isotp;
 }
@@ -53,7 +50,6 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
 int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize) {
   int r = -1;
-  pthread_mutex_lock(&lMutex);
   switch (isotp->params->protocol) {
   case ISOTP_OVER_CAN:
     r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
@@ -66,13 +62,11 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
   default:
     break;
   }
-  pthread_mutex_unlock(&lMutex);
   return r;
 }
 
 int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = -1;
-  pthread_mutex_lock(&lMutex);
   switch (isotp->params->protocol) {
   case ISOTP_OVER_CAN:
     r = isotp_can_receive(isotp, rxBuffer, rxSize);
@@ -85,12 +79,10 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   default:
     break;
   }
-  pthread_mutex_unlock(&lMutex);
   return r;
 }
 
 void isotp_destory(isotp_t *isotp) {
-  pthread_mutex_lock(&lMutex);
   switch (isotp->params->protocol) {
   case ISOTP_OVER_CAN:
     isotp_can_destory(isotp);
@@ -103,5 +95,4 @@ void isotp_destory(isotp_t *isotp) {
   default:
     break;
   }
-  pthread_mutex_unlock(&lMutex);
 }

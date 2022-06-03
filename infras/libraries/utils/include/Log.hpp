@@ -1,37 +1,35 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef ISOTP_TYPES_H
-#define ISOTP_TYPES_H
+#ifndef _LOG_HPP_
+#define _LOG_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "isotp.h"
-#include <pthread.h>
-#include <semaphore.h>
-#include "Std_Types.h"
-#include "Std_Timer.h"
+#include <inttypes.h>
+namespace as {
 /* ================================ [ MACROS    ] ============================================== */
+#define LOG(level, ...) Log::print(Log::level, #level ": " __VA_ARGS__)
 /* ================================ [ TYPES     ] ============================================== */
-struct isotp_s {
-  uint8_t Channel;
-  Std_TimerType timerErrorNotify;
-  volatile uint32_t errorTimeout;
-  pthread_t serverThread;
-  uint8_t *data;
-  size_t length;
-  size_t index;
+class Log {
+public:
+  enum
+  {
+    DEBUG = 0,
+    INFO,
+    WARN,
+    ERROR
+  };
 
-  pthread_mutex_t mutex;
-  sem_t sem;
+public:
+  static void setLogLevel(int level);
+  static void print(int level, const char *fmt, ...);
 
-  volatile boolean running;
-  volatile int result;
-
-  isotp_parameter_t *params;
+private:
+  static int s_Level;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-
-#endif /* ISOTP_TYPES_H */
+} /* namespace as */
+#endif /* _LOG_HPP_ */

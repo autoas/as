@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define STD_TIME_MAX 0xFFFFFFFFUL
 
@@ -37,4 +40,7 @@ std_time_t Std_GetTimerElapsedTime(Std_TimerType *timer);
 
 void Std_TimerSet(Std_TimerType *timer, std_time_t timeout);
 bool Std_IsTimerTimeout(Std_TimerType *timer);
+#ifdef __cplusplus
+}
+#endif
 #endif /* STD_TIMER_H */

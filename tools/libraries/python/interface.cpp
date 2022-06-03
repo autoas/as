@@ -164,7 +164,11 @@ extern "C" int std_printf(const char *fmt, ...) {
   int length;
 
   va_start(args, fmt);
-  length = vfprintf(_stddebug, fmt, args);
+  if (_stddebug) {
+    length = vfprintf(_stddebug, fmt, args);
+  } else {
+    length = vprintf(fmt, args);
+  }
   va_end(args);
 
   return length;

@@ -65,7 +65,7 @@ def Gen_CanTp(cfg, dir):
     C.write('#define CANTP_CFG_N_Bs 1000\n')
     C.write('#endif\n')
     C.write('#ifndef CANTP_CFG_N_Cr\n')
-    C.write('#define CANTP_CFG_N_Cr 200\n')
+    C.write('#define CANTP_CFG_N_Cr 1000\n')
     C.write('#endif\n\n')
     C.write('#ifndef CANTP_CFG_STMIN\n')
     C.write('#define CANTP_CFG_STMIN 0\n')

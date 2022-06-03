@@ -15,6 +15,8 @@
 #define CanTp_ConfigType LinTp_ConfigType
 #define CanTp_Config_s LinTp_Config_s
 #define CanTp_TriggerTransmit LinTp_TriggerTransmit
+#define CanTp_MainFunction_Channel LinTp_MainFunction_Channel
+#define CanTp_InitChannel LinTp_InitChannel
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

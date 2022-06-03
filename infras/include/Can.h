@@ -30,6 +30,9 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
 void Can_MainFunction_Write(void);
 /* @SWS_Can_00226 */
 void Can_MainFunction_Read(void);
+
+void Can_MainFunction_WriteChannel(uint8_t Channel);
+void Can_MainFunction_ReadChannel(uint8_t Channel);
 /* @SWS_Can_00227 */
 void Can_MainFunction_BusOff(void);
 /* @SWS_Can_00228 */

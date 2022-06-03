@@ -22,6 +22,7 @@ typedef enum
   PDUR_MODULE_CANNM,
   PDUR_MODULE_OSEKNM,
   /* ---- low / upper ---- */
+  PDUR_MODULE_ISOTP,
   PDUR_MODULE_COM,
   PDUR_MODULE_DCM,
 } PduR_ModuleType;

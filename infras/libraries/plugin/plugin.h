@@ -5,6 +5,9 @@
 #ifndef _PLUGIN_H
 #define _PLUGIN_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #if defined(_WIN32) || defined(linux)
 #define REGISTER_PLUGIN(name)                                                                      \
@@ -33,4 +36,7 @@ void plugin_register(const plugin_t *plugin);
 void plugin_init(void);
 void plugin_deinit(void);
 void plugin_main(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _PLUGIN_H */

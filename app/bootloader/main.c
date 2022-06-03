@@ -25,6 +25,10 @@
 
 #include "Dcm.h"
 #include "bl.h"
+#if defined(_WIN32) || defined(linux)
+#include <stdlib.h>
+#include <unistd.h>
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
 /* ================================ [ TYPES     ] ============================================== */
@@ -33,6 +37,10 @@ extern void BL_AliveIndicate(void);
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
 static Std_TimerType timer500ms;
+
+static uint32_t lRxId = 0x731;
+static uint32_t lTxId = 0x732;
+static uint8_t lController = 0;
 /* ================================ [ LOCALS    ] ============================================== */
 static void MainTask_10ms(void) {
 #ifdef USE_CAN
@@ -47,7 +55,7 @@ static void MainTask_10ms(void) {
 static void Init(void) {
 #ifdef USE_CAN
   Can_Init(NULL);
-  Can_SetControllerMode(0, CAN_CS_STARTED);
+  Can_SetControllerMode(lController, CAN_CS_STARTED);
   CanTp_Init(NULL);
 #endif
 #ifdef USE_DLL
@@ -70,7 +78,7 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
                 PduInfoPtr->SduDataPtr[3], PduInfoPtr->SduDataPtr[4], PduInfoPtr->SduDataPtr[5],
                 PduInfoPtr->SduDataPtr[6], PduInfoPtr->SduDataPtr[7]));
 
-  if (0x731 == Mailbox->CanId) {
+  if (lRxId == Mailbox->CanId) {
     CanTp_RxIndication((PduIdType)0, PduInfoPtr);
   } else if (0x7DF == Mailbox->CanId) {
     CanTp_RxIndication((PduIdType)1, PduInfoPtr);
@@ -93,8 +101,8 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
   canPdu.sdu = PduInfoPtr->SduDataPtr;
 
   if ((0 == TxPduId) || (1 == TxPduId)) {
-    canPdu.id = 0x732;
-    ret = Can_Write(0, &canPdu);
+    canPdu.id = lTxId;
+    ret = Can_Write(lController, &canPdu);
   }
 
   return ret;
@@ -118,6 +126,30 @@ void BL_MainTask_500ms(void) {
 
 int main(int argc, char *argv[]) {
   ASLOG(INFO, ("bootloader build @ %s %s\n", __DATE__, __TIME__));
+
+#if defined(_WIN32) || defined(linux)
+  {
+    int ch;
+    opterr = 0;
+    while ((ch = getopt(argc, argv, "c:r:t:")) != -1) {
+      switch (ch) {
+      case 'c':
+        lController = atoi(optarg);
+        break;
+      case 'r':
+        lRxId = strtoul(optarg, NULL, 16);
+        break;
+      case 't':
+        lTxId = strtoul(optarg, NULL, 16);
+        break;
+      default:
+        printf("Usage: %s -c controller_id -r rx_id -t tx_id\n", argv[0]);
+        return 0;
+        break;
+      }
+    }
+  }
+#endif
 
   Mcu_Init(NULL);
 

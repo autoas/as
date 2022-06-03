@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2022 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "CanTp_Cfg.h"
@@ -15,7 +15,7 @@
 #define CANTP_CFG_N_Bs 1000
 #endif
 #ifndef CANTP_CFG_N_Cr
-#define CANTP_CFG_N_Cr 200
+#define CANTP_CFG_N_Cr 1000
 #endif
 
 #ifndef CANTP_CFG_STMIN
@@ -37,50 +37,18 @@
 #ifndef CANTP_CFG_PADDING
 #define CANTP_CFG_PADDING 0x55
 #endif
+
+#ifndef CANTP_MAX_CHANNELS
+#define CANTP_MAX_CHANNELS 32
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+extern void CanIf_CanTpReconfig(uint8_t Channel, CanTp_ParamType *params);
+extern void PduR_CanTpReConfig(uint8_t Channel);
 /* ================================ [ DATAS     ] ============================================== */
-static uint8_t u8P2PData[64];
-static uint8_t u8P2AData[64];
-static CanTp_ChannelConfigType CanTpChannelConfigs[] = {
-  {
-    /* P2P */
-    CANTP_STANDARD,
-    CANTP_CANIF_P2P_TX_PDU,
-    0 /* PduR_RxPduId */,
-    0 /* PduR_TxPduId */,
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr),
-    CANTP_CFG_STMIN,
-    CANTP_CFG_BS,
-    0 /* N_TA */,
-    CANTP_CFG_RX_WFT_MAX,
-    CANTP_LL_DL,
-    CANTP_CFG_PADDING,
-    u8P2PData,
-  },
-  {
-    /* P2A */
-    CANTP_STANDARD,
-    1 /* PduR_RxPduId */,
-    1 /* PduR_TxPduId */,
-    CANTP_CANIF_P2A_TX_PDU,
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr),
-    CANTP_CFG_STMIN,
-    CANTP_CFG_BS,
-    0 /* N_TA */,
-    CANTP_CFG_RX_WFT_MAX,
-    CANTP_LL_DL,
-    CANTP_CFG_PADDING,
-    u8P2AData,
-  },
-};
-
+static uint8_t u8P2PData[CANTP_MAX_CHANNELS][64];
+static CanTp_ChannelConfigType CanTpChannelConfigs[CANTP_MAX_CHANNELS];
 static CanTp_ChannelContextType CanTpChannelContexts[ARRAY_SIZE(CanTpChannelConfigs)];
-
 const CanTp_ConfigType CanTp_Config = {
   CanTpChannelConfigs,
   CanTpChannelContexts,
@@ -88,33 +56,23 @@ const CanTp_ConfigType CanTp_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanTp_ReConfig(uint8_t Channel, uint8_t ll_dl) {
+void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType *params) {
   if (Channel < ARRAY_SIZE(CanTpChannelConfigs)) {
-    CanTpChannelConfigs[Channel].LL_DL = ll_dl;
+    CanTpChannelConfigs[Channel].AddressingFormat = CANTP_STANDARD;
+    CanTpChannelConfigs[Channel].CanIfTxPduId = Channel;
+    CanTpChannelConfigs[Channel].PduR_RxPduId = Channel;
+    CanTpChannelConfigs[Channel].PduR_TxPduId = Channel;
+    CanTpChannelConfigs[Channel].N_As = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As);
+    CanTpChannelConfigs[Channel].N_Bs = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs);
+    CanTpChannelConfigs[Channel].N_Cr = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr);
+    CanTpChannelConfigs[Channel].STmin = CANTP_CFG_STMIN;
+    CanTpChannelConfigs[Channel].BS = CANTP_CFG_BS;
+    CanTpChannelConfigs[Channel].N_TA = 0;
+    CanTpChannelConfigs[Channel].CanTpRxWftMax = CANTP_CFG_RX_WFT_MAX;
+    CanTpChannelConfigs[Channel].padding = CANTP_CFG_PADDING;
+    CanTpChannelConfigs[Channel].data = u8P2PData[Channel];
+    CanTpChannelConfigs[Channel].LL_DL = params->ll_dl;
+    PduR_CanTpReConfig(Channel);
+    CanIf_CanTpReconfig(Channel, params);
   }
-}
-
-BufReq_ReturnType PduR_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
-                                       const RetryInfoType *retry,
-                                       PduLengthType *availableDataPtr) {
-  return Dcm_CopyTxData(id, info, retry, availableDataPtr);
-}
-
-void PduR_CanTpRxIndication(PduIdType id, Std_ReturnType result) {
-  Dcm_TpRxIndication(id, result);
-}
-
-void PduR_CanTpTxConfirmation(PduIdType id, Std_ReturnType result) {
-  Dcm_TpTxConfirmation(id, result);
-}
-
-BufReq_ReturnType PduR_CanTpStartOfReception(PduIdType id, const PduInfoType *info,
-                                             PduLengthType TpSduLength,
-                                             PduLengthType *bufferSizePtr) {
-  return Dcm_StartOfReception(id, info, TpSduLength, bufferSizePtr);
-}
-
-BufReq_ReturnType PduR_CanTpCopyRxData(PduIdType id, const PduInfoType *info,
-                                       PduLengthType *bufferSizePtr) {
-  return Dcm_CopyRxData(id, info, bufferSizePtr);
 }
