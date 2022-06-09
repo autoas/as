@@ -81,6 +81,11 @@ def Gen_CanTp(cfg, dir):
     C.write('#endif\n\n')
     C.write('#ifndef CANTP_CFG_PADDING\n')
     C.write('#define CANTP_CFG_PADDING 0x55\n')
+    C.write('#endif\n\n')
+    C.write('#if defined(_WIN32) || defined(linux)\n')
+    C.write('#define L_CONST\n')
+    C.write('#else\n')
+    C.write('#define L_CONST const\n')
     C.write('#endif\n')
     C.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
@@ -90,7 +95,7 @@ def Gen_CanTp(cfg, dir):
         '/* ================================ [ DATAS     ] ============================================== */\n')
     for chl in cfg['channels']:
         C.write('static uint8_t u8%sData[CANTP_LL_DL];\n' % (chl['name']))
-    C.write('static const CanTp_ChannelConfigType CanTpChannelConfigs[] = {\n')
+    C.write('static L_CONST CanTp_ChannelConfigType CanTpChannelConfigs[] = {\n')
     for i, chl in enumerate(cfg['channels']):
         C.write('  {\n')
         C.write('    /* %s */\n' % (chl['name']))
@@ -119,6 +124,18 @@ def Gen_CanTp(cfg, dir):
     C.write('};\n')
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write('#if defined(_WIN32) || defined(linux)\n')
+    C.write('#include <stdlib.h>\n')
+    C.write('static void __attribute__((constructor)) _ll_dl_init(void) {\n')
+    C.write('  int i;\n')
+    C.write('  char *llDlStr = getenv("LL_DL");\n')
+    C.write('  if (llDlStr != NULL) {\n')
+    C.write('    for( i = 0; i < ARRAY_SIZE(CanTpChannelConfigs); i++ ) {\n')
+    C.write('      CanTpChannelConfigs[i].LL_DL = atoi(llDlStr);\n')
+    C.write('    }\n')
+    C.write('  }\n')
+    C.write('}\n')
+    C.write('#endif\n')
     C.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     C.close()

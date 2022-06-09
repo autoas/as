@@ -4,10 +4,7 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Mcu.h"
-#include "Std_Timer.h"
 #include <assert.h>
-#include <sys/time.h>
-#include <time.h>
 #include "Std_Types.h"
 #include "Std_Debug.h"
 #include "Dcm.h"
@@ -17,16 +14,6 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-std_time_t Std_GetTime(void) {
-  struct timeval now;
-  std_time_t tm;
-
-  (void)gettimeofday(&now, NULL);
-  tm = (std_time_t)(now.tv_sec * 1000000 + now.tv_usec);
-
-  return tm;
-}
-
 void Mcu_Init(const Mcu_ConfigType *ConfigPtr) {
   (void)ConfigPtr;
 }

@@ -40,7 +40,7 @@ class LibraryCanLib(Library):
         self.CPPPATH = ['$INFRAS']
         self.CPPDEFINES = []
         self.LIBPATH = []
-        self.LIBS = []
+        self.LIBS = ['TcpIp', 'StdTimer']
         self.CPPFLAGS = []
         self.source = objs
         if IsBuildForWindows():
@@ -58,8 +58,19 @@ class ApplicationCanSimulator(Application):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         if IsBuildForWindows():
-            self.LIBS = ['wsock32']
+            self.LIBS = ['wsock32', 'winmm']
         self.source = objsCanSim
+
+
+objsCanDump = Glob('utils/can_dump.c')
+
+
+@register_application
+class ApplicationCanDump(Application):
+    def config(self):
+        self.LIBS = ['CanLib']
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsCanDump
 
 
 objsCanSend = Glob('utils/can_send.c')

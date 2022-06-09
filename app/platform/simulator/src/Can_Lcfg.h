@@ -15,7 +15,6 @@ typedef struct {
 } Can_ChannelConfigType;
 
 struct Can_Config_s {
-  char logPath[128];
   Can_ChannelConfigType *channelConfigs;
   uint8_t numOfChannels;
 };

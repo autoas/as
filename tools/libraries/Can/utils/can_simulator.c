@@ -7,6 +7,7 @@
 #include <Ws2tcpip.h>
 #include <windows.h>
 #include <winsock2.h>
+#include <mmsystem.h>
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -135,6 +136,23 @@ static struct timeval m0;
 static struct Can_FilterList_s *canFilterH = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
+static void __deinit(void) {
+  TIMECAPS xTimeCaps;
+
+  if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
+    /* Match the call to timeBeginPeriod( xTimeCaps.wPeriodMin ) made when
+    the process started with a timeEndPeriod() as the process exits. */
+    timeEndPeriod(xTimeCaps.wPeriodMin);
+  }
+}
+
+static void __attribute__((constructor)) __init(void) {
+  TIMECAPS xTimeCaps;
+  if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
+    timeBeginPeriod(xTimeCaps.wPeriodMin);
+    atexit(__deinit);
+  }
+}
 #else
 static int WSAGetLastError(void) {
   perror("");

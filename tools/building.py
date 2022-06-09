@@ -33,6 +33,12 @@ AddOption('--os',
           default=None,
           help='to choose which os to be used')
 
+AddOption('--net',
+          dest='net',
+          type=str,
+          default='none',
+          help='to choose which net(lwip or none) to be used')
+
 AddOption('--cpl',
           dest='compiler',
           type=str,
@@ -379,6 +385,14 @@ class ReleaseEnv():
         self.objs[src] = kwargs
         return src
 
+    def SharedObject(self, src, **kwargs):
+        self.objs[src] = kwargs
+        return [src]
+
+    def SharedLibrary(self, libName, objs, **kwargs):
+        self.shared = True
+        self.Program(libName, objs, **kwargs)
+
     def w(self, l):
         self.mkf.write(l)
 
@@ -392,9 +406,15 @@ class ReleaseEnv():
         print('release %s done!' % (appName))
         exit()
 
-    def relpath(self, p):
-        p = os.path.relpath(p, RootDir)
-        p = p.replace(os.sep, '/')
+    def relpath(self, p, silent=False):
+        try:
+            p = os.path.relpath(p, RootDir)
+            p = p.replace(os.sep, '/')
+        except Exception as e:
+            if silent:
+                pass
+            else:
+                raise e
         return p
 
     def link_flags(self, LINKFLAGS):
@@ -418,8 +438,14 @@ class ReleaseEnv():
     def GenerateMakefile(self, objs, **kwargs):
         self.mkf = open('%s/Makefile.%s' % (self.WDIR, self.cplName), 'w')
         self.w('# Makefile for %s\n' % (self.appName))
-        self.w('CC=%s\n' % (os.path.basename(self.env['CC'])))
-        self.w('LD=%s\n' % (os.path.basename(self.env['LINK'])))
+        CC = os.path.basename(self.env['CC'])
+        CXX = os.path.basename(self.env['CXX'])
+        LD = os.path.basename(self.env['LINK'])
+        if LD == '$SMARTLINK':
+            LD = CC
+        self.w('CC=%s\n' % (CC))
+        self.w('LD=%s\n' % (LD))
+        self.w('CXX=%s\n' % (CXX))
         self.w('ifeq ($V, 1)\n')
         self.w('Q=\n')
         self.w('else\n')
@@ -429,6 +455,8 @@ class ReleaseEnv():
                (self.link_flags(kwargs.get('LINKFLAGS', []))))
         self.w('LIBS=%s\n' % (' '.join('-l%s' % (i)
                for i in kwargs.get('LIBS', []))))
+        self.w('LIBPATH=%s\n' % (' '.join('-L"%s"' % (i)
+               for i in kwargs.get('LIBPATH', []))))
         BUILD_DIR = os.path.join(
             'build', os.name, self.cplName, self.appName).replace(os.sep, '/')
         objd = []
@@ -437,8 +465,10 @@ class ReleaseEnv():
             rp = self.relpath(str(src))
             if rp.endswith('.c') or rp.endswith('.s') or rp.endswith('.S'):
                 obj = rp[:-2]
+            elif rp.endswith('.cpp'):
+                obj = rp[:-4]
             else:
-                raise
+                raise Exception('unkown file type %s' % (rp))
             obj = '%s/%s.o' % (BUILD_DIR, obj)
             d = os.path.dirname(obj)
             if d not in objd:
@@ -456,11 +486,11 @@ class ReleaseEnv():
             objm[obj]['CPPDEFINES'] = ' '.join(
                 ['-D%s' % (i) for i in args.get('CPPDEFINES', [])])
             objm[obj]['CPPPATH'] = ' '.join(
-                ['-I%s' % (self.relpath(i)) for i in args.get('CPPPATH', [])])
+                ['-I"%s"' % (self.relpath(i, silent=True)) for i in args.get('CPPPATH', [])])
         self.w('\nall: %s/%s.exe\n' % (BUILD_DIR, self.appName))
         self.w('%s/%s.exe: $(objs-y)\n' % (BUILD_DIR, self.appName))
         self.w('\t@echo LD $@\n')
-        self.w('\t$Q $(LD) $(LINKFLAGS) $(objs-y) $(LIBS) -o $@\n\n')
+        self.w('\t$Q $(LD) $(LINKFLAGS) $(objs-y) $(LIBS) $(LIBPATH) -o $@\n\n')
         if 'S19' in self.env:
             ss = self.env['S19'].split(' ')
             ss[0] = os.path.basename(ss[0])
@@ -473,9 +503,12 @@ class ReleaseEnv():
         for obj, m in objm.items():
             self.w('%s: %s\n' % (m['src'], m['d']))
             self.w('%s: %s\n' % (obj, m['src']))
-            self.w('\t@echo CC $<\n')
-            self.w('\t$Q $(CC) %s %s %s -c $< -o $@\n' %
-                   (m['CPPFLAGS'], m['CPPDEFINES'], m['CPPPATH']))
+            CC = 'CC'
+            if m['src'].endswith('.cpp'):
+                CC = 'CXX'
+            self.w('\t@echo %s $<\n' % (CC))
+            self.w('\t$Q $(%s) %s %s %s -c $< -o $@\n' %
+                   (CC, m['CPPFLAGS'], m['CPPDEFINES'], m['CPPPATH']))
         self.w('\nclean:\n\t@rm -fv $(objs-y) %s/%s.exe\n\n' %
                (BUILD_DIR, self.appName))
         self.mkf.close()
@@ -503,9 +536,12 @@ class ReleaseEnv():
         for src in objs:
             self.copy(str(src))
         for cpppath in self.CPPPATH:
-            rp = self.relpath(cpppath)
-            shutil.copytree(cpppath, os.path.join(
-                self.WDIR, rp), dirs_exist_ok=True)
+            try:
+                rp = self.relpath(cpppath)
+                shutil.copytree(cpppath, os.path.join(
+                    self.WDIR, rp), dirs_exist_ok=True)
+            except:
+                pass
 
 
 def register_compiler(compiler):
@@ -915,6 +951,8 @@ class BuildBase():
         env.ParseConfig(cmd)
 
     def ensure_env(self):
+        if getattr(self, 'user', None):
+            return self.user.ensure_env()
         if self.env is None:
             cplName = getattr(self, 'compiler', GetOption('compiler'))
             if cplName not in __compilers__:
@@ -1129,7 +1167,7 @@ class Library(BuildBase):
             objs += lib.objs()
             LIBPATH += getattr(lib, 'LIBPATH', [])
         if self.is_shared_library():
-            LIBS = env.get('LIBS', []) + self.__extra_libs__
+            LIBS = []
             LINKFLAGS = getattr(self, 'LINKFLAGS', []) + \
                 env.get('LINKFLAGS', [])
             objs2 = []
@@ -1139,7 +1177,8 @@ class Library(BuildBase):
                 else:
                     name = os.path.basename(obj)[3:-2]
                     LIBPATH.append(os.path.dirname(obj))
-                    LIBS.insert(0, name)
+                    LIBS.append(name)
+            LIBS += env.get('LIBS', []) + self.__extra_libs__
             return env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         return env.Library(libName, objs)
 

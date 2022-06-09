@@ -8,5 +8,8 @@ class LibraryStdTimer(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         self.source = objs
+        if IsBuildForWindows():
+            self.LIBS += ['winmm']
+
 
     

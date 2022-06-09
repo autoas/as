@@ -15,7 +15,7 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
-  printf("usage: %s -d device -p port -i canid -v AABBCCDDEEFF..\n", prog);
+  printf("usage: %s -d device -p port -b baudrate -i canid -v AABBCCDDEEFF..\n", prog);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
@@ -66,12 +66,14 @@ int main(int argc, char *argv[]) {
   }
 
   busid = can_open(device, (uint32_t)port, (uint32_t)baudrate);
-
   if (busid >= 0) {
     rv = can_write(busid, canid, dlc, data);
-    (void)can_close(0);
   } else {
     rv = FALSE;
+  }
+
+  if (busid >= 0) {
+    (void)can_close(busid);
   }
 
   if (FALSE == rv) {

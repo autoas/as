@@ -177,6 +177,9 @@ int main(int argc, char *argv[]) {
     DLL_MainFunction();
     DLL_MainFunction_Read();
 #endif
+#if defined(_WIN32) || defined(linux)
+    Std_Sleep(1000);
+#endif
   }
   return 0;
 }

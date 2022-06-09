@@ -2,32 +2,9 @@
 
 This project is not open source, all of the BSWs are developed by me alone according to AUTOSAR 4.4. 
 
-## BSWs of AUTOSAR
+## AUTOSAR and its toolchain
 
-This project now provide below BSWs:
-
-	LinIf
-	LinTp
-	PduR
-	CanTp
-	Dem
-	Dcm
-	
-	OsekNm
-	CanNm
-	
-	Fls
-	Fee
-	Eep
-	Ea
-	MemIf (zero cost only)
-	NvM
-	
-	TcpIP (socket based, LWIP is supported)
-	SoAd
-	DoIP
-	SD
-	SOMEIP
+![architecture](examples/architecture.png)
 
 ## Tools & Libraries
 

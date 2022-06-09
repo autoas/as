@@ -12,7 +12,11 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
-#define STD_TIME_MAX 0xFFFFFFFFUL
+#if defined(linux) || defined(_WIN32)
+#define STD_TIME_MAX ((std_time_t)0xFFFFFFFFFFFFFFFF)
+#else
+#define STD_TIME_MAX ((std_time_t)0xFFFFFFFFUL)
+#endif
 
 #define PERF_BEGIN()                                                                               \
   do {                                                                                             \
@@ -23,16 +27,21 @@ extern "C" {
     printf("\n%s: cost %.2f ms\n", desc, (float)Std_GetTimerElapsedTime(&_perfTimer) / 1000.0);    \
   } while (0)
 /* ================================ [ TYPES     ] ============================================== */
+#if defined(linux) || defined(_WIN32)
+typedef uint64_t std_time_t;
+#else
 typedef uint32_t std_time_t;
+#endif
 typedef struct {
   std_time_t time; /* time in us(microseconds), range 0~4294.9 seconds */
   uint8_t status;  /* 1: started, 0: stopped */
 } Std_TimerType;
 /* ================================ [ DECLARES  ] ============================================== */
-extern std_time_t Std_GetTime(void);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+std_time_t Std_GetTime(void);
+void Std_Sleep(std_time_t time);
 void Std_TimerStart(Std_TimerType *timer);
 void Std_TimerStop(Std_TimerType *timer);
 bool Std_IsTimerStarted(Std_TimerType *timer);

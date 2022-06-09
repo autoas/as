@@ -6,7 +6,6 @@
 #include "CanTp_Cfg.h"
 #include "CanTp.h"
 #include "CanTp_Types.h"
-#include "Dcm.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef CANTP_CFG_N_As
 #define CANTP_CFG_N_As 25

@@ -133,9 +133,6 @@ void TcpIp_MainFunction(void) {
 TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
   TcpIp_SocketIdType sockId;
   int type;
-#if defined(_WIN32) && !defined(USE_LWIP)
-  u_long iMode = 1;
-#endif
   int on = 1;
 
   if (TCPIP_IPPROTO_TCP == protocol) {
@@ -148,17 +145,32 @@ TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
   if (sockId >= 0) {
     setsockopt(sockId, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(int));
     if (TCPIP_IPPROTO_UDP == protocol) {
-#if defined(_WIN32) && !defined(USE_LWIP)
-      ioctlsocket(sockId, FIONBIO, &iMode);
-#else
-      ioctl(sockId, FIONBIO, &on);
-#endif
+      TcpIp_SetNonBlock(sockId, TRUE);
     }
   }
 
   ASLOG(TCPIP, ("[%d] %s created\n", sockId, type == SOCK_STREAM ? "TCP" : "UDP"));
 
   return sockId;
+}
+
+Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean blocked) {
+  Std_ReturnType ret = E_OK;
+  int r;
+#if defined(_WIN32) && !defined(USE_LWIP)
+  u_long iMode = (u_long)blocked;
+  r = ioctlsocket(SocketId, FIONBIO, &iMode);
+#else
+  int on = (int)blocked;
+  r = ioctl(SocketId, FIONBIO, &on);
+#endif
+
+  if (0 != r) {
+    ASLOG(TCPIPE, ("[%d] set non block falied: %d\n", SocketId, r));
+    ret = E_NOT_OK;
+  }
+
+  return ret;
 }
 
 Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort) {
@@ -185,16 +197,10 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, const char *LocalAddr, ui
   int r;
 #ifdef USE_LWIP
   ip_addr_t ipaddr;
+  int on = 1;
 #endif
   struct ip_mreq mreq;
   struct sockaddr_in sLocalAddr;
-#if defined(_WIN32) && !defined(USE_LWIP)
-  u_long iMode = 1;
-  ioctlsocket(SocketId, FIONBIO, &iMode);
-#else
-  int on = 1;
-  ioctl(SocketId, FIONBIO, &on);
-#endif
 #ifdef USE_LWIP
   setsockopt(SocketId, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(int)); /* Set socket to no delay */
 #endif
@@ -231,6 +237,8 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, const char *LocalAddr, ui
 
   if (0 != r) {
     ret = E_NOT_OK;
+  } else {
+    TcpIp_SetNonBlock(SocketId, TRUE);
   }
 
   return ret;
@@ -300,13 +308,7 @@ Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType SocketId, TcpIp_SocketIdType *
 
   if (clientFd >= 0) {
     /* New connection established */
-#if defined(_WIN32) && !defined(USE_LWIP)
-    u_long iMode = 1;
-    ioctlsocket(clientFd, FIONBIO, &iMode);
-#else
-    int on = 1;
-    ioctl(clientFd, FIONBIO, &on);
-#endif
+    TcpIp_SetNonBlock(clientFd, TRUE);
 
     TcpIp_TcpKeepAlive(clientFd, 10, 1, 3);
     RemoteAddrPtr->port = htons(client_addr.sin_port);
@@ -452,13 +454,7 @@ Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
 
   r = connect(SocketId, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   if (0 == r) {
-#if defined(_WIN32) && !defined(USE_LWIP)
-    u_long iMode = 1;
-    ioctlsocket(SocketId, FIONBIO, &iMode);
-#else
-    int on = 1;
-    ioctl(SocketId, FIONBIO, &on);
-#endif
+    TcpIp_SetNonBlock(SocketId, TRUE);
     ret = E_OK;
   }
   ASLOG(TCPIP,

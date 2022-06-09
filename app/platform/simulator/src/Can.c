@@ -13,9 +13,7 @@
 #include "Std_Critical.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
-#include <time.h>
-#include <unistd.h>
+#include "Std_Timer.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* this simulation just alow only one HTH/HRH for each CAN controller */
 #define CAN_MAX_HOH 32
@@ -40,24 +38,16 @@ __attribute__((weak)) void CanIf_TxConfirmation(PduIdType CanTxPduId) {
 
 static void logCan(boolean isRx, uint8_t Controller, uint32_t canid, uint8_t dlc,
                    const uint8_t *data) {
-  static struct timeval m0 = {-1, -1};
+  static Std_TimerType timer;
   FILE *canLog = lBusLog[Controller];
 
-  if ((-1 == m0.tv_sec) && (-1 == m0.tv_usec)) {
-    gettimeofday(&m0, NULL);
+  if (false == Std_IsTimerStarted(&timer)) {
+    Std_TimerStart(&timer);
   }
   if (NULL != canLog) {
     uint32_t i;
-    struct timeval m1;
-    gettimeofday(&m1, NULL);
-
-    float rtim = m1.tv_sec - m0.tv_sec;
-
-    if (m1.tv_usec > m0.tv_usec) {
-      rtim += (float)(m1.tv_usec - m0.tv_usec) / 1000000.0;
-    } else {
-      rtim = rtim - 1 + (float)(1000000.0 + m1.tv_usec - m0.tv_usec) / 1000000.0;
-    }
+    std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
+    float rtim = elapsedTime / 1000000.0;
 
     fprintf(canLog, "busid=%d %s canid=%04X dlc=%d data=[", Controller, isRx ? "rx" : "tx", canid,
             dlc);
@@ -70,6 +60,7 @@ static void logCan(boolean isRx, uint8_t Controller, uint32_t canid, uint8_t dlc
     fprintf(canLog, "] @ %f s\n", rtim);
   }
 }
+
 static void __mcal_can_sim_deinit(void) {
   uint8_t i;
   for (i = 0; i < CAN_MAX_HOH; i++) {

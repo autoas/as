@@ -35,7 +35,7 @@ Can_ChannelConfigType Can_ChannelConfigs[32] = {
 };
 
 Can_ConfigType Can_Config = {
-  ".can.log",
+
   Can_ChannelConfigs,
   ARRAY_SIZE(Can_ChannelConfigs),
 };

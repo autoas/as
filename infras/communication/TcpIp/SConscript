@@ -3,14 +3,11 @@ from building import *
 CWD = GetCurrentDir()
 objs = Glob('*.c')
 
-use_lwip = os.getenv('USE_LWIP')
-
-
 @register_library
 class LibraryTcpIp(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS', CWD]
-        if 'YES' == use_lwip:
+        if GetOption('net').upper() == 'LWIP':
             self.LIBS = ['LWIP']
             self.CPPDEFINES = ['USE_LWIP']
         else:

@@ -8,9 +8,6 @@
 #include "Std_Timer.h"
 #include <string.h>
 #include <assert.h>
-#if defined(_WIN32)
-#include <unistd.h>
-#endif
 
 #ifdef USE_CAN
 #include "Can.h"
@@ -281,6 +278,8 @@ void Task_MainLoop(void) {
     App_MainFunction();
 #ifdef USE_FREERTOS
     vTaskDelay(1);
+#elif defined(_WIN32) || defined(linux)
+    Std_Sleep(1000);
 #endif
   }
 }
