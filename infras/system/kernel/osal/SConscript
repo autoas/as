@@ -1,0 +1,20 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+if TARGET_OS == 'FreeRTOS':
+    objs = Glob('osal_freertos.c')
+else:
+    objs = Glob('osal_pthread.c')
+
+@register_os
+class LibraryOSAL(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS']
+        self.include = CWD
+        self.source = objs
+        if TARGET_OS == 'FreeRTOS':
+            self.LIBS += ['FreeRTOS']
+
+
+    

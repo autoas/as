@@ -85,9 +85,8 @@
 #include "plugin.h"
 #endif
 
-#ifdef USE_FREERTOS
-#include "FreeRTOS.h"
-#include "task.h"
+#ifdef USE_OSAL
+#include "osal.h"
 #endif
 
 #include "app.h"
@@ -244,6 +243,7 @@ static void BSW_Init(void) {
 }
 
 void Task_MainLoop(void) {
+  BSW_Init();
   Net_Init();
   App_Init();
   Std_TimerStart(&timer10ms);
@@ -276,10 +276,8 @@ void Task_MainLoop(void) {
     SoAd_MainFunction();
 #endif
     App_MainFunction();
-#ifdef USE_FREERTOS
-    vTaskDelay(1);
-#elif defined(_WIN32) || defined(linux)
-    Std_Sleep(1000);
+#ifdef USE_OSAL
+    osal_usleep(1000);
 #endif
   }
 }
@@ -289,12 +287,9 @@ int main(int argc, char *argv[]) {
 
   Mcu_Init(NULL);
 
-  BSW_Init();
-
-#ifdef USE_FREERTOS
-  xTaskCreate((TaskFunction_t)Task_MainLoop, "MainLoop", configMINIMAL_STACK_SIZE, NULL,
-              tskIDLE_PRIORITY + 1, NULL);
-  vTaskStartScheduler();
+#ifdef USE_OSAL
+  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
+  osal_start();
 #else
   Task_MainLoop();
 #endif

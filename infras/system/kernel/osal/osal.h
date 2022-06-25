@@ -2,39 +2,27 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef _LOG_HPP_
-#define _LOG_HPP_
+#ifndef _OS_AL_H_
+#define _OS_AL_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <inttypes.h>
-#include <stdio.h>
-namespace as {
+#include <stdint.h>
 /* ================================ [ MACROS    ] ============================================== */
-#define LOG(level, ...) Log::print(Log::level, #level ": " __VA_ARGS__)
 /* ================================ [ TYPES     ] ============================================== */
-class Log {
-public:
-  enum
-  {
-    DEBUG = 0,
-    INFO,
-    WARN,
-    ERROR
-  };
+typedef void (*osal_thread_entry_t)(void *args);
 
-public:
-  static void setLogLevel(int level);
-  static void print(int level, const char *fmt, ...);
-  static void vprint(const char *fmt, va_list args);
-  static void setLogFile(const char *path);
-  static void setLogFile(FILE *fp);
-
-private:
-  static int s_Level;
-  static FILE *s_File;
-};
+typedef void* osal_thread_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-} /* namespace as */
-#endif /* _LOG_HPP_ */
+osal_thread_t osal_thread_create(osal_thread_entry_t entry, void *args);
+int osal_thread_join(osal_thread_t thread);
+void osal_usleep(uint32_t us);
+void osal_start(void);
+#ifdef __cplusplus
+}
+#endif
+#endif /* _OS_AL_H_ */

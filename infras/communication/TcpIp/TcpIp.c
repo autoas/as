@@ -62,6 +62,7 @@
 #ifdef USE_LWIP
 static struct netif netif;
 #endif
+static boolean lInitialized = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef USE_LWIP
 static void init_default_netif(const ip4_addr_t *ipaddr, const ip4_addr_t *netmask,
@@ -106,22 +107,25 @@ static void tcpIpInit(void *arg) { /* remove compiler warning */
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr) {
+  if (FALSE == lInitialized) {
 #ifdef USE_LWIP
-  sys_sem_t init_sem;
-  sys_sem_new(&init_sem, 0);
-  tcpip_init(tcpIpInit, &init_sem);
-  sys_sem_wait(&init_sem);
-  sys_sem_free(&init_sem);
+    sys_sem_t init_sem;
+    sys_sem_new(&init_sem, 0);
+    tcpip_init(tcpIpInit, &init_sem);
+    sys_sem_wait(&init_sem);
+    sys_sem_free(&init_sem);
 #ifdef linux
-  /* ref https://wiki.qemu.org/Documentation/Networking#Tap
-   * route add -nv 224.224.224.245 dev tap0
-   * route add -nv 224.224.224.245 dev enp0s3
-   */
+    /* ref https://wiki.qemu.org/Documentation/Networking#Tap
+     * route add -nv 224.224.224.245 dev tap0
+     * route add -nv 224.224.224.245 dev enp0s3
+     */
 #endif
 #elif defined(_WIN32)
-  WSADATA wsaData;
-  WSAStartup(MAKEWORD(2, 2), &wsaData);
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif
+    lInitialized = TRUE;
+  }
 }
 
 void TcpIp_MainFunction(void) {
@@ -154,14 +158,14 @@ TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
   return sockId;
 }
 
-Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean blocked) {
+Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean nonBlocked) {
   Std_ReturnType ret = E_OK;
   int r;
 #if defined(_WIN32) && !defined(USE_LWIP)
-  u_long iMode = (u_long)blocked;
+  u_long iMode = (u_long)nonBlocked;
   r = ioctlsocket(SocketId, FIONBIO, &iMode);
 #else
-  int on = (int)blocked;
+  int on = (int)nonBlocked;
   r = ioctl(SocketId, FIONBIO, &on);
 #endif
 
@@ -343,7 +347,7 @@ Std_ReturnType TcpIp_IsTcpStatusOK(TcpIp_SocketIdType SocketId) {
 }
 
 Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
-                          uint16_t *Length /* InOut */) {
+                          uint32_t *Length /* InOut */) {
   Std_ReturnType ret = E_OK;
   int nbytes;
 
@@ -364,7 +368,7 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
 }
 
 Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *RemoteAddrPtr,
-                              uint8_t *BufPtr, uint16_t *Length /* InOut */) {
+                              uint8_t *BufPtr, uint32_t *Length /* InOut */) {
   Std_ReturnType ret = E_OK;
   struct sockaddr_in fromAddr;
   socklen_t fromAddrLen = sizeof(fromAddr);
@@ -392,7 +396,7 @@ Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *R
 }
 
 Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrType *RemoteAddrPtr,
-                            const uint8_t *BufPtr, uint16_t Length) {
+                            const uint8_t *BufPtr, uint32_t Length) {
   Std_ReturnType ret = E_OK;
   struct sockaddr_in toAddr;
   socklen_t toAddrLen = sizeof(toAddr);
@@ -423,7 +427,7 @@ Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrTyp
   return ret;
 }
 
-Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, uint16_t Length) {
+Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, uint32_t Length) {
   Std_ReturnType ret = E_OK;
   int nbytes;
 

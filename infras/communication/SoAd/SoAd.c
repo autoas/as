@@ -10,9 +10,7 @@
 #include "Std_Debug.h"
 #include <string.h>
 #include <stdio.h>
-#ifndef DISABLE_NET_MEM
 #include "NetMem.h"
-#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOAD 0
 #define AS_LOG_SOADE 2
@@ -118,10 +116,10 @@ static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret = E_NOT_OK;
-  uint16_t rxLen;
+  uint32_t rxLen;
   uint8_t *data = NULL;
 
-#ifndef DISABLE_NET_MEM
+
   rxLen = TcpIp_Tell(context->sock);
   if (rxLen > 0) {
     data = Net_MemAlloc((uint32_t)rxLen);
@@ -131,15 +129,7 @@ static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
       ASLOG(SOADE, ("[%d] Failed to malloc for %d\n", SoConId, rxLen));
     }
   }
-#else
-  data = connection->rxBuf;
-  rxLen = connection->rxBufLen;
-  if (data != NULL) {
-    ret = E_OK;
-  } else {
-    ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
-  }
-#endif
+
 
   if (E_OK == ret) {
     ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, &rxLen);
@@ -155,9 +145,7 @@ static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId) {
     } else {
       ASLOG(SOADE, ("[%d] UDP read failed\n", SoConId));
     }
-#ifndef DISABLE_NET_MEM
     Net_MemFree(data);
-#endif
   }
 
   return ret;
@@ -168,12 +156,12 @@ static Std_ReturnType soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret;
-  uint16_t rxLen;
+  uint32_t rxLen;
   uint8_t *data = NULL;
 
   ret = TcpIp_IsTcpStatusOK(context->sock);
   if (E_OK == ret) {
-#ifndef DISABLE_NET_MEM
+
     rxLen = TcpIp_Tell(context->sock);
     if (rxLen > 0) {
       data = Net_MemAlloc((uint32_t)rxLen);
@@ -184,15 +172,7 @@ static Std_ReturnType soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
     } else {
       ret = E_NOT_OK;
     }
-#else
-    data = connection->rxBuf;
-    rxLen = connection->rxBufLen;
-    if (data != NULL) {
-      ret = E_OK;
-    } else {
-      ASLOG(SOADE, ("[%d] No RX buffer assigned\n", SoConId));
-    }
-#endif
+
     if (E_OK == ret) {
       ret = TcpIp_Recv(context->sock, data, &rxLen);
       if (E_OK == ret) {
@@ -207,9 +187,9 @@ static Std_ReturnType soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId) {
       } else {
         ASLOG(SOADE, ("[%d] TCP read failed\n", SoConId));
       }
-#ifndef DISABLE_NET_MEM
+
       Net_MemFree(data);
-#endif
+
     }
   } else {
     TcpIp_Close(context->sock, TRUE);

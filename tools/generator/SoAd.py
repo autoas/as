@@ -9,14 +9,8 @@ __all__ = ['Gen_SoAd']
 
 def Gen_Sock(C, RxPduId, SoConId, GID, isGroup):
     C.write('  {\n')
-    C.write('#ifdef DISABLE_NET_MEM\n')
-    C.write('    SoAd_RxBuf,           /* rxBuf */\n')
-    C.write('#endif\n')
-    C.write('    %s,      /* RxPduId */\n' % (RxPduId))
+    C.write('    %s, /* RxPduId */\n' % (RxPduId))
     C.write('    %s, /* SoConId */\n' % (SoConId))
-    C.write('#ifdef DISABLE_NET_MEM\n')
-    C.write('    sizeof(SoAd_RxBuf),   /* rxBufLen */\n')
-    C.write('#endif\n')
     C.write('    %s,                    /* GID */\n' % (GID))
     C.write('    %s,                 /* isGroup */\n' % (str(isGroup).upper()))
     C.write('  },\n')
@@ -135,10 +129,6 @@ def Gen_SoAd(cfg, dir):
         C.write('  NULL,\n')
         C.write('  NULL,\n')
         C.write('};\n\n')
-
-    C.write('#ifdef DISABLE_NET_MEM\n')
-    C.write('static uint8_t SoAd_RxBuf[1400];\n')
-    C.write('#endif\n\n')
 
     C.write(
         'static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n')

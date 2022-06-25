@@ -124,6 +124,10 @@ void BL_MainTask_500ms(void) {
   BL_AliveIndicate();
 }
 
+#if defined(_WIN32) || defined(linux)
+void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
+#endif
+
 int main(int argc, char *argv[]) {
   ASLOG(INFO, ("bootloader build @ %s %s\n", __DATE__, __TIME__));
 
@@ -131,10 +135,13 @@ int main(int argc, char *argv[]) {
   {
     int ch;
     opterr = 0;
-    while ((ch = getopt(argc, argv, "c:r:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "c:d:r:t:")) != -1) {
       switch (ch) {
       case 'c':
         lController = atoi(optarg);
+        break;
+      case 'd':
+        Can_ReConfig(lController, optarg, 0, 500000);
         break;
       case 'r':
         lRxId = strtoul(optarg, NULL, 16);

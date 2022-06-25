@@ -5,6 +5,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <string.h>
 #include <time.h>
@@ -15,6 +16,7 @@ namespace as {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 int Log::s_Level = Log::INFO;
+FILE *Log::s_File = stdout;
 /* ================================ [ LOCALS    ] ============================================== */
 static float get_rel_time(void) {
   static struct timeval m0 = {-1, -1};
@@ -39,6 +41,17 @@ void Log::setLogLevel(int level) {
   s_Level = level;
 }
 
+void Log::setLogFile(const char *path) {
+  FILE *fp = fopen(path, "wb");
+  if (nullptr != fp) {
+    s_File = fp;
+  }
+}
+
+void Log::setLogFile(FILE *fp) {
+  s_File = fp;
+}
+
 void Log::print(int level, const char *fmt, ...) {
   va_list args;
 
@@ -46,11 +59,16 @@ void Log::print(int level, const char *fmt, ...) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
       float rtime = get_rel_time();
-      printf("%.4f ", rtime);
+      fprintf(s_File, "%.4f ", rtime);
     }
     va_start(args, fmt);
-    (void)vprintf(fmt, args);
+    (void)vfprintf(s_File, fmt, args);
     va_end(args);
   }
 }
+
+void Log::vprint(const char *fmt, va_list args) {
+  (void)vfprintf(s_File, fmt, args);
+}
+
 } /* namespace as */

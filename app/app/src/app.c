@@ -8,8 +8,8 @@
 #include "Std_Debug.h"
 #include "Nm.h"
 #include "CanNm.h"
-#if defined(USE_COM) && defined(_WIN32)
 #include "Com.h"
+#if defined(USE_COM) && defined(_WIN32)
 #include "../config/Com/GEN/Com_Cfg.h"
 #include <time.h>
 #endif
