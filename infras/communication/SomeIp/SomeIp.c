@@ -1383,8 +1383,10 @@ static void SomeIp_ServerServiceModeChg(const SomeIp_ServerServiceType *service,
     SQP_CLEAR(TxTpMsg);
     SQP_CLEAR(TxTpEvtMsg);
     context->online = FALSE;
+    service->onConnect(conId, FALSE);
   } else {
     context->online = TRUE;
+    service->onConnect(conId, TRUE);
   }
 }
 
@@ -1727,4 +1729,47 @@ void SomeIp_MainFunction(void) {
       SomeIp_MainClient((const SomeIp_ClientServiceType *)SOMEIP_CONFIG->services[i].service);
     }
   }
+}
+
+Std_ReturnType SomeIp_ConnectionTakeControl(uint16_t serviceId, uint16_t conId) {
+  Std_ReturnType ret = E_NOT_OK;
+  const SomeIp_ServerServiceType *config;
+  const SomeIp_ServerConnectionType *connection;
+  SomeIp_ServerConnectionContextType *context;
+
+  if (serviceId < SOMEIP_CONFIG->numOfService) {
+    if (SOMEIP_CONFIG->services[serviceId].isServer) {
+      config = SOMEIP_CONFIG->services[serviceId].service;
+      connection = &config->connections[conId];
+      context = connection->context;
+      ret = SoAd_TakeControl(connection->SoConId);
+      if (E_OK == ret) {
+        ret = SoAd_SetTimeout(connection->SoConId, 10);
+        context->takenControled = TRUE;
+      }
+    }
+  }
+
+  return ret;
+}
+
+Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId, uint8_t *data,
+                                          uint32_t length) {
+  Std_ReturnType ret = E_NOT_OK;
+  const SomeIp_ServerServiceType *config;
+  const SomeIp_ServerConnectionType *connection;
+  SomeIp_ServerConnectionContextType *context;
+
+  if (serviceId < SOMEIP_CONFIG->numOfService) {
+    if (SOMEIP_CONFIG->services[serviceId].isServer) {
+      config = SOMEIP_CONFIG->services[serviceId].service;
+      connection = &config->connections[conId];
+      context = connection->context;
+      if (TRUE == context->takenControled) {
+        ret = SoAd_ControlRx(connection->SoConId, data, length);
+      }
+    }
+  }
+
+  return ret;
 }

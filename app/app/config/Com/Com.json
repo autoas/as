@@ -4,7 +4,7 @@
     {
       "name": "CAN0",
       "network": "CAN",
-      "device": "simulator",
+      "device": "simulator_v2",
       "port": 0,
       "baudrate": 500000,
       "me": "AS",

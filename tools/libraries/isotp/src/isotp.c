@@ -50,7 +50,7 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
 int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize) {
   int r = -1;
-  switch (isotp->params->protocol) {
+  switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
     r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
@@ -67,7 +67,7 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
 
 int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = -1;
-  switch (isotp->params->protocol) {
+  switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
     r = isotp_can_receive(isotp, rxBuffer, rxSize);
     break;
@@ -83,7 +83,7 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
 }
 
 void isotp_destory(isotp_t *isotp) {
-  switch (isotp->params->protocol) {
+  switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
     isotp_can_destory(isotp);
     break;

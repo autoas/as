@@ -10,6 +10,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct CanNm_Config_s CanNm_ConfigType;
@@ -85,4 +88,7 @@ Std_ReturnType CanNm_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr)
 
 /* @SWS_CanNm_00234 */
 void CanNm_MainFunction(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _CANNM_H */

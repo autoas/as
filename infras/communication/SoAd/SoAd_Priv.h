@@ -112,6 +112,7 @@ typedef enum
   SOAD_SOCKET_CREATE,
   SOAD_SOCKET_ACCEPT,
   SOAD_SOCKET_READY,
+  SOAD_SOCKET_TAKEN_CONTROL,
 } SoAd_SocketStateType;
 
 typedef struct {

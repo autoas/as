@@ -40,7 +40,7 @@ int std_printf(const char *fmt, ...) {
 
 int main(int argc, char *argv[]) {
   int ch;
-  char *device = "CAN.simulator";
+  char *device = "CAN.simulator_v2";
   int port = 0;
   int baudrate = 500000;
   int rxid = 0x732, txid = 0x731;
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
   params.port = port;
   params.ll_dl = ll_dl;
   if (0 == strncmp("CAN", device, 3)) {
-    params.device = &device[4];
+    strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_CAN;
     params.U.CAN.RxCanId = (uint32_t)rxid;
     params.U.CAN.TxCanId = (uint32_t)txid;
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
     if (0x732 == rxid) {
       rxid = 0x3d;
     }
-    params.device = &device[4];
+    strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_LIN;
     params.U.LIN.RxId = (uint8_t)rxid;
     params.U.LIN.TxId = (uint8_t)txid;

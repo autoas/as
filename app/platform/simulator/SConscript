@@ -1,6 +1,6 @@
 from building import *
 
-objs = Glob('src/*.c')
+objs = Glob('src/*.c') + Glob('src/*.cpp')
 
 
 @register_library

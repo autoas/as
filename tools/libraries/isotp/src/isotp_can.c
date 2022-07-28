@@ -38,12 +38,12 @@ static void *can_server_main(void *args) {
   CanTp_ParamType param;
   Std_ReturnType ret;
 
-  param.device = isotp->params->device;
-  param.baudrate = isotp->params->baudrate;
-  param.port = isotp->params->port;
-  param.RxCanId = isotp->params->U.CAN.RxCanId;
-  param.TxCanId = isotp->params->U.CAN.TxCanId;
-  param.ll_dl = (uint8_t)isotp->params->ll_dl;
+  param.device = isotp->params.device;
+  param.baudrate = isotp->params.baudrate;
+  param.port = isotp->params.port;
+  param.RxCanId = isotp->params.U.CAN.RxCanId;
+  param.TxCanId = isotp->params.U.CAN.TxCanId;
+  param.ll_dl = (uint8_t)isotp->params.ll_dl;
 
   CanTp_ReConfig(Channel, &param);
   CanTp_InitChannel(Channel);
@@ -108,25 +108,38 @@ isotp_t *isotp_can_create(isotp_parameter_t *params) {
   isotp_t *isotp = NULL;
   int r = 0;
   pthread_mutexattr_t attr;
-  int i;
+  size_t i;
 
   pthread_mutex_lock(&lMutex);
   for (i = 0; i < ARRAY_SIZE(lIsoTp); i++) {
-    if (FALSE == lIsoTp[i].running) {
-      isotp = &lIsoTp[i];
-      isotp->running = TRUE;
-      isotp->Channel = (uint8_t)i;
-      break;
+    if (TRUE == lIsoTp[i].running) {
+      if ((0 == strcmp(lIsoTp[i].params.device, params->device)) &&
+          (lIsoTp[i].params.port == params->port) &&
+          ((lIsoTp[i].params.U.CAN.RxCanId == params->U.CAN.RxCanId) ||
+           (lIsoTp[i].params.U.CAN.TxCanId == params->U.CAN.TxCanId))) {
+        ASLOG(ISOTPE, ("isotp CAN %s:%d %X:%X already opened\n", params->device, params->port,
+                       params->U.CAN.RxCanId, params->U.CAN.TxCanId));
+        r = -__LINE__;
+        break;
+      }
+    }
+  }
+
+  if (0 == r) {
+    for (i = 0; i < ARRAY_SIZE(lIsoTp); i++) {
+      if (FALSE == lIsoTp[i].running) {
+        isotp = &lIsoTp[i];
+        memset(isotp, 0, sizeof(isotp_t));
+        isotp->running = TRUE;
+        isotp->Channel = (uint8_t)i;
+        break;
+      }
     }
   }
   pthread_mutex_unlock(&lMutex);
 
   if (NULL != isotp) {
-    isotp->params = params;
-    isotp->result = 0;
-    isotp->data = NULL;
-    isotp->length = 0;
-    isotp->errorTimeout = 0;
+    isotp->params = *params;
     Std_TimerStop(&isotp->timerErrorNotify);
 
     pthread_mutexattr_init(&attr);
@@ -164,9 +177,11 @@ int isotp_can_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
   isotp->result = -__LINE__;
   isotp->errorTimeout = 5000000;
   Std_TimerStart(&isotp->timerErrorNotify);
-  isotp->data = (uint8_t *)txBuffer;
-  isotp->length = txSize;
-  isotp->index = 0;
+  isotp->TX.data = (uint8_t *)txBuffer;
+  isotp->TX.length = txSize;
+  isotp->TX.index = 0;
+  isotp->RX.length = sizeof(isotp->RX.data);
+  isotp->RX.index = 0;
   r = (int)PduR_DcmTransmit(isotp->Channel, &PduInfo);
   pthread_mutex_unlock(&isotp->mutex);
 
@@ -184,7 +199,7 @@ int isotp_can_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
   }
 
   pthread_mutex_lock(&isotp->mutex);
-  isotp->data = NULL;
+  isotp->TX.data = NULL;
   Std_TimerStop(&isotp->timerErrorNotify);
   pthread_mutex_unlock(&isotp->mutex);
 
@@ -195,9 +210,6 @@ int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
 
   int r = 0;
   pthread_mutex_lock(&isotp->mutex);
-  isotp->data = (uint8_t *)rxBuffer;
-  isotp->length = rxSize;
-  isotp->index = 0;
   isotp->errorTimeout = 5000000;
   Std_TimerStart(&isotp->timerErrorNotify);
   pthread_mutex_unlock(&isotp->mutex);
@@ -206,12 +218,18 @@ int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   r = isotp->result;
   if (0 == r) {
     pthread_mutex_lock(&isotp->mutex);
-    r = isotp->index;
+    r = isotp->RX.index;
+    if ((int)rxSize >= r) {
+      memcpy(rxBuffer, isotp->RX.data, r);
+    } else {
+      r = -__LINE__;
+    }
     pthread_mutex_unlock(&isotp->mutex);
   }
 
   pthread_mutex_lock(&isotp->mutex);
-  isotp->data = NULL;
+  isotp->RX.length = sizeof(isotp->RX.data);
+  isotp->RX.index = 0;
   Std_TimerStop(&isotp->timerErrorNotify);
   pthread_mutex_unlock(&isotp->mutex);
 
@@ -230,21 +248,17 @@ BufReq_ReturnType IsoTp_CanTpStartOfReception(PduIdType id, const PduInfoType *i
   isotp_t *isotp = isotp_get(id);
   if (NULL != isotp) {
     pthread_mutex_lock(&isotp->mutex);
-    if (isotp->data != NULL) {
-      if (isotp->length >= TpSduLength) {
-        ASLOG(ISOTP, ("[%d] start reception\n", id));
-        *bufferSizePtr = (PduLengthType)isotp->length;
-        isotp->length = TpSduLength;
-        isotp->index = 0;
-        ret = BUFREQ_OK;
-      } else {
-        ASLOG(ISOTPE,
-              ("[%d] listen buffer too small %d < %d\n", id, (int)isotp->length, (int)TpSduLength));
-        isotp->result = -__LINE__;
-        sem_post(&isotp->sem);
-      }
+    if (sizeof(isotp->RX.data) >= TpSduLength) {
+      ASLOG(ISOTP, ("[%d] start reception\n", id));
+      *bufferSizePtr = (PduLengthType)isotp->RX.length;
+      isotp->RX.length = TpSduLength;
+      isotp->RX.index = 0;
+      ret = BUFREQ_OK;
     } else {
-      ASLOG(ISOTPE, ("[%d] no listen buffer\n", id));
+      ASLOG(ISOTPE, ("[%d] listen buffer too small %d < %d\n", id, (int)isotp->RX.length,
+                     (int)TpSduLength));
+      isotp->result = -__LINE__;
+      sem_post(&isotp->sem);
     }
     pthread_mutex_unlock(&isotp->mutex);
   }
@@ -258,20 +272,17 @@ BufReq_ReturnType IsoTp_CanCopyRxData(PduIdType id, const PduInfoType *info,
   isotp_t *isotp = isotp_get(id);
   if (NULL != isotp) {
     pthread_mutex_lock(&isotp->mutex);
-    if (isotp->data != NULL) {
-      if ((isotp->index + info->SduLength) <= isotp->length) {
-        ASLOG(ISOTP, ("[%d] copy rx data(%d)\n", id, info->SduLength));
-        memcpy(&isotp->data[isotp->index], info->SduDataPtr, info->SduLength);
-        isotp->index += info->SduLength;
-        ret = BUFREQ_OK;
-      } else {
-        ASLOG(ISOTPE, ("[%d] listen buffer overflow\n"));
-        isotp->result = -__LINE__;
-        sem_post(&isotp->sem);
-      }
+    if ((isotp->RX.index + info->SduLength) <= isotp->RX.length) {
+      ASLOG(ISOTP, ("[%d] copy rx data(%d)\n", id, info->SduLength));
+      memcpy(&isotp->RX.data[isotp->RX.index], info->SduDataPtr, info->SduLength);
+      isotp->RX.index += info->SduLength;
+      ret = BUFREQ_OK;
     } else {
-      ASLOG(ISOTPE, ("[%d] no listen buffer\n", id));
+      ASLOG(ISOTPE, ("[%d] listen buffer overflow\n"));
+      isotp->result = -__LINE__;
+      sem_post(&isotp->sem);
     }
+
     pthread_mutex_unlock(&isotp->mutex);
   }
   return ret;
@@ -284,19 +295,19 @@ BufReq_ReturnType IsoTp_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
   isotp_t *isotp = isotp_get(id);
   if (NULL != isotp) {
     pthread_mutex_lock(&isotp->mutex);
-    if (isotp->data != NULL) {
-      if ((isotp->index + info->SduLength) <= isotp->length) {
+    if (isotp->TX.data != NULL) {
+      if ((isotp->TX.index + info->SduLength) <= isotp->TX.length) {
         ASLOG(ISOTP, ("[%d] copy tx data(%d)\n", id, info->SduLength));
-        memcpy(info->SduDataPtr, &isotp->data[isotp->index], info->SduLength);
-        isotp->index += info->SduLength;
+        memcpy(info->SduDataPtr, &isotp->TX.data[isotp->TX.index], info->SduLength);
+        isotp->TX.index += info->SduLength;
         ret = BUFREQ_OK;
       } else {
-        ASLOG(ISOTPE, ("[%d] listen buffer overflow\n"));
+        ASLOG(ISOTPE, ("[%d] transmit buffer overflow\n"));
         isotp->result = -__LINE__;
         sem_post(&isotp->sem);
       }
     } else {
-      ASLOG(ISOTPE, ("[%d] no listen buffer\n", id));
+      ASLOG(ISOTPE, ("[%d] no transmit buffer\n", id));
     }
     pthread_mutex_unlock(&isotp->mutex);
   }

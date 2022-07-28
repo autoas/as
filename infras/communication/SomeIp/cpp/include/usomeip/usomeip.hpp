@@ -22,6 +22,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include "osal.h"
 
 namespace as {
 namespace usomeip {

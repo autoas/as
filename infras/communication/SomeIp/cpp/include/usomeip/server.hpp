@@ -21,11 +21,28 @@ public:
   virtual void onFireForgot(std::shared_ptr<Message> msg) = 0;
   virtual void onSubscribe(uint16_t eventGroupId, bool isSubscribe) = 0;
 
+  void identity(uint16_t serviceId);
   void listen(uint16_t methodId, BufferPool *bp = nullptr);
   void provide(uint16_t eventGroupId);
 
   // requestId is eventId + sessionId
   void notify(uint32_t requestId, std::shared_ptr<Buffer> buffer);
+
+  void on_connect(uint16_t conId, bool isConnected);
+
+public:
+  struct Connection {
+    Server *self;
+    uint16_t conId;
+    osal_thread_t thread;
+    bool online;
+  };
+  void run_rx(Connection *con);
+
+private:
+  uint16_t m_Identity = -1;
+  std::map<uint16_t, Connection *> m_ConnectionMap;
+  std::mutex m_Lock;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -46,6 +63,8 @@ Std_ReturnType on_method_tp_tx_data(uint16_t methodId, uint32_t requestId,
                                     SomeIp_TpMessageType *msg);
 
 Std_ReturnType on_event_tp_tx_data(uint32_t requestId, SomeIp_TpMessageType *msg);
+
+void on_connect(uint16_t serviceId, uint16_t conId, boolean isConnected);
 
 void on_subscribe(uint16_t eventGroupId, boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr);
 } // namespace server

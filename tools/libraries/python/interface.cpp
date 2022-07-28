@@ -13,11 +13,32 @@
 
 #include "canlib.h"
 #include "isotp.h"
+#include "loader.h"
+#include "srec.h"
 #define WEAK_ALIAS_PRINTF
 #include "Std_Debug.h"
 
 namespace py = pybind11;
 /* ================================ [ MACROS    ] ============================================== */
+#define ISOTP_KWARGS                                                                               \
+  "\tprotocol: str, 'CAN' or 'LIN', default 'CAN'\n"                                               \
+  "\tLL_DL: int, Link Layer Data Length, default 8\n"                                              \
+  "\tdevice: str, 'simulator', ..., default 'simulator'\n"                                         \
+  "\tport: int, default 0\n"                                                                       \
+  "\tbaudrate: int, default 500000\n"                                                              \
+  "\ttxid: int, default 0x731 for 'CAN', 0x3C for 'LIN'\n"                                         \
+  "\trxid: int, default 0x732 for 'CAN', 0x3D for 'LIN'\n"                                         \
+  "\tblock_size: int, default 8\n"                                                                 \
+  "\tSTmin: int, default 0 for CAN, 100 for LIN, unit ms\n"
+
+template <typename To, typename Ti> To get(py::kwargs &kwargs, std::string key, To dft) {
+  To r = dft;
+  try {
+    r = Ti(kwargs[key.c_str()]);
+  } catch (const std::exception &e) {
+  }
+  return r;
+}
 /* ================================ [ TYPES     ] ============================================== */
 class can {
 public:
@@ -83,14 +104,14 @@ public:
     params.port = port;
     params.ll_dl = ll_dl;
     if (protocol == "CAN") {
-      params.device = device.c_str();
+      strcpy(params.device, device.c_str());
       params.protocol = ISOTP_OVER_CAN;
       params.U.CAN.RxCanId = (uint32_t)rxid;
       params.U.CAN.TxCanId = (uint32_t)txid;
       params.U.CAN.BlockSize = get<uint32_t, py::int_>(kwargs, "block_size", 8);
       params.U.CAN.STmin = get<uint32_t, py::int_>(kwargs, "STmin", 0);
     } else if (protocol == "LIN") {
-      params.device = device.c_str();
+      strcpy(params.device, device.c_str());
       params.protocol = ISOTP_OVER_LIN;
       params.U.LIN.RxId = (uint8_t)rxid;
       params.U.LIN.TxId = (uint8_t)txid;
@@ -126,15 +147,8 @@ public:
       isotp_destory(tp);
     }
   }
-
-private:
-  template <typename To, typename Ti> To get(py::kwargs &kwargs, std::string key, To dft) {
-    To r = dft;
-    try {
-      r = Ti(kwargs[key.c_str()]);
-    } catch (const std::exception &e) {
-    }
-    return r;
+  isotp_t *get_isotp() {
+    return tp;
   }
 
 private:
@@ -143,6 +157,96 @@ private:
   isotp_parameter_t params;
   std::string device;
 };
+
+
+
+
+
+class loader {
+public:
+  loader(py::kwargs kwargs) {
+    m_IsoTp = new isotp(kwargs);
+    m_App = py::str(kwargs["app"]);
+    m_Fls = py::str(kwargs["fls"]);
+    m_LogLevel = get<int, py::int_>(kwargs, "logLevel", L_LOG_INFO);
+
+    m_AppSrec = srec_open(m_App.c_str());
+    if (nullptr == m_AppSrec) {
+      throw std::runtime_error("failed to open app image " + m_App);
+    }
+
+    m_FlsSrec = srec_open(m_Fls.c_str());
+    if (nullptr == m_FlsSrec) {
+      throw std::runtime_error("failed to open flash driver image " + m_Fls);
+    }
+  }
+
+  ~loader() {
+    if (nullptr != m_Loader) {
+      loader_destory(m_Loader);
+    }
+
+    if (nullptr != m_IsoTp) {
+      delete m_IsoTp;
+    }
+
+    if (nullptr != m_AppSrec) {
+      srec_close(m_AppSrec);
+    }
+
+    if (nullptr != m_FlsSrec) {
+      srec_close(m_FlsSrec);
+    }
+  }
+
+  bool start() {
+    m_Loader = loader_create(m_IsoTp->get_isotp(), m_AppSrec, m_FlsSrec);
+    if (nullptr == m_Loader) {
+      throw std::runtime_error("failed to start loader");
+    }
+    loader_set_log_level(m_Loader, m_LogLevel);
+    return true;
+  }
+
+  void stop() {
+    if (nullptr != m_Loader) {
+      loader_destory(m_Loader);
+      m_Loader = nullptr;
+    }
+  }
+
+  py::object poll() {
+    int progress = 0;
+    char *log = NULL;
+    int r = -1;
+    py::list L;
+    if (nullptr != m_Loader) {
+      r = loader_poll(m_Loader, &progress, &log);
+    }
+    L.append(py::bool_(0 == r));
+    L.append(py::float_(progress / 100.0f));
+    if (NULL != log) {
+      L.append(py::str(log));
+      free(log);
+    } else {
+      L.append(py::none());
+    }
+    return L;
+  }
+
+private:
+  isotp *m_IsoTp = nullptr;
+  std::string m_App;
+  std::string m_Fls;
+  srec_t *m_AppSrec = nullptr;
+  srec_t *m_FlsSrec = nullptr;
+  loader_t *m_Loader = nullptr;
+  int m_LogLevel = L_LOG_INFO;
+};
+
+
+
+
 
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -183,15 +287,15 @@ PYBIND11_MODULE(AsPy, m) {
     .def("read", &can::read, py::arg("canid"))
     .def("write", &can::write, py::arg("canid"), py::arg("data"));
   py::class_<isotp>(m, "isotp")
-    .def(py::init<py::kwargs>(), "\tprotocol: str, 'CAN' or 'LIN', default 'CAN'\n"
-                                 "\tLL_DL: int, Link Layer Data Length, default 8\n"
-                                 "\tdevice: str, 'simulator', ..., default 'simulator'\n"
-                                 "\tport: int, default 0\n"
-                                 "\tbaudrate: int, default 500000\n"
-                                 "\ttxid: int, default 0x731 for 'CAN', 0x3C for 'LIN'\n"
-                                 "\trxid: int, default 0x732 for 'CAN', 0x3D for 'LIN'\n"
-                                 "\tblock_size: int, default 8\n"
-                                 "\tSTmin: int, default 0 for CAN, 100 for LIN, unit ms\n")
+    .def(py::init<py::kwargs>(), ISOTP_KWARGS)
     .def("transmit", &isotp::transmit, py::arg("data"))
     .def("receive", &isotp::receive);
+  py::class_<loader>(m, "loader")
+    .def(py::init<py::kwargs>(), "\tapp: str, 'the app image'\n"
+                                 "\tfls: str, 'the flash driver image'\n"
+                                 "\tlogLevel: int, 'the loader log level'\n" ISOTP_KWARGS)
+    .def("start", &loader::start)
+    .def("stop", &loader::stop)
+    .def("poll", &loader::poll);
+
 }

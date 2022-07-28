@@ -14,12 +14,16 @@ class LibraryCanLib(Library):
         peakcan = Package(
             'https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip')
         self.CPPPATH += ['%s/PCAN-Basic API/Include' % (peakcan)]
-        shutil.copy('%s/PCAN-Basic API/x64/VC_LIB/PCANBasic.lib' %
-                    (peakcan), '%s/libPCANBasic.a' % (BUILD_DIR))
-        dll = '%s/mingw64/bin/PCANBasic.dll' % (os.getenv('MSYS2'))
+        if IsBuildForWin32():
+            v0, v1 = 'Win32', 'mingw32'
+        else:
+            v0, v1 = 'x64', 'mingw64'
+        shutil.copy('%s/PCAN-Basic API/%s/VC_LIB/PCANBasic.lib' %
+                    (peakcan, v0), '%s/libPCANBasic.a' % (BUILD_DIR))
+        dll = '%s/%s/bin/PCANBasic.dll' % (os.getenv('MSYS2'), v1)
         if not os.path.isfile(dll):
-            shutil.copy('%s/PCAN-Basic API/x64/PCANBasic.dll' %
-                        (peakcan), dll)
+            shutil.copy('%s/PCAN-Basic API/%s/PCANBasic.dll' %
+                        (peakcan, v0), dll)
         self.LIBS += ['PCANBasic']
         self.LIBPATH += [BUILD_DIR]
 
@@ -31,9 +35,19 @@ class LibraryCanLib(Library):
     def config_zlg(self):
         pkg = Package(
             'https://www.zlg.cn/data/upload/software/Can/CAN_lib.rar')
-        ControlCAN = Glob('%s/ControlCAN*/ControlCANx64' % (pkg))[0].rstr()
-        self.LIBS += ['dl']
+        if IsBuildForWin32():
+            ControlCAN = Glob('%s/ControlCAN*/ControlCANx86' % (pkg))[0].rstr()
+        else:
+            ControlCAN = Glob('%s/ControlCAN*/ControlCANx64' % (pkg))[0].rstr()
         self.CPPPATH += [ControlCAN]
+        if not IsBuildForWin32():  # mingw32 has no dlfcn
+            self.LIBS += ['dl']
+            self.CPPDEFINES += ['USE_ZLG_DLL']
+        else:
+            self.LIBS += ['ControlCAN']
+            self.LIBPATH += [BUILD_DIR]
+            shutil.copy('%s/ControlCAN.lib' %
+                        (ControlCAN), '%s/libControlCAN.a' % (BUILD_DIR))
 
     def config(self):
         self.include = '%s/include' % (CWD)
@@ -82,3 +96,14 @@ class ApplicationCanSend(Application):
         self.LIBS = ['CanLib']
         self.CPPPATH = ['$INFRAS']
         self.source = objsCanSend
+
+
+objsCanBr = Glob('utils/can_bridge.c')
+
+
+@register_application
+class ApplicationCanBridge(Application):
+    def config(self):
+        self.LIBS = ['CanLib']
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsCanBr

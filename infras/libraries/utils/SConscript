@@ -4,8 +4,6 @@ CWD = GetCurrentDir()
 
 objs = Glob('src/*.cpp')
 
-RegisterCPPPATH('$Utils', '%s/include'%(CWD))
-
 @register_library
 class LibraryUtils(Library):
     def config(self):

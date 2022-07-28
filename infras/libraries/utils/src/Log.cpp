@@ -36,6 +36,7 @@ static float get_rel_time(void) {
 
   return rtim;
 }
+
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Log::setLogLevel(int level) {
   s_Level = level;
@@ -44,6 +45,11 @@ void Log::setLogLevel(int level) {
 void Log::setLogFile(const char *path) {
   FILE *fp = fopen(path, "wb");
   if (nullptr != fp) {
+    if (s_File != stdout) {
+      fclose(s_File);
+    } else {
+      atexit(Log::close);
+    }
     s_File = fp;
   }
 }
@@ -69,6 +75,12 @@ void Log::print(int level, const char *fmt, ...) {
 
 void Log::vprint(const char *fmt, va_list args) {
   (void)vfprintf(s_File, fmt, args);
+}
+
+void Log::close(void) {
+  if (nullptr != s_File) {
+    fclose(s_File);
+  }
 }
 
 } /* namespace as */

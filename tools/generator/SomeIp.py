@@ -84,6 +84,7 @@ def Gen_ServerServiceExCpp(service, dir):
     C.write('  }\n')
 
     C.write('  void start() {\n')
+    C.write('    identity(SOMEIP_SSID_%s);\n' % (service['name'].upper()))
     C.write('    m_BufferPool.create("SS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
     for method in service['methods']:
@@ -184,6 +185,8 @@ def Gen_ServerService(service, dir):
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     H.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    H.write('void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected);\n' %
+            (service['name']))
     for method in service['methods']:
         bName = '%s_%s' % (service['name'], method['name'])
         H.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);\n' %
@@ -245,6 +248,8 @@ def Gen_ServerService(service, dir):
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     C.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected) {\n}\n\n' %
+            (service['name']))
     for method in service['methods']:
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {\n' %
@@ -328,6 +333,11 @@ def Gen_ServerService(service, dir):
     C.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     C.write('extern "C" {\n')
+    C.write('void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected) {\n' %
+            (service['name']))
+    C.write('  as::usomeip::server::on_connect(SOMEIP_SSID_%s, conId, isConnected);\n' % (
+            service['name'].upper()))
+    C.write('}\n\n')
     for method in service['methods']:
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {\n' %
@@ -416,7 +426,7 @@ def Gen_ClientServiceExCpp(service, dir):
     C.write('  }\n\n')
 
     C.write('  void start() {\n')
-    C.write('    identity(SOMEIP_CSID_%s);\n'%(service['name'].upper()))
+    C.write('    identity(SOMEIP_CSID_%s);\n' % (service['name'].upper()))
     C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
     for method in service['methods']:
@@ -454,7 +464,8 @@ def Gen_ClientServiceExCpp(service, dir):
     C.write('  }\n\n')
 
     C.write('  void onAvailability(bool isAvailable) {\n')
-    C.write('    usLOG(INFO, "%s: %%s\\n", isAvailable?"online":"offline");\n'%(service['name']))
+    C.write('    usLOG(INFO, "%s: %%s\\n", isAvailable?"online":"offline");\n' % (
+        service['name']))
     C.write('  }\n\n')
 
     C.write('  void run() {\n')
@@ -1277,6 +1288,7 @@ def Gen_SOMEIP(cfg, dir):
         C.write('  &someIpServerContext_%s,\n' % (service['name']))
         C.write('  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n' %
                 (service.get('SeparationTime', 10)))
+        C.write('  SomeIp_%s_OnConnect,\n' % (service['name']))
         C.write('};\n\n')
     for service in cfg['clients']:
         if 'reliable' in service:

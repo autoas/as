@@ -80,6 +80,8 @@ TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol);
 
 Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean nonBlocked);
 
+Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType SocketId, uint32_t timeoutMs);
+
 /* @SWS_TCPIP_00017 */
 Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort);
 

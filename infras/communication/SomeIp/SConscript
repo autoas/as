@@ -9,7 +9,7 @@ class LibrarySomeIp(Library):
     def config(self):
         self.CPPDEFINES = []
         self.CPPPATH = ['$INFRAS', CWD]
-        self.LIBS = ['SoAd', 'MemPool']
+        self.LIBS = ['SoAd', 'MemPool', 'OSAL']
         self.source = objs
         if IsBuildForHost():
             self.LIBS += ['PCap']

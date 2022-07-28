@@ -1287,8 +1287,12 @@ class Library(BuildBase):
                     LIBPATH.append(os.path.dirname(obj))
                     LIBS.append(name)
             LIBS += env.get('LIBS', []) + self.__extra_libs__
-            return env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
-        return env.Library(libName, objs)
+            target = env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
+        else:
+            target = env.Library(libName, objs)
+        for action in getattr(self, '__post_actions__', []):
+            env.AddPostAction(target, action)
+        return target
 
 
 class Driver(Library):
@@ -1385,20 +1389,19 @@ class Qemu():
     def __init__(self, arch='arm64'):
         arch_map = {'x86': 'i386', 'cortex-m': 'arm', 'arm64': 'aarch64'}
         self.arch = arch
-        self.port = self.FindPort()
-        self.portCAN0 = self.FindPort(self.port+1)
-        self.params = '-serial tcp:127.0.0.1:%s,server -serial tcp:127.0.0.1:%s,server' % (
-            self.port, self.portCAN0)
+        self.portCAN0 = self.FindPort()
+        self.params = '-serial stdio -serial tcp:127.0.0.1:%s,server' % (self.portCAN0)
         if('gdb' in COMMAND_LINE_TARGETS):
             self.params += ' -gdb tcp::1234 -S'
         if(self.arch in arch_map.keys()):
             self.arch = arch_map[self.arch]
         self.qemu = self.FindQemu()
 
-    def FindPort(self, port=1103):
+    def FindPort(self, port=9000):
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        while(port < 2000):
+        portMAX = port + 1000
+        while(port < portMAX):
             try:
                 sock.bind(("127.0.0.1", port))
                 break
@@ -1414,73 +1417,8 @@ class Qemu():
         return qemu
 
     def Run(self, params):
-        import threading
-        self.is_running = True
-        t1 = threading.Thread(target=self.thread_stdio, args=())
-        t2 = threading.Thread(target=self.thread_can0, args=())
-        t1.start()
-        t2.start()
         cmd = '%s %s %s' % (self.qemu, params, self.params)
         RunCommand(cmd)
-        self.is_running = False
-        t1.join()
-        t2.join()
-        exit(0)
-
-    def thread_stdio(self):
-        import socket
-        import time
-        import keyboard
-        import threading
-        time.sleep(3)
-        self.com = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.com.connect(('127.0.0.1', self.port))
-        self.com.settimeout(0.001)
-        print('QEMU: UART terminal online')
-
-        def thread_key():
-            while(self.is_running):
-                p = keyboard.read_key()
-                self.com.send(p.encode('utf-8'))
-                time.sleep(1)
-        t1 = threading.Thread(target=thread_key, args=())
-        t1.start()
-        while(self.is_running):
-            try:
-                d = self.com.recv(4096)
-                if (len(d)):
-                    print(d.decode('utf-8'), end='')
-            except socket.timeout:
-                pass
-        t1.join()
-
-    def thread_can0(self):
-        import socket
-        import time
-        time.sleep(3)
-        self.canbus = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.canbus.connect(('127.0.0.1', 8000))
-        self.canbus.settimeout(0.001)
-        self.can0 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.can0.connect(('127.0.0.1', self.portCAN0))
-        self.can0.settimeout(0.001)
-        while(self.is_running):
-            try:
-                frame = self.canbus.recv(69)
-                while((len(frame) < 69) and (len(frame) > 0)):
-                    frame += self.canbus.recv(69-len(frame))
-                if (len(frame) == 69):
-                    self.can0.send(frame)
-            except socket.timeout:
-                pass
-            try:
-                frame = self.can0.recv(69)
-                while((len(frame) < 69) and (len(frame) > 0)):
-                    frame += self.can0.recv(69-len(frame))
-                if (len(frame) == 69):
-                    self.canbus.send(frame)
-            except socket.timeout:
-                pass
 
 
 def Building():

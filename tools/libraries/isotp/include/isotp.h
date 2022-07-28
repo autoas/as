@@ -32,7 +32,7 @@ typedef struct {
 } isotp_lin_param_t;
 
 typedef struct {
-  const char *device;
+  char device[64];
   int port;
   uint32_t baudrate;
   isotp_protocol_t protocol;

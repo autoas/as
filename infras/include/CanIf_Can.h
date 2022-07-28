@@ -8,6 +8,9 @@
 #define CANIF_CAN_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Can_GeneralTypes.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 
@@ -19,4 +22,7 @@
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr);
 /* @SWS_CANIF_00007 */
 void CanIf_TxConfirmation(PduIdType CanTxPduId);
+#ifdef __cplusplus
+}
+#endif
 #endif /* CANIF_CAN_H */

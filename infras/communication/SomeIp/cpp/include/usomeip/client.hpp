@@ -48,7 +48,7 @@ Std_ReturnType on_event_tp_rx_data(uint16_t eventId, uint32_t requestId, SomeIp_
 
 Std_ReturnType on_notification(uint16_t eventId, uint32_t requestId, SomeIp_MessageType *res);
 
-void on_availability(uint16_t methodId, boolean isAvailable);
+void on_availability(uint16_t clientId, boolean isAvailable);
 } // namespace client
 } // namespace usomeip
 } /* namespace as */

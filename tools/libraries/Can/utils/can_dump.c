@@ -141,7 +141,7 @@ static void usage(char *prog) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int ch;
-  char *device = "simulator";
+  char *device = "simulator_v2";
   int busid;
   int port = 0;
   int baudrate = 500000;

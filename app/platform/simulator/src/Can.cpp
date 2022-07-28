@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2022 Parai Wang <parai@foxmail.com>
  *
  * ref: Specification of CAN Driver AUTOSAR CP Release 4.4.0
  */
@@ -13,7 +13,9 @@
 #include "Std_Critical.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "Std_Timer.h"
+#include <queue>
 /* ================================ [ MACROS    ] ============================================== */
 /* this simulation just alow only one HTH/HRH for each CAN controller */
 #define CAN_MAX_HOH 32
@@ -21,14 +23,21 @@
 #define CAN_CONFIG (&Can_Config)
 
 /* ================================ [ TYPES     ] ============================================== */
+struct CanFrame {
+  PduIdType handle;
+  uint32_t canid;
+  uint8_t dlc;
+  uint8_t data[64];
+};
 /* ================================ [ DECLARES  ] ============================================== */
 extern Can_ConfigType Can_Config;
 /* ================================ [ DATAS     ] ============================================== */
 static uint32_t lOpenFlag = 0;
 static uint32_t lWriteFlag = 0;
-static uint32_t lswPduHandle[32];
+static PduIdType lswPduHandle[32];
 static int lBusIdMap[32];
 static FILE *lBusLog[32];
+static std::queue<CanFrame> lPendingFrames[32];
 /* ================================ [ LOCALS    ] ============================================== */
 __attribute__((weak)) void CanIf_RxIndication(const Can_HwType *Mailbox,
                                               const PduInfoType *PduInfoPtr) {
@@ -74,6 +83,36 @@ static void __mcal_can_sim_deinit(void) {
 static void __attribute__((constructor)) __mcal_can_sim_init(void) {
   atexit(__mcal_can_sim_deinit);
 }
+
+static void clear_queue(uint8_t Controller) {
+  auto &queue = lPendingFrames[Controller];
+  while (false == queue.empty()) {
+    queue.pop();
+  }
+}
+
+static void push_to_queue(uint8_t Controller, const Can_PduType *PduInfo) {
+  auto &queue = lPendingFrames[Controller];
+  CanFrame frame;
+  frame.handle = PduInfo->swPduHandle;
+  frame.canid = PduInfo->id;
+  frame.dlc = PduInfo->length;
+  memcpy(frame.data, PduInfo->sdu, PduInfo->length);
+  queue.push(frame);
+}
+
+static bool pop_from_queue(uint8_t Controller, CanFrame &frame) {
+  auto &queue = lPendingFrames[Controller];
+  bool ret = false;
+
+  if (false == queue.empty()) {
+    frame = queue.front();
+    queue.pop();
+    ret = true;
+  }
+
+  return ret;
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Can_Init(const Can_ConfigType *Config) {
   (void)Config;
@@ -96,6 +135,7 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
         ret = E_OK;
         lOpenFlag |= (1 << Controller);
         lWriteFlag = 0;
+        clear_queue(Controller);
         snprintf(path, sizeof(path), ".CAN%d-%s-%d.log", Controller, config->device, config->port);
         lBusLog[Controller] = fopen(path, "wb");
       }
@@ -110,6 +150,7 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
           fclose(lBusLog[Controller]);
           lBusLog[Controller] = NULL;
         }
+        clear_queue(Controller);
       }
       break;
     default:
@@ -137,7 +178,7 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
         ret = E_NOT_OK;
       }
     } else {
-      ret = CAN_BUSY;
+      push_to_queue(Hth, PduInfo);
     }
   }
   ExitCritical();
@@ -157,6 +198,15 @@ void Can_MainFunction_WriteChannel(uint8_t Channel) {
       lWriteFlag &= ~(1 << Channel);
       CanIf_TxConfirmation(swPduHandle);
     }
+    CanFrame frame;
+    auto ret = pop_from_queue(Channel, frame);
+    if (ret) {
+      auto r = can_write(lBusIdMap[Channel], frame.canid, frame.dlc, frame.data);
+      if (TRUE == r) {
+        logCan(FALSE, Channel, frame.canid, frame.dlc, frame.data);
+        CanIf_TxConfirmation(frame.handle);
+      }
+    }
   }
   ExitCritical();
 }
@@ -168,7 +218,7 @@ void Can_MainFunction_Write(void) {
   }
 }
 
-void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId) {
+extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId) {
   int r;
   uint32_t canid;
   uint8_t dlc;

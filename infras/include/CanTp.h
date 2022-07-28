@@ -8,6 +8,9 @@
 #define CANTP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct CanTp_Config_s CanTp_ConfigType;
@@ -32,4 +35,7 @@ Std_ReturnType CanTp_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
 void CanTp_MainFunction(void);
 
 void CanTp_MainFunction_Channel(uint8_t Channel);
+#ifdef __cplusplus
+}
+#endif
 #endif /* CANTP_H */

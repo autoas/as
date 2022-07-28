@@ -13,29 +13,28 @@
 /* ================================ [ FUNCTIONS ] ============================================== */
 Can_ChannelConfigType Can_ChannelConfigs[32] = {
   {
-    "simulator",
+    "simulator_v2",
     0,
     500000,
   },
   {
-    "simulator",
+    "simulator_v2",
     1,
     500000,
   },
   {
-    "simulator",
+    "simulator_v2",
     2,
     500000,
   },
   {
-    "simulator",
+    "simulator_v2",
     3,
     500000,
   },
 };
 
 Can_ConfigType Can_Config = {
-
   Can_ChannelConfigs,
   ARRAY_SIZE(Can_ChannelConfigs),
 };

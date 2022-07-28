@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "Can.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct CanIf_Config_s CanIf_ConfigType;
@@ -29,4 +32,7 @@ void CanIf_TxConfirmation(PduIdType CanTxPduId);
 
 /* @SWS_CANIF_00189 */
 void CanIf_SetDynamicTxId(PduIdType CanIfTxSduId, Can_IdType CanId);
+#ifdef __cplusplus
+}
+#endif
 #endif /* CANIF_H */

@@ -27,6 +27,7 @@ public:
   static void vprint(const char *fmt, va_list args);
   static void setLogFile(const char *path);
   static void setLogFile(FILE *fp);
+  static void close(void);
 
 private:
   static int s_Level;

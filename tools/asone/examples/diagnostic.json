@@ -1,0 +1,84 @@
+{
+  "target": {
+    "protocol": "CAN",
+    "LL_DL": 8,
+    "device": "simulator_v2",
+    "port": 0,
+    "txid": "0x731",
+    "rxid": "0x732",
+    "baudrate": 500000
+  },
+  "groups": {
+    "General": {
+      "SessionControl": {
+        "extend": "0x03",
+        "default": "0x01",
+        "program": "0x02"
+      },
+      "SecurityAccess": {
+        "entend": {
+          "level": 1,
+          "algorithm": [
+            "def CalculateKey(res):",
+            "    seed = (res[2]<<24) + (res[3]<<16) + (res[4]<<8) +(res[5])",
+            "    key = (seed^0x78934673)",
+            "    return [(key>>24)&0xFF,(key>>16)&0xFF,(key>>8)&0xFF,key&0xFF]"
+          ]
+        }
+      },
+      "DataIdentifier" : [
+        {
+          "name": "Finger Print",
+          "ID": "0xFF01",
+          "attribute" : "rw",
+          "data" : [
+            { "name": "vendor", "type": "U8Array", "size": 32, "display": "hex", "default": "text=as.by.parai@foxmail.com" },
+            { "name": "year", "type": "U16", "display": "dec", "default": 2021 },
+            { "name": "month", "type": "U8", "display": "dec", "default": 6 },
+            { "name": "day", "type": "U8", "display": "dec", "default": 20 },
+            { "name": "hour", "type": "U8", "display": "dec", "default": 14 },
+            { "name": "minute", "type": "U8", "display": "dec", "default": 35 },
+            { "name": "second", "type": "U8", "display": "dec", "default": 30 }
+          ]
+        }
+      ],
+      "RoutineControl": [
+        {
+          "name": "EraseFlash",
+          "ID": "0xFF02",
+          "result": true,
+          "stop": true,
+          "data" : [
+            { "name": "MemoryIdentifier", "type": "U8 Select", "Select": [
+                            { "name": "FlASH", "value": "0xFF" },
+                            { "name": "EEPROM", "value": "0xEE" }
+                            ] },
+            { "name": "Address", "type": "U32", "display": "dec", "default": 0 },
+            { "name": "Size", "type": "U32", "display": "dec", "default": 0 }
+          ]
+        }
+      ],
+      "InputOutputControl" : [
+        {
+          "name": "Telltales",
+          "ID": "0xE0E0",
+          "data": [
+            { "name": "telltale0", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale1", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale2", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale3", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale4", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale5", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale6", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale7", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] }
+          ]
+        }
+      ]
+    },
+    "DTC": {
+      "DTC" : {
+        "path" : "../../app/app/config/Dem.json"
+      }
+    }
+  }
+}

@@ -17,9 +17,17 @@ struct isotp_s {
   Std_TimerType timerErrorNotify;
   volatile uint32_t errorTimeout;
   pthread_t serverThread;
-  uint8_t *data;
-  size_t length;
-  size_t index;
+  struct {
+    uint8_t *data;
+    size_t length;
+    size_t index;
+  } TX;
+
+  struct {
+    uint8_t data[4096];
+    size_t length;
+    size_t index;
+  } RX;
 
   pthread_mutex_t mutex;
   sem_t sem;
@@ -27,7 +35,7 @@ struct isotp_s {
   volatile boolean running;
   volatile int result;
 
-  isotp_parameter_t *params;
+  isotp_parameter_t params;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

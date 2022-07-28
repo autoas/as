@@ -21,6 +21,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <time.h>
 #elif defined(_WIN32) && !defined(USE_LWIP)
 #include <Ws2tcpip.h>
 #include <windows.h>
@@ -171,6 +173,27 @@ Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean nonBlocked
 
   if (0 != r) {
     ASLOG(TCPIPE, ("[%d] set non block falied: %d\n", SocketId, r));
+    ret = E_NOT_OK;
+  }
+
+  return ret;
+}
+
+Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType SocketId, uint32_t timeoutMs) {
+  Std_ReturnType ret = E_OK;
+  int r;
+#if defined(linux) || defined(USE_LWIP)
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = timeoutMs * 1000;
+  r = setsockopt(SocketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+#elif defined(_WIN32)
+  DWORD timeout = timeoutMs;
+  r = setsockopt(SocketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof timeout);
+#endif
+
+  if (0 != r) {
+    ASLOG(TCPIPE, ("[%d] set timeout falied: %d\n", SocketId, r));
     ret = E_NOT_OK;
   }
 

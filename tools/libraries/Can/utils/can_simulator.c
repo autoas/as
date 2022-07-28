@@ -454,7 +454,7 @@ int main(int argc, char *argv[]) {
     printf("Usage:%s <port> : 'port' is a number start from 0\n"
            "  -f <Mask>#<Code> : optional parameter for CAN log Mask and Code, in hex\n"
            "Example:\n"
-           "  %s 0 -f 700#300",
+           "  %s 0 -f 700#300 | tee",
            argv[0], argv[0]);
     return -1;
   }

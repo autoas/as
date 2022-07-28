@@ -20,7 +20,7 @@ static void usage(char *prog) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int ch;
-  char *device = "simulator";
+  char *device = "simulator_v2";
   int port = 0;
   int canid = -1;
   int dlc = 0;

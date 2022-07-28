@@ -134,6 +134,7 @@ static std::mutex s_Lock;
 static std::map<uint16_t, std::shared_ptr<MethodServer>> s_MethodServerMap;
 static std::map<uint32_t, BufferInfo> s_EventMap;
 static std::map<uint16_t, std::shared_ptr<EventGroupServer>> s_EventGroupServerMap;
+static std::map<uint16_t, server::Server *> s_IdentityMap;
 /* ================================ [ LOCALS    ] ============================================== */
 std::shared_ptr<MethodServer> get_ms(uint16_t methodId) {
   std::shared_ptr<MethodServer> ms = nullptr;
@@ -154,6 +155,12 @@ std::shared_ptr<EventGroupServer> get_egs(uint16_t eventGroupId) {
   }
   return egs;
 }
+
+static void thread_con_main(void *args) {
+  Server::Connection *con = (Server::Connection *)args;
+  con->self->run_rx(con);
+}
+
 /* ================================ [ FUNCTIONS ] ============================================== */
 Std_ReturnType on_request(uint16_t methodId, uint32_t requestId, SomeIp_MessageType *req,
                           SomeIp_MessageType *res) {
@@ -216,6 +223,75 @@ void on_subscribe(uint16_t eventGroupId, boolean isSubscribe, TcpIp_SockAddrType
   auto egs = get_egs(eventGroupId);
   if (nullptr != egs) {
     egs->onSubscribe(isSubscribe, RemoteAddr);
+  }
+}
+
+void Server::run_rx(Connection *con) {
+  auto ret = SomeIp_ConnectionTakeControl(m_Identity, con->conId);
+  if (E_OK != ret) {
+    usLOG(ERROR, "service %d: connection %d taken control failed\n", m_Identity, con->conId);
+    return;
+  }
+  std::vector<uint8_t> data;
+  data.resize(1420);
+  usLOG(INFO, "service %d: connection %d online\n", m_Identity, con->conId);
+  while (con->online) {
+    ret = SomeIp_ConnectionRxControl(m_Identity, con->conId, data.data(), data.size());
+    if (E_OK != ret) {
+      usLOG(ERROR, "service %d: connection %d rx control failed\n", m_Identity, con->conId);
+    }
+  }
+  usLOG(INFO, "service %d: connection %d offline\n", m_Identity, con->conId);
+}
+
+void Server::on_connect(uint16_t conId, bool isConnected) {
+  std::unique_lock<std::mutex> lck(m_Lock);
+  auto it = m_ConnectionMap.find(conId);
+  if (it == m_ConnectionMap.end()) {
+    if (true == isConnected) {
+      auto con = new Connection;
+      con->conId = conId;
+      con->online = true;
+      con->self = this;
+      con->thread = osal_thread_create(thread_con_main, con);
+      m_ConnectionMap[conId] = con;
+    } else {
+      usLOG(ERROR, "invalid service %d connection %d offline callback\n", m_Identity, conId);
+    }
+  } else {
+    if (false == isConnected) {
+      auto con = it->second;
+      con->online = false;
+      osal_thread_join(con->thread);
+      m_ConnectionMap.erase(conId);
+      delete con;
+    } else {
+      usLOG(ERROR, "invalid service %d connection %d online callback\n", m_Identity, conId);
+    }
+  }
+}
+
+void on_connect(uint16_t serviceId, uint16_t conId, boolean isConnected) {
+#if !defined(USE_FREERTOS)
+  std::unique_lock<std::mutex> lck(s_Lock);
+  auto it = s_IdentityMap.find(serviceId);
+  if (it != s_IdentityMap.end()) {
+    auto server = it->second;
+    server->on_connect(conId, isConnected);
+  } else {
+    usLOG(ERROR, "service %d not found\n", serviceId);
+  }
+#endif
+}
+
+void Server::identity(uint16_t serviceId) {
+  std::unique_lock<std::mutex> lck(s_Lock);
+  auto it = s_IdentityMap.find(serviceId);
+  if (it == s_IdentityMap.end()) {
+    m_Identity = serviceId;
+    s_IdentityMap[serviceId] = this;
+  } else {
+    throw std::runtime_error("server " + std::to_string(serviceId) + " has already been used");
   }
 }
 

@@ -5,6 +5,9 @@
 #ifndef STD_CRITICAL_H
 #define STD_CRITICAL_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define EnterCritical() do { imask_t imask = Std_EnterCritical()
 #define ExitCritical() Std_ExitCritical(imask); } while(0)
@@ -17,4 +20,7 @@ typedef unsigned int imask_t;
 /* ================================ [ FUNCTIONS ] ============================================== */
 imask_t Std_EnterCritical(void);
 void Std_ExitCritical(imask_t);
+#ifdef __cplusplus
+}
+#endif
 #endif /* STD_CRITICAL_H */

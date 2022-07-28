@@ -8,6 +8,9 @@
 #define CAN_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Can_GeneralTypes.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Can_Config_s Can_ConfigType;
@@ -39,4 +42,7 @@ void Can_MainFunction_BusOff(void);
 void Can_MainFunction_WakeUp(void);
 /* @SWS_Can_00368 */
 void Can_MainFunction_Mode(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* CAN_H */
