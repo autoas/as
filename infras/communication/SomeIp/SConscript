@@ -17,4 +17,5 @@ class LibrarySomeIp(Library):
             self.include += ['%s/cpp/include'%(CWD)]
             self.LIBS += ['Utils', 'Plugin']
             self.source += objscpp
-
+            if not IsBuildForWindows():
+                self.CPPFLAGS = ['--std=c++17']
