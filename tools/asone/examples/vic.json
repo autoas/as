@@ -1,0 +1,119 @@
+{
+  "background": "pics/bg.png",
+  "pointers":[
+    {
+      "name": "speed",
+      "x" : 850,
+      "y" : 285,
+      "offset" : 0,
+      "length" : 175,
+      "tail_width" : 16,
+      "head_width" : 4,
+      "color" : "0x7453A2",
+      "start" : 330,
+      "range" : 240,
+      "is_clockwise" : true
+    },
+    {
+      "name": "tacho",
+      "x" : 340,
+      "y" : 285,
+      "offset" : 0,
+      "length" : 175,
+      "tail_width" : 16,
+      "head_width" : 4,
+      "color" : "0x7453A2",
+      "start" : 330,
+      "range" : 240,
+      "is_clockwise" : true
+    },
+    {
+      "name":  "temperature",
+      "x" : 134,
+      "y" : 383,
+      "offset" : 0,
+      "length" : 80,
+      "tail_width" : 10,
+      "head_width" : 4,
+      "color" : "0xD63441",
+      "start" : 311,
+      "range" : 100,
+      "is_clockwise" : true
+    },
+    {
+      "name":  "fuel",
+      "x" : 1055,
+      "y" : 383,
+      "offset" : 0,
+      "length" : 80,
+      "tail_width" : 10,
+      "head_width" : 4,
+      "color" : "0xD63441",
+      "start" : 227,
+      "range" : 100,
+      "is_clockwise" : false
+    }
+  ],
+  "telltales":[
+    {
+      "name": "TPMS",
+      "x" :410,
+      "y" :320,
+      "p" :"pics/tt_tpms.png"
+    },
+    {
+      "name": "LowOil",
+      "x" :220,
+      "y" :320,
+      "p" : "pics/tt_low_oil.png"
+    },
+    {
+      "name": "TurnRight",
+      "x" :810,
+      "y" :25,
+      "p" : "pics/tt_turn_right.png"
+    },
+    {
+      "name": "TurnLeft",
+      "x" :340,
+      "y" :25,
+      "p" : "pics/tt_turn_left.png"
+    },
+    {
+      "name": "PosLamp",
+      "x" :561,
+      "y" :25,
+      "p" : "pics/tt_poslamp.png"
+    },
+    {
+      "name": "AutoCruise",
+      "x" :625,
+      "y" :25,
+      "p" : "pics/tt_auto_cruise.png"
+    },
+    {
+      "name": "HighBeam",
+      "x" :497,
+      "y" :25,
+      "p" : "pics/tt_high_beam.png"
+    },
+    {
+      "name": "SeatbeltDriver",
+      "x" :448,
+      "y" :25,
+      "p" : "pics/tt_seatbelt_driver.png"
+    },
+    {
+      "name": "SeatbeltPassenger",
+      "x" :677,
+      "y" :25,
+      "p" : "pics/tt_seatbelt_passenger.png"
+    },
+    {
+      "name": "Airbag",
+      "x" :725,
+      "y" :25,
+      "p" : "pics/tt_airbag.png"
+    }
+  ]
+}

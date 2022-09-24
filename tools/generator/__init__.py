@@ -15,6 +15,8 @@ from .MemCluster import Gen as MCGen
 from .PduR import Gen as PduRGen
 from .CanTp import Gen as CanTpGen
 from .CanIf import Gen as CanIfGen
+from .Rte import Gen as RteGen
+from .protoc import Gen as ProtocGen
 
 __GEN__ = {
   'NvM': NvMGen,
@@ -26,6 +28,8 @@ __GEN__ = {
   'PduR': PduRGen,
   'CanTp': CanTpGen,
   'CanIf': CanIfGen,
+  'Rte': RteGen,
+  'protoc': ProtocGen,
 }
 
 RootDir = os.path.abspath(os.path.dirname(__file__)+ '/../..')

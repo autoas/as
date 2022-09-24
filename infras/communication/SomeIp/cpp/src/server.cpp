@@ -295,6 +295,10 @@ void Server::identity(uint16_t serviceId) {
   }
 }
 
+void Server::offer(uint16_t serviceId) {
+  Sd_ServerServiceSetState(serviceId, SD_SERVER_SERVICE_AVAILABLE);
+}
+
 void Server::listen(uint16_t methodId, BufferPool *bp) {
   std::unique_lock<std::mutex> lck(s_Lock);
   auto it = s_MethodServerMap.find(methodId);

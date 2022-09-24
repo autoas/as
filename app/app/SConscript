@@ -8,6 +8,7 @@ CWD = GetCurrentDir()
 generate(Glob('config/*.json'))
 generate(Glob('config/Com/*.json'))
 generate(Glob('config/Net/*.json'))
+generate(Glob('config/SWC/*/*.json'))
 
 objsApp = Glob('*.c') + Glob('src/*.c')
 
@@ -68,6 +69,18 @@ class ApplicationCanApp(ApplicationApp):
         super().config()
         self.Append(CPPDEFINES=['USE_CAN'])
         self.platform_config()
+
+
+objsSwc = Glob('config/SWC/*/*.c')
+
+
+@register_application
+class ApplicationCanIC(query_application('CanApp')):
+    def config(self):
+        super().config()
+        self.Append(CPPDEFINES=['USE_VIC'])
+        self.LIBS += ['VicServer']
+        self.source += objsSwc
 
 
 @register_application

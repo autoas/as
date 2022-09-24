@@ -8,6 +8,7 @@ from .dbc import dbc
 
 __all__ = ['Gen', 'get_messages']
 
+
 def gen_rx_sig_cfg(sig, C):
     C.write('static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n' % (
         sig['name']))
@@ -213,7 +214,7 @@ def Gen_Com(cfg, dir):
         IF = 'if'
         for msg in network['messages']:
             if msg['node'] != network['me']:
-                name = '%s_%s'%(network['name'], toMacro(msg['name']))
+                name = '%s_%s' % (network['name'], toMacro(msg['name']))
                 H.write('  %s (0x%X == id) { \\\n' % (IF, msg['id']))
                 H.write(
                     '    Com_RxIndication(COM_%s, PduInfoPtr); \\\n' % (name.upper()))
@@ -236,7 +237,7 @@ def Gen_Com(cfg, dir):
         IF = 'if'
         for msg in network['messages']:
             if msg['node'] == network['me']:
-                name = '%s_%s'%(network['name'], toMacro(msg['name']))
+                name = '%s_%s' % (network['name'], toMacro(msg['name']))
                 H.write(
                     '  %s ((COM_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n' % (IF, name.upper()))
                 if network['network'] == 'CAN':
@@ -253,7 +254,7 @@ def Gen_Com(cfg, dir):
     for network in cfg['networks']:
         H.write('/* messages for network %s */\n' % (network['name']))
         for msg in network['messages']:
-            name = '%s_%s'%(network['name'], toMacro(msg['name']))
+            name = '%s_%s' % (network['name'], toMacro(msg['name']))
             H.write('#define COM_%s %s\n' % (name.upper(), PDU_ID))
             PDU_ID += 1
         H.write('\n')
@@ -530,6 +531,40 @@ def extract(cfg, dir):
     return cfg_
 
 
+def GenRTE(cfg, dir):
+    fp = open('%s/bswcom.py' % (dir), 'w')
+    fp.write('from generator import asar\n\n')
+    sigL = []
+    for network in cfg['networks']:
+        for msg in network['messages']:
+            for sig in msg['signals']:
+                if sig.get('isGroup', False):
+                    continue
+                t0, t1, nBytes = get_signal_info(sig)
+                sig['.type'] = t0
+                if t0 in ['UINT8N', 'SINT8N']:
+                    InitialValue = sig.get('InitialValue', [0])
+                else:
+                    InitialValue = sig.get('InitialValue', 0)
+                sig['.init'] = InitialValue
+                sigL.append(sig)
+    for sig in sigL:
+        fp.write("C_{0}_IV = asar.createConstantTemplateFromPhysicalType('C_{0}_IV', asar.{1}_T, {2})\n".format(
+            sig['name'], sig['.type'], sig['.init']))
+    fp.write('\n')
+    fp.write('COM_D = []\n')
+    for sig in sigL:
+        fp.write("COM_D.append(asar.createDataElementTemplate('{0}', asar.{1}_T))\n".format(
+            sig['name'], sig['.type']))
+    fp.write('\n')
+    fp.write("COM_I = asar.createSenderReceiverInterfaceTemplate('Com_I', COM_D)\n")
+    fp.write('\n')
+    for sig in sigL:
+        fp.write("{0} = asar.createSenderReceiverPortTemplate('Com', COM_I, C_{0}_IV, aliveTimeout=30, elemName='{0}')\n".format(
+            sig['name']))
+    fp.close()
+
+
 def Gen(cfg):
     dir = os.path.join(os.path.dirname(cfg), 'GEN')
     os.makedirs(dir, exist_ok=True)
@@ -537,3 +572,4 @@ def Gen(cfg):
         cfg = json.load(f)
     cfg_ = extract(cfg, dir)
     Gen_Com(cfg_, dir)
+    GenRTE(cfg_, dir)

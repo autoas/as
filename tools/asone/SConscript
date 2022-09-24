@@ -1,0 +1,76 @@
+# How to build this, this is for windows
+# scons --lib=AsOne
+# scons --app=asone --prebuilt
+# scons --lib=UIFBL --prebuilt
+# scons --lib=UICan --prebuilt
+
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('src/*.cpp') + Glob('src/*.hpp')
+
+SConscript('src/ui/vic/SConscript')
+
+objsOne = Glob('src/one/*.cpp')
+@register_library
+class LibraryAsOne(Library):
+    shared = True
+
+    def config(self):
+        self.LIBS = ['CanLib', 'IsoTp', 'Loader', 'Utils']
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsOne
+        self.Install('../prebuilt')
+        self.Install('../one')
+
+
+@register_application
+class Applicationasone(Application):
+    compiler = 'QMake'
+
+    def config(self):
+        self.source = objs
+        self.LIBS = ['dl', 'AsOne']
+        self.Install('../one')
+
+
+objUIs = Glob('src/ui/*.cpp')
+
+pkg_json = Package('https://github.com/nlohmann/json.git')
+extraInfos = {
+
+    'UIVIC': {'LIBS': ['AsOne', 'VicClient'], 'CPPPATH':['%s/single_include/nlohmann' % (pkg_json)]},
+}
+
+for ui in objUIs:
+    @classmethod
+    def config(self):
+        b = self.ui.rstr()[:-4]
+        self.source = Glob(b + '.*pp')
+        if self.name in extraInfos:
+            infos = extraInfos[self.name]
+            if 'LIBS' in infos:
+                self.LIBS = infos['LIBS']
+            if 'CPPDEFINES' in infos:
+                self.CPPDEFINES = infos['CPPDEFINES']
+            if 'CPPPATH' in infos:
+                self.CPPPATH = infos['CPPPATH']
+        if IsPlatformWindows():
+            cmd = 'cp -v {0}/{1}.dll {0}/../asone/debug'.format(
+                BUILD_DIR, self.name)
+        else:
+            cmd = 'cp -v {0}/lib{1}.so {0}/../asone/debug'.format(
+                BUILD_DIR, self.name)
+        self.AddPostAction(self, cmd)
+        self.Install(self, '../one')
+    libName = os.path.basename(ui.rstr()[:-4])
+    cls = type('Library%s' % (libName), (Library, ), {
+        'name': libName,
+        'ui': ui,
+        'compiler': 'QMake',
+        'shared': True,
+        'config': config,
+        'typed_class': True,
+    })
+    register_library(cls)

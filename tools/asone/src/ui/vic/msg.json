@@ -1,0 +1,5 @@
+{
+  "class": "protoc",
+  "types": ["cpp", "python"],
+  "entry" : "msg/display.msg.proto"
+}

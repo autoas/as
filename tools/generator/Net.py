@@ -41,7 +41,7 @@ def ProcSomeIp(cfg, mod):
     sock = {'name': 'SD_UNICAST', 'server': 'NULL:30490',
             'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_UNICAST'}
     cfg['sockets'].append(sock)
-    for service in mod['servers']:
+    for service in mod.get('servers', []):
         name = 'SOMEIP_%s' % (service['name'].upper())
         if 'reliable' in service:
             protocol = 'TCP'
@@ -54,7 +54,7 @@ def ProcSomeIp(cfg, mod):
         if 'reliable' in service:
             sock['listen'] = service['listen'] if 'listen' in service else 3
         cfg['sockets'].append(sock)
-    for service in mod['clients']:
+    for service in mod.get('clients',[]):
         name = 'SOMEIP_%s' % (service['name'].upper())
         if 'reliable' in service:
             protocol = 'TCP'

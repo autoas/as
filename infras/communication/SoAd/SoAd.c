@@ -439,7 +439,7 @@ Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *
 
   if (SoConId < SOAD_CONFIG->numOfConnections) {
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (SOAD_SOCKET_READY == context->state) {
+    if (SOAD_SOCKET_READY <= context->state) {
       *IpAddrPtr = context->RemoteAddr;
       ret = E_OK;
     }
@@ -494,7 +494,7 @@ Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType SoConId) {
 
   if (SoConId < SOAD_CONFIG->numOfConnections) {
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (SOAD_SOCKET_READY == context->state) {
+    if (SOAD_SOCKET_READY <= context->state) {
       context->state = SOAD_SOCKET_TAKEN_CONTROL;
       ret = E_OK;
     }

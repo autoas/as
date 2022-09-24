@@ -1,0 +1,5 @@
+{
+  "class": "Rte",
+  "py": "rte.py",
+  "includes": ["../../Com/GEN"]
+}

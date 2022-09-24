@@ -1,0 +1,17 @@
+// protoc -I=msg/ --cpp_out=GEN/ msg/display.msg.proto
+syntax = "proto2";
+
+package vic;
+message display {
+  message gauge {
+    required string name = 1; 
+    required uint32 degree = 2;
+  }
+
+  message telltale {
+    required string name = 1; 
+    required bool on = 2;
+  }
+  repeated gauge gauges = 1;
+  repeated telltale telltales = 2;
+}

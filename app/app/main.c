@@ -171,6 +171,10 @@ static void Net_Init(void) {
 #ifdef USE_SOMEIP
   SomeIp_Init(NULL);
 #endif
+
+#ifdef USE_PLUGIN
+  plugin_init();
+#endif
 }
 
 static void BSW_Init(void) {
@@ -235,10 +239,6 @@ static void BSW_Init(void) {
 #endif
 #ifdef USE_DCM
   Dcm_Init(NULL);
-#endif
-
-#ifdef USE_PLUGIN
-  plugin_init();
 #endif
 }
 

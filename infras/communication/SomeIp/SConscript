@@ -19,3 +19,4 @@ class LibrarySomeIp(Library):
             self.source += objscpp
             if not IsBuildForWindows():
                 self.CPPFLAGS = ['--std=c++17']
+

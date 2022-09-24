@@ -23,6 +23,7 @@ public:
   virtual void onAvailability(bool isAvailable) = 0;
 
   void identity(uint16_t clientId);
+  void require(uint16_t serviceId);
   void bind(uint16_t methodId, BufferPool *bp = nullptr);
   void listen(uint16_t eventId, BufferPool *bp = nullptr);
   void subscribe(uint16_t eventGroupId);

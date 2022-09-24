@@ -226,6 +226,10 @@ void Client::listen(uint16_t eventId, BufferPool *bp) {
   }
 }
 
+void Client::require(uint16_t serviceId) {
+  Sd_ClientServiceSetState(serviceId, SD_CLIENT_SERVICE_REQUESTED);
+}
+
 void Client::subscribe(uint16_t eventGroupId) {
   Sd_ConsumedEventGroupSetState(eventGroupId, SD_CONSUMED_EVENTGROUP_REQUESTED);
 }

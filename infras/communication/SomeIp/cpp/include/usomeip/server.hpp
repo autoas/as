@@ -22,6 +22,7 @@ public:
   virtual void onSubscribe(uint16_t eventGroupId, bool isSubscribe) = 0;
 
   void identity(uint16_t serviceId);
+  void offer(uint16_t serviceId);
   void listen(uint16_t methodId, BufferPool *bp = nullptr);
   void provide(uint16_t eventGroupId);
 

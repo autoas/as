@@ -1191,6 +1191,8 @@ static void Sd_ConsumedEventGroupTTLStart(const Sd_ConsumedEventGroupType *Consu
     if (ConsumedEventGroup->context->TTL > SD_CONVERT_MS_TO_MAIN_CYCLES(100)) {
       ConsumedEventGroup->context->TTL -= SD_CONVERT_MS_TO_MAIN_CYCLES(100);
     }
+    ASLOG(SD, ("start ConsumedEventGroup %x:%x timer = %u\n", ConsumedEventGroup->EventGroupId,
+               ConsumedEventGroup->HandleId, ConsumedEventGroup->context->TTL));
   }
 }
 
@@ -1205,13 +1207,12 @@ static void Sd_ClientServiceMain_Main(const Sd_InstanceType *Instance,
     for (i = 0; i < config->numOfConsumedEventGroups; i++) {
       ConsumedEventGroup = &config->ConsumedEventGroups[i];
       if (ConsumedEventGroup->context->flags & SD_FLG_STATE_REQUEST_ONLINE) {
-        if (FALSE == ConsumedEventGroup->context->isSubscribed) {
-          if (0 == (ConsumedEventGroup->context->flags & SD_FLG_STATE_REQUEST_ONCE)) {
-            SD_SET_CLEAR(ConsumedEventGroup->context->flags,
-                         SD_FLG_PENDING_SUBSCRIBE | SD_FLG_STATE_REQUEST_ONCE,
-                         SD_FLG_PENDING_STOP_SUBSCRIBE);
-            Sd_ConsumedEventGroupTTLStart(ConsumedEventGroup, config);
-          }
+        if ((FALSE == ConsumedEventGroup->context->isSubscribed) &&
+            (0 == (ConsumedEventGroup->context->flags & SD_FLG_STATE_REQUEST_ONCE))) {
+          SD_SET_CLEAR(ConsumedEventGroup->context->flags,
+                       SD_FLG_PENDING_SUBSCRIBE | SD_FLG_STATE_REQUEST_ONCE,
+                       SD_FLG_PENDING_STOP_SUBSCRIBE);
+          Sd_ConsumedEventGroupTTLStart(ConsumedEventGroup, config);
         } else {
           if (ConsumedEventGroup->context->TTL > 0) {
             ConsumedEventGroup->context->TTL--;

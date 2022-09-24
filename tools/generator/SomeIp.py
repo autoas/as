@@ -85,9 +85,10 @@ def Gen_ServerServiceExCpp(service, dir):
 
     C.write('  void start() {\n')
     C.write('    identity(SOMEIP_SSID_%s);\n' % (service['name'].upper()))
+    C.write('    offer(SD_SERVER_SERVICE_HANDLE_ID_%s);\n' % (service['name'].upper()))
     C.write('    m_BufferPool.create("SS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('    listen(SOMEIP_RX_METHOD_%s, &m_BufferPool);\n' %
                 (bName.upper()))
@@ -187,7 +188,7 @@ def Gen_ServerService(service, dir):
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     H.write('void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected);\n' %
             (service['name']))
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         H.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);\n' %
                 (bName))
@@ -230,7 +231,7 @@ def Gen_ServerService(service, dir):
         '/* ================================ [ DECLARES  ] ============================================== */\n')
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         if method.get('tp', False):
             C.write('static uint8_t %sTpRxBuf[%d];\n' % (
@@ -250,7 +251,7 @@ def Gen_ServerService(service, dir):
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     C.write('void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected) {\n}\n\n' %
             (service['name']))
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {\n' %
                 (bName))
@@ -338,7 +339,7 @@ def Gen_ServerService(service, dir):
     C.write('  as::usomeip::server::on_connect(SOMEIP_SSID_%s, conId, isConnected);\n' % (
             service['name'].upper()))
     C.write('}\n\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType SomeIp_%s_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {\n' %
                 (bName))
@@ -395,7 +396,7 @@ def Gen_ClientServiceExCpp(service, dir):
     C.write('#include "usomeip/usomeip.hpp"\n')
     C.write('#include "usomeip/client.hpp"\n')
     C.write('extern "C" {\n')
-    C.write('#include "SS_server0.h"\n')
+    C.write('#include "CS_%s.h"\n' % (service['name']))
     C.write('#include "SomeIp_Cfg.h"\n')
     C.write('#include "Sd_Cfg.h"\n')
     C.write('}\n')
@@ -427,9 +428,10 @@ def Gen_ClientServiceExCpp(service, dir):
 
     C.write('  void start() {\n')
     C.write('    identity(SOMEIP_CSID_%s);\n' % (service['name'].upper()))
+    C.write('    require(SD_CLIENT_SERVICE_HANDLE_ID_%s);\n' % (service['name'].upper()))
     C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('    bind(SOMEIP_TX_METHOD_%s, &m_BufferPool);\n' %
                 (bName.upper()))
@@ -471,7 +473,7 @@ def Gen_ClientServiceExCpp(service, dir):
     C.write('  void run() {\n')
     C.write('    if (Std_GetTimerElapsedTime(&m_Timer) >= 1000000) {\n')
     C.write('      Std_TimerStart(&m_Timer);\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('      uint32_t requestId =\n')
         C.write('        ((uint32_t)SOMEIP_TX_METHOD_%s << 16) + (++m_SessionId);\n' %
@@ -533,7 +535,7 @@ def Gen_ClientService(service, dir):
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     H.write('void SomeIp_%s_OnAvailability(boolean isAvailable);\n' %
             (service['name']))
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         H.write('Std_ReturnType SomeIp_%s_OnResponse(uint32_t requestId, SomeIp_MessageType* res);\n' %
                 (bName))
@@ -577,7 +579,7 @@ def Gen_ClientService(service, dir):
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
     C.write('static boolean lIsAvailable = FALSE;\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         if method.get('tp', False):
             C.write('static uint8_t %sTpRxBuf[%d];\n' % (
@@ -601,7 +603,7 @@ def Gen_ClientService(service, dir):
         '  ASLOG(%s, ("%%s\\n", isAvailable?"online":"offline"));\n' % (service['name'].upper()))
     C.write('  lIsAvailable = isAvailable;\n')
     C.write('}\n\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType %s_request(uint8_t *data, uint32_t length) {\n' % (
             bName))
@@ -682,7 +684,7 @@ def Gen_ClientService(service, dir):
     C.write(
         '  as::usomeip::client::on_availability(SOMEIP_CSID_%s, isAvailable);\n' % (service['name'].upper()))
     C.write('}\n\n')
-    for method in service['methods']:
+    for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
         C.write('Std_ReturnType SomeIp_%s_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {\n' %
                 (bName))
@@ -735,15 +737,15 @@ def Gen_SD(cfg, dir):
         '/* ================================ [ MACROS    ] ============================================== */\n')
     H.write('#define SD_RX_PID_MULTICAST 0\n')
     H.write('#define SD_RX_PID_UNICAST 0\n\n')
-    for ID, service in enumerate(cfg['servers']):
+    for ID, service in enumerate(cfg.get('servers', [])):
         H.write('#define SD_SERVER_SERVICE_HANDLE_ID_%s %s\n' %
                 (service['name'].upper(), ID))
-    for ID, service in enumerate(cfg['clients']):
+    for ID, service in enumerate(cfg.get('clients', [])):
         H.write('#define SD_CLIENT_SERVICE_HANDLE_ID_%s %s\n' %
                 (service['name'].upper(), ID))
     H.write('\n')
     ID = 0
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         for ge in service['event-groups']:
@@ -751,7 +753,7 @@ def Gen_SD(cfg, dir):
                     (service['name'].upper(), ge['name'].upper(), ID))
             ID += 1
     ID = 0
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         for ge in service['event-groups']:
@@ -793,7 +795,7 @@ def Gen_SD(cfg, dir):
     C.write('                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,\n')
     C.write('                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,\n')
     C.write('                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         for egroup in service['event-groups']:
             C.write('void SomeIp_%s_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);\n' % (
                 service['name'], egroup['name']))
@@ -821,7 +823,7 @@ def Gen_SD(cfg, dir):
     C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
     C.write('  5, /* TTL seconds */\n')
     C.write('};\n\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         C.write('static Sd_EventHandlerContextType Sd_EventHandlerContext_%s[%d];\n' % (
@@ -847,7 +849,7 @@ def Gen_SD(cfg, dir):
                     (service['name'], ge['name']))
             C.write('  },\n')
         C.write('};\n\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         C.write('static Sd_ConsumedEventGroupContextType Sd_ConsumedEventGroupContext_%s[%d];\n' % (
@@ -865,9 +867,9 @@ def Gen_SD(cfg, dir):
             C.write('  },\n')
         C.write('};\n\n')
     C.write('static Sd_ServerServiceContextType Sd_ServerService_Contexts[%s];\n\n' % (
-        len(cfg['servers'])))
+        len(cfg.get('servers', []))))
     C.write('static const Sd_ServerServiceType Sd_ServerServices[] = {\n')
-    for ID, service in enumerate(cfg['servers']):
+    for ID, service in enumerate(cfg.get('servers', [])):
         C.write('  {\n')
         C.write('    FALSE,                           /* AutoAvailable */\n')
         C.write('    SD_SERVER_SERVICE_HANDLE_ID_%s,  /* HandleId */\n' %
@@ -900,9 +902,9 @@ def Gen_SD(cfg, dir):
         C.write('  },\n')
     C.write('};\n\n')
     C.write('static Sd_ClientServiceContextType Sd_ClientService_Contexts[%s];\n\n' % (
-        len(cfg['clients'])))
+        len(cfg.get('clients', []))))
     C.write('static const Sd_ClientServiceType Sd_ClientServices[] = {\n')
-    for ID, service in enumerate(cfg['clients']):
+    for ID, service in enumerate(cfg.get('clients', [])):
         C.write('  {\n')
         C.write('    FALSE,                           /* AutoRequire */\n')
         C.write('    SD_CLIENT_SERVICE_HANDLE_ID_%s,  /* HandleId */\n' %
@@ -964,15 +966,15 @@ def Gen_SD(cfg, dir):
     C.write('  },\n')
     C.write('};\n\n')
     C.write('static const Sd_ServerServiceType* Sd_ServerServicesMap[] = {\n')
-    for ID, service in enumerate(cfg['servers']):
+    for ID, service in enumerate(cfg.get('servers', [])):
         C.write('  &Sd_ServerServices[%s],\n' % (ID))
     C.write('};\n\n')
     C.write('static const Sd_ClientServiceType* Sd_ClientServicesMap[] = {\n')
-    for ID, service in enumerate(cfg['clients']):
+    for ID, service in enumerate(cfg.get('clients', [])):
         C.write('  &Sd_ClientServices[%s],\n' % (ID))
     C.write('};\n\n')
     C.write('static const uint16_t Sd_EventHandlersMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         for ge in service['event-groups']:
@@ -981,14 +983,14 @@ def Gen_SD(cfg, dir):
     C.write('  -1,\n};\n\n')
     C.write(
         'static const uint16_t Sd_PerServiceEventHandlerMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         for id, ge in enumerate(service['event-groups']):
             C.write('  %s,\n' % (id))
     C.write('  -1,\n};\n\n')
     C.write('static const uint16_t Sd_ConsumedEventGroupsMap[] = {\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         for ge in service['event-groups']:
@@ -997,7 +999,7 @@ def Gen_SD(cfg, dir):
     C.write('  -1,\n};\n\n')
     C.write(
         'static const uint16_t Sd_PerServiceConsumedEventGroupsMap[] = {\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         for id, ge in enumerate(service['event-groups']):
@@ -1034,15 +1036,15 @@ def Gen_SOMEIP(cfg, dir):
     H.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
     ID = 0
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         H.write('#define SOMEIP_SSID_%s %s\n' % (service['name'].upper(), ID))
         ID += 1
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         H.write('#define SOMEIP_CSID_%s %s\n' % (service['name'].upper(), ID))
         ID += 1
     H.write('\n')
     ID = 0
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'reliable' in service:
             listen = service['listen'] if 'listen' in service else 3
             for i in range(listen):
@@ -1057,7 +1059,7 @@ def Gen_SOMEIP(cfg, dir):
             H.write('#define SOMEIP_TX_PID_SOMEIP_%s %s\n' %
                     (service['name'].upper(), ID))
             ID += 1
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         H.write('#define SOMEIP_RX_PID_SOMEIP_%s %s\n' %
                 (service['name'].upper(), ID))
         H.write('#define SOMEIP_TX_PID_SOMEIP_%s %s\n' %
@@ -1065,23 +1067,23 @@ def Gen_SOMEIP(cfg, dir):
         ID += 1
     H.write('\n')
     ID = 0
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'methods' not in service:
             continue
-        for method in service['methods']:
+        for method in service.get('methods', []):
             bName = '%s_%s' % (service['name'], method['name'])
             H.write('#define SOMEIP_RX_METHOD_%s %s\n' % (bName.upper(), ID))
     H.write('\n')
     ID = 0
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'methods' not in service:
             continue
-        for method in service['methods']:
+        for method in service.get('methods', []):
             bName = '%s_%s' % (service['name'], method['name'])
             H.write('#define SOMEIP_TX_METHOD_%s %s\n' % (bName.upper(), ID))
     H.write('\n')
     ID = 0
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         for egroup in service['event-groups']:
@@ -1092,7 +1094,7 @@ def Gen_SOMEIP(cfg, dir):
                 ID += 1
     H.write('\n')
     ID = 0
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         for egroup in service['event-groups']:
@@ -1126,9 +1128,9 @@ def Gen_SOMEIP(cfg, dir):
     C.write('#include "SomeIp_Priv.h"\n')
     C.write('#include "SoAd_Cfg.h"\n')
     C.write('#include "Sd_Cfg.h"\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         C.write('#include "SS_%s.h"\n' % (service['name']))
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         C.write('#include "CS_%s.h"\n' % (service['name']))
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
@@ -1136,20 +1138,20 @@ def Gen_SOMEIP(cfg, dir):
         '/* ================================ [ TYPES     ] ============================================== */\n')
     C.write(
         '/* ================================ [ DECLARES  ] ============================================== */\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         Gen_ServerService(service, dir)
         Gen_ServerServiceExCpp(service, dir)
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         Gen_ClientService(service, dir)
         Gen_ClientServiceExCpp(service, dir)
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'methods' not in service:
             continue
         C.write('static const SomeIp_ServerMethodType someIpServerMethods_%s[] = {\n' % (
             service['name']))
-        for method in service['methods']:
+        for method in service.get('methods', []):
             bName = '%s_%s' % (service['name'],  method['name'])
             C.write('  {\n')
             C.write('    %s, /* Method ID */\n' % (method['methodId']))
@@ -1169,7 +1171,7 @@ def Gen_SOMEIP(cfg, dir):
             C.write('    %s /* resMaxLen */\n' % (resMaxLen))
             C.write('  },\n')
         C.write("};\n\n")
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         C.write('static const SomeIp_ServerEventType someIpServerEvents_%s[] = {\n' % (
@@ -1190,12 +1192,12 @@ def Gen_SOMEIP(cfg, dir):
                     C.write('  NULL,\n')
                 C.write('  },\n')
         C.write("};\n\n")
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'methods' not in service:
             continue
         C.write('static const SomeIp_ClientMethodType someIpClientMethods_%s[] = {\n' % (
             service['name']))
-        for method in service['methods']:
+        for method in service.get('methods', []):
             bName = '%s_%s' % (service['name'],  method['name'])
             C.write('  {\n')
             C.write('    %s, /* Method ID */\n' % (method['methodId']))
@@ -1210,7 +1212,7 @@ def Gen_SOMEIP(cfg, dir):
                 C.write('    NULL,\n')
             C.write('  },\n')
         C.write("};\n\n")
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'event-groups' not in service:
             continue
         C.write('static const SomeIp_ClientEventType someIpClientEvents_%s[] = {\n' % (
@@ -1230,7 +1232,7 @@ def Gen_SOMEIP(cfg, dir):
                     C.write('  NULL,\n')
                 C.write('  },\n')
         C.write("};\n\n")
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'reliable' in service:
             numOfConnections = service['listen'] if 'listen' in service else 3
             C.write('static SomeIp_TcpBufferType someIpTcpBuffer_%s[%s];\n\n' % (
@@ -1290,7 +1292,7 @@ def Gen_SOMEIP(cfg, dir):
                 (service.get('SeparationTime', 10)))
         C.write('  SomeIp_%s_OnConnect,\n' % (service['name']))
         C.write('};\n\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'reliable' in service:
             C.write('static SomeIp_TcpBufferType someIpTcpBuffer_%s;\n\n' % (
                     service['name']))
@@ -1328,7 +1330,7 @@ def Gen_SOMEIP(cfg, dir):
                 (service.get('ResponseTimeout', 1000)))
         C.write('};\n\n')
     C.write('static const SomeIp_ServiceType SomeIp_Services[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         C.write('  {\n')
         C.write('    TRUE,\n')
         if 'reliable' in service:
@@ -1338,7 +1340,7 @@ def Gen_SOMEIP(cfg, dir):
             C.write('    SOAD_SOCKID_SOMEIP_%s,\n' % (service['name'].upper()))
         C.write('    &someIpServerService_%s,\n' % (service['name']))
         C.write('  },\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         C.write('  {\n')
         C.write('    FALSE,\n')
         C.write('    SOAD_SOCKID_SOMEIP_%s,\n' % (service['name'].upper()))
@@ -1346,44 +1348,44 @@ def Gen_SOMEIP(cfg, dir):
         C.write('  },\n')
     C.write('};\n\n')
     C.write('static const uint16_t Sd_PID2ServiceMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'reliable' in service:
             numOfConnections = service['listen'] if 'listen' in service else 3
         else:
             numOfConnections = 1
         for i in range(numOfConnections):
             C.write('  SOMEIP_SSID_%s,\n' % (service['name'].upper()))
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         C.write('  SOMEIP_CSID_%s,\n' % (service['name'].upper()))
     C.write('};\n\n')
     C.write('static const uint16_t Sd_PID2ServiceConnectionMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'reliable' in service:
             numOfConnections = service['listen'] if 'listen' in service else 3
         else:
             numOfConnections = 1
         for i in range(numOfConnections):
             C.write('  %s,\n' % (i))
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         C.write('  0,\n')
     C.write('};\n\n')
     C.write('static const uint16_t Sd_TxMethod2ServiceMap[] = {\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'methods' not in service:
             continue
-        for method in service['methods']:
+        for method in service.get('methods', []):
             C.write('  SOMEIP_CSID_%s,/* %s */\n' %
                     (service['name'].upper(), method['name']))
     C.write('  -1\n};\n\n')
     C.write('static const uint16_t Sd_TxMethod2PerServiceMap[] = {\n')
-    for service in cfg['clients']:
+    for service in cfg.get('clients', []):
         if 'methods' not in service:
             continue
-        for i, method in enumerate(service['methods']):
+        for i, method in enumerate(service.get('methods', [])):
             C.write('  %s, /* %s */\n' % (i, method['name']))
     C.write('  -1\n};\n\n')
     C.write('static const uint16_t Sd_TxEvent2ServiceMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         for egroup in service['event-groups']:
@@ -1392,7 +1394,7 @@ def Gen_SOMEIP(cfg, dir):
                         (service['name'].upper(), egroup['name'], event['name']))
     C.write('  -1\n};\n\n')
     C.write('static const uint16_t Sd_TxEvent2PerServiceMap[] = {\n')
-    for service in cfg['servers']:
+    for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
         ID = 0
