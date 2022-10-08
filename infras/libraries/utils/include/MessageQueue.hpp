@@ -11,6 +11,7 @@
 #include <map>
 #include <condition_variable>
 #include <chrono>
+#include "Log.hpp"
 
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
@@ -34,17 +35,21 @@ public:
     if (false == m_Queue.empty()) {
       pop(out, FIFO);
     } else {
-      auto status = m_CondVar.wait_for(lck, std::chrono::milliseconds(timeoutMs));
-      if (std::cv_status::timeout != status) {
-        if (false == m_Queue.empty()) {
-          pop(out, FIFO);
+      if (0 == timeoutMs) {
+        ret = false;
+      } else {
+        auto status = m_CondVar.wait_for(lck, std::chrono::milliseconds(timeoutMs));
+        if (std::cv_status::timeout != status) {
+          if (false == m_Queue.empty()) {
+            pop(out, FIFO);
+          } else {
+            ret = false;
+            LOG(DEBUG, "%s: MessageQueue empty\n", m_Name.c_str());
+          }
         } else {
           ret = false;
-          LOG(DEBUG, "%s: MessageQueue empty\n", m_Name.c_str());
+          LOG(DEBUG, "%s: MessageQueue timeout\n", m_Name.c_str());
         }
-      } else {
-        ret = false;
-        LOG(DEBUG, "%s: MessageQueue timeout\n", m_Name.c_str());
       }
     }
 
