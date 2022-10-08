@@ -1,6 +1,6 @@
 # AS - Automotive Software
 
-This project is not open source, all of the BSWs are developed by me alone according to AUTOSAR 4.4. 
+This project is only free to be used for evaluation and study purpose, all of the BSWs are developed by me alone according to AUTOSAR 4.4.
 
 ## AUTOSAR and its toolchain
 
