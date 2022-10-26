@@ -113,6 +113,7 @@ typedef struct {
   uint8_t InstanceIndex;
   const Sd_EventHandlerType *EventHandlers;
   uint16_t numOfEventHandlers;
+  uint16_t SomeIpServiceId;
 } Sd_ServerServiceType;
 
 typedef struct {

@@ -29,6 +29,7 @@
 #include <winsock2.h>
 #include <ws2def.h>
 #include <errno.h>
+#include <iphlpapi.h>
 #else
 #include "lwip/opt.h"
 #include "lwip/sys.h"
@@ -105,6 +106,93 @@ static void tcpIpInit(void *arg) { /* remove compiler warning */
   netif_set_up(netif_default);
 
   sys_sem_signal(init_sem);
+}
+#endif
+
+#ifdef _WIN32
+#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr) {
+  Std_ReturnType ret = E_OK;
+  DWORD dwRetVal = 0;
+  int i = 0;
+  ULONG flags = GAA_FLAG_INCLUDE_PREFIX;
+  ULONG family = AF_INET;
+  PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+  ULONG outBufLen = 0;
+  ULONG Iterations = 0;
+
+  PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
+  PIP_ADAPTER_UNICAST_ADDRESS pUnicast = NULL;
+
+  // Allocate a 15 KB buffer to start with.
+  outBufLen = 15000;
+
+  do {
+    pAddresses = (IP_ADAPTER_ADDRESSES *)MALLOC(outBufLen);
+    if (pAddresses == NULL) {
+      printf("Memory allocation failed for IP_ADAPTER_ADDRESSES struct\n");
+      ret = E_NOT_OK;
+    }
+
+    dwRetVal = GetAdaptersAddresses(family, flags, NULL, pAddresses, &outBufLen);
+
+    if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+      FREE(pAddresses);
+      pAddresses = NULL;
+      ret = E_NOT_OK;
+    } else {
+      break;
+    }
+
+    if (number == Iterations) {
+      break;
+    }
+
+    Iterations++;
+
+  } while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < 3));
+
+  Iterations = 0;
+  ret = E_NOT_OK;
+  if (dwRetVal == NO_ERROR) {
+    // If successful, output some information from the data we received
+    pCurrAddresses = pAddresses;
+    while (pCurrAddresses) {
+      if (IfOperStatusUp == pCurrAddresses->OperStatus) {
+        if (pCurrAddresses->PhysicalAddressLength != 0) {
+          printf("Adapter[%d]: ", (int)Iterations);
+          for (i = 0; i < (int)pCurrAddresses->PhysicalAddressLength; i++) {
+            if (i == (pCurrAddresses->PhysicalAddressLength - 1))
+              printf("%.2X\n", (int)pCurrAddresses->PhysicalAddress[i]);
+            else
+              printf("%.2X-", (int)pCurrAddresses->PhysicalAddress[i]);
+          }
+        } else {
+          printf("Adapter[%d]: localhost\n", (int)Iterations);
+        }
+        pUnicast = pCurrAddresses->FirstUnicastAddress;
+        if (pUnicast != NULL) {
+          for (i = 0; pUnicast != NULL; i++) {
+            uint8_t *ipaddr = (uint8_t *)&pUnicast->Address.lpSockaddr->sa_data[2];
+            printf("\tUnicast[%d]: %u.%u.%u.%u\n", i, ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
+            if ((i == 0) && (Iterations == number)) {
+              memcpy(addr->addr, ipaddr, 4);
+              ret = E_OK;
+            }
+            pUnicast = pUnicast->Next;
+          }
+        }
+        Iterations++;
+      }
+      pCurrAddresses = pCurrAddresses->Next;
+    }
+  }
+
+  if (pAddresses) {
+    FREE(pAddresses);
+  }
+  return ret;
 }
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -264,6 +352,7 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, const char *LocalAddr, ui
 
   if (0 != r) {
     ret = E_NOT_OK;
+    ASLOG(TCPIPE, ("[%d] bind to %s:%d failed: %d\n", SocketId, LocalAddr, Port, r));
   } else {
     TcpIp_SetNonBlock(SocketId, TRUE);
   }
@@ -318,6 +407,8 @@ Std_ReturnType TcpIp_TcpListen(TcpIp_SocketIdType SocketId, uint16_t MaxChannels
   r = listen(SocketId, MaxChannels);
   if (0 == r) {
     ret = E_OK;
+  } else {
+    ASLOG(TCPIPE, ("[%d] listen failed: %d\n", SocketId, r));
   }
   ASLOG(TCPIP, ("[%d] listen(%d) \n", SocketId, MaxChannels));
 
@@ -483,7 +574,12 @@ Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
   if (0 == r) {
     TcpIp_SetNonBlock(SocketId, TRUE);
     ret = E_OK;
+  } else {
+    ASLOG(TCPIPE, ("[%d] connect %d.%d.%d.%d:%d failed: %d\n", SocketId, RemoteAddrPtr->addr[0],
+                   RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3],
+                   RemoteAddrPtr->port, r));
   }
+
   ASLOG(TCPIP,
         ("[%d] connect %d.%d.%d.%d:%d\n", SocketId, RemoteAddrPtr->addr[0], RemoteAddrPtr->addr[1],
          RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3], RemoteAddrPtr->port));
@@ -523,12 +619,53 @@ Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr) {
 
   ip = getenv("AS_LOCAL_IP");
   if (NULL == ip) {
-    ip = "172.18.0.1";
+#ifdef _WIN32
+    TcpIp_SockAddrType addr;
+    static char lIPStr[64];
+    static bool lGeted = FALSE;
+    static bool lAvaiable = FALSE;
+    if (FALSE == lGeted) {
+      if (E_OK == TcpIp_GetAdapterAddress(0, &addr)) {
+        snprintf(lIPStr, sizeof(lIPStr), "%d.%d.%d.%d", addr.addr[0], addr.addr[1], addr.addr[2],
+                 addr.addr[3]);
+        ASLOG(WARN, ("env AS_LOCAL_IP not set, using adapter 0, IP is %s\n", lIPStr));
+        lAvaiable = TRUE;
+      }
+      lGeted = TRUE;
+    }
+    if (lAvaiable) {
+      ip = lIPStr;
+    } else {
+#endif
+      ip = "172.18.0.1";
+      ASLOG(WARN, ("env AS_LOCAL_IP not set, default %s\n", ip));
+#ifdef _WIN32
+    }
+#endif
   }
   u32Addr = inet_addr(ip);
   memcpy(addr->addr, &u32Addr, 4);
   return E_OK;
 #endif
+}
+
+Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr) {
+  Std_ReturnType ret = E_NOT_OK;
+  int r;
+  struct sockaddr_in name;
+  int namelen = sizeof(name);
+
+  r = getsockname(SocketId, (struct sockaddr *)&name, &namelen);
+  if (0 == r) {
+    addr->port = htons(name.sin_port);
+    memcpy(addr->addr, &name.sin_addr, 4);
+    ret = E_OK;
+
+    ASLOG(TCPIP, ("[%d] sockname %d.%d.%d.%d:%d\n", SocketId, addr->addr[0], addr->addr[1],
+                  addr->addr[2], addr->addr[3], addr->port));
+  }
+
+  return ret;
 }
 
 uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId) {

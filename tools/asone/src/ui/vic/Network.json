@@ -13,7 +13,7 @@
           "service":"0x1234",
           "instance":"0x5678",
           "clientId":"0x4444",
-          "reliable":"30560",
+          "unreliable":"30560",
           "event-groups": [
             {
               "name": "cluster",

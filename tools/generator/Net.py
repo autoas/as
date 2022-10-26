@@ -83,7 +83,9 @@ def ProcSoAd(netCfg, dir):
     with open('%s/Network.json' % (dir), 'w') as f:
         json.dump(netCfg, f, indent=2)
 
+RandomPort = 60000
 def GenAnitTestForSomeIp(cfgj):
+    global RandomPort
     dir = os.path.join(os.path.dirname(cfgj), 'GENT')
     os.makedirs(dir, exist_ok=True)
     with open(cfgj) as f:
@@ -100,6 +102,10 @@ def GenAnitTestForSomeIp(cfgj):
             if 'clients' in mod:
                 clients = mod['clients']
                 del mod['clients']
+            for ser in servers:
+                if 'unreliable' in ser:
+                    ser['unreliable'] = RandomPort
+                    RandomPort += 1
             mod['clients'] = servers
             mod['servers'] = clients
     if someIpCfg:

@@ -104,6 +104,7 @@ Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddr
 Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId,
                                  Sd_EventHandlerSubscriberType **Subscribers,
                                  uint16_t *numOfSubscribers);
+void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
 #ifdef __cplusplus
 }
 #endif

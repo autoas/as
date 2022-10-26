@@ -181,6 +181,14 @@ def IsPlatformTermux():
         bYes = True
     return bYes
 
+def GetMsys2Root():
+    rt = os.getenv('MSYS2')
+    if None == rt:
+        if os.path.isdir('c:/msys64'):
+            rt = 'c:/msys64'
+    if None == rt:
+        raise Exception('please specify env MSYS2 root directory')
+    return rt
 
 def MKDir(p):
     ap = os.path.abspath(p)

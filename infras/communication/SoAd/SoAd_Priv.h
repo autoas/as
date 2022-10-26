@@ -10,6 +10,15 @@
 #include "ComStack_Types.h"
 #include "TcpIp.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define SOAD_SOCON_TCP_SERVER ((SoAd_SoConTypeType)0x01)
+#define SOAD_SOCON_TCP_CLIENT ((SoAd_SoConTypeType)0x02)
+#define SOAD_SOCON_TCP_ACCEPT ((SoAd_SoConTypeType)0x04)
+#define SOAD_SOCON_UDP_SERVER ((SoAd_SoConTypeType)0x08)
+#define SOAD_SOCON_UDP_CLIENT ((SoAd_SoConTypeType)0x10)
+
+#ifndef SOAD_ERROR_COUNTER_LIMIT
+#define SOAD_ERROR_COUNTER_LIMIT 3
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 
 typedef void (*SoAd_SoConModeChgNotificationFncType)(SoAd_SoConIdType SoConId,
@@ -83,12 +92,14 @@ typedef struct {
   uint16_t Port;
 } SoAd_SocketRemoteAddressType;
 
+typedef uint8_t SoAd_SoConTypeType;
+
 /* @ECUC_SoAd_00009 */
 typedef struct {
   PduIdType RxPduId;
   SoAd_SoConIdType SoConId;
   uint16_t GID;
-  boolean isGroup;
+  SoAd_SoConTypeType SoConType;
 } SoAd_SocketConnectionType;
 
 /* @ECUC_SoAd_00130 */
@@ -103,7 +114,6 @@ typedef struct {
   uint8_t numOfConnections; /* max number of accepted connections */
   boolean AutomaticSoConSetup;
   boolean IsTP;
-  boolean IsServer;
 } SoAd_SocketConnectionGroupType;
 
 typedef enum
@@ -116,9 +126,12 @@ typedef enum
 } SoAd_SocketStateType;
 
 typedef struct {
-  int sock;
+  TcpIp_SocketIdType sock;
   SoAd_SocketStateType state;
   TcpIp_SockAddrType RemoteAddr;
+#if SOAD_ERROR_COUNTER_LIMIT > 0
+  uint8_t errorCounter;
+#endif
 } SoAd_SocketContextType;
 
 struct SoAd_Config_s {

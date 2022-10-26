@@ -1377,6 +1377,7 @@ static void SomeIp_MainClient(const SomeIp_ClientServiceType *config) {
 static void SomeIp_ServerServiceModeChg(const SomeIp_ServerServiceType *service, uint16_t conId,
                                         SoAd_SoConModeType Mode) {
   SomeIp_ServerConnectionContextType *context = service->connections[conId].context;
+  int i;
   if (SOAD_SOCON_OFFLINE == Mode) {
     SQP_CLEAR(AsyncReqMsg);
     SQP_CLEAR(RxTpMsg);
@@ -1384,6 +1385,9 @@ static void SomeIp_ServerServiceModeChg(const SomeIp_ServerServiceType *service,
     SQP_CLEAR(TxTpEvtMsg);
     context->online = FALSE;
     service->onConnect(conId, FALSE);
+    for (i = 0; i < service->numOfEvents; i++) {
+      Sd_RemoveSubscriber(service->events[i].sdHandleID, service->connections[conId].TxPduId);
+    }
   } else {
     context->online = TRUE;
     service->onConnect(conId, TRUE);
@@ -1636,7 +1640,6 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   uint16_t TxEventId = (requestId >> 16) & 0xFFFF;
   uint16_t sessionId = requestId & 0xFFFF;
   const SomeIp_ServerServiceType *config;
-  const SomeIp_ServerConnectionType *connection;
   const SomeIp_ServerEventType *event;
   uint16_t index;
   Sd_EventHandlerSubscriberType *Subscribers;
@@ -1644,7 +1647,6 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   uint16_t i;
   SomeIp_MessageType msg;
   uint32_t mask;
-  TcpIp_SockAddrType RemoteAddr;
 
   if (TxEventId < SOMEIP_CONFIG->numOfTxEvents) {
     index = SOMEIP_CONFIG->TxEvent2ServiceMap[TxEventId];
@@ -1665,24 +1667,7 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   if (E_OK == ret) {
     for (i = 0; i < numOfSubscribers; i++) {
       if (0 != Subscribers[i].flags) {
-        if (TCPIP_IPPROTO_UDP == config->protocol) {
-          mask |= (1 << i);
-          Subscribers[i].TxPduId = config->connections[0].TxPduId;
-        } else {
-          for (index = 0; index < config->numOfConnections; index++) {
-            connection = &config->connections[index];
-            ret = SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
-            if ((E_OK == ret) && (0 == memcmp(Subscribers[i].RemoteAddr.addr, RemoteAddr.addr,
-                                              sizeof(RemoteAddr.addr)))) {
-              mask |= (1 << i);
-              Subscribers[i].TxPduId = connection->TxPduId;
-              break;
-            }
-          }
-          if (index >= config->numOfConnections) {
-            ASLOG(SOMEIPE, ("can't find remote for subscriber\n"));
-          }
-        }
+        mask |= (1 << i);
       }
     }
     ret = E_OK;
@@ -1699,6 +1684,42 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   if (E_OK == ret) {
     ret = SomeIp_SendNotification(config, TxEventId, sessionId, &msg, Subscribers, numOfSubscribers,
                                   mask);
+  }
+
+  return ret;
+}
+
+Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubscriberType *sub) {
+  Std_ReturnType ret = E_NOT_OK, ret2;
+  const SomeIp_ServerServiceType *service = NULL;
+  const SomeIp_ServerConnectionType *connection = NULL;
+  TcpIp_SockAddrType RemoteAddr;
+  int i;
+
+  if (ServiceId < SOMEIP_CONFIG->numOfService) {
+    if (SOMEIP_CONFIG->services[ServiceId].isServer) {
+      service = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[ServiceId].service;
+      if (service->context->online) {
+        if (TCPIP_IPPROTO_UDP == service->protocol) {
+          connection = &service->connections[0];
+          sub->TxPduId = connection->TxPduId;
+          ret = E_OK;
+        } else {
+          for (i = 0; i < service->numOfConnections; i++) {
+            connection = &service->connections[i];
+            if (connection->context->online) {
+              ret2 = SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
+              if ((E_OK == ret2) &&
+                  (0 == memcmp(&sub->RemoteAddr, &RemoteAddr, sizeof(RemoteAddr)))) {
+                sub->TxPduId = connection->TxPduId;
+                ret = E_OK;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   return ret;

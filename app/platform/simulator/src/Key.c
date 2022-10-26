@@ -128,7 +128,7 @@ static void *KeyMonitorThread(void *arg) {
       }
     }
 #endif
-#ifdef USE_SD
+#if defined(USE_SD) && !defined(USE_VIC)
     if (ch == 's') {
       static int avtive = FALSE;
       if (FALSE == avtive) {

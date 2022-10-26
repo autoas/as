@@ -784,6 +784,7 @@ def Gen_SD(cfg, dir):
     C.write('#include "Sd_Cfg.h"\n')
     C.write('#include "Sd_Priv.h"\n')
     C.write('#include "SoAd_Cfg.h"\n')
+    C.write('#include "SomeIp_Cfg.h"\n')
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
     C.write(
@@ -866,9 +867,10 @@ def Gen_SD(cfg, dir):
                 service['name'], ID))
             C.write('  },\n')
         C.write('};\n\n')
-    C.write('static Sd_ServerServiceContextType Sd_ServerService_Contexts[%s];\n\n' % (
-        len(cfg.get('servers', []))))
-    C.write('static const Sd_ServerServiceType Sd_ServerServices[] = {\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('static Sd_ServerServiceContextType Sd_ServerService_Contexts[%s];\n\n' % (
+            len(cfg.get('servers', []))))
+        C.write('static const Sd_ServerServiceType Sd_ServerServices[] = {\n')
     for ID, service in enumerate(cfg.get('servers', [])):
         C.write('  {\n')
         C.write('    FALSE,                           /* AutoAvailable */\n')
@@ -899,11 +901,14 @@ def Gen_SD(cfg, dir):
             C.write('    Sd_EventHandlers_%s,\n' % (service['name']))
             C.write('    ARRAY_SIZE(Sd_EventHandlers_%s),\n' %
                     (service['name']))
+        C.write('    SOMEIP_SSID_%s, /* SomeIpServiceId */\n'%(service['name'].upper()))
         C.write('  },\n')
-    C.write('};\n\n')
-    C.write('static Sd_ClientServiceContextType Sd_ClientService_Contexts[%s];\n\n' % (
-        len(cfg.get('clients', []))))
-    C.write('static const Sd_ClientServiceType Sd_ClientServices[] = {\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('};\n\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('static Sd_ClientServiceContextType Sd_ClientService_Contexts[%s];\n\n' % (
+            len(cfg.get('clients', []))))
+        C.write('static const Sd_ClientServiceType Sd_ClientServices[] = {\n')
     for ID, service in enumerate(cfg.get('clients', [])):
         C.write('  {\n')
         C.write('    FALSE,                           /* AutoRequire */\n')
@@ -933,7 +938,8 @@ def Gen_SD(cfg, dir):
             C.write('    ARRAY_SIZE(Sd_ConsumedEventGroups_%s),\n' %
                     (service['name']))
         C.write('  },\n')
-    C.write('};\n\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('};\n\n')
     C.write('static uint8_t sd_buffer[1400];\n')
     C.write('static Sd_InstanceContextType sd_context;\n')
     C.write('static const Sd_InstanceType Sd_Instances[] = {\n')
@@ -956,23 +962,33 @@ def Gen_SD(cfg, dir):
     C.write('      SOAD_TX_PID_SD_MULTICAST,    /* MulticastTxPduId */\n')
     C.write('      SOAD_TX_PID_SD_UNICAST,      /* UnicastTxPduId */\n')
     C.write('    },                             /* TxPdu */\n')
-    C.write('    Sd_ServerServices,             /* ServerServices */\n')
-    C.write('    ARRAY_SIZE(Sd_ServerServices), /* numOfServerServices */\n')
-    C.write('    Sd_ClientServices,             /* ClientServices */\n')
-    C.write('    ARRAY_SIZE(Sd_ClientServices), /* numOfClientServices */\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('    Sd_ServerServices,             /* ServerServices */\n')
+        C.write('    ARRAY_SIZE(Sd_ServerServices), /* numOfServerServices */\n')
+    else:
+        C.write('    NULL,                          /* ServerServices */\n')
+        C.write('    0,                             /* numOfServerServices */\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('    Sd_ClientServices,             /* ClientServices */\n')
+        C.write('    ARRAY_SIZE(Sd_ClientServices), /* numOfClientServices */\n')
+    else:
+        C.write('    NULL,                          /* ClientServices */\n')
+        C.write('    0,                             /* numOfClientServices */\n')
     C.write('    sd_buffer,                     /*buffer */\n')
     C.write('    sizeof(sd_buffer),\n')
     C.write('    &sd_context,\n')
     C.write('  },\n')
     C.write('};\n\n')
-    C.write('static const Sd_ServerServiceType* Sd_ServerServicesMap[] = {\n')
-    for ID, service in enumerate(cfg.get('servers', [])):
-        C.write('  &Sd_ServerServices[%s],\n' % (ID))
-    C.write('};\n\n')
-    C.write('static const Sd_ClientServiceType* Sd_ClientServicesMap[] = {\n')
-    for ID, service in enumerate(cfg.get('clients', [])):
-        C.write('  &Sd_ClientServices[%s],\n' % (ID))
-    C.write('};\n\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('static const Sd_ServerServiceType* Sd_ServerServicesMap[] = {\n')
+        for ID, service in enumerate(cfg.get('servers', [])):
+            C.write('  &Sd_ServerServices[%s],\n' % (ID))
+        C.write('};\n\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('static const Sd_ClientServiceType* Sd_ClientServicesMap[] = {\n')
+        for ID, service in enumerate(cfg.get('clients', [])):
+            C.write('  &Sd_ClientServices[%s],\n' % (ID))
+        C.write('};\n\n')
     C.write('static const uint16_t Sd_EventHandlersMap[] = {\n')
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
@@ -1008,10 +1024,18 @@ def Gen_SD(cfg, dir):
     C.write('const Sd_ConfigType Sd_Config = {\n')
     C.write('  Sd_Instances,\n')
     C.write('  ARRAY_SIZE(Sd_Instances),\n')
-    C.write('  Sd_ServerServicesMap,\n')
-    C.write('  ARRAY_SIZE(Sd_ServerServicesMap),\n')
-    C.write('  Sd_ClientServicesMap,\n')
-    C.write('  ARRAY_SIZE(Sd_ClientServicesMap),\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('  Sd_ServerServicesMap,\n')
+        C.write('  ARRAY_SIZE(Sd_ServerServicesMap),\n')
+    else:
+        C.write('  NULL,\n')
+        C.write('  0,\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('  Sd_ClientServicesMap,\n')
+        C.write('  ARRAY_SIZE(Sd_ClientServicesMap),\n')
+    else:
+        C.write('  NULL,\n')
+        C.write('  0,\n')
     C.write('  Sd_EventHandlersMap,\n')
     C.write('  Sd_PerServiceEventHandlerMap,\n')
     C.write('  ARRAY_SIZE(Sd_EventHandlersMap)-1,\n')

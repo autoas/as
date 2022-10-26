@@ -12,5 +12,5 @@ class LibraryTcpIp(Library):
             self.CPPDEFINES = ['USE_LWIP']
         else:
             if IsBuildForWindows():
-                self.LIBS = ['ws2_32']
+                self.LIBS = ['ws2_32', 'iphlpapi']
         self.source = objs

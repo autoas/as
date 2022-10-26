@@ -73,6 +73,8 @@ Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, const char
 
 Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr);
 
+Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr);
+
 /* @SWS_TCPIP_00026 */
 void TcpIp_MainFunction(void);
 

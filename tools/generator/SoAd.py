@@ -7,12 +7,12 @@ from .helper import *
 
 __all__ = ['Gen_SoAd']
 
-def Gen_Sock(C, RxPduId, SoConId, GID, isGroup):
+def Gen_Sock(C, RxPduId, SoConId, GID, SoConType):
     C.write('  {\n')
     C.write('    %s, /* RxPduId */\n' % (RxPduId))
     C.write('    %s, /* SoConId */\n' % (SoConId))
-    C.write('    %s,                    /* GID */\n' % (GID))
-    C.write('    %s,                 /* isGroup */\n' % (str(isGroup).upper()))
+    C.write('    %s, /* GID */\n' % (GID))
+    C.write('    SOAD_SOCON_%s, /* SoConType */\n' % (SoConType))
     C.write('  },\n')
 
 
@@ -134,6 +134,7 @@ def Gen_SoAd(cfg, dir):
         'static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n')
     for GID, sock in enumerate(cfg['sockets']):
         RxPduId = sock['RxPduId']
+        SoConType = '%s_%s'%(sock['protocol'], 'SERVER' if 'server' in sock else 'CLIENT')
         if sock['protocol'] == 'UDP':
             SoConId = 'SOAD_SOCKID_%s' % (sock['name'])
         elif 'server' in sock:
@@ -141,12 +142,12 @@ def Gen_SoAd(cfg, dir):
             RxPduId = -1
         elif 'client' in sock:
             SoConId = 'SOAD_SOCKID_%s' % (sock['name'])
-        Gen_Sock(C, RxPduId, SoConId, GID, True)
+        Gen_Sock(C, RxPduId, SoConId, GID, SoConType)
         if ('server' in sock) and (sock['protocol'] == 'TCP'):
             for i in range(sock['listen']):
                 RxPduId = '%s%s' % (sock['RxPduId'], i)
                 SoConId = 'SOAD_SOCKID_%s_APT%s' % (sock['name'], i)
-                Gen_Sock(C, RxPduId, SoConId, GID, False)
+                Gen_Sock(C, RxPduId, SoConId, GID, 'TCP_ACCEPT')
     C.write('};\n\n')
 
     C.write(
@@ -160,14 +161,13 @@ def Gen_SoAd(cfg, dir):
         SoConId = -1
         numOfConnections = 1
         IsTP = 'FALSE'
-        IsServer = 'TRUE'
         if sock['protocol'] == 'UDP':
             pass
         elif 'server' in sock:
             numOfConnections = sock['listen']
             SoConId = 'SOAD_SOCKID_%s_APT0' % (sock['name'])
         elif 'client' in sock:
-            IsServer = 'FALSE'
+            pass
         if sock['up'] == 'DoIP':
             SoConModeChgNotification = 'DoIP_SoConModeChg'
             if sock['protocol'] == 'UDP':
@@ -195,33 +195,31 @@ def Gen_SoAd(cfg, dir):
             IpAddress = '"%s"' % (IpAddress)
         C.write('  {\n')
         C.write('    /* %s: %s */\n' % (GID, sock['name']))
-        C.write('    &%s,     /* Interface */\n' % (IF))
+        C.write('    &%s, /* Interface */\n' % (IF))
         C.write('    %s, /* IpAddress */\n' % (IpAddress))
         C.write('    %s, /* SoConModeChgNotification */\n' %
                 (SoConModeChgNotification))
         C.write('    TCPIP_IPPROTO_%s, /* ProtocolType */\n' %
                 (sock['protocol']))
-        C.write('    %s,                /* SoConId */\n' % (SoConId))
-        C.write('    %s,             /* Port */\n' % (Port))
-        C.write('    %s,                 /* numOfConnections */\n' %
-                (numOfConnections))
-        C.write('    FALSE,             /* AutomaticSoConSetup */\n')
-        C.write('    %s,             /* IsTP */\n' % (IsTP))
-        C.write('    %s,              /* IsServer */\n' % (IsServer))
+        C.write('    %s, /* SoConId */\n' % (SoConId))
+        C.write('    %s, /* Port */\n' % (Port))
+        C.write('    %s, /* numOfConnections */\n' % (numOfConnections))
+        C.write('    FALSE, /* AutomaticSoConSetup */\n')
+        C.write('    %s, /* IsTP */\n' % (IsTP))
         C.write('  },\n')
     C.write('};\n\n')
 
     C.write('static const SoAd_SoConIdType TxPduIdToSoCondIdMap[] = {\n')
     for sock in cfg['sockets']:
         if sock['protocol'] == 'UDP':
-            C.write('  SOAD_SOCKID_%s,      /* SOAD_TX_PID_%s */\n' %
+            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' %
                     (sock['name'], sock['name']))
         elif 'server' in sock:
             for i in range(sock['listen']):
-                C.write('  SOAD_SOCKID_%s_APT%s,      /* SOAD_TX_PID_%s_APT%s */\n' %
+                C.write('  SOAD_SOCKID_%s_APT%s, /* SOAD_TX_PID_%s_APT%s */\n' %
                         (sock['name'], i, sock['name'], i))
         else:
-            C.write('  SOAD_SOCKID_%s,      /* SOAD_TX_PID_%s */\n' %
+            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' %
                     (sock['name'], sock['name']))
     C.write('};\n\n')
     C.write('const SoAd_ConfigType SoAd_Config = {\n')
