@@ -7,6 +7,7 @@ from .helper import *
 
 __all__ = ['Gen_SoAd']
 
+
 def Gen_Sock(C, RxPduId, SoConId, GID, SoConType):
     C.write('  {\n')
     C.write('    %s, /* RxPduId */\n' % (RxPduId))
@@ -134,7 +135,8 @@ def Gen_SoAd(cfg, dir):
         'static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n')
     for GID, sock in enumerate(cfg['sockets']):
         RxPduId = sock['RxPduId']
-        SoConType = '%s_%s'%(sock['protocol'], 'SERVER' if 'server' in sock else 'CLIENT')
+        SoConType = '%s_%s' % (
+            sock['protocol'], 'SERVER' if 'server' in sock else 'CLIENT')
         if sock['protocol'] == 'UDP':
             SoConId = 'SOAD_SOCKID_%s' % (sock['name'])
         elif 'server' in sock:
@@ -191,21 +193,31 @@ def Gen_SoAd(cfg, dir):
             IpAddress, Port = sock['server'].split(':')
         else:
             IpAddress, Port = sock['client'].split(':')
-        if IpAddress != 'NULL':
-            IpAddress = '"%s"' % (IpAddress)
+        if IpAddress.count('.') == 3:
+            IpAddress = 'TCPIP_IPV4_ADDR(%s)' % (','.join(IpAddress.split('.')))
+        else:
+            IpAddress = 0
+        if sock.get('multicast', False) and (sock['protocol'] is 'UDP'):
+            multicast = 'TRUE'
+            LocalAddrId = 0  # TODO
+        else:
+            multicast = 'FALSE'
+            LocalAddrId = 'TCPIP_LOCALADDRID_ANY'
         C.write('  {\n')
         C.write('    /* %s: %s */\n' % (GID, sock['name']))
         C.write('    &%s, /* Interface */\n' % (IF))
-        C.write('    %s, /* IpAddress */\n' % (IpAddress))
         C.write('    %s, /* SoConModeChgNotification */\n' %
                 (SoConModeChgNotification))
         C.write('    TCPIP_IPPROTO_%s, /* ProtocolType */\n' %
                 (sock['protocol']))
+        C.write('    %s, /* Remote */\n' % (IpAddress))
         C.write('    %s, /* SoConId */\n' % (SoConId))
         C.write('    %s, /* Port */\n' % (Port))
+        C.write('    %s, /* LocalAddrId */\n' % (LocalAddrId))
         C.write('    %s, /* numOfConnections */\n' % (numOfConnections))
         C.write('    FALSE, /* AutomaticSoConSetup */\n')
         C.write('    %s, /* IsTP */\n' % (IsTP))
+        C.write('    %s, /* IsMulitcast */\n' % (multicast))
         C.write('  },\n')
     C.write('};\n\n')
 

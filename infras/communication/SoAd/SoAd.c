@@ -17,10 +17,6 @@
 
 #define IS_CON_TYPE_OF(con, mask) (0 != ((con)->SoConType & (mask)))
 
-#define IS_IP_CHANGEABLE(conG)                                                                     \
-  ((NULL != (conG)->IpAddress) && (0 == strcmp((conG)->IpAddress, "0.0.0.0")) &&                   \
-   (0 == (conG)->Port))
-
 #define SOAD_CONFIG (&SoAd_Config)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -33,19 +29,16 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   TcpIp_SocketIdType sockId;
   Std_ReturnType ret = E_OK;
-  char ipaddr[16];
+  uint16_t port;
 
   sockId = TcpIp_Create(conG->ProtocolType);
   if (sockId >= 0) {
     if (IS_CON_TYPE_OF(connection,
                        SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER | SOAD_SOCON_UDP_CLIENT)) {
-      if (IS_IP_CHANGEABLE(conG)) {
-        snprintf(ipaddr, sizeof(ipaddr), "%d.%d.%d.%d", context->RemoteAddr.addr[0],
-                 context->RemoteAddr.addr[1], context->RemoteAddr.addr[2],
-                 context->RemoteAddr.addr[3]);
-        ret = TcpIp_Bind(sockId, ipaddr, context->RemoteAddr.port);
-      } else {
-        ret = TcpIp_Bind(sockId, conG->IpAddress, conG->Port);
+      port = conG->Port;
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &port);
+      if ((E_OK == ret) && conG->IsMulitcast) {
+        ret = TcpIp_AddToMulticast(sockId, conG->Remote);
       }
       if (E_OK != ret) {
         TcpIp_Close(sockId, TRUE);
@@ -306,7 +299,7 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
           conG->AutomaticSoConSetup) {
         context->state = SOAD_SOCKET_CREATE;
       }
-      TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->IpAddress, conG->Port);
+      TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
     } else {
       ASLOG(SOADE, ("[%d] Invalid GID\n", i));
     }
@@ -354,7 +347,7 @@ Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
           addr = *(const TcpIp_SockAddrType *)PduInfoPtr->MetaDataPtr;
           ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
         } else {
-          TcpIp_SetupAddrFrom(&addr, conG->IpAddress, conG->Port);
+          TcpIp_SetupAddrFrom(&addr, conG->Remote, conG->Port);
           ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
         }
       } else {
@@ -426,22 +419,14 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
     connection = &SOAD_CONFIG->Connections[SoConId];
     conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER) &&
-        IS_IP_CHANGEABLE(conG)) {
-      *LocalAddrPtr = context->RemoteAddr;
-      ret = E_OK;
-    } else {
-      if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_CLIENT | SOAD_SOCON_TCP_ACCEPT)) {
-        /* for TCP client socket */
-        if (context->state >= SOAD_SOCKET_READY) {
-          ret = TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
-        }
-      } else if (NULL == conG->IpAddress) {
-        ret = TcpIp_GetLocalIp(LocalAddrPtr);
-        LocalAddrPtr->port = conG->Port;
-      } else {
-        ret = TcpIp_SetupAddrFrom(LocalAddrPtr, conG->IpAddress, conG->Port);
+    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_CLIENT | SOAD_SOCON_TCP_ACCEPT)) {
+      /* for TCP client socket */
+      if (context->state >= SOAD_SOCKET_READY) {
+        ret = TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
       }
+    } else { /* SOAD_SOCON_UDP_CLIENT */
+      ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
+      LocalAddrPtr->port = conG->Port;
     }
   }
 
@@ -451,20 +436,13 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
 Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
                                   const TcpIp_SockAddrType *RemoteAddrPtr) {
   Std_ReturnType ret = E_NOT_OK;
-  const SoAd_SocketConnectionType *connection;
-  const SoAd_SocketConnectionGroupType *conG;
   SoAd_SocketContextType *context;
 
   if (SoConId < SOAD_CONFIG->numOfConnections) {
-    connection = &SOAD_CONFIG->Connections[SoConId];
-    conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
-      if (IS_IP_CHANGEABLE(conG)) {
-        context->RemoteAddr = *RemoteAddrPtr;
-      }
-    } else {
+    if (SOAD_SOCKET_CLOSED == context->state) {
       context->RemoteAddr = *RemoteAddrPtr;
+      ret = E_OK;
     }
   }
 
@@ -520,6 +498,7 @@ Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort) {
       ret = TcpIp_Close(context->sock, abort);
       if (E_OK == ret) {
         context->state = SOAD_SOCKET_CLOSED;
+        TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
       } else {
         ASLOG(SOADE, ("[%d] close fail: %d\n", SoConId, ret));
       }

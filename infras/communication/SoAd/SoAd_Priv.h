@@ -86,12 +86,6 @@ typedef struct {
   boolean TcpNoDelay;
 } SoAd_SocketTcpType;
 
-/* @ECUC_SoAd_00113 */
-typedef struct {
-  const char *IpAddress;
-  uint16_t Port;
-} SoAd_SocketRemoteAddressType;
-
 typedef uint8_t SoAd_SoConTypeType;
 
 /* @ECUC_SoAd_00009 */
@@ -106,14 +100,17 @@ typedef struct {
 typedef struct {
   /* SoAd_IfInterfaceType or SoAd_TpInterfaceType */
   const void *Interface;
-  const char *IpAddress; /* NULL for ANY */
   SoAd_SoConModeChgNotificationFncType SoConModeChgNotification;
   TcpIp_ProtocolType ProtocolType;
+  /* https://www.ibm.com/docs/en/zvm/6.4?topic=SSB27U_6.4.0/com.ibm.zvm.v640.kiml0/asonetw.htm */
+  uint32_t Remote;        /* if not 0, this is the default remote server IPv4 address */
   SoAd_SoConIdType SoConId; /* where the accepted connection socket id start from*/
   uint16_t Port;
+  TcpIp_LocalAddrIdType LocalAddrId;
   uint8_t numOfConnections; /* max number of accepted connections */
   boolean AutomaticSoConSetup;
   boolean IsTP;
+  boolean IsMulitcast;       /* if True, the Remote is a multicast UDP IPv4 address */
 } SoAd_SocketConnectionGroupType;
 
 typedef enum

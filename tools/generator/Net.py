@@ -27,7 +27,7 @@ def Gen_Net(cfg, dir):
 
 def ProcDoIp(cfg, mod):
     sock = {'name': 'DOIP_UDP',
-            'server': mod['discovery'], 'protocol': 'UDP', 'up': 'DoIP', 'RxPduId': 'DOIP_RX_PID_UDP'}
+            'server': mod['discovery'], 'protocol': 'UDP', 'multicast':True, 'up': 'DoIP', 'RxPduId': 'DOIP_RX_PID_UDP'}
     cfg['sockets'].append(sock)
     sock = {'name': 'DOIP_TCP',
             'server': 'NULL:13400', 'protocol': 'TCP', 'up': 'DoIP', 'listen': mod['max_connections'], 'RxPduId': 'DOIP_RX_PID_TCP'}
@@ -36,7 +36,7 @@ def ProcDoIp(cfg, mod):
 
 def ProcSomeIp(cfg, mod):
     sock = {'name': 'SD_MULTICAST',
-            'server': mod['SD']['multicast'] + ':30490', 'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_MULTICAST'}
+            'server': mod['SD']['multicast'] + ':30490', 'multicast':True, 'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_MULTICAST'}
     cfg['sockets'].append(sock)
     sock = {'name': 'SD_UNICAST', 'server': 'NULL:30490',
             'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_UNICAST'}

@@ -17,8 +17,19 @@ extern "C" {
 
 #define TCPIP_E_NOSPACE ((Std_ReturnType)0x10)
 
+/* @SWS_TCPIP_00134 */
+#define TCPIP_PORT_ANY ((uint16_t)0x00)
+
+/* @SWS_TCPIP_00135 */
+#define TCPIP_LOCALADDRID_ANY ((TcpIp_LocalAddrIdType)0xFF)
+
+#define TCPIP_IPV4_ADDR(b0, b1, b2, b3)                                                            \
+  ((((uint32_t)b0) << 24) + (((uint32_t)b1) << 16) + (((uint32_t)b2) << 8) + b3)
 /* ================================ [ TYPES     ] ============================================== */
 typedef int TcpIp_SocketIdType;
+
+/* @SWS_TCPIP_00030 */
+typedef uint8_t TcpIp_LocalAddrIdType;
 
 /* @SWS_TCPIP_00009 */
 typedef uint16_t TcpIp_DomainType;
@@ -32,18 +43,21 @@ typedef enum
 
 /* @SWS_TCPIP_00012 */
 typedef struct {
+  TcpIp_DomainType dormain;
   uint16_t port;
-  uint8_t addr[4];
+  uint8_t addr[4]; /* NOTE: now only support IPv4 */
 } TcpIp_SockAddrType;
 
 /* @SWS_TCPIP_00013 */
 typedef struct {
+  TcpIp_DomainType dormain;
   uint16_t port;
-  uint32_t addr[1];
+  uint32_t addr[1]; /* IPv4 address in network byte order */
 } TcpIp_SockAddrInetType;
 
 /* @SWS_TCPIP_00014 */
 typedef struct {
+  TcpIp_DomainType dormain;
   uint16_t port;
   uint32_t addr[4];
 } TcpIp_SockAddrInet6Type;
@@ -68,10 +82,11 @@ typedef struct TcpIp_Config_s TcpIp_ConfigType;
 /* @SWS_TCPIP_00002 */
 void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr);
 
-Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, const char *ip,
+Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t ipv4Addr,
                                    uint16_t port);
 
-Std_ReturnType TcpIp_GetLocalIp(TcpIp_SockAddrType *addr);
+Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
+                               uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
 
 Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr);
 
@@ -88,7 +103,10 @@ Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType SocketId, uint32_t timeoutMs)
 Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort);
 
 /* @SWS_TCPIP_00015 */
-Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, const char *LocalAddr, uint16_t Port);
+Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId,
+                          uint16 *PortPtr);
+
+Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, uint32_t ipv4Addr);
 
 /* @SWS_TCPIP_00022 */
 Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
