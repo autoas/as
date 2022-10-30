@@ -89,7 +89,7 @@ std_time_t Std_GetTimerElapsedTime(Std_TimerType *timer) {
     if (curTime > timer->time) {
       elapsed = curTime - timer->time;
     } else {
-      elapsed = (STD_TIME_MAX - curTime) + 1 + timer->time;
+      elapsed = (STD_TIME_MAX - timer->time) + 1 + curTime;
     }
   }
 
