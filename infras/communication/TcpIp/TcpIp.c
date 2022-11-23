@@ -307,7 +307,7 @@ Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort) {
 }
 
 Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId,
-                          uint16 *PortPtr) {
+                          uint16_t *PortPtr) {
   Std_ReturnType ret = E_OK;
 
   int r;
@@ -329,11 +329,12 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
 #if (defined(_WIN32) || defined(linux)) && !defined(USE_LWIP)
   if (LocalAddrId == TCPIP_LOCALADDRID_ANY) {
     sLocalAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  } else if (LocalAddrId == TCPIP_LOCALADDRID_LOCALHOST) {
+    sLocalAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   } else {
     TcpIp_GetIpAddr(LocalAddrId, &sAddr, NULL, NULL);
     memcpy(&sLocalAddr.sin_addr.s_addr, sAddr.addr, 4);
   }
-
 #else
   sLocalAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 #endif
@@ -352,7 +353,7 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
   return ret;
 }
 
-Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, uint32_t ipv4Addr) {
+Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *ipv4Addr) {
   int r;
   Std_ReturnType ret = E_NOT_OK;
 #ifdef USE_LWIP
@@ -361,22 +362,25 @@ Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, uint32_t ipv4Ad
   struct ip_mreq mreq;
 
 #ifdef USE_LWIP
-  ipaddr.addr = lwip_htonl(ipv4Addr);
+  memcpy(&ipaddr.addr, ipv4Addr->addr, 4);
   if (ip_addr_ismulticast(&ipaddr)) {
 #endif
 
 #ifndef USE_LWIP
-    mreq.imr_multiaddr.s_addr = htonl(ipv4Addr);
+    memcpy(&mreq.imr_multiaddr.s_addr, ipv4Addr->addr, 4);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 #else
   mreq.imr_multiaddr.s_addr = ipaddr.addr;
   mreq.imr_interface.s_addr = netif.ip_addr.addr;
 #endif
     r = setsockopt(SocketId, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq));
-    ASLOG(TCPIP, ("[%d] multicast on %d.%d.%d.%d\n", SocketId, ((uint8_t *)&ipv4Addr)[0],
-                  ((uint8_t *)&ipv4Addr)[1], ((uint8_t *)&ipv4Addr)[2], ((uint8_t *)&ipv4Addr)[3]));
+    ASLOG(TCPIP, ("[%d] multicast on %d.%d.%d.%d:%d\n", SocketId, ipv4Addr->addr[0],
+                  ipv4Addr->addr[1], ipv4Addr->addr[2], ipv4Addr->addr[3], ipv4Addr->port));
     if (0 == r) {
       ret = E_OK;
+    } else {
+      ASLOG(TCPIPE, ("[%d] multicast on %d.%d.%d.%d:%d error: %d\n", SocketId, ipv4Addr->addr[0],
+                     ipv4Addr->addr[1], ipv4Addr->addr[2], ipv4Addr->addr[3], ipv4Addr->port, r));
     }
 #ifdef USE_LWIP
   }
@@ -498,6 +502,20 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
   } else if (nbytes < -1) {
     ret = nbytes;
     ASLOG(TCPIPE, ("[%d] recv got error %d\n", nbytes));
+
+  } else if (-1 == nbytes) {
+#ifndef USE_LWIP
+#ifdef _WIN32
+    if (10035 != WSAGetLastError())
+#else
+    if (EAGAIN != errno)
+#endif
+    {
+      ret = E_NOT_OK;
+    } else {
+      /* Resource temporarily unavailable. */
+    }
+#endif
   } else {
     /* got nothing */
   }

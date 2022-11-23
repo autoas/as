@@ -26,6 +26,9 @@ extern "C" {
 #define PERF_END(desc)                                                                             \
     printf("\n%s: cost %.2f ms\n", desc, (float)Std_GetTimerElapsedTime(&_perfTimer) / 1000.0);    \
   } while (0)
+
+#define STD_TIMER_ONE_SECOND ((std_time_t)1000000000)
+#define STD_TIMER_ONE_MILISECOND ((std_time_t)1000000)
 /* ================================ [ TYPES     ] ============================================== */
 #if defined(linux) || defined(_WIN32)
 typedef uint64_t std_time_t;

@@ -12,7 +12,9 @@
 #include <stdarg.h>
 
 #include "canlib.h"
+#include "linlib.h"
 #include "isotp.h"
+#include "devlib.h"
 #include "loader.h"
 #include "srec.h"
 #define WEAK_ALIAS_PRINTF
@@ -85,6 +87,51 @@ private:
   int busid;
 };
 
+class lin {
+public:
+  lin(std::string device, uint32_t port, uint32_t baudrate, bool enhanced, int timeout)
+    : enhanced(enhanced), timeout(timeout) {
+    busid = lin_open(device.c_str(), port, baudrate);
+    if (busid < 0) {
+      throw std::runtime_error("failed to create lin " + device + " port " + std::to_string(port) +
+                               " baudrate " + std::to_string(baudrate));
+    }
+    uint32_t _tmo = timeout * 1000;
+    dev_ioctl(busid, 0, &_tmo, sizeof(_tmo));
+  }
+
+  ~lin() {
+    (void)lin_close(busid);
+  }
+
+  bool is_opened() {
+    return (busid >= 0);
+  }
+
+  py::object read(int id, int dlc) {
+    uint8_t data[64];
+    bool r = lin_read(busid, (uint8_t)id, (uint8_t)dlc, data, enhanced, timeout);
+    py::object obj;
+    if (true == r) {
+      obj = py::bytes((char *)data, dlc);
+    } else {
+      obj = py::none();
+    }
+    return obj;
+  }
+
+  bool write(int id, py::bytes b) {
+    std::string str = b;
+    bool r = lin_write(busid, (uint8_t)id, (uint8_t)str.size(), (uint8_t *)str.data(), enhanced);
+    return r;
+  }
+
+private:
+  int busid;
+  bool enhanced;
+  int timeout;
+};
+
 class isotp {
 public:
   isotp(py::kwargs kwargs) {
@@ -151,6 +198,7 @@ public:
     return tp;
   }
 
+
 private:
   isotp_t *tp = nullptr;
   uint8_t buffer[4096];
@@ -158,9 +206,39 @@ private:
   std::string device;
 };
 
+class dev {
+public:
+  dev(std::string device, std::string option) {
+    fd = dev_open(device.c_str(), option.c_str());
+    if (fd < 0) {
+      throw std::runtime_error("failed to create dev " + device + " option " + option);
+    }
+  }
 
+  ~dev() {
+    dev_close(fd);
+  }
 
+  int write(py::bytes b) {
+    std::string str = b;
+    return dev_write(fd, (uint8_t *)str.data(), str.size());
+  }
 
+  py::object read() {
+    int r = dev_read(fd, data, sizeof(data));
+    py::object obj;
+    if (data != NULL) {
+      obj = py::bytes((char *)data, r);
+    } else {
+      obj = py::none();
+    }
+    return obj;
+  }
+
+private:
+  int fd;
+  uint8_t data[128];
+};
 
 class loader {
 public:
@@ -243,11 +321,6 @@ private:
   loader_t *m_Loader = nullptr;
   int m_LogLevel = L_LOG_INFO;
 };
-
-
-
-
-
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 FILE *_stddebug = NULL;
@@ -286,6 +359,13 @@ PYBIND11_MODULE(AsPy, m) {
     .def("is_opened", &can::is_opened)
     .def("read", &can::read, py::arg("canid"))
     .def("write", &can::write, py::arg("canid"), py::arg("data"));
+  py::class_<lin>(m, "lin")
+    .def(py::init<std::string, uint32_t, uint32_t, bool, int>(), py::arg("device") = "simulator",
+         py::arg("port") = 0, py::arg("baudrate") = 500000, py::arg("enhanced") = true,
+         py::arg("timeout") = 100)
+    .def("is_opened", &lin::is_opened)
+    .def("read", &lin::read, py::arg("id"), py::arg("dlc") = 8)
+    .def("write", &lin::write, py::arg("id"), py::arg("data"));
   py::class_<isotp>(m, "isotp")
     .def(py::init<py::kwargs>(), ISOTP_KWARGS)
     .def("transmit", &isotp::transmit, py::arg("data"))
@@ -297,5 +377,8 @@ PYBIND11_MODULE(AsPy, m) {
     .def("start", &loader::start)
     .def("stop", &loader::stop)
     .def("poll", &loader::poll);
-
+  py::class_<dev>(m, "dev")
+    .def(py::init<std::string, std::string>(), py::arg("device"), py::arg("options"))
+    .def("read", &dev::read)
+    .def("write", &dev::write, py::arg("data"));
 }

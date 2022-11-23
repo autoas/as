@@ -15,8 +15,10 @@
 #include "PduR_CanTp.h"
 #endif
 
-#ifdef USE_DLL
-#include "Dll.h"
+
+
+#ifdef USE_LINIF
+#include "LinIf.h"
 #endif
 
 #ifdef USE_LINTP
@@ -58,9 +60,11 @@ static void Init(void) {
   Can_SetControllerMode(lController, CAN_CS_STARTED);
   CanTp_Init(NULL);
 #endif
-#ifdef USE_DLL
-  DLL_Init(NULL);
-  DLL_ScheduleRequest(0, 0);
+
+#ifdef USE_LINIF
+  Lin_Init(NULL);
+  LinIf_Init(NULL);
+  LinIf_ScheduleRequest(0, 0);
 #endif
 #ifdef USE_LINTP
   LinTp_Init(NULL);
@@ -180,9 +184,11 @@ int main(int argc, char *argv[]) {
     Can_MainFunction_Write();
     Can_MainFunction_Read();
 #endif
-#ifdef USE_DLL
-    DLL_MainFunction();
-    DLL_MainFunction_Read();
+
+#ifdef USE_LINIF
+    Lin_MainFunction();
+    Lin_MainFunction_Read();
+    LinIf_MainFunction();
 #endif
 #if defined(_WIN32) || defined(linux)
     Std_Sleep(1000);

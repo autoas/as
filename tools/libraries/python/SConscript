@@ -12,7 +12,7 @@ class LibraryAsPy(Library):
     compiler = 'PYCC'
 
     def config(self):
-        self.LIBS = ['CanLib', 'IsoTp', 'Loader']
+        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader']
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
         self.CPPPATH = ['$INFRAS']
         self.source = objs

@@ -1,0 +1,31 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+objs = Glob('src/*.c')
+objs += Glob('src/*/*.c')
+
+
+
+
+@register_library
+class LibraryDevLib(Library):
+    def config(self):
+        self.include = '%s/include' % (CWD)
+        self.LIBS = ['RS232']
+        if IsBuildForWindows():
+            self.LIBS += ['TcpIp', 'StdTimer', 'wsock32']
+        self.CPPPATH = ['$INFRAS', '%s/src' % (CWD)]
+        self.source = objs
+
+
+objsLinSim = Glob('utils/lin_simulator.c')
+
+
+@register_application
+class ApplicationLinSimulator(Application):
+    def config(self):
+        self.CPPPATH = ['$INFRAS']
+        if IsBuildForWindows():
+            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32']
+        self.source = objsLinSim

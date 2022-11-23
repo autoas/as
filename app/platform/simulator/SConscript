@@ -6,13 +6,16 @@ objs = Glob('src/*.c') + Glob('src/*.cpp')
 @register_library
 class LibrarySimulator(Library):
     def config(self):
-        self.LIBS = ['CanLib']
+        self.LIBS = ['CanLib', 'RS232', 'DevLib']
         if not IsBuildForAndroid():
             self.LIBS.append('pthread')
         self.CPPPATH = ['$INFRAS']
         self.source = objs
 
+
 objsFlsAc = Glob('src/FlsAc.c') + Glob('src/critical.c')
+
+
 @register_library
 class LibraryFlsAc(Library):
     def config(self):

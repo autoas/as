@@ -18,6 +18,10 @@
             {
               "name": "cluster",
               "groupId": "0x8001",
+              "multicast": {
+                "threshold": 1,
+                "addr":"224.244.224.245:30561"
+              },
               "events": [
                 {
                   "name" : "status",

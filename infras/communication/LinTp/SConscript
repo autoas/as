@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+CANTPD=os.path.abspath('%s/../CanTp'%(CWD))
+@register_library
+class LibraryLinTp(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', CWD, CANTPD]
+        self.source = objs
+
+    

@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <json.hpp>
 #include <map>
+#include <chrono>
 #include "usomeip/usomeip.hpp"
 #include "MessageQueue.hpp"
 #include "Std_Timer.h"
@@ -130,8 +131,7 @@ private:
   QLineEdit *m_leJson;
   QPushButton *m_btnOpenJson;
   json m_Json;
-  Std_TimerType m_Timer;
-  uint64_t m_Ticks;
+  std::chrono::high_resolution_clock::time_point m_Start;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

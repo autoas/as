@@ -45,25 +45,6 @@ typedef enum
 typedef LinIf_ResultType (*LinIf_NotificationCallbackType)(uint8_t channel, Lin_PduType *frame,
                                                            LinIf_ResultType notifyResult);
 
-typedef struct {
-  Lin_FramePidType id;
-  Lin_FrameDlType dlc;
-  LinIf_FrameTypeType type;
-  Lin_FrameCsModelType Cs;
-  Lin_FrameResponseType Drc;
-  LinIf_NotificationCallbackType callback;
-  uint32_t delay; /* delay in us */
-} LinIf_ScheduleTableEntryType;
-
-typedef struct {
-  const LinIf_ScheduleTableEntryType *entrys;
-  uint8_t numOfEntries;
-} LinIf_ScheduleTableType;
-
-typedef struct {
-  NetworkHandleType linChannel;
-} LinIf_ChannelConfigType;
-
 typedef uint8_t LinIf_ChannelStatusType;
 
 /* @SWS_LinIf_00668 */
@@ -91,4 +72,17 @@ Std_ReturnType LinIf_WakeUp(NetworkHandleType Channel);
 
 /* @SWS_LinIf_00384 */
 void LinIf_MainFunction(void);
+
+/* for slave */
+/* @SWS_LinIf_91004 */
+Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *PduPtr);
+
+/* @SWS_LinIf_91005 */
+void LinIf_RxIndication(NetworkHandleType Channel, uint8 *Lin_SduPtr);
+
+/* @SWS_LinIf_91006 */
+void LinIf_TxConfirmation(NetworkHandleType Channel);
+
+/* @SWS_LinIf_91007 */
+void LinIf_LinErrorIndication(NetworkHandleType Channel, Lin_SlaveErrorType ErrorStatus);
 #endif /* LINIF_H */

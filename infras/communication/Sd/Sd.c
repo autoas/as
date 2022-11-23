@@ -13,6 +13,7 @@
 #include "Sd_Cfg.h"
 #include "TcpIp.h"
 #include "Std_Critical.h"
+#include "mempool.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -71,6 +72,7 @@
 /* For Server Service Subscribe */
 #define SD_FLG_PENDING_EVENT_GROUP_ACK 0x04u
 #define SD_FLG_EVENT_GROUP_SUBSCRIBED 0x80u
+#define SD_FLG_EVENT_GROUP_MULTICAST 0x10u
 #define SD_FLG_EVENT_GROUP_UNSUBSCRIBED 0x00u
 
 #define SD_FLG_LINK_UP 0x10u
@@ -99,6 +101,117 @@
 #else
 #define PCAP_TRACE(data, length, RemoteAddr, isRx)
 #endif
+
+#ifndef SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE
+#define SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE 32
+#endif
+
+/* SQP: SD Queue and Pool */
+#define DEF_SQP(T, size)                                                                           \
+  static Sd_##T##Type sd##T##Slots[size];                                                          \
+  static mempool_t sd##T##Pool;
+
+#define DEC_SQP(T)                                                                                 \
+  Sd_##T##Type *var;                                                                               \
+  Sd_##T##Type *next
+
+#define SQP_INIT(T)                                                                                \
+  do {                                                                                             \
+    mp_init(&sd##T##Pool, (uint8_t *)&sd##T##Slots, sizeof(Sd_##T##Type),                          \
+            ARRAY_SIZE(sd##T##Slots));                                                             \
+  } while (0)
+
+#define SQP_FIRST(T)                                                                               \
+  do {                                                                                             \
+    var = STAILQ_FIRST(&context->list##T##s);                                                      \
+  } while (0)
+
+#define SQP_NEXT()                                                                                 \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    next = STAILQ_NEXT(var, entry);                                                                \
+    ExitCritical();                                                                                \
+  } while (0)
+
+#define SQP_WHILE(T)                                                                               \
+  SQP_FIRST(T);                                                                                    \
+  while (NULL != var) {                                                                            \
+    SQP_NEXT();
+
+#define SQP_WHILE_END()                                                                            \
+  var = next;                                                                                      \
+  }
+
+/* CRM: context RM */
+#define SQP_CRM_AND_FREE(T, var)                                                                   \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_REMOVE(&context->list##T##s, var, Sd_##T##_s, entry);                                   \
+    ExitCritical();                                                                                \
+    memset(var, 0, sizeof(*var));                                                                  \
+    mp_free(&sd##T##Pool, (uint8_t *)var);                                                         \
+  } while (0)
+
+/* LRM: list RM */
+#define SQP_LRM_AND_FREE(T, var)                                                                   \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_REMOVE(list##T##s, var, Sd_##T##_s, entry);                                             \
+    ExitCritical();                                                                                \
+    memset(var, 0, sizeof(*var));                                                                  \
+    mp_free(&sd##T##Pool, (uint8_t *)var);                                                         \
+  } while (0)
+
+/* Context Append & Prepend */
+#define SQP_CAPPEND(T, var)                                                                        \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_INSERT_TAIL(&context->list##T##s, var, entry);                                          \
+    ExitCritical();                                                                                \
+  } while (0)
+
+#define SQP_CPREPEND(T, var)                                                                       \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_INSERT_HEAD(&context->list##T##s, var, entry);                                          \
+    ExitCritical();                                                                                \
+  } while (0)
+
+/* List Append */
+#define SQP_LAPPEND(T, var)                                                                        \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_INSERT_TAIL(list##T##s, var, entry);                                                    \
+    ExitCritical();                                                                                \
+  } while (0)
+
+#define SQP_LPREPEND(T, var)                                                                       \
+  do {                                                                                             \
+    EnterCritical();                                                                               \
+    STAILQ_INSERT_HEAD(list##T##s, var, entry);                                                    \
+    ExitCritical();                                                                                \
+  } while (0)
+
+#define SQP_ALLOC(T) (Sd_##T##Type *)mp_alloc(&sd##T##Pool)
+
+#define SQP_FREE(T, var)                                                                           \
+  do {                                                                                             \
+    memset(var, 0, sizeof(*var));                                                                  \
+    mp_free(&sd##T##Pool, (uint8_t *)var);                                                         \
+  } while (0)
+
+#define SQP_CLEAR(T)                                                                               \
+  do {                                                                                             \
+    Sd_##T##Type *var;                                                                             \
+    EnterCritical();                                                                               \
+    var = STAILQ_FIRST(&context->list##T##s);                                                      \
+    while (NULL != var) {                                                                          \
+      STAILQ_REMOVE_HEAD(&context->list##T##s, entry);                                             \
+      mp_free(&sd##T##Pool, (uint8_t *)var);                                                       \
+      var = STAILQ_FIRST(&context->list##T##s);                                                    \
+    }                                                                                              \
+    ExitCritical();                                                                                \
+  } while (0)
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint32_t length;
@@ -138,6 +251,7 @@ static void Sd_InitClientServiceConsumedEventGroups(const Sd_ClientServiceType *
 extern Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId,
                                                Sd_EventHandlerSubscriberType *sub);
 /* ================================ [ DATAS     ] ============================================== */
+DEF_SQP(EventHandlerSubscriber, SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE)
 /* ================================ [ LOCALS    ] ============================================== */
 static uint16_t Sd_RandTime(uint16_t min, uint16_t max) {
   uint16_t ret;
@@ -646,42 +760,62 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
                                                      const Sd_ServerServiceType *config,
                                                      const Sd_EventHandlerType *EventHandler,
                                                      Sd_EventHandlerSubscriberType *sub) {
+  uint32_t lengthOfOptions = 0;
   TcpIp_SockAddrType RemoteAddr;
   Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0, 0, 1, 0,
                      config->ServiceId, config->InstanceId, config->MajorVersion, 0,
                      EventHandler->EventGroupId, config->ServerTimer->TTL);
-  // Sd_BuildOptionIPv4Multicast(&Instance->buffer[44], &sub->RemoteAddr, TCPIP_IPPROTO_UDP);
+  if (sub->TxPduId == EventHandler->MulticastTxPduId) {
+    SoAd_GetRemoteAddr(EventHandler->MulticastEventSoConRef, &RemoteAddr);
+    Sd_BuildOptionIPv4Multicast(&Instance->buffer[44], &RemoteAddr, TCPIP_IPPROTO_UDP);
+    lengthOfOptions = 12;
+  }
   Sd_BuildHeader(Instance->buffer, Instance->context->flags, Instance->context->multicastSessionId,
-                 16, 0);
+                 16, lengthOfOptions);
   Instance->context->multicastSessionId++;
   if (0 == Instance->context->multicastSessionId) {
     Instance->context->multicastSessionId = 1;
     Instance->context->flags &= ~SD_REBOOT_FLAG;
   }
+#if (defined(_WIN32) || defined(linux)) && !defined(USE_LWIP)
+  return Sd_Transmit(Instance->TxPdu.MulticastTxPduId, Instance->buffer, 44 + lengthOfOptions,
+                     NULL);
+#else
   RemoteAddr = sub->RemoteAddr;
   RemoteAddr.port = sub->port;
-  return Sd_Transmit(Instance->TxPdu.UnicastTxPduId, Instance->buffer, 44, &RemoteAddr);
+  return Sd_Transmit(Instance->TxPdu.UnicastTxPduId, Instance->buffer, 44 + lengthOfOptions,
+                     &RemoteAddr);
+#endif
+}
+
+static uint16_t Sd_NumberOfSubscribes(const Sd_EventHandlerType *EventHandler) {
+  uint16_t numberOfSubscribes = 0;
+  Sd_EventHandlerContextType *context = EventHandler->context;
+  DEC_SQP(EventHandlerSubscriber);
+  SQP_WHILE(EventHandlerSubscriber) {
+    numberOfSubscribes++;
+  }
+  SQP_WHILE_END()
+
+  return numberOfSubscribes;
 }
 
 static Sd_EventHandlerSubscriberType *Sd_LookupSubscribe(const Sd_EventHandlerType *EventHandler,
                                                          const TcpIp_SockAddrType *RemoteAddr) {
   Sd_EventHandlerSubscriberType *sub = NULL;
-  uint16_t i;
-
-  if (EventHandler->context->numOfSubscribers > 0) {
-    for (i = 0; (i < EventHandler->numOfSubscribers) && (NULL == sub); i++) {
-      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != EventHandler->Subscribers[i].flags) {
-        if (0 == memcmp(&EventHandler->Subscribers[i].RemoteAddr, RemoteAddr,
-                        sizeof(TcpIp_SockAddrType))) {
-          sub = &EventHandler->Subscribers[i];
-        }
-      }
+  Sd_EventHandlerContextType *context = EventHandler->context;
+  DEC_SQP(EventHandlerSubscriber);
+  SQP_WHILE(EventHandlerSubscriber) {
+    if (0 == memcmp(&var->RemoteAddr, RemoteAddr, sizeof(TcpIp_SockAddrType))) {
+      sub = var;
+      break;
     }
   }
+  SQP_WHILE_END()
 
-  for (i = 0; (i < EventHandler->numOfSubscribers) && (NULL == sub); i++) {
-    if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED == EventHandler->Subscribers[i].flags) {
-      sub = &EventHandler->Subscribers[i];
+  if (NULL == sub) {
+    sub = SQP_ALLOC(EventHandlerSubscriber);
+    if (NULL != sub) {
       memset(sub, 0, sizeof(Sd_EventHandlerSubscriberType));
     }
   }
@@ -698,6 +832,8 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
   const Sd_ServerServiceType *config;
   const Sd_EventHandlerType *EventHandler;
   Sd_EventHandlerSubscriberType *sub = NULL;
+  Sd_EventHandlerContextType *context = NULL;
+  uint16_t numOfSubscribers;
 
   for (i = 0; i < Instance->numOfServerServices; i++) {
     config = &Instance->ServerServices[i];
@@ -712,6 +848,7 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
     for (i = 0; i < config->numOfEventHandlers; i++) {
       EventHandler = &config->EventHandlers[i];
       if (EventHandler->EventGroupId == entry2->eventGroupId) {
+        context = EventHandler->context;
         ret = E_OK;
         break;
       }
@@ -746,18 +883,28 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
     if (entry2->TTL > 0) {
       sub->RemoteAddr = ipv4Opt->Addr;
       sub->port = RemoteAddr->port;
-      ret = SomeIp_ResolveSubscriber(config->SomeIpServiceId, sub);
-      if (E_OK != ret) {
-        ASLOG(SDE, ("can't resolve subscriber %d.%d.%d.%d:%d\n", sub->RemoteAddr.addr[0],
-                    sub->RemoteAddr.addr[1], sub->RemoteAddr.addr[2], sub->RemoteAddr.addr[3],
-                    sub->RemoteAddr.port));
-        if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
-          EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
-          if (EventHandler->context->numOfSubscribers > 0) {
-            EventHandler->context->numOfSubscribers--;
+      numOfSubscribers = Sd_NumberOfSubscribes(EventHandler);
+      /* @ECUC_SD_00097 */
+      if ((0 == EventHandler->MulticastThreshold) &&
+          ((numOfSubscribers + 1) >= EventHandler->MulticastThreshold)) {
+        ret = SomeIp_ResolveSubscriber(config->SomeIpServiceId, sub);
+        if (E_OK != ret) {
+          ASLOG(SDE, ("can't resolve subscriber %d.%d.%d.%d:%d\n", sub->RemoteAddr.addr[0],
+                      sub->RemoteAddr.addr[1], sub->RemoteAddr.addr[2], sub->RemoteAddr.addr[3],
+                      sub->RemoteAddr.port));
+          if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
+            EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+            SQP_CRM_AND_FREE(EventHandlerSubscriber, sub);
+          } else {
+            SQP_FREE(EventHandlerSubscriber, sub);
           }
         }
-        sub->flags = 0;
+      } else {
+        sub->TxPduId = EventHandler->MulticastTxPduId;
+        if (FALSE == context->isMulticastOpened) {
+          (void)SoAd_OpenSoCon(EventHandler->MulticastEventSoConRef);
+          context->isMulticastOpened = TRUE;
+        }
       }
     }
   }
@@ -765,12 +912,15 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
   if (E_OK == ret) {
     if (entry2->TTL > 0) {
       if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED == sub->flags) {
-        EventHandler->context->numOfSubscribers++;
+        sub->flags = SD_FLG_EVENT_GROUP_SUBSCRIBED;
+        if (sub->TxPduId == EventHandler->MulticastTxPduId) {
+          sub->flags |= SD_FLG_EVENT_GROUP_MULTICAST;
+          SQP_CPREPEND(EventHandlerSubscriber, sub);
+
+        } else {
+          SQP_CAPPEND(EventHandlerSubscriber, sub);
+        }
         EventHandler->onSubscribe(TRUE, &sub->RemoteAddr);
-      }
-      SD_SET_CLEAR(sub->flags, SD_FLG_EVENT_GROUP_SUBSCRIBED, ~SD_FLG_EVENT_GROUP_SUBSCRIBED);
-      if (EventHandler->context->numOfSubscribers > EventHandler->numOfSubscribers) {
-        ASLOG(SDE, ("numOfSubscribers not correct when start\n"));
       }
       ret = Sd_ResponseSubscribeEventGroup(Instance, config, EventHandler, sub);
       if (E_OK != ret) { /* retry next time */
@@ -779,15 +929,18 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
       if (DEFAULT_TTL != entry2->TTL) {
         sub->TTL = SD_CONVERT_MS_TO_MAIN_CYCLES(entry2->TTL * 1000);
       }
-
+      ret = E_OK;
     } else {
-      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
-        EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
-        if (EventHandler->context->numOfSubscribers > 0) {
-          EventHandler->context->numOfSubscribers--;
-        }
-      }
-      sub->flags = 0;
+      ret = E_NOT_OK;
+    }
+  }
+
+  if ((E_OK != ret) && (NULL != sub)) {
+    if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
+      EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+      SQP_CRM_AND_FREE(EventHandlerSubscriber, sub);
+    } else {
+      SQP_FREE(EventHandlerSubscriber, sub);
     }
   }
 
@@ -824,10 +977,23 @@ static Std_ReturnType Sd_HandleSubscribeEventGroupAck(const Sd_InstanceType *Ins
 
   if (E_OK == ret) {
     if (entry2->TTL > 0) {
+      if (FALSE == ConsumedEventGroup->context->isSubscribed) {
+        if ((NULL != ipv4Opt) && (ConsumedEventGroup->MulticastThreshold > 0)) {
+          SoAd_SetRemoteAddr(ConsumedEventGroup->MulticastEventSoConRef, &ipv4Opt->Addr);
+          SoAd_OpenSoCon(ConsumedEventGroup->MulticastEventSoConRef);
+          ASLOG(SDI, ("0x%x:0x%x event group 0x%x multicast on %d.%d.%d.%d:%d\n", entry2->serviceId,
+                      entry2->instanceId, entry2->eventGroupId, ipv4Opt->Addr.addr[0],
+                      ipv4Opt->Addr.addr[1], ipv4Opt->Addr.addr[2], ipv4Opt->Addr.addr[3],
+                      ipv4Opt->Addr.port));
+        }
+      }
       ConsumedEventGroup->context->isSubscribed = TRUE;
     } else {
       ASLOG(SDE, ("invalid TTL for subscribe group ack\n"));
       ConsumedEventGroup->context->isSubscribed = FALSE;
+      if (ConsumedEventGroup->MulticastThreshold > 0) {
+        SoAd_CloseSoCon(ConsumedEventGroup->MulticastEventSoConRef, TRUE);
+      }
     }
   }
 
@@ -905,26 +1071,32 @@ static void Sd_InitServerServiceEventHandlers(const Sd_ServerServiceType *config
   for (i = 0; i < config->numOfEventHandlers; i++) {
     EventHandler = &config->EventHandlers[i];
     memset(EventHandler->context, 0, sizeof(Sd_EventHandlerContextType));
-    memset(EventHandler->Subscribers, 0,
-           EventHandler->numOfSubscribers * sizeof(Sd_EventHandlerSubscriberType));
+    SQP_INIT(EventHandlerSubscriber);
+    STAILQ_INIT(&EventHandler->context->listEventHandlerSubscribers);
   }
 }
 
 static void Sd_ReInitServerServiceEventHandlers(const Sd_ServerServiceType *config) {
-  uint16_t i, j;
+  uint16_t i;
   const Sd_EventHandlerType *EventHandler;
-  Sd_EventHandlerSubscriberType *sub;
+  Sd_EventHandlerContextType *context;
+  DEC_SQP(EventHandlerSubscriber);
+
   for (i = 0; i < config->numOfEventHandlers; i++) {
     EventHandler = &config->EventHandlers[i];
-    memset(EventHandler->context, 0, sizeof(Sd_EventHandlerContextType));
-    for (j = 0; j < EventHandler->numOfSubscribers; j++) {
-      sub = &EventHandler->Subscribers[j];
-      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
-        EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
+    context = EventHandler->context;
+    SQP_WHILE(EventHandlerSubscriber) {
+      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != var->flags) {
+        EventHandler->onSubscribe(FALSE, &var->RemoteAddr);
       }
+      SQP_CRM_AND_FREE(EventHandlerSubscriber, var);
     }
-    memset(EventHandler->Subscribers, 0,
-           EventHandler->numOfSubscribers * sizeof(Sd_EventHandlerSubscriberType));
+    SQP_WHILE_END()
+    if (context->isMulticastOpened) {
+      SoAd_CloseSoCon(EventHandler->MulticastEventSoConRef, TRUE);
+    }
+    memset(EventHandler->context, 0, sizeof(Sd_EventHandlerContextType));
+    STAILQ_INIT(&EventHandler->context->listEventHandlerSubscribers);
   }
 }
 
@@ -1274,7 +1446,7 @@ static void Sd_ServerServiceOfferCheck(const Sd_InstanceType *Instance, uint32_t
     context = config->context;
     if (context->flags & (SD_FLG_PENDING_OFFER | SD_FLG_PENDING_STOP_OFFER)) {
       if (((28 + *lengthOfEntries + *lengthOfOptions) < (Instance->bufLen - 28)) &&
-          (*numOfOptions < 256)) {
+          (*numOfOptions < 255)) {
         /* @SWS_SD_00160 */
         *lengthOfEntries += 16;
         *lengthOfOptions += 12;
@@ -1371,26 +1543,25 @@ static void Sd_ClientServiceFindBuild(const Sd_InstanceType *Instance, uint32_t 
 }
 
 static void Sd_ServerServiceMain_TTL(const Sd_ServerServiceType *config) {
-  uint16_t i, j;
+  uint16_t i;
   const Sd_EventHandlerType *EventHandlers;
-  Sd_EventHandlerSubscriberType *sub;
+  Sd_EventHandlerContextType *context;
+  DEC_SQP(EventHandlerSubscriber);
   for (i = 0; i < config->numOfEventHandlers; i++) {
     EventHandlers = &config->EventHandlers[i];
-    for (j = 0; j < EventHandlers->numOfSubscribers; j++) {
-      sub = &EventHandlers->Subscribers[j];
-      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != sub->flags) {
-        if (sub->TTL > 0) {
-          sub->TTL--;
-          if (0 == sub->TTL) {
-            EventHandlers->onSubscribe(FALSE, &sub->RemoteAddr);
-            sub->flags = 0;
-            if (EventHandlers->context->numOfSubscribers > 0) {
-              EventHandlers->context->numOfSubscribers--;
-            }
+    context = EventHandlers->context;
+    SQP_WHILE(EventHandlerSubscriber) {
+      if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != var->flags) {
+        if (var->TTL > 0) {
+          var->TTL--;
+          if (0 == var->TTL) {
+            EventHandlers->onSubscribe(FALSE, &var->RemoteAddr);
+            SQP_CRM_AND_FREE(EventHandlerSubscriber, var);
           }
         }
       }
     }
+    SQP_WHILE_END()
   }
 }
 
@@ -1474,29 +1645,32 @@ static void Sd_ClientServiceMain(const Sd_InstanceType *Instance) {
 }
 
 static boolean Sd_ServerServiceEventGroupAckCheck(const Sd_InstanceType *Instance) {
-  uint16_t i, j, k;
+  uint16_t i, j;
   const Sd_ServerServiceType *config;
   const Sd_EventHandlerType *EventHandler;
-  Sd_EventHandlerSubscriberType *sub;
+  Sd_EventHandlerContextType *context;
+  DEC_SQP(EventHandlerSubscriber);
   boolean TxOne = FALSE;
   Std_ReturnType ret = E_OK;
 
   for (i = 0; (i < Instance->numOfServerServices) && (FALSE == TxOne); i++) {
     config = &Instance->ServerServices[i];
-    for (j = 0; (j < config->numOfEventHandlers) && (FALSE == TxOne); j++) {
+    for (j = 0; j < config->numOfEventHandlers; j++) {
       EventHandler = &config->EventHandlers[j];
-      for (k = 0; (k < EventHandler->numOfSubscribers) && (FALSE == TxOne); k++) {
-        sub = &EventHandler->Subscribers[k];
-        if (sub->flags & SD_FLG_PENDING_EVENT_GROUP_ACK) {
-          ret = Sd_ResponseSubscribeEventGroup(Instance, config, EventHandler, sub);
+      context = EventHandler->context;
+      SQP_WHILE(EventHandlerSubscriber) {
+        if (var->flags & SD_FLG_PENDING_EVENT_GROUP_ACK) {
+          ret = Sd_ResponseSubscribeEventGroup(Instance, config, EventHandler, var);
           if (E_OK == ret) {
-            SD_CLEAR(sub->flags, SD_FLG_PENDING_EVENT_GROUP_ACK);
+            SD_CLEAR(var->flags, SD_FLG_PENDING_EVENT_GROUP_ACK);
             TxOne = TRUE;
+            break;
           } else {
             ASLOG(SDE, ("Sending Subscribe Event Group Ack Failed\n"));
           }
         }
       }
+      SQP_WHILE_END()
     }
   }
 
@@ -1730,22 +1904,22 @@ Sd_ConsumedEventGroupSetState(uint16_t SdConsumedEventGroupHandleId,
 }
 
 Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId,
-                                 Sd_EventHandlerSubscriberType **Subscribers,
-                                 uint16_t *numOfSubscribers) {
+                                 Sd_EventHandlerSubscriberListType **list) {
   Std_ReturnType ret = E_OK;
   uint16_t index;
   const Sd_ServerServiceType *config;
   const Sd_EventHandlerType *EventHandler;
+  Sd_EventHandlerContextType *context;
   if (EventHandlerId < SD_CONFIG->numOfEventHandlers) {
     index = SD_CONFIG->EventHandlersMap[EventHandlerId];
     config = SD_CONFIG->ServerServicesMap[index];
     index = SD_CONFIG->PerServiceEventHandlerMap[EventHandlerId];
     EventHandler = &config->EventHandlers[index];
-    if (EventHandler->context->numOfSubscribers > 0) {
-      *numOfSubscribers = EventHandler->numOfSubscribers;
-      *Subscribers = EventHandler->Subscribers;
-    } else {
+    context = EventHandler->context;
+    if (STAILQ_EMPTY(&context->listEventHandlerSubscribers)) {
       ret = E_NOT_OK;
+    } else {
+      *list = &context->listEventHandlerSubscribers;
     }
   } else {
     ret = E_NOT_OK;
@@ -1757,26 +1931,21 @@ void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId) {
   uint16_t index;
   const Sd_ServerServiceType *config;
   const Sd_EventHandlerType *EventHandler;
-  Sd_EventHandlerSubscriberType *sub;
+  Sd_EventHandlerContextType *context;
+  DEC_SQP(EventHandlerSubscriber);
   if (EventHandlerId < SD_CONFIG->numOfEventHandlers) {
     index = SD_CONFIG->EventHandlersMap[EventHandlerId];
     config = SD_CONFIG->ServerServicesMap[index];
     index = SD_CONFIG->PerServiceEventHandlerMap[EventHandlerId];
     EventHandler = &config->EventHandlers[index];
-    if (EventHandler->context->numOfSubscribers > 0) {
-      for (index = 0; index < EventHandler->numOfSubscribers; index++) {
-        sub = &EventHandler->Subscribers[index];
-        if (sub->flags != SD_FLG_EVENT_GROUP_UNSUBSCRIBED) {
-          if (sub->TxPduId == TxPduId) {
-            sub->flags = 0;
-            EventHandler->onSubscribe(FALSE, &sub->RemoteAddr);
-            if (EventHandler->context->numOfSubscribers > 0) {
-              EventHandler->context->numOfSubscribers--;
-            }
-          }
-        }
+    context = EventHandler->context;
+    SQP_WHILE(EventHandlerSubscriber) {
+      if (var->TxPduId == TxPduId) {
+        EventHandler->onSubscribe(FALSE, &var->RemoteAddr);
+        SQP_CRM_AND_FREE(EventHandlerSubscriber, var);
       }
     }
+    SQP_WHILE_END()
   }
 }
 

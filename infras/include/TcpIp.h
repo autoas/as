@@ -23,6 +23,8 @@ extern "C" {
 /* @SWS_TCPIP_00135 */
 #define TCPIP_LOCALADDRID_ANY ((TcpIp_LocalAddrIdType)0xFF)
 
+#define TCPIP_LOCALADDRID_LOCALHOST ((TcpIp_LocalAddrIdType)0xFE)
+
 #define TCPIP_IPV4_ADDR(b0, b1, b2, b3)                                                            \
   ((((uint32_t)b0) << 24) + (((uint32_t)b1) << 16) + (((uint32_t)b2) << 8) + b3)
 /* ================================ [ TYPES     ] ============================================== */
@@ -104,9 +106,9 @@ Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort);
 
 /* @SWS_TCPIP_00015 */
 Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId,
-                          uint16 *PortPtr);
+                          uint16_t *PortPtr);
 
-Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, uint32_t ipv4Addr);
+Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *ipv4Addr);
 
 /* @SWS_TCPIP_00022 */
 Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,

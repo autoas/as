@@ -85,7 +85,8 @@ def Gen_ServerServiceExCpp(service, dir):
 
     C.write('  void start() {\n')
     C.write('    identity(SOMEIP_SSID_%s);\n' % (service['name'].upper()))
-    C.write('    offer(SD_SERVER_SERVICE_HANDLE_ID_%s);\n' % (service['name'].upper()))
+    C.write('    offer(SD_SERVER_SERVICE_HANDLE_ID_%s);\n' %
+            (service['name'].upper()))
     C.write('    m_BufferPool.create("SS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
     for method in service.get('methods', []):
@@ -428,7 +429,8 @@ def Gen_ClientServiceExCpp(service, dir):
 
     C.write('  void start() {\n')
     C.write('    identity(SOMEIP_CSID_%s);\n' % (service['name'].upper()))
-    C.write('    require(SD_CLIENT_SERVICE_HANDLE_ID_%s);\n' % (service['name'].upper()))
+    C.write('    require(SD_CLIENT_SERVICE_HANDLE_ID_%s);\n' %
+            (service['name'].upper()))
     C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' %
             (service['name']))
     for method in service.get('methods', []):
@@ -829,9 +831,6 @@ def Gen_SD(cfg, dir):
             continue
         C.write('static Sd_EventHandlerContextType Sd_EventHandlerContext_%s[%d];\n' % (
             service['name'], len(service['event-groups'])))
-        for ge in service['event-groups']:
-            C.write('static Sd_EventHandlerSubscriberType Sd_EventHandlerSubscriber_%s_%s[3];\n' % (
-                service['name'], ge['name']))
         C.write('static const Sd_EventHandlerType Sd_EventHandlers_%s[] = {\n' % (
             service['name']))
         for ID, ge in enumerate(service['event-groups']):
@@ -839,13 +838,19 @@ def Gen_SD(cfg, dir):
             C.write('    SD_EVENT_HANDLER_%s_%s, /* HandleId */\n' %
                     (service['name'].upper(), ge['name'].upper()))
             C.write('    %s, /* EventGroupId */\n' % (ge['groupId']))
-            C.write('    0, /* MulticastThreshold */\n')
+            if 'multicast' in ge:
+                C.write('    SOAD_SOCKID_SOMEIP_%s, /* MulticastEventSoConRef */\n' %
+                        ('_'.join([service['name'], ge['name']])))
+                C.write('    SOAD_TX_PID_SOMEIP_%s, /* MulticastTxPduId */\n' %
+                        ('_'.join([service['name'], ge['name']])))
+                C.write('    %s, /* MulticastThreshold */\n' %
+                        (ge.get('threshold', 1)))
+            else:
+                C.write('    0, /* MulticastEventSoConRef */\n')
+                C.write('    -1, /* MulticastTxPduId */\n')
+                C.write('    0, /* MulticastThreshold */\n')
             C.write('    &Sd_EventHandlerContext_%s[%d],\n' % (
                 service['name'], ID))
-            C.write('    Sd_EventHandlerSubscriber_%s_%s,\n' % (
-                service['name'], ge['name']))
-            C.write('    ARRAY_SIZE(Sd_EventHandlerSubscriber_%s_%s),\n' % (
-                service['name'], ge['name']))
             C.write('   SomeIp_%s_%s_OnSubscribe,\n' %
                     (service['name'], ge['name']))
             C.write('  },\n')
@@ -863,6 +868,14 @@ def Gen_SD(cfg, dir):
             C.write('    SD_CONSUMED_EVENT_GROUP_%s_%s, /* HandleId */\n' %
                     (service['name'].upper(), ge['name'].upper()))
             C.write('    %s, /* EventGroupId */\n' % (ge['groupId']))
+            if 'multicast' in ge:
+                C.write('    SOAD_SOCKID_SOMEIP_%s, /* MulticastEventSoConRef */\n' %
+                        ('_'.join([service['name'], ge['name']])))
+                C.write('    %s, /* MulticastThreshold */\n' %
+                        (ge.get('threshold', 1)))
+            else:
+                C.write('    0, /* MulticastEventSoConRef */\n')
+                C.write('    0, /* MulticastThreshold */\n')
             C.write('    &Sd_ConsumedEventGroupContext_%s[%d],\n' % (
                 service['name'], ID))
             C.write('  },\n')
@@ -901,7 +914,8 @@ def Gen_SD(cfg, dir):
             C.write('    Sd_EventHandlers_%s,\n' % (service['name']))
             C.write('    ARRAY_SIZE(Sd_EventHandlers_%s),\n' %
                     (service['name']))
-        C.write('    SOMEIP_SSID_%s, /* SomeIpServiceId */\n'%(service['name'].upper()))
+        C.write('    SOMEIP_SSID_%s, /* SomeIpServiceId */\n' %
+                (service['name'].upper()))
         C.write('  },\n')
     if len(cfg.get('servers', [])) > 0:
         C.write('};\n\n')
@@ -980,12 +994,14 @@ def Gen_SD(cfg, dir):
     C.write('  },\n')
     C.write('};\n\n')
     if len(cfg.get('servers', [])) > 0:
-        C.write('static const Sd_ServerServiceType* Sd_ServerServicesMap[] = {\n')
+        C.write(
+            'static const Sd_ServerServiceType* Sd_ServerServicesMap[] = {\n')
         for ID, service in enumerate(cfg.get('servers', [])):
             C.write('  &Sd_ServerServices[%s],\n' % (ID))
         C.write('};\n\n')
     if len(cfg.get('clients', [])) > 0:
-        C.write('static const Sd_ClientServiceType* Sd_ClientServicesMap[] = {\n')
+        C.write(
+            'static const Sd_ClientServiceType* Sd_ClientServicesMap[] = {\n')
         for ID, service in enumerate(cfg.get('clients', [])):
             C.write('  &Sd_ClientServices[%s],\n' % (ID))
         C.write('};\n\n')

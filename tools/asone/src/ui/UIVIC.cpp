@@ -275,28 +275,23 @@ UIVIC::UIVIC() : QWidget() {
   Sd_Init(NULL);
   SomeIp_Init(NULL);
   plugin_init();
-  Std_TimerStart(&m_Timer);
-  m_Ticks = 0;
   startTimer(1);
+  m_Start = std::chrono::high_resolution_clock::now();
 }
 
 void UIVIC::timerEvent(QTimerEvent *e) {
-  auto elapsed = Std_GetTimerElapsedTime(&m_Timer);
-  uint64_t nTicks = elapsed / 10000;
-  for (auto i = m_Ticks; i < nTicks; i++) {
+  (void)e;
+  auto now = std::chrono::high_resolution_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_Start);
+  uint64_t nTicks = elapsed.count() / 10;
+  for (uint64_t i = 0; i < nTicks; i++) {
     TcpIp_MainFunction();
     SoAd_MainFunction();
     Sd_MainFunction();
     SomeIp_MainFunction();
     plugin_main();
   }
-
-  m_Ticks = nTicks;
-
-  if (m_Ticks > 1000000) {
-    Std_TimerStart(&m_Timer);
-    m_Ticks = 0;
-  }
+  m_Start += nTicks * std::chrono::milliseconds(10);
 }
 
 bool UIVIC::load(std::string cfgPath) {

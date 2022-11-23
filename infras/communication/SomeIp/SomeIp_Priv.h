@@ -134,7 +134,6 @@ typedef struct SomeIp_TxTpMsg_s {
 
 typedef struct SomeIp_TxTpEvtMsg_s {
   STAILQ_ENTRY(SomeIp_TxTpEvtMsg_s) entry;
-  uint32_t mask; /* going to support maximum 32 subscribers */
   uint32_t offset;
   uint32_t length;
   uint16_t eventId; /* this is the key */

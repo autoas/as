@@ -27,7 +27,7 @@ def Gen_Net(cfg, dir):
 
 def ProcDoIp(cfg, mod):
     sock = {'name': 'DOIP_UDP',
-            'server': mod['discovery'], 'protocol': 'UDP', 'multicast':True, 'up': 'DoIP', 'RxPduId': 'DOIP_RX_PID_UDP'}
+            'server': mod['discovery'], 'protocol': 'UDP', 'multicast': True, 'up': 'DoIP', 'RxPduId': 'DOIP_RX_PID_UDP'}
     cfg['sockets'].append(sock)
     sock = {'name': 'DOIP_TCP',
             'server': 'NULL:13400', 'protocol': 'TCP', 'up': 'DoIP', 'listen': mod['max_connections'], 'RxPduId': 'DOIP_RX_PID_TCP'}
@@ -36,7 +36,7 @@ def ProcDoIp(cfg, mod):
 
 def ProcSomeIp(cfg, mod):
     sock = {'name': 'SD_MULTICAST',
-            'server': mod['SD']['multicast'] + ':30490', 'multicast':True, 'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_MULTICAST'}
+            'server': mod['SD']['multicast'] + ':30490', 'multicast': True, 'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_MULTICAST'}
     cfg['sockets'].append(sock)
     sock = {'name': 'SD_UNICAST', 'server': 'NULL:30490',
             'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_UNICAST'}
@@ -54,7 +54,12 @@ def ProcSomeIp(cfg, mod):
         if 'reliable' in service:
             sock['listen'] = service['listen'] if 'listen' in service else 3
         cfg['sockets'].append(sock)
-    for service in mod.get('clients',[]):
+        for eg in service.get('event-groups', []):
+            if 'multicast' in eg:
+                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
+                        'protocol': 'UDP', 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
+                cfg['sockets'].append(sock)
+    for service in mod.get('clients', []):
         name = 'SOMEIP_%s' % (service['name'].upper())
         if 'reliable' in service:
             protocol = 'TCP'
@@ -65,6 +70,11 @@ def ProcSomeIp(cfg, mod):
         sock = {'name': name, 'client': 'NULL:%s' % (port),
                 'protocol': protocol, 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
         cfg['sockets'].append(sock)
+        for eg in service.get('event-groups', []):
+            if 'multicast' in eg:
+                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
+                        'protocol': 'UDP', 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
+                cfg['sockets'].append(sock)
 
 
 def ProcSoAd(netCfg, dir):
@@ -83,7 +93,10 @@ def ProcSoAd(netCfg, dir):
     with open('%s/Network.json' % (dir), 'w') as f:
         json.dump(netCfg, f, indent=2)
 
+
 RandomPort = 60000
+
+
 def GenAnitTestForSomeIp(cfgj):
     global RandomPort
     dir = os.path.join(os.path.dirname(cfgj), 'GENT')
@@ -112,6 +125,7 @@ def GenAnitTestForSomeIp(cfgj):
         cfg['Modules'] = [someIpCfg]
     ProcSoAd(cfg, dir)
     Gen_Net(cfg, dir)
+
 
 def Gen(cfgj):
     dir = os.path.join(os.path.dirname(cfgj), 'GEN')

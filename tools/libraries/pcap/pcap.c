@@ -272,9 +272,13 @@ void PCap_SomeIp(uint16_t serviceId, uint16_t methodId, uint8_t interfaceVersion
       break;
     }
 
-    fprintf(lPCap, "\n%.4f: SOMEIP %s %d.%d.%d.%d:%d\n", rtim, isRx ? "from" : "to",
-            RemoteAddr->addr[0], RemoteAddr->addr[1], RemoteAddr->addr[2], RemoteAddr->addr[3],
-            RemoteAddr->port);
+    if (RemoteAddr) {
+      fprintf(lPCap, "\n%.4f: SOMEIP %s %d.%d.%d.%d:%d\n", rtim, isRx ? "from" : "to",
+              RemoteAddr->addr[0], RemoteAddr->addr[1], RemoteAddr->addr[2], RemoteAddr->addr[3],
+              RemoteAddr->port);
+    } else {
+      fprintf(lPCap, "\n%.4f: SOMEIP %s null\n", rtim, isRx ? "from" : "to");
+    }
     fprintf(
       lPCap,
       "  %s service:method:version %x:%x:%x session %d client %x return code %d payload %u bytes",
@@ -305,7 +309,7 @@ void PCap_SD(uint8_t *data, uint32_t length, const TcpIp_SockAddrType *RemoteAdd
   uint8_t *entries;
   uint8_t *options;
   float rtim;
-  static const TcpIp_SockAddrType broadcast = {30490, {224, 244, 224, 245}};
+  static const TcpIp_SockAddrType broadcast = {TCPIP_IPPROTO_UDP, 30490, {224, 244, 224, 245}};
   if (NULL == RemoteAddr) {
     RemoteAddr = &broadcast;
   }

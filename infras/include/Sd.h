@@ -9,6 +9,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "SoAd.h"
+#include "sys/queue.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,7 +57,8 @@ typedef enum
   SD_EVENT_HANDLER_REQUESTED,
 } Sd_EventHandlerCurrentStateType;
 
-typedef struct {
+typedef struct Sd_EventHandlerSubscriber_s {
+  STAILQ_ENTRY(Sd_EventHandlerSubscriber_s) entry;
   /* remote subscriber address */
   TcpIp_SockAddrType RemoteAddr;
   uint32_t TTL;
@@ -71,6 +73,8 @@ typedef struct {
 typedef uint8_t *Sd_ConfigOptionStringType;
 
 typedef struct Sd_Config_s Sd_ConfigType;
+
+typedef STAILQ_HEAD(Sd_EventSubHead, Sd_EventHandlerSubscriber_s) Sd_EventHandlerSubscriberListType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -101,9 +105,7 @@ void Sd_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 void Sd_MainFunction(void);
 
 Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddrType *RemoteAddr);
-Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId,
-                                 Sd_EventHandlerSubscriberType **Subscribers,
-                                 uint16_t *numOfSubscribers);
+Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId, Sd_EventHandlerSubscriberListType **list);
 void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
 #ifdef __cplusplus
 }

@@ -3,17 +3,6 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#ifdef _WIN32
-#include <Ws2tcpip.h>
-#include <windows.h>
-#include <winsock2.h>
-#include <mmsystem.h>
-#else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#endif
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -24,25 +13,14 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 #include <unistd.h>
-
-#ifdef _WIN32
-/* Link with ws2_32.lib */
-#ifndef __GNUC__
-#pragma comment(lib, "Ws2_32.lib")
-#else
-/* -lwsock32 */
-#endif
-#endif
+#include "TcpIp.h"
+#include "Std_Timer.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
 #define CAN_MTU sizeof(struct can_frame)
 #define CAN_PORT_MIN 8000
 #define CAN_BUS_NODE_MAX 32 /* maximum node on the bus port */
 
-#define CAN_FRAME_TYPE_RAW 0
-#define CAN_FRAME_TYPE_MTU 1
-#define CAN_FRAME_TYPE CAN_FRAME_TYPE_RAW
-#if (CAN_FRAME_TYPE == CAN_FRAME_TYPE_RAW)
 #define mCANID(frame)                                                                              \
   (((uint32_t)frame->data[CAN_MAX_DLEN + 0] << 24) +                                               \
    ((uint32_t)frame->data[CAN_MAX_DLEN + 1] << 16) +                                               \
@@ -61,31 +39,9 @@
   do {                                                                                             \
     frame->data[CAN_MAX_DLEN + 4] = dlc;                                                           \
   } while (0)
-#else
-#define mCANID(frame) frame->can_id
 
-#define mSetCANID(frame, canid)                                                                    \
-  do {                                                                                             \
-    frame->can_id = canid;                                                                         \
-  } while (0)
-
-#define mCANDLC(frame) (frame->can_dlc)
-#define mSetCANDLC(frame, dlc)                                                                     \
-  do {                                                                                             \
-    frame->can_dlc = dlc;                                                                          \
-  } while (0)
-#endif
 #define in_range(c, lo, up) ((uint8_t)c >= lo && (uint8_t)c <= up)
 #define isprint(c) in_range(c, 0x20, 0x7f)
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-//#define USE_RX_DAEMON
 /* ================================ [ TYPES     ] ============================================== */
 /**
  * struct can_frame - basic CAN frame structure
@@ -96,24 +52,16 @@
  * @data:    CAN frame payload (up to 8 byte)
  */
 struct can_frame {
-#if (CAN_FRAME_TYPE == CAN_FRAME_TYPE_RAW)
   uint8_t data[CAN_MAX_DLEN + 5];
-#else
-  uint32_t can_id; /* 32 bit CAN_ID + EFF/RTR/ERR flags */
-  uint8_t can_dlc; /* frame payload length in byte (0 .. CAN_MAX_DLEN) */
-  uint8_t data[CAN_MAX_DLEN] __attribute__((aligned(8)));
-#endif
 };
 struct Can_SocketHandle_s {
-  int s; /* can raw socket: accept */
+  TcpIp_SocketIdType s; /* can raw socket: accept */
   int error_counter;
   STAILQ_ENTRY(Can_SocketHandle_s) entry;
 };
+
 struct Can_SocketHandleList_s {
-  int s; /* can raw socket: listen */
-#ifdef USE_RX_DAEMON
-  pthread_t rx_thread;
-#endif
+  TcpIp_SocketIdType s; /* can raw socket: listen */
   STAILQ_HEAD(, Can_SocketHandle_s) head;
 };
 
@@ -129,91 +77,33 @@ struct Can_FilterList_s {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static struct Can_SocketHandleList_s *socketH = NULL;
-#ifdef USE_RX_DAEMON
-static pthread_mutex_t socketLock = PTHREAD_MUTEX_INITIALIZER;
-#endif
-static struct timeval m0;
 static struct Can_FilterList_s *canFilterH = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
-#ifdef _WIN32
-static void __deinit(void) {
-  TIMECAPS xTimeCaps;
-
-  if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
-    /* Match the call to timeBeginPeriod( xTimeCaps.wPeriodMin ) made when
-    the process started with a timeEndPeriod() as the process exits. */
-    timeEndPeriod(xTimeCaps.wPeriodMin);
-  }
-}
-
-static void __attribute__((constructor)) __init(void) {
-  TIMECAPS xTimeCaps;
-  if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
-    timeBeginPeriod(xTimeCaps.wPeriodMin);
-    atexit(__deinit);
-  }
-}
-#else
-static int WSAGetLastError(void) {
-  perror("");
-  return errno;
-}
-static int closesocket(int s) {
-  return close(s);
-}
-#endif
 static int init_socket(int port) {
-  int ercd;
-  int s;
-  struct sockaddr_in service;
-  /* struct timeval tv; */
+  Std_ReturnType ercd;
+  TcpIp_SocketIdType s;
+  uint16_t u16Port;
+  TcpIp_Init(NULL);
 
-#ifdef _WIN32
-  WSADATA wsaData;
-  WSAStartup(MAKEWORD(2, 2), &wsaData);
-#endif
-
-  s = socket(AF_INET, SOCK_STREAM, 0);
+  s = TcpIp_Create(TCPIP_IPPROTO_TCP);
   if (s < 0) {
-    printf("socket function failed with error: %d\n", WSAGetLastError());
+    printf("socket function failed with error: %d\n", s);
     return FALSE;
   }
 
-  service.sin_family = AF_INET;
-  service.sin_addr.s_addr = inet_addr("127.0.0.1");
-  service.sin_port = (u_short)htons(CAN_PORT_MIN + port);
-  ercd = bind(s, (struct sockaddr *)&(service), sizeof(struct sockaddr));
-  if (ercd < 0) {
-    printf("bind to port %d failed with error: %d\n", port, WSAGetLastError());
-    closesocket(s);
+  u16Port = CAN_PORT_MIN + port;
+  ercd = TcpIp_Bind(s, TCPIP_LOCALADDRID_ANY, &u16Port);
+  if (E_OK != ercd) {
+    printf("bind to port %d failed with error: %d\n", port, ercd);
+    TcpIp_Close(s, TRUE);
     return FALSE;
   }
-
-  if (listen(s, CAN_BUS_NODE_MAX) < 0) {
-    printf("listen failed with error: %d\n", WSAGetLastError());
-    closesocket(s);
+  ercd = TcpIp_TcpListen(s, CAN_BUS_NODE_MAX);
+  if (E_OK != ercd) {
+    printf("listen failed with error: %d\n", ercd);
+    TcpIp_Close(s, TRUE);
     return FALSE;
   }
-
-#ifdef _WIN32
-  /* Set Timeout for recv call */
-  /*
-  tv.tv_sec  = 0;
-  tv.tv_usec = 0;
-  if(setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval)) == SOCKET_ERROR)
-  {
-    wprintf(L"setsockopt failed with error: %ld\n", WSAGetLastError());
-    closesocket(s);
-    return FALSE;
-  }
-  */
-  /* set to non blocking mode */
-  u_long iMode = 1;
-  ioctlsocket(s, FIONBIO, &iMode);
-#else
-  int iMode = 1;
-  ioctl(s, FIONBIO, (char *)&iMode);
-#endif
 
   printf("can(%d) socket driver on-line!\n", port);
 
@@ -224,62 +114,30 @@ static int init_socket(int port) {
 
   return TRUE;
 }
+
 static void try_accept(void) {
   struct Can_SocketHandle_s *handle;
-  /* struct timeval tv; */
-  int s = accept(socketH->s, NULL, NULL);
+  Std_ReturnType ercd;
+  TcpIp_SocketIdType s;
+  TcpIp_SockAddrType RemoteAddr;
 
-  if (s >= 0) {
-    /* tv.tv_sec  = 0;
-    tv.tv_usec = 0; */
+  ercd = TcpIp_TcpAccept(socketH->s, &s, &RemoteAddr);
+  if (E_OK == ercd) {
     handle = malloc(sizeof(struct Can_SocketHandle_s));
     assert(handle);
     handle->s = s;
     handle->error_counter = 0;
-#ifdef _WIN32
-    /* Set Timeout for recv call */
-    /*
-    if(setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval)) == SOCKET_ERROR)
-    {
-      wprintf(L"setsockopt failed with error: %ld\n", WSAGetLastError());
-      closesocket(s);
-      return;
-    }
-    */
-    /* set to non blocking mode */
-    u_long iMode = 1;
-    ioctlsocket(s, FIONBIO, &iMode);
-#else
-    int iMode = 1;
-    ioctl(s, FIONBIO, (char *)&iMode);
-#endif
-#ifdef USE_RX_DAEMON
-    pthread_mutex_lock(&socketLock);
-#endif
     STAILQ_INSERT_TAIL(&socketH->head, handle, entry);
-#ifdef USE_RX_DAEMON
-    pthread_mutex_unlock(&socketLock);
-#endif
     printf("can socket %X on-line!\n", s);
-  } else {
-    // wprintf(L"accept failed with error: %ld\n", WSAGetLastError());
   }
 }
-#ifdef USE_RX_DAEMON
-static void *rx_daemon(void *param) {
-  (void)param;
-  while (TRUE) {
-    try_accept();
-  }
 
-  return NULL;
-}
-#endif
 static void remove_socket(struct Can_SocketHandle_s *h) {
   STAILQ_REMOVE(&socketH->head, h, Can_SocketHandle_s, entry);
-  closesocket(h->s);
+  TcpIp_Close(h->s, TRUE);
   free(h);
 }
+
 static void log_msg(struct can_frame *frame, float rtim) {
   int bOut = FALSE;
   static float lastTime = -1;
@@ -356,75 +214,67 @@ static void log_msg(struct can_frame *frame, float rtim) {
   }
 }
 static void try_recv_forward(void) {
-  int len;
+  uint32_t len;
+  Std_ReturnType ercd;
   struct can_frame frame;
   struct Can_SocketHandle_s *h;
   struct Can_SocketHandle_s *h2;
-#ifdef USE_RX_DAEMON
-  pthread_mutex_lock(&socketLock);
-#endif
+  static Std_TimerType timer;
+
+  if (false == Std_IsTimerStarted(&timer)) {
+    Std_TimerStart(&timer);
+  }
+
   STAILQ_FOREACH(h, &socketH->head, entry) {
-    len = recv(h->s, (void *)&frame, CAN_MTU, 0);
-    if (CAN_MTU == len) {
-      struct timeval m1;
-
-      gettimeofday(&m1, NULL);
-      float rtim = m1.tv_sec - m0.tv_sec;
-
-      if (m1.tv_usec > m0.tv_usec) {
-        rtim += (float)(m1.tv_usec - m0.tv_usec) / 1000000.0;
-      } else {
-        rtim = rtim - 1 + (float)(1000000.0 + m1.tv_usec - m0.tv_usec) / 1000000.0;
-      }
+    len = CAN_MTU;
+    ercd = TcpIp_Recv(h->s, (uint8_t *)&frame, &len);
+    if ((E_OK == ercd) && (CAN_MTU == len)) {
+      std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
+      float rtim = elapsedTime / 1000000.0;
 
       log_msg(&frame, rtim);
       h->error_counter = 0;
 
       STAILQ_FOREACH(h2, &socketH->head, entry) {
         if (h != h2) {
-          if (send(h2->s, (const char *)&frame, CAN_MTU, 0) != CAN_MTU) {
-            printf("send failed with error: %d, remove this node %X!\n", WSAGetLastError(), h2->s);
+          ercd = TcpIp_Send(h2->s, (uint8_t *)&frame, CAN_MTU);
+          if (E_OK != ercd) {
+            printf("send failed with error: %d, remove this node %X!\n", ercd, h2->s);
             remove_socket(h2);
             break;
           }
         }
       }
-    } else if (-1 == len) {
-#ifdef _WIN32
-      if (10035 != WSAGetLastError())
-#else
-      if (EAGAIN != errno)
-#endif
-      {
-        printf("recv failed with error: %d, remove this node %X!\n", WSAGetLastError(), h->s);
-        remove_socket(h);
-        break;
-      } else {
-        /* Resource temporarily unavailable. */
-      }
-    } else {
-#ifdef __LINUX__
-      printf("recv failed with error: %d, remove this node %X!\n", WSAGetLastError(), h->s);
-      remove_socket(h);
-      break;
-#else
+    } else if (E_OK != ercd) {
       h->error_counter++;
       if (h->error_counter > 10) {
-        printf("recv failed with error: %d, remove this node %X!\n", WSAGetLastError(), h->s);
+        printf("recv failed with error: %d, remove this node %X!\n", ercd, h->s);
         remove_socket(h);
         break;
       }
-#endif
     }
   }
-#ifdef USE_RX_DAEMON
-  pthread_mutex_unlock(&socketLock);
-#endif
 }
+
+static void staus_monitor(void) {
+  Std_ReturnType ercd = E_NOT_OK;
+  struct Can_SocketHandle_s *h;
+
+  while ((ercd != E_OK) && (FALSE == STAILQ_EMPTY(&socketH->head))) {
+    STAILQ_FOREACH(h, &socketH->head, entry) {
+      ercd = TcpIp_IsTcpStatusOK(h->s);
+      if (E_OK != ercd) {
+        printf("can socket %X off-line!\n", h->s);
+        remove_socket(h);
+        break;
+      }
+    }
+  }
+}
+
 static void schedule(void) {
-#ifndef USE_RX_DAEMON
   try_accept();
-#endif
+  staus_monitor();
   try_recv_forward();
 }
 
@@ -458,7 +308,7 @@ int main(int argc, char *argv[]) {
            argv[0], argv[0]);
     return -1;
   }
-  gettimeofday(&m0, NULL);
+
   if (FALSE == init_socket(atoi(argv[1]))) {
     return -1;
   }
@@ -474,12 +324,6 @@ int main(int argc, char *argv[]) {
     argv = argv + 2;
   }
 
-#ifdef USE_RX_DAEMON
-  if (0 == pthread_create(&(socketH->rx_thread), NULL, rx_daemon, NULL)) {
-  } else {
-    return -1;
-  }
-#endif
   for (;;) {
     schedule();
     usleep(1000);

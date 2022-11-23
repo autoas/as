@@ -20,7 +20,7 @@ class LibraryCanLib(Library):
             v0, v1 = 'x64', 'mingw64'
         shutil.copy('%s/PCAN-Basic API/%s/VC_LIB/PCANBasic.lib' %
                     (peakcan, v0), '%s/libPCANBasic.a' % (BUILD_DIR))
-        dll = '%s/%s/bin/PCANBasic.dll' % (os.getenv('MSYS2'), v1)
+        dll = '%s/%s/bin/PCANBasic.dll' % (GetMsys2Root(), v1)
         if not os.path.isfile(dll):
             shutil.copy('%s/PCAN-Basic API/%s/PCANBasic.dll' %
                         (peakcan, v0), dll)
@@ -72,7 +72,7 @@ class ApplicationCanSimulator(Application):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         if IsBuildForWindows():
-            self.LIBS = ['wsock32', 'winmm']
+            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32', 'winmm']
         self.source = objsCanSim
 
 

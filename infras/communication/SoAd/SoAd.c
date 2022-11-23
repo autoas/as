@@ -29,16 +29,14 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   TcpIp_SocketIdType sockId;
   Std_ReturnType ret = E_OK;
-  uint16_t port;
 
   sockId = TcpIp_Create(conG->ProtocolType);
   if (sockId >= 0) {
     if (IS_CON_TYPE_OF(connection,
                        SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER | SOAD_SOCON_UDP_CLIENT)) {
-      port = conG->Port;
-      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &port);
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &context->RemoteAddr.port);
       if ((E_OK == ret) && conG->IsMulitcast) {
-        ret = TcpIp_AddToMulticast(sockId, conG->Remote);
+        ret = TcpIp_AddToMulticast(sockId, &context->RemoteAddr);
       }
       if (E_OK != ret) {
         TcpIp_Close(sockId, TRUE);
@@ -451,11 +449,18 @@ Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
 
 Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *IpAddrPtr) {
   Std_ReturnType ret = E_NOT_OK;
+  const SoAd_SocketConnectionType *connection;
+  const SoAd_SocketConnectionGroupType *conG;
   SoAd_SocketContextType *context;
 
   if (SoConId < SOAD_CONFIG->numOfConnections) {
+    connection = &SOAD_CONFIG->Connections[SoConId];
+    conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (SOAD_SOCKET_READY <= context->state) {
+    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_SERVER) && conG->IsMulitcast) {
+      TcpIp_SetupAddrFrom(IpAddrPtr, conG->Remote, conG->Port);
+      ret = E_OK;
+    } else if (SOAD_SOCKET_READY <= context->state) {
       *IpAddrPtr = context->RemoteAddr;
       ret = E_OK;
     }
@@ -476,6 +481,8 @@ Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId) {
 #endif
       context->state = SOAD_SOCKET_CREATE;
       ret = E_OK;
+    } else {
+      ASLOG(SOADE, ("[%d] open failed as already in state %d\n", SoConId, context->state));
     }
   }
 

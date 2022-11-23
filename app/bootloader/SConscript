@@ -60,9 +60,8 @@ class ApplicationCanBL(ApplicationBL):
 
 
 libsForLinBL = {}
-for libName in ['BL', 'Dcm', 'LinTp']:
+for libName in ['BL', 'Dcm', 'LinTp', 'LinIf']:
     libsForLinBL[libName] = Glob('config/%s_Cfg.c' % (libName))
-libsForLinBL['Dll:lvds.slave'] = Glob('config/Dll_Cfg.c')
 
 
 @register_application

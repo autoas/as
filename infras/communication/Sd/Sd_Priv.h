@@ -64,11 +64,14 @@ typedef struct {
   boolean AutoRequire;
   uint16_t HandleId;
   uint16_t EventGroupId;
+  SoAd_SoConIdType MulticastEventSoConRef;
+  uint8_t MulticastThreshold;
   Sd_ConsumedEventGroupContextType *context;
 } Sd_ConsumedEventGroupType;
 
 typedef struct {
-  uint16_t numOfSubscribers;
+  Sd_EventHandlerSubscriberListType listEventHandlerSubscribers;
+  bool isMulticastOpened;
 } Sd_EventHandlerContextType;
 
 typedef void (*SomeIp_EventGroupOnSubscribeFncType)(boolean isSubscribe,
@@ -78,10 +81,10 @@ typedef void (*SomeIp_EventGroupOnSubscribeFncType)(boolean isSubscribe,
 typedef struct {
   uint16_t HandleId;
   uint16_t EventGroupId;
+  SoAd_SoConIdType MulticastEventSoConRef;
+  PduIdType MulticastTxPduId;
   uint8_t MulticastThreshold;
   Sd_EventHandlerContextType *context;
-  Sd_EventHandlerSubscriberType *Subscribers;
-  uint16_t numOfSubscribers;
   SomeIp_EventGroupOnSubscribeFncType onSubscribe;
 } Sd_EventHandlerType;
 

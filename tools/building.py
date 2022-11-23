@@ -66,7 +66,7 @@ AddOption('--strip',
 AddOption('--prebuilt',
           dest='prebuilt',
           action='store_true',
-          default=True,
+          default=False,
           help='using prebuilt libraries')
 
 CWD = os.path.abspath('.')

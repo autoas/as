@@ -22,6 +22,8 @@
 #define AS_LOG_SOMEIPW 3
 #define AS_LOG_SOMEIPE 4
 
+#define SD_FLG_EVENT_GROUP_MULTICAST 0x10u
+
 /* @SWS_SomeIpXf_00031 */
 #define SOMEIP_MSG_REQUEST 0x00
 #define SOMEIP_MSG_REQUEST_NO_RETURN 0x01
@@ -566,34 +568,43 @@ static Std_ReturnType SomeIp_SendNextTxTpMsg(PduIdType TxPduId, uint16_t service
 static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *config,
                                             const SomeIp_ServerEventType *event, uint8_t *data,
                                             uint32_t payloadLength, bool isTp,
-                                            Sd_EventHandlerSubscriberType *Subscribers,
-                                            uint16_t numOfSubscribers, uint16_t sessionId,
-                                            uint32_t *mask) {
+                                            Sd_EventHandlerSubscriberListType *list,
+                                            uint16_t sessionId) {
   Std_ReturnType ret = E_NOT_OK;
   Std_ReturnType ret2;
   Sd_EventHandlerSubscriberType *sub;
-  uint16_t i;
   uint8_t messageType = SOMEIP_MSG_NOTIFICATION;
+  TcpIp_SockAddrType *RemoteAddr = NULL;
+  bool multicasted = FALSE;
 
   if (isTp) {
     messageType |= SOMEIP_TP_FLAG;
   }
 
-  for (i = 0; i < numOfSubscribers; i++) {
-    sub = &Subscribers[i];
-    if (((*mask) & (1 << i)) && (sub->flags)) {
-      ret2 = SomeIp_Transmit(sub->TxPduId, &sub->RemoteAddr, data, config->serviceId,
-                             event->eventId, config->clientId, sessionId, event->interfaceVersion,
-                             messageType, 0, payloadLength);
+  sub = STAILQ_FIRST(list);
+  while (NULL != sub) {
+    if (sub->flags) {
+      if (0 == (SD_FLG_EVENT_GROUP_MULTICAST & sub->flags)) {
+        RemoteAddr = &sub->RemoteAddr;
+        if (FALSE == multicasted) {
+          multicasted = TRUE;
+        } else {
+          continue;
+        }
+      }
+      ret2 = SomeIp_Transmit(sub->TxPduId, RemoteAddr, data, config->serviceId, event->eventId,
+                             config->clientId, sessionId, event->interfaceVersion, messageType, 0,
+                             payloadLength);
       if (E_OK == ret2) {
         ret = E_OK;
       } else {
-        *mask &= ~(1 << i);
         ASLOG(SOMEIPE, ("Failed to notify event %x:%x to %d.%d.%d.%d:%d\n", config->serviceId,
                         event->eventId, sub->RemoteAddr.addr[0], sub->RemoteAddr.addr[1],
                         sub->RemoteAddr.addr[2], sub->RemoteAddr.addr[3], sub->RemoteAddr.port));
       }
     }
+    /* NOTE: if any one is unsubscribed during this, TX is broken */
+    sub = STAILQ_NEXT(sub, entry);
   }
 
   return ret;
@@ -602,8 +613,7 @@ static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *conf
 static Std_ReturnType SomeIp_SendNextTxTpEvtMsg(const SomeIp_ServerServiceType *config,
                                                 const SomeIp_ServerEventType *event,
                                                 SomeIp_TxTpEvtMsgType *var,
-                                                Sd_EventHandlerSubscriberType *Subscribers,
-                                                uint16_t numOfSubscribers) {
+                                                Sd_EventHandlerSubscriberListType *list) {
   Std_ReturnType ret = E_OK;
   SomeIp_TpMessageType tpMsg;
   uint32_t len = var->length - var->offset;
@@ -631,8 +641,7 @@ static Std_ReturnType SomeIp_SendNextTxTpEvtMsg(const SomeIp_ServerServiceType *
       data[17] = (offset >> 16) & 0xFF;
       data[18] = (offset >> 8) & 0xFF;
       data[19] = offset & 0xFF;
-      ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, Subscribers, numOfSubscribers,
-                                  var->sessionId, &var->mask);
+      ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, list, var->sessionId);
       if (E_OK == ret) {
         var->offset += len;
       } else {
@@ -809,8 +818,7 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
 static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *config,
                                               uint16_t eventId, uint16_t sessionId,
                                               SomeIp_MessageType *req,
-                                              Sd_EventHandlerSubscriberType *Subscribers,
-                                              uint16_t numOfSubscribers, uint32_t mask) {
+                                              Sd_EventHandlerSubscriberListType *list) {
   Std_ReturnType ret = E_OK;
   SomeIp_ServerContextType *context = config->context;
   const SomeIp_ServerEventType *event =
@@ -825,9 +833,8 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       var->sessionId = sessionId;
       var->offset = 0;
       var->length = req->length;
-      var->mask = mask;
       var->timer = config->SeparationTime;
-      ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, Subscribers, numOfSubscribers);
+      ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, list);
       if (E_OK == ret) {
         SQP_CAPPEND(TxTpEvtMsg);
       } else {
@@ -841,8 +848,7 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
     data = Net_MemAlloc(req->length + 16);
     if (NULL != data) {
       memcpy(&data[16], req->data, req->length);
-      ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, Subscribers,
-                                  numOfSubscribers, sessionId, &mask);
+      ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
       Net_MemFree(data);
     }
   }
@@ -1038,6 +1044,9 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
     case SOMEIP_MSG_REQUEST:
     case SOMEIP_MSG_REQUEST_NO_RETURN:
       ret = SomeIp_HandleServerMessage_Request(config, conId, msg);
+      break;
+    case SOMEIP_MSG_NOTIFICATION:
+      /* slient as event multicast */
       break;
     default:
       ASLOG(SOMEIPE, ("server: unsupported message type 0x%x\n", msg->header.messageType));
@@ -1236,8 +1245,7 @@ static void SomeIp_MainServerTxTpEvtMsg(const SomeIp_ServerServiceType *config) 
   SomeIp_ServerContextType *context = config->context;
   DEC_SQP(TxTpEvtMsg);
   const SomeIp_ServerEventType *event = NULL;
-  Sd_EventHandlerSubscriberType *Subscribers;
-  uint16_t numOfSubscribers;
+  Sd_EventHandlerSubscriberListType *list;
   Std_ReturnType ret;
 
   SQP_WHILE(TxTpEvtMsg) {
@@ -1246,9 +1254,10 @@ static void SomeIp_MainServerTxTpEvtMsg(const SomeIp_ServerServiceType *config) 
       var->timer--;
     }
     if (0 == var->timer) {
-      ret = Sd_GetSubscribers(event->sdHandleID, &Subscribers, &numOfSubscribers);
+      /* NOTE: may result partial data send to later online subscribers */
+      ret = Sd_GetSubscribers(event->sdHandleID, &list);
       if (E_OK == ret) {
-        ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, Subscribers, numOfSubscribers);
+        ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, list);
         if (E_OK == ret) {
           if (var->offset >= var->length) {
             SQP_CRM_AND_FREE(TxTpEvtMsg);
@@ -1642,11 +1651,8 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   const SomeIp_ServerServiceType *config;
   const SomeIp_ServerEventType *event;
   uint16_t index;
-  Sd_EventHandlerSubscriberType *Subscribers;
-  uint16_t numOfSubscribers;
-  uint16_t i;
+  Sd_EventHandlerSubscriberListType *list;
   SomeIp_MessageType msg;
-  uint32_t mask;
 
   if (TxEventId < SOMEIP_CONFIG->numOfTxEvents) {
     index = SOMEIP_CONFIG->TxEvent2ServiceMap[TxEventId];
@@ -1661,19 +1667,7 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   if (E_OK == ret) {
     index = SOMEIP_CONFIG->TxEvent2PerServiceMap[TxEventId];
     event = &config->events[index];
-    ret = Sd_GetSubscribers(event->sdHandleID, &Subscribers, &numOfSubscribers);
-  }
-
-  if (E_OK == ret) {
-    for (i = 0; i < numOfSubscribers; i++) {
-      if (0 != Subscribers[i].flags) {
-        mask |= (1 << i);
-      }
-    }
-    ret = E_OK;
-    if (0 == mask) {
-      ret = E_NOT_OK;
-    }
+    ret = Sd_GetSubscribers(event->sdHandleID, &list);
   }
 
   if (E_OK == ret) {
@@ -1682,8 +1676,7 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   }
 
   if (E_OK == ret) {
-    ret = SomeIp_SendNotification(config, TxEventId, sessionId, &msg, Subscribers, numOfSubscribers,
-                                  mask);
+    ret = SomeIp_SendNotification(config, TxEventId, sessionId, &msg, list);
   }
 
   return ret;

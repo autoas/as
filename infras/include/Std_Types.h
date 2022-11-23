@@ -51,6 +51,7 @@ typedef unsigned char StatusType; /* OSEK compliance */
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #endif
+
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Std_00005 */
 typedef uint8_t Std_ReturnType;

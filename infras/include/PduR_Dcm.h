@@ -11,16 +11,22 @@
 #ifdef PDUR_DCM_CANTP_ZERO_COST
 #include "CanTp.h"
 #endif
+#ifdef PDUR_DCM_LINTP_ZERO_COST
+#include "LinTp.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef PDUR_DCM_CANTP_ZERO_COST
 #define PduR_DcmTransmit CanTp_Transmit
+#endif
+#ifdef PDUR_DCM_LINTP_ZERO_COST
+#define PduR_DcmTransmit LinTp_Transmit
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#ifndef PDUR_DCM_CANTP_ZERO_COST
+#if !defined(PDUR_DCM_CANTP_ZERO_COST) && !defined(PDUR_DCM_LINTP_ZERO_COST)
 /* 9.2.4 CanTp module transmission of I-PDU */
 /* @SWS_PduR_00406 */
 Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);

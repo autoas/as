@@ -4,7 +4,7 @@ CWD = GetCurrentDir()
 objs = Glob('src/*.c')
 
 libsForIsoTp = {}
-for libName in ['CanTp', 'CanIf', 'PduR']:
+for libName in ['CanTp', 'LinTp', 'CanIf', 'PduR', 'LinIf']:
     libsForIsoTp[libName] = Glob('config/%s_Cfg.c' % (libName))
 
 @register_library
@@ -12,7 +12,7 @@ class LibraryIsoTp(Library):
     def config(self):
         self.CPPDEFINES = []
         self.include = '%s/include' % (CWD)
-        self.LIBS = ['StdTimer', 'Simulator', 'CanLib']
+        self.LIBS = ['StdTimer', 'Simulator', 'CanLib', 'LinLib', 'DevLib']
         for libName, source in libsForIsoTp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
