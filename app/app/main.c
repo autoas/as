@@ -33,8 +33,9 @@
 #include "PduR_Com.h"
 #endif
 
-#ifdef USE_DLL
-#include "Dll.h"
+
+#ifdef USE_LINIF
+#include "LinIf.h"
 #endif
 
 #ifdef USE_LINTP
@@ -194,9 +195,11 @@ static void BSW_Init(void) {
   CanNm_Init(NULL);
 #endif
 #endif
-#ifdef USE_DLL
-  DLL_Init(NULL);
-  DLL_ScheduleRequest(0, 0);
+
+#ifdef USE_LINIF
+  Lin_Init(NULL);
+  LinIf_Init(NULL);
+  LinIf_ScheduleRequest(0, 0);
 #endif
 #ifdef USE_LINTP
   LinTp_Init(NULL);
@@ -265,9 +268,11 @@ void Task_MainLoop(void) {
     Can_MainFunction_Write();
     Can_MainFunction_Read();
 #endif
-#ifdef USE_DLL
-    DLL_MainFunction();
-    DLL_MainFunction_Read();
+
+#ifdef USE_LINIF
+    Lin_MainFunction();
+    Lin_MainFunction_Read();
+    LinIf_MainFunction();
 #endif
 #ifdef USE_TCPIP
     TcpIp_MainFunction();
