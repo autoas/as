@@ -4,7 +4,7 @@ This project is only free to be used for evaluation and study purpose, all of th
 
 ## AUTOSAR and its toolchain
 
-![architecture](examples/architecture.png)
+![architecture](doc/images/architecture.png)
 
 ## Tools & Libraries
 
@@ -24,10 +24,29 @@ This project now provide below tools & libraries:
 
 ​	**Loader**: A library used for bootloader
 
-​	**AsOne**: PyQT5 based GUI tool for Com/Dcm
+​	**AsOne**: PyQT5 based GUI tool for Com/Dcm/FlashLoader
 
 ​	**DoIPClient**: DoIP client library to access DoIP server
 
+## Documents
+
+  **Background**: [CN](doc/CN/background.md)
+
+  **How to setup build environment**: [CN](doc/CN/build-env-setup.md) [EN](doc/EN/build-env-setup.md)
+
+  **Virtuan CAN environment**: [CN](doc/CN/virtual-can-env.md)
+
+  **Virtuan LIN environment**: TBD
+
+  **CAN Bootloader**: [CN](doc/CN/can-bootloader.md)
+
+  **CAN OSEKNM**: [CN](doc/CN/can-oseknm.md)
+
+  **NVM**: [CN](doc/CN/nvm.md)
+
+  **SOMEIP/SD**: [EN](doc/EN/SOMEIP-SD.md)
+
+  **DoIP**: [EN](doc/EN/DoIP.md)
 
 ## prebuilt demo applications and its tools
 
@@ -35,37 +54,7 @@ This project now provide below tools & libraries:
 * [CanNm](examples/CanNm.md)
 * [OsekNm](examples/OsekNm.md)
 
-## Pages
 
-[Prelog](https://autoas.github.io/ssas-public/autosar/2021/12/02/%E5%BC%80%E7%AF%87.html)
-
-[Setup development environment](https://autoas.github.io/ssas-public/autosar/2021/12/03/setup.html)
-
-[CAN development with simulation](https://autoas.github.io/ssas-public/autosar/2021/12/10/vcan.html)
-
-[CAN bootloader](https://autoas.github.io/ssas-public/autosar/2021/12/15/CAN-bootloader.html)
-
-[CAN OSEK NM](https://autoas.github.io/ssas-public/autosar/2021/12/25/CAN-OSEK-NM.html)
-
-[AUTOSAR NVM Memory Stack](https://autoas.github.io/ssas-public/autosar/2022/01/23/NVM.html)
-
-[DoIP](https://autoas.github.io/ssas-public/autosar/2022/02/25/DoIP.html)
-
-[SOMEIP-SD](https://autoas.github.io/ssas-public/autosar/2022/05/04/SOMEIP-SD.html)
-
-
-
-## Funny demos
-
-​	**Cluster & Watch**: legacy things from [as](https://github.com/autoas/as), something like:
-
-![Cluster](https://github.com/autoas/as/raw/gh-pages/images/ascore_posix_vic.gif)
-
-```sh
-git submodule update --init --recursive
-scons --app=Cluster
-scons --app=Watch
-```
 
 
 

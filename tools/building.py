@@ -1607,6 +1607,7 @@ class Qemu():
 
     def Run(self, params):
         cmd = '%s %s %s' % (self.qemu, params, self.params)
+        print(cmd)
         RunCommand(cmd)
 
 

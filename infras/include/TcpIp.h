@@ -87,6 +87,8 @@ void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr);
 Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t ipv4Addr,
                                    uint16_t port);
 
+uint32_t TcpIp_InetAddr(const char* ip);
+
 Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
                                uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
 

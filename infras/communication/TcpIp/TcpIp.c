@@ -639,6 +639,17 @@ Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t i
   return E_OK;
 }
 
+uint32_t TcpIp_InetAddr(const char *ip) {
+  uint32_t u32Addr;
+#ifndef USE_LWIP
+  u32Addr = inet_addr(ip);
+#else
+  u32Addr = ipaddr_addr(ip);
+#endif
+  u32Addr = ntohl(u32Addr);
+  return u32Addr;
+}
+
 Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
                                uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr) {
 #ifdef USE_LWIP

@@ -22,8 +22,6 @@
 #define IS_LINIF_IDEL(status) (0 == ((status)&0xF0))
 
 #define LINIF_CONFIG (&LinIf_Config)
-
-#define LIN_BIT(v, pos) (((v) >> (pos)) & 0x01)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const LinIf_ConfigType LinIf_Config;
@@ -48,6 +46,7 @@ static void LinIf_ScheduleEntry(uint8_t Channel) {
     context->frame.Dl = entry->dlc;
     context->frame.SduPtr = context->data;
     context->frame.Drc = entry->Drc;
+    context->frame.Cs = entry->Cs;
     if (LIN_FRAMERESPONSE_TX == entry->Drc) {
       result = entry->callback(Channel, &context->frame, LINIF_R_TRIGGER_TRANSMIT);
     }
@@ -95,20 +94,6 @@ static void LinIf_CheckEntry(uint8_t Channel) {
     (void)entry->callback(Channel, &context->frame, result);
     context->status &= ~LINIF_STATUS_SENDING;
   }
-}
-
-static Std_ReturnType LinIf_CheckPid(uint8_t Pid_) {
-  Std_ReturnType ret = E_OK;
-  uint8_t pid = Pid_ & 0x3F;
-  uint8_t p0 = LIN_BIT(pid, 0) ^ LIN_BIT(pid, 1) ^ LIN_BIT(pid, 2) ^ LIN_BIT(pid, 4);
-  uint8_t p1 = ~(LIN_BIT(pid, 1) ^ LIN_BIT(pid, 3) ^ LIN_BIT(pid, 4) ^ LIN_BIT(pid, 5));
-  pid = pid | (p0 << 6) | (p1 << 7);
-
-  if (pid != Pid_) {
-    ret = E_NOT_OK;
-  }
-
-  return ret;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void LinIf_Init(const LinIf_ConfigType *ConfigPtr) {
@@ -263,7 +248,6 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
       /* anyway, stop slave RX */
       context->status &= ~LINIF_STATUS_RECEIVING;
     }
-    ret = LinIf_CheckPid(PduPtr->Pid);
   }
 
   if (E_OK == ret) {
@@ -273,6 +257,8 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
         if (LIN_FRAMERESPONSE_RX == entry->Drc) {
           context->curSch = i;
           PduPtr->Dl = entry->dlc;
+          PduPtr->Cs = entry->Cs;
+          PduPtr->Drc = entry->Drc;
           context->status |= LINIF_STATUS_RECEIVING;
           Std_TimerStart(&context->timer);
         } else if (LIN_FRAMERESPONSE_TX == entry->Drc) {

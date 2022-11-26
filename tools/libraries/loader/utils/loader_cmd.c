@@ -52,6 +52,7 @@ int main(int argc, char *argv[]) {
   size_t total = 0;       /* for sign */
   uint32_t timeout = 100; /* ms */
   int r = 0;
+  int verbose = 0;
 
   int progress = 0;
   int lastProgress = 0;
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:d:f:l:p:r:s:t:T:")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:d:f:l:p:r:s:t:T:v")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -94,6 +95,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'T':
       timeout = strtoul(optarg, NULL, 10);
+      break;
+    case 'v':
+      verbose = 1;
       break;
     default:
       break;
@@ -192,6 +196,10 @@ int main(int argc, char *argv[]) {
     if (NULL == loader) {
       printf("failed to create loader\n");
       r = -7;
+    } else {
+      if (verbose) {
+        loader_set_log_level(loader, L_LOG_DEBUG);
+      }
     }
   }
 

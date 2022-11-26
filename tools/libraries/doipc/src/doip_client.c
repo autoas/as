@@ -225,7 +225,7 @@ static void doip_handle_udp_message(doip_client_t *client, TcpIp_SockAddrType *R
 static void *doip_daemon(void *arg) {
   Std_ReturnType ret;
   doip_client_t *client = (doip_client_t *)arg;
-  uint16_t length;
+  uint32_t length;
   TcpIp_SockAddrType RemoteAddr;
 
   ASLOG(DOIPI, ("DoIP Client request on %s:%d\n", client->ip, client->port));
@@ -265,7 +265,7 @@ static void doip_alive_check_request(struct doip_node_s *node) {
 static void *node_daemon(void *arg) {
   Std_ReturnType ret;
   struct doip_node_s *node = (struct doip_node_s *)arg;
-  uint16_t length;
+  uint32_t length;
   ASLOG(DOIPI, ("DoIP node online\n"));
   node->connected = true;
   Std_TimerStart(&node->alive_request_timer);
@@ -489,24 +489,33 @@ doip_client_t *doip_create_client(const char *ip, int port) {
   TcpIp_SocketIdType discovery;
   TcpIp_SocketIdType test_equipment_request;
   Std_ReturnType ret = E_OK;
+  uint16_t u16Port = port;
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  TcpIp_SockAddrType ipv4Addr;
+  uint32_t ipAddr = TcpIp_InetAddr(ip);
 
   pthread_once(&l_initOnce, doip_init);
 
   discovery = TcpIp_Create(TCPIP_IPPROTO_UDP);
   if (discovery >= 0) {
-    ret = TcpIp_Bind(discovery, ip, port);
+    ret = TcpIp_Bind(discovery, 0, &u16Port);
     if (E_OK != ret) {
       ASLOG(DOIPE, ("Failed to bind\n"));
       TcpIp_Close(discovery, TRUE);
       ret = E_NOT_OK;
     } else {
-      test_equipment_request = TcpIp_Create(TCPIP_IPPROTO_UDP);
-      if (test_equipment_request < 0) {
-        TcpIp_Close(discovery, TRUE);
-        ret = E_NOT_OK;
+      TcpIp_SetupAddrFrom(&ipv4Addr, ipAddr, u16Port);
+      ret = TcpIp_AddToMulticast(discovery, &ipv4Addr);
+      if (E_OK == ret) {
+        test_equipment_request = TcpIp_Create(TCPIP_IPPROTO_UDP);
+        if (test_equipment_request < 0) {
+          TcpIp_Close(discovery, TRUE);
+          ret = E_NOT_OK;
+        } else {
+          TcpIp_Bind(test_equipment_request, 0, &u16Port);
+        }
       }
     }
   } else {
@@ -575,11 +584,12 @@ doip_node_t *doip_request(doip_client_t *client) {
   int r;
   doip_node_t *node = NULL;
   TcpIp_SockAddrType RemoteAddr;
+  uint32_t ipAddr = TcpIp_InetAddr(client->ip);
 
   doip_client_clear(client);
   pthread_mutex_lock(&client->lock);
   doip_fill_header(client->buffer, DOIP_VID_REQUEST, 0);
-  TcpIp_SetupAddrFrom(&RemoteAddr, client->ip, client->port);
+  TcpIp_SetupAddrFrom(&RemoteAddr, ipAddr, client->port);
   ret =
     TcpIp_SendTo(client->test_equipment_request, &RemoteAddr, client->buffer, DOIP_HEADER_LENGTH);
   if (E_OK == ret) {
