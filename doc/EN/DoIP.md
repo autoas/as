@@ -22,7 +22,13 @@ This socket is created as serever for waiting client connections.
 
 Build NetApp accoriding to [SOMEIP/SD](./SOMEIP-SD.md)
 
+But if want to test CAN related things, better to disable the vbox adapter and not using LWIP by using below command to rebuild the NetApp.
+
 ```sh
+# below command that rebuild NetApp not using LWIP over vbox adapter
+scons --app=NetApp
+
+# build the DoIP tester
 scons --app=DoIPSend
 
 # run NetApp
@@ -31,11 +37,9 @@ build\nt\GCC\NetApp\NetApp.exe
 # run CanApp as edge node
 build\nt\GCC\CanApp\CanApp.exe
 
-set AS_LOCAL_IP=172.18.0.1
 build\nt\GCC\DoIPSend\DoIPSend.exe  -v1001
 
 build\nt\GCC\DoIPSend\DoIPSend.exe  -v1001 -t caaa
-
 ```
 
 
