@@ -181,6 +181,7 @@ def IsPlatformTermux():
         bYes = True
     return bYes
 
+
 def GetMsys2Root():
     rt = os.getenv('MSYS2')
     if None == rt:
@@ -189,6 +190,7 @@ def GetMsys2Root():
     if None == rt:
         raise Exception('please specify env MSYS2 root directory')
     return rt
+
 
 def MKDir(p):
     ap = os.path.abspath(p)
@@ -1192,12 +1194,12 @@ class BuildBase():
                 if os.path.isdir(f):
                     dst = os.path.join(idir, os.path.basename(f))
                     if os.path.isdir(dst):
-                        print('rm -r %s'%(dst))
+                        print('rm -r %s' % (dst))
                         shutil.rmtree(dst)
-                    print('cp -r %s %s'%(f, dst))
+                    print('cp -r %s %s' % (f, dst))
                     shutil.copytree(f, dst)
                 else:
-                    print('cp %s %s'%(f, idir))
+                    print('cp %s %s' % (f, idir))
                     shutil.copy(f, idir)
             return
         if getattr(self, '__install__dirs__', None) is None:
@@ -1390,7 +1392,7 @@ class Library(BuildBase):
                     self.source = [dll]
                     self.prebuilt_shared = True
         if hasattr(self, 'include') and len(self.include):
-            self.RegisterCPPPATH('$%s' % (self.name), self.include)
+            self.RegisterCPPPATH('$%s' % (self.name), self.include, force=True)
         super().__init__()
 
     def get_opt_cfg(self, CPPPATH, libName):

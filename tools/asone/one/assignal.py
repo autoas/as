@@ -8,7 +8,7 @@ import threading
 import queue
 from bitarray import bitarray
 import json
-from .AsPy import can
+from .AsPy import can, lin
 
 __all__ = ['Network', 'QView']
 
@@ -262,7 +262,7 @@ class Network(threading.Thread):
         if network['network'] == 'CAN':
             self.bus = can(device, port, baudrate)
         else:
-            raise
+            self.bus = lin(device, port, baudrate)
         self.msgs = {}
         for msg in network['messages']:
             self.msgs[msg['name']] = Message(
