@@ -107,4 +107,4 @@ StatusType TalkNM(NetIdType);
 
 ## 第三，一个例子
 
-参考 [OsekNm](https://github.com/autoas/ssas-public/examples/OsekNm.md)。
+参考 [OsekNm](https://github.com/autoas/ssas-public/blob/master/examples/OsekNm.md)。
