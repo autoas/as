@@ -9,8 +9,13 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef DISABLE_STD_CRITICAL_DEF
 #define EnterCritical() do { imask_t imask = Std_EnterCritical()
+#define InterLeaveCritical() Std_ExitCritical(imask)
+#define InterEnterCritical() imask = Std_EnterCritical()
 #define ExitCritical() Std_ExitCritical(imask); } while(0)
+#endif
+
 
 /* ================================ [ TYPES     ] ============================================== */
 typedef unsigned int imask_t;

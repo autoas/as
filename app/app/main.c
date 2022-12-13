@@ -8,6 +8,10 @@
 #include "Std_Timer.h"
 #include <string.h>
 #include <assert.h>
+#if defined(_WIN32) || defined(linux)
+#include <stdlib.h>
+#include <unistd.h>
+#endif
 
 #ifdef USE_CAN
 #include "Can.h"
@@ -32,6 +36,7 @@
 #include "./config/Com/GEN/Com_Cfg.h"
 #include "PduR_Com.h"
 #endif
+
 
 
 #ifdef USE_LINIF
@@ -286,14 +291,45 @@ void Task_MainLoop(void) {
 #endif
   }
 }
+
+#ifdef USE_OSAL
+void TaskMainTaskIdle(void) {
+  while (1)
+    ;
+}
+void StartupHook(void) {
+  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
+}
+#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
+#if defined(_WIN32) || defined(linux)
+void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
+#endif
+
 int main(int argc, char *argv[]) {
   ASLOG(INFO, ("application build @ %s %s\n", __DATE__, __TIME__));
+
+#if defined(_WIN32) || defined(linux)
+  {
+    int ch;
+    opterr = 0;
+    while ((ch = getopt(argc, argv, "d:")) != -1) {
+      switch (ch) {
+      case 'd':
+        Can_ReConfig(0, optarg, 0, 500000);
+        break;
+      default:
+        printf("Usage: %s -d can0_device\n", argv[0]);
+        return 0;
+        break;
+      }
+    }
+  }
+#endif
 
   Mcu_Init(NULL);
 
 #ifdef USE_OSAL
-  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
   osal_start();
 #else
   Task_MainLoop();

@@ -3,9 +3,6 @@ from building import *
 Import('BUILD_DIR')
 CWD = GetCurrentDir()
 
-objs = []
-
-
 @register_os
 class LibraryFreeRTOS(Library):
     def get_objs(self, pkg):

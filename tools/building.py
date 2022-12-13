@@ -33,6 +33,12 @@ AddOption('--os',
           default=None,
           help='to choose which os to be used')
 
+AddOption('--arch',
+          dest='arch',
+          type=str,
+          default=None,
+          help='to choose CPU architecture to be used')
+
 AddOption('--net',
           dest='net',
           type=str,
@@ -86,6 +92,9 @@ Export('BUILD_DIR')
 
 TARGET_OS = GetOption('os')
 Export('TARGET_OS')
+
+TARGET_ARCH = GetOption('arch')
+Export('TARGET_ARCH')
 
 _cfg_path = GetOption('cfg')
 if _cfg_path != None:
@@ -145,9 +154,11 @@ class Win32Spawn:
         return proc.wait()
 
 
-def IsBuildForWindows():
+def IsBuildForWindows(compiler=None):
+    if compiler is None:
+        compiler = GetOption('compiler')
     if IsPlatformWindows():
-        return GetOption('compiler') in ['GCC', 'MSVC', 'x86GCC']
+        return compiler in ['GCC', 'MSVC', 'x86GCC']
     return False
 
 
@@ -325,7 +336,7 @@ def Package(url, ** parameters):
             except Exception as e:
                 print('WARNING:', e)
             MKFile(flag, 'url')
-    elif(pkgBaseName.endswith('.tar.gz') or pkgBaseName.endswith('.tar.xz')):
+    elif(pkgBaseName.endswith('.tar.gz') or pkgBaseName.endswith('.tar.xz') or pkgBaseName.endswith('.tgz')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkgName = pkgBaseName[:-7]
@@ -359,6 +370,17 @@ def Package(url, ** parameters):
                 # remove all cmd Done flags
                 for cmdF in Glob('%s/.*.cmd.done' % (pkg)):
                     RMFile(str(cmdF))
+    elif(pkgBaseName.endswith('.exe')):
+        tgt = '%s/%s' % (download, pkgBaseName)
+        Download(url, tgt)
+        pkg = '%s/%s' % (download, pkgBaseName[:-4])
+        pkg = pkg.replace('/', os.sep)
+        flag = pkg+'/.installed'
+        if not os.path.isfile(flag):
+            print('please install with the default')
+            RunCommand('cd %s && %s' % (download, pkgBaseName))
+            MKDir(pkg)
+            MKFile(flag, url)
     else:
         pkg = '%s/%s' % (download, url)
         if(not os.path.isdir(pkg)):
@@ -748,6 +770,7 @@ def CompilerArmGCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
+        env.Append(ASFLAGS=['-g'])
     if(IsPlatformWindows()):
         gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-win32.zip'
     else:
@@ -759,6 +782,8 @@ def CompilerArmGCC(**kwargs):
         cpl = Package(gccarm)
         if(not IsPlatformWindows()):
             cpl += '/gcc-arm-none-eabi-5_4-2016q3'
+    env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/5.4.1' % (cpl)])
+    env.Append(LIBPATH=['%s/arm-none-eabi/lib' % (cpl)])
     env['CC'] = '%s/bin/arm-none-eabi-gcc' % (cpl)
     env['CXX'] = '%s/bin/arm-none-eabi-g++' % (cpl)
     env['AS'] = '%s/bin/arm-none-eabi-gcc -c' % (cpl)
@@ -777,6 +802,7 @@ def CompilerArm64GCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall', '-fno-stack-protector'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
+        env.Append(ASFLAGS=['-g'])
     if(IsPlatformWindows()):
         gccarm64 = 'gcc-linaro-7.2.1-2017.11-i686-mingw32_aarch64-elf.tar.xz'
     else:
@@ -828,6 +854,18 @@ def CompilerCM0PGCC(**kwargs):
     env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m0plus'])
     env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
     env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
+    env['LINK'] = env['LINK'][:-2] + 'gcc'
+    env['LINKFLAGS'].remove('--gc-sections')
+    env.Append(LINKFLAGS=['-Wl,--gc-sections'])
+    return env
+
+
+@register_compiler
+def CompilerCM3GCC(**kwargs):
+    env = CreateCompiler('ArmGCC')
+    env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m3'])
+    env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m3'])
+    env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m3'])
     env['LINK'] = env['LINK'][:-2] + 'gcc'
     env['LINKFLAGS'].remove('--gc-sections')
     env.Append(LINKFLAGS=['-Wl,--gc-sections'])
@@ -1232,6 +1270,46 @@ class BuildBase():
         env = self.ensure_env()
         env.ParseConfig(cmd)
 
+    def SelectOS(self, **kwargs):
+        if getattr(self, 'user', None):
+            return self.user.SelectOS(**kwargs)
+        self.os = kwargs.get('name', 'OS')
+        if 'arch' in kwargs:
+            self.arch = kwargs['arch']
+        config = kwargs['config']
+        self.RegisterConfig(self.os, config)
+        self.LIBS += [self.os]
+        self.Append(CPPDEFINES=['USE_%s' %(self.os.upper())])
+        if 'CPPDEFINES' in kwargs:
+            self.Append(CPPDEFINES=kwargs['CPPDEFINES'])
+        if 'CPPPATH' in kwargs:
+            self.Append(CPPPATH=kwargs['CPPPATH'])
+
+    def GetOS(self):
+        if getattr(self, 'user', None):
+            return self.user.GetOS()
+        if hasattr(self, 'os'):
+            return self.os
+        if TARGET_OS:
+            return TARGET_OS
+        raise Exception('os is not specified, add --os')
+
+    def GetArch(self):
+        if getattr(self, 'user', None):
+            return self.user.GetArch()
+        if hasattr(self, 'arch'):
+            return self.arch
+        if TARGET_ARCH:
+            return TARGET_ARCH
+        raise Exception('arch is not specified, add --arch')
+
+    def GetCompiler(self):
+        if getattr(self, 'user', None):
+            return self.user.GetCompiler()
+        if getattr(self, 'compiler', None):
+            return self.compiler
+        return GetOption('compiler')
+
     def ensure_env(self):
         if getattr(self, 'user', None):
             return self.user.ensure_env()
@@ -1413,6 +1491,7 @@ class Library(BuildBase):
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
             env.get('CPPDEFINES', [])
         CFLAGS = env.get('CFLAGS', [])
+        ASFLAGS = env.get('ASFLAGS', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
         CPPPATH = [self.RequireCPPPATH(p) if p.startswith('$') else p
                    for p in CPPPATH] + env.get('CPPPATH', [])
@@ -1444,7 +1523,9 @@ class Library(BuildBase):
                 objs += env.SharedObject(c, CPPPATH=CPPPATH,
                                          CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
             else:
-                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES,
+                if 'gcc' in self.env['AS']:
+                    ASFLAGS += ['-I%s' % (x) for x in CPPPATH] + ['-D%s' % (x) for x in CPPDEFINES]
+                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, ASFLAGS=ASFLAGS,
                                    CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
         return objs
 
@@ -1576,17 +1657,29 @@ class Application(BuildBase):
 
 
 class Qemu():
-    def __init__(self, arch='arm64'):
-        arch_map = {'x86': 'i386', 'cortex-m': 'arm', 'arm64': 'aarch64'}
-        self.arch = arch
+    def __init__(self, **kwargs):
+        arch_map = {'x86': 'i386', 'cortex-m': 'arm', 'arm64': 'aarch64', 'armmcu': 'gnuarmeclipse'}
+        self.arch = kwargs['arch']
         self.portCAN0 = self.FindPort()
-        self.params = '-serial stdio -serial tcp:127.0.0.1:%s,server' % (
-            self.portCAN0)
+        self.params = '-serial stdio'
+        if kwargs.get('CAN0', False):
+            self.params += ' -serial tcp:127.0.0.1:%s,server' % (self.portCAN0)
         if('gdb' in COMMAND_LINE_TARGETS):
             self.params += ' -gdb tcp::1234 -S'
         if(self.arch in arch_map.keys()):
             self.arch = arch_map[self.arch]
         self.qemu = self.FindQemu()
+
+    def GetArmMcu(self):
+        url = 'https://github.com/ilg-archived/qemu/releases/download/gae-2.8.0-20161227/'
+        if IsPlatformWindows():
+            url += 'gnuarmeclipse-qemu-win64-2.8.0-201612271623-dev-setup.exe'
+        else:
+            url += 'gnuarmeclipse-qemu-debian64-2.8.0-201612271623-dev.tgz'
+        pkg = Package(url)
+        if IsPlatformWindows():
+            pkg = Glob('C:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
+        return '%s/qemu-system-gnuarmeclipse' % (pkg)
 
     def FindPort(self, port=9000):
         import socket
@@ -1602,9 +1695,13 @@ class Qemu():
         return port
 
     def FindQemu(self):
-        qemu = 'qemu-system-%s' % (self.arch)
+        if self.arch == 'gnuarmeclipse':
+            qemu = self.GetArmMcu()
+        else:
+            qemu = 'qemu-system-%s' % (self.arch)
         if(IsPlatformWindows()):
             qemu += '.exe'
+            qemu = '"%s"'%(qemu)
         return qemu
 
     def Run(self, params):

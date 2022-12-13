@@ -12,6 +12,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <errno.h>
+#include "Std_Compiler.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

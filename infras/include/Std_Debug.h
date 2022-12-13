@@ -69,9 +69,20 @@ extern "C" {
       }                                                                                            \
     }                                                                                              \
   } while (0)
+
+#define asAssert(e)                                                                                \
+  do {                                                                                             \
+    if (!(e)) {                                                                                    \
+      ASLOG(ERROR,                                                                                 \
+            ("assert error on condition(%s) at line %d of %s\n", #e, (int)__LINE__, __FILE__));    \
+      while (1)                                                                                    \
+        ;                                                                                          \
+    }                                                                                              \
+  } while (0)
 #else
 #define ASLOG(level, msg)
 #define ASHEXDUMP(level, msg, data, size)
+#define asAssert(e)
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

@@ -1,0 +1,25 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = []
+
+objs += Glob('kernel/*.c')
+objs += Glob('kernel/posix/*.c')
+
+arch_objs = {}
+for arch in Glob('portable/*'):
+    arch = os.path.basename(arch.rstr())
+    arch_objs[arch] = Glob('portable/%s/*.c'%(arch)) + Glob('portable/%s/*.S'%(arch))
+
+@register_os
+class LibraryOS(Library):
+    def config(self):
+        arch = self.GetArch()
+        self.source = objs + arch_objs[arch]
+        self.include += ['%s/include' % (CWD),
+                         '%s/kernel/posix/include' % (CWD),
+                         '%s/portable/%s' % (CWD, self.GetArch())]
+        self.CPPPATH += ['$INFRAS', '%s/kernel' % (CWD)]
+        self.LIBS += ['MemPool']
