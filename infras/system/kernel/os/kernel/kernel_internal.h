@@ -84,7 +84,7 @@ enum
     if (ercd != E_OK) {                                                                            \
       unsigned int savedLevel;                                                                     \
       EnterCritical();                                                                             \
-      \ _errorhook_svcid = OSServiceId_##api;                                                      \
+      _errorhook_svcid = OSServiceId_##api;                                                        \
       savedLevel = CallLevel;                                                                      \
       CallLevel = TCL_ERROR;                                                                       \
       ErrorHook(ercd);                                                                             \
