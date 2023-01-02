@@ -1681,6 +1681,15 @@ class Qemu():
             pkg = Glob('C:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
         return '%s/qemu-system-gnuarmeclipse' % (pkg)
 
+    def GetQemu(self):
+        if IsPlatformWindows():
+            url = 'https://qemu.weilnetz.de/w64/2022/qemu-w64-setup-20221208.exe'
+            Package(url)
+            pkg = Glob('C:/Program*/qemu')[0].rstr()
+            return '%s/qemu-system-%s' % (pkg, self.arch)
+        else:
+            return 'qemu-system-%s' % (self.arch)
+
     def FindPort(self, port=9000):
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1698,7 +1707,7 @@ class Qemu():
         if self.arch == 'gnuarmeclipse':
             qemu = self.GetArmMcu()
         else:
-            qemu = 'qemu-system-%s' % (self.arch)
+            qemu = self.GetQemu()
         if(IsPlatformWindows()):
             qemu += '.exe'
             qemu = '"%s"'%(qemu)
