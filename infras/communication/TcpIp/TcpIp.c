@@ -501,7 +501,7 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
     ASLOG(TCPIP, ("[%d] recv %d bytes\n", SocketId, nbytes));
   } else if (nbytes < -1) {
     ret = nbytes;
-    ASLOG(TCPIPE, ("[%d] recv got error %d\n", nbytes));
+    ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, nbytes));
 
   } else if (-1 == nbytes) {
 #ifndef USE_LWIP
@@ -543,7 +543,7 @@ Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *R
     *Length = nbytes;
   } else if (nbytes < -1) {
     ret = nbytes;
-    ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", nbytes));
+    ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, nbytes));
   } else {
     /* got nothing */
   }

@@ -9,18 +9,20 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-/* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32) || defined(linux)
 static const plugin_t *lPluginList[1024];
 static uint32_t lPluginNum = 0;
 #endif
+/* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+#if defined(_WIN32) || defined(linux)
 void plugin_register(const plugin_t *plugin) {
   if (lPluginNum < ARRAY_SIZE(lPluginList)) {
     lPluginList[lPluginNum] = plugin;
     lPluginNum++;
   }
 }
+#endif
 
 void plugin_init(void) {
   uint32_t i;

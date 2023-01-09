@@ -4,6 +4,7 @@
     {
       "name": "DTC0",
       "number": "0x112200",
+      "conditions" : ["BatteryNormal"],
       "priority": 0
     },
     {

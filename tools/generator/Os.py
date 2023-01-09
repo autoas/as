@@ -29,10 +29,10 @@ def fixupEvt(cfg):
             for ev2 in evList:
                 if(ev['Name'] == ev2['Name']):
                     ev['Mask'] = ev2['Mask']
-                    if(ev['Mask'].upper() != 'AUTO'):
+                    if(ev['Mask'] != 'AUTO'):
                         masks.append(ev['Mask'])
         for ev in tsk.get('EventList', []):
-            if(ev['Mask'].upper() == 'AUTO'):
+            if(ev['Mask'] == 'AUTO'):
                 for id in range(0, 32):
                     mask = 1 << id
                     if mask not in masks:

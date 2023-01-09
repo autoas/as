@@ -158,7 +158,7 @@ def IsBuildForWindows(compiler=None):
     if compiler is None:
         compiler = GetOption('compiler')
     if IsPlatformWindows():
-        return compiler in ['GCC', 'MSVC', 'x86GCC']
+        return compiler in ['GCC', 'MSVC', 'x86GCC', 'PYCC']
     return False
 
 

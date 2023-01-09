@@ -145,7 +145,7 @@ static int dev_lin_write(void *param, const uint8_t *data, size_t size) {
     } else {
       frame.dlc = 8;
     }
-    ASLOG(LIN, ("TX Pid=%02X, DLC=%d @%u\n", frame.pid, (int)frame.dlc, Std_GetTime()));
+    ASLOG(LIN, ("TX Pid=%02X, DLC=%d @%u\n", frame.pid, (int)frame.dlc, (uint32_t)Std_GetTime()));
   } else if (((uint8_t)data[0] == LIN_TYPE_DATA) && (size > 2)) {
     frame.type = LIN_TYPE_DATA;
     frame.dlc = size - 2;
@@ -154,7 +154,7 @@ static int dev_lin_write(void *param, const uint8_t *data, size_t size) {
     ASLOG(LIN, ("TX DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] checksum=%02X @%u\n",
                 (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2], frame.data[3],
                 frame.data[4], frame.data[5], frame.data[6], frame.data[7], frame.checksum,
-                Std_GetTime()));
+                (uint32_t)Std_GetTime()));
   } else if (((uint8_t)data[0] == LIN_TYPE_HEADER_AND_DATA) && (size > 3)) {
     frame.type = LIN_TYPE_HEADER_AND_DATA;
     frame.pid = (uint8_t)data[1];
@@ -165,7 +165,7 @@ static int dev_lin_write(void *param, const uint8_t *data, size_t size) {
           ("TX Pid=%02X, DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] checksum=%02X @%u\n",
            frame.pid, (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2], frame.data[3],
            frame.data[4], frame.data[5], frame.data[6], frame.data[7], frame.checksum,
-           Std_GetTime()));
+           (uint32_t)Std_GetTime()));
   } else {
     ASLOG(ERROR, ("Invalid data format for %s\n", dev->name));
     len = -EINVAL;
@@ -217,7 +217,7 @@ static void *rx_daemon(void *param) {
           pframe->data[0] = LIN_TYPE_HEADER;
           pframe->data[1] = frame.pid;
           pframe->size = 2;
-          ASLOG(LIN, ("RX Pid=%02X @%u\n", frame.pid, Std_GetTime()));
+          ASLOG(LIN, ("RX Pid=%02X @%u\n", frame.pid, (uint32_t)Std_GetTime()));
         } else if (frame.type == LIN_TYPE_DATA) {
           pframe->data[0] = LIN_TYPE_DATA;
           memcpy(&pframe->data[1], frame.data, frame.dlc);
@@ -227,7 +227,7 @@ static void *rx_daemon(void *param) {
                       "checksum=%02X @%u\n",
                       (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2], frame.data[3],
                       frame.data[4], frame.data[5], frame.data[6], frame.data[7], frame.checksum,
-                      Std_GetTime()));
+                      (uint32_t)Std_GetTime()));
         } else if (frame.type == LIN_TYPE_HEADER_AND_DATA) {
           pframe->data[0] = LIN_TYPE_HEADER_AND_DATA;
           pframe->data[1] = frame.pid;
@@ -238,7 +238,7 @@ static void *rx_daemon(void *param) {
                       "checksum=%02X @%u\n",
                       frame.pid, (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2],
                       frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7],
-                      frame.checksum, Std_GetTime()));
+                      frame.checksum, (uint32_t)Std_GetTime()));
         } else {
           ASLOG(ERROR, ("invalid frame from %s\n", dev->name));
           continue;

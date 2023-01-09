@@ -11,6 +11,9 @@
 #include "PduR_Com.h"
 #include "Std_Bit.h"
 #include <string.h>
+#ifdef USE_SHELL
+#include "shell.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define COM_CONFIG (&Com_Config)
 /* ================================ [ TYPES     ] ============================================== */
@@ -193,7 +196,128 @@ void comTxClearUpdateBit(const Com_IPduConfigType *IPduConfig) {
   }
 }
 #endif
-/* ================================ [ FUNCTIONS ] ============================================== */
+
+#ifdef USE_SHELL
+static int cmdComLsSgFunc(int argc, const char *argv[]) {
+  union {
+    uint32_t u32V;
+    uint16_t u16V;
+    uint8_t u8V;
+  } uV;
+  const Com_IPduConfigType *IPdu;
+  const Com_SignalConfigType *signal;
+  int i, j;
+  for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+    IPdu = &COM_CONFIG->IPduConfigs[i];
+    if (IPdu->rxConfig) {
+      for (j = 0; j < IPdu->numOfSignals; j++) {
+        signal = IPdu->signals[j];
+        if (signal->isGroupSignal) {
+          Com_ReceiveSignalGroup(signal->HandleId);
+        }
+      }
+    }
+    for (j = 0; j < IPdu->numOfSignals; j++) {
+      signal = IPdu->signals[j];
+
+      printf("%s ", (IPdu->txConfig) ? "T" : "R");
+      if (signal->isGroupSignal) {
+        printf("%s.%s(GID=%d) is group signal\n", IPdu->name, signal->name, signal->HandleId);
+        continue;
+      }
+      switch (signal->type) {
+      case COM_UINT8:
+      case COM_SINT8:
+        (void)Com_ReceiveSignal(signal->HandleId, &uV.u8V);
+        printf("%s.%s(SID=%d): V = 0x%02X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+               uV.u8V, uV.u8V);
+        break;
+      case COM_UINT16:
+      case COM_SINT16:
+        (void)Com_ReceiveSignal(signal->HandleId, &uV.u16V);
+        printf("%s.%s(SID=%d): V = 0x%04X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+               uV.u16V, uV.u16V);
+        break;
+      case COM_UINT32:
+      case COM_SINT32:
+        (void)Com_ReceiveSignal(signal->HandleId, &uV.u32V);
+        printf("%s.%s(SID=%d): V = 0x%08X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+               uV.u32V, uV.u32V);
+        break;
+      default:
+        printf("%s.%s(SID=%d): unsupported type %d\n", IPdu->name, signal->name, signal->HandleId,
+               signal->type);
+        break;
+      }
+    }
+  }
+  return 0;
+}
+static int cmdComWrSgFunc(int argc, const char *argv[]) {
+  Com_SignalIdType sid, gid = -1;
+  uint32_t u32V;
+  union {
+    uint32_t u32V;
+    uint16_t u16V;
+    uint8_t u8V;
+  } uV;
+  const Com_SignalConfigType *signal;
+
+  if (argc < 3) {
+    return -1;
+  }
+
+  sid = strtoul(argv[1], NULL, 10);
+  if (sid >= COM_CONFIG->numOfSignals) {
+    return -2;
+  }
+  if (0 == strncmp("0x", argv[2], 2)) {
+    u32V = strtoul(argv[2], NULL, 16);
+  } else {
+    u32V = strtoul(argv[2], NULL, 10);
+  }
+  if (argc >= 4) {
+    gid = strtoul(argv[3], NULL, 10);
+    if (gid >= COM_CONFIG->numOfSignals) {
+      return -3;
+    }
+  }
+
+  signal = &COM_CONFIG->SignalConfigs[sid];
+  switch (signal->type) {
+  case COM_UINT8:
+  case COM_SINT8:
+    uV.u8V = (uint8)u32V;
+    (void)Com_SendSignal(signal->HandleId, &uV.u8V);
+    break;
+  case COM_UINT16:
+  case COM_SINT16:
+    uV.u16V = (uint16)u32V;
+    (void)Com_SendSignal(signal->HandleId, &uV.u16V);
+    break;
+  case COM_UINT32:
+  case COM_SINT32:
+    uV.u32V = (uint32)u32V;
+    (void)Com_SendSignal(signal->HandleId, &uV.u32V);
+    break;
+  default:
+    break;
+  }
+
+  if (gid > 0) {
+    Com_SendSignalGroup(gid);
+  }
+
+  return 0;
+}
+SHELL_REGISTER(lssg, "list all the value of com signals", cmdComLsSgFunc);
+SHELL_REGISTER(wrsg,
+               "wrsg sid value [gid]\n"
+               "  write signal, if sid is group signals, need the gid",
+               cmdComWrSgFunc);
+#endif
+/* ================================ [ FUNCTIONS ] ==============================================
+ */
 void Com_Init(const Com_ConfigType *config) {
   COM_CONFIG->context->GroupStatus = 0;
 }

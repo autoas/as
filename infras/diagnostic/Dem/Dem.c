@@ -12,6 +12,9 @@
 #include "NvM.h"
 #endif
 #include <string.h>
+#ifdef USE_SHELL
+#include "shell.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DEM 0
 #define AS_LOG_DEMI 1
@@ -36,6 +39,9 @@ typedef struct {
     uint8_t statusMask;
     uint8_t RecordNumber;
   } filter;
+#ifdef DEM_USE_ENABLE_CONDITION
+  uint32_t conditionMask;
+#endif
 } Dem_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern const Dem_ConfigType Dem_Config;
@@ -626,6 +632,42 @@ static const Dem_EventConfigType *Dem_LookupEventByDTCNumber(uint32_t DTCNumber,
 
   return EventConfig;
 }
+#ifdef USE_SHELL
+static int cmdLsDtcFunc(int argc, const char *argv[]) {
+  int i, j, k, offset;
+  uint8_t *data;
+  for (i = 0; i < DEM_CONFIG->numOfOperationCycles; i++) {
+    printf("Operation Cycle %d %s\n", i,
+           (DEM_OPERATION_CYCLE_STARTED == DEM_CONFIG->OperationCycleStates[i]) ? "started"
+                                                                                : "stopt");
+  }
+  for (i = 0; i < DEM_CONFIG->numOfEvents; i++) {
+    printf("Event %d status=%02X, agingCounter=%d, agedCounter=%d occuranceCounter=%d\n", i,
+           DEM_CONFIG->EventConfigs[i].EventStatusRecords->status,
+           DEM_CONFIG->EventConfigs[i].EventStatusRecords->agingCounter,
+           DEM_CONFIG->EventConfigs[i].EventStatusRecords->agedCounter,
+           DEM_CONFIG->EventConfigs[i].EventStatusRecords->faultOccuranceCounter);
+  }
+  for (i = 0; i < DEM_CONFIG->numOfFreezeFrameRecords; i++) {
+    if (DEM_CONFIG->FreezeFrameRecords[i]->EventId != DEM_INVALID_EVENT_ID) {
+      for (j = 0; j < DEM_MAX_FREEZE_FRAME_NUMBER; j++) {
+        data = DEM_CONFIG->FreezeFrameRecords[i]->FreezeFrameData[j];
+        if (DEM_FREEZE_FRAME_SLOT_FREE != data[0]) {
+          printf("Event %d has freeze frame at slot %d with record number %d\n",
+                 DEM_CONFIG->FreezeFrameRecords[i]->EventId, j, data[0]);
+          offset = 1;
+          for (k = 0; k < DEM_CONFIG->numOfFreeFrameDataConfigs; k++) {
+            DEM_CONFIG->FreeFrameDataConfigs[k].print(&data[offset]);
+            offset += DEM_CONFIG->FreeFrameDataConfigs[k].length;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+SHELL_REGISTER(lsdtc, "list DTC status and its related information", cmdLsDtcFunc);
+#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Dem_PreInit(void) {
   /*NOTE: BSW Event is not supported, so this API is dummy */
@@ -782,21 +824,31 @@ Std_ReturnType Dem_SetEventStatus(Dem_EventIdType EventId, Dem_EventStatusType E
   Dem_EventContextType *EventContext;
   Dem_EventStatusType OldStatus = DEM_EVENT_STATUS_UNKNOWN;
 
-  ASLOG(DEMI, ("Set Event %d status %d\n", EventId, EventStatus));
-
   if (EventId < DEM_CONFIG->numOfEvents) {
     EventConfig = &DEM_CONFIG->EventConfigs[EventId];
     EventContext = &DEM_CONFIG->EventContexts[EventId];
     if ((DEM_OPERATION_CYCLE_STARTED ==
          DEM_CONFIG->OperationCycleStates[EventConfig->DTCAttributes->OperationCycleRef]) &&
         (FALSE == Dem_Context.disableDtcSetting)) {
-      OldStatus = EventContext->status;
-      r = Dem_SetEventStatusDebounce(EventId, EventStatus);
+#ifdef DEM_USE_ENABLE_CONDITION
+      /* @SWS_Dem_00449 */
+      if ((0 != EventConfig->ConditionRefMask) &&
+          (EventConfig->ConditionRefMask !=
+           (Dem_Context.conditionMask & EventConfig->ConditionRefMask))) {
+            r = E_NOT_OK;
+      }
+#endif
     } else {
       r = E_NOT_OK;
     }
   } else {
     r = E_NOT_OK;
+  }
+
+  if (E_OK == r) {
+    ASLOG(DEMI, ("Set Event %d status %d\n", EventId, EventStatus));
+    OldStatus = EventContext->status;
+    r = Dem_SetEventStatusDebounce(EventId, EventStatus);
   }
 
   if (E_OK == r) {
@@ -1107,3 +1159,19 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
 
   return r;
 }
+
+#ifdef DEM_USE_ENABLE_CONDITION
+Std_ReturnType Dem_SetEnableCondition(uint8_t EnableConditionID, boolean ConditionFulfilled) {
+  Std_ReturnType r = E_OK;
+  if (EnableConditionID < DEM_NUM_OF_ENABLE_CONDITION) {
+    if (ConditionFulfilled) {
+      Dem_Context.conditionMask |= (1 << EnableConditionID);
+    } else {
+      Dem_Context.conditionMask &= ~(1 << EnableConditionID);
+    }
+  } else {
+    r = E_NOT_OK;
+  }
+  return r;
+}
+#endif

@@ -156,7 +156,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       if (E_OK != ret) {
         TcpIp_Close(sockRd, TRUE);
         rv = FALSE;
-        ASLOG(ERROR, ("CAN socket bind to %s:%d failed\n", CAN_CAST_IP, CAN_PORT_MIN + port));
+        ASLOG(ERROR, ("CAN socket bind to %x:%d failed\n", CAN_CAST_IP, CAN_PORT_MIN + port));
       }
     } else {
       rv = FALSE;

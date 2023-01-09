@@ -27,9 +27,6 @@ extern "C" {
 #ifndef USE_STD_DEBUG
 #define USE_STD_DEBUG
 #endif
-#ifndef USE_STD_PRINTF
-#define USE_STD_PRINTF
-#endif
 #ifndef WEAK_ALIAS_PRINTF
 #define WEAK_ALIAS_PRINTF __attribute__((weak, alias("_asprintf")));
 #endif
@@ -93,6 +90,7 @@ extern int std_printf(const char *fmt, ...) WEAK_ALIAS_PRINTF;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 #if defined(linux) || defined(_WIN32)
+#ifdef USE_STD_PRINTF
 int __attribute__((weak)) _asprintf(const char *fmt, ...) {
   va_list args;
   int length;
@@ -103,6 +101,7 @@ int __attribute__((weak)) _asprintf(const char *fmt, ...) {
 
   return length;
 }
+#endif
 #endif
 #ifdef __cplusplus
 }

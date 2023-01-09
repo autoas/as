@@ -54,8 +54,9 @@ static rb_size_t RB_Action(const RingBufferType *rb, void *data, rb_size_t len,
       if (doSz > len) {
         doSz = len;
       }
-      if (action != eRB_DROP)
+      if (action != eRB_DROP) {
         memcpy(data, &buffer[out], doSz);
+      }
       out += doSz;
       l += doSz;
       len = len - doSz;
@@ -69,8 +70,9 @@ static rb_size_t RB_Action(const RingBufferType *rb, void *data, rb_size_t len,
         if (doSz > len) {
           doSz = len;
         }
-        if (action != eRB_DROP)
+        if (action != eRB_DROP) {
           memcpy(&((char *)data)[l], &buffer[out], doSz);
+        }
         out += doSz;
         l += doSz;
       }
@@ -120,8 +122,9 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
     } else {
       l = l - min;
     }
-    if (data != NULL)
+    if (data != NULL) {
       memcpy(&buffer[in], data, l);
+    }
     in += l - 1;
 
     rb->V->in = in;
@@ -130,8 +133,9 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
     if (doSz > len) {
       doSz = len;
     }
-    if (data != NULL)
+    if (data != NULL) {
       memcpy(&buffer[in], data, doSz);
+    }
     in += doSz;
     l += doSz;
     len = len - doSz;
@@ -147,8 +151,9 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
       } else {
         doSz = doSz - min;
       }
-      if (data != NULL)
+      if (data != NULL) {
         memcpy(&buffer[in], &((char *)data)[l], doSz);
+      }
       in += doSz;
       l += doSz;
     }

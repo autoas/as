@@ -60,6 +60,8 @@ class ApplicationCanApp(ApplicationApp):
         self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
         self.LIBS.append('Simulator')
         self.LIBS.append('Plugin')
+        self.Append(CPPDEFINES=['USE_SHELL'])
+        self.LIBS.append('Shell')
 
     def config(self):
         if LL_DL != None:

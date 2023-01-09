@@ -121,6 +121,10 @@ def gen_sig(sig, msg, C, isTx):
         C.write('    &Com_SignalRxConfig_%s, /* rxConfig */\n' % (sig['name']))
         C.write('    NULL, /* txConfig */\n')
     C.write('#endif\n')
+    C.write('#ifdef USE_SHELL\n')
+    C.write('    "%s",\n' % (sig['name']))
+    C.write('    %s,\n' % (str(sig.get('isGroup', False)).upper()))
+    C.write('#endif\n')
     C.write('  },\n')
 
 
@@ -182,6 +186,9 @@ def gen_msg(msg, C, network):
     C.write('    sizeof(Com_PduData_%s), /* length */\n' % (msg['name']))
     C.write('    ARRAY_SIZE(Com_IPduSignals_%s), /* numOfSignals */\n' %
             (msg['name']))
+    C.write('#ifdef USE_SHELL\n')
+    C.write('    "%s",\n' % (msg['name']))
+    C.write('#endif\n')
     C.write('  },\n')
 
 

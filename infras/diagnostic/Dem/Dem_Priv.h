@@ -86,6 +86,9 @@ typedef struct {
   Dem_GetDataFncType GetFrezeFrameDataFnc;
   uint16_t id;
   uint16_t length;
+#ifdef USE_SHELL
+  void (*print)(uint8_t *);
+#endif
 } Dem_FreeFrameDataConfigType;
 
 typedef struct {
@@ -173,6 +176,9 @@ typedef struct {
   uint8_t Priority; /* A lower value means higher priority. @ECUC_Dem_00662 */
 #ifdef DEM_USE_NVM
   uint16_t NvmBlockId;
+#endif
+#ifdef DEM_USE_ENABLE_CONDITION
+  uint32_t ConditionRefMask;
 #endif
 } Dem_EventConfigType;
 

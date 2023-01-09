@@ -7,11 +7,41 @@ from .helper import *
 
 __all__ = ['Gen']
 
+
 def GetSnapshotSize(cfg):
     size = 0
     for data in cfg['Environments']:
         size += GetDataSize(data)
     return size
+
+
+def get_shell_basic_data_print(C, data, offset):
+    C.write('  {\n')
+    if data['type'] in ['uint8', 'uint16', 'uint32', ]:
+        C.write('    %s_t *itsValue = (%s_t*)(data+%d);\n' % (data['type'], data['type'], offset))
+        C.write('    printf("  %s = %%u (0x%%x)\\n", (uint32_t)*itsValue, (uint32_t)*itsValue);\n' %
+                (data['name']))
+    elif data['type'] in ['int8', 'int16', 'int32']:
+        C.write('    %s_t *itsValue = (%s_t*)(data+%d);\n' % (data['type'], data['type'], offset))
+        C.write('    printf("  %s = %%d (0x%%x)\\n", (int32_t)*itsValue, (int32_t)*itsValue);\n' %
+                (data['name']))
+    else:
+        raise
+    C.write('  }\n')
+
+
+def gen_shell_data_print(C, data):
+    C.write('#ifdef USE_SHELL\n')
+    C.write('static void Dem_FFD_Print%s(uint8_t* data) {\n' % (data['name']))
+    if data['type'] == 'struct':
+        offset = 0
+        for d in data['data']:
+            get_shell_basic_data_print(C, d, offset)
+            offset += GetDataSize(d)
+    else:
+        get_shell_basic_data_print(C, data, 0)
+    C.write('}\n')
+    C.write('#endif\n')
 
 
 def Gen_Dem(cfg, dir):
@@ -33,6 +63,16 @@ def Gen_Dem(cfg, dir):
     H.write('#endif\n')
     for i, data in enumerate(cfg['DTCs']):
         H.write('#define DEM_EVENT_ID_%s %s\n' % (data['name'], i))
+    conditions = []
+    for dtc in cfg['DTCs']:
+        for c in dtc.get('conditions', []):
+            if c not in conditions:
+                conditions.append(c)
+    if len(conditions) > 0:
+        H.write('\n#define DEM_USE_ENABLE_CONDITION\n')
+        H.write('#define DEM_NUM_OF_ENABLE_CONDITION %s\n\n' % (len(conditions)))
+        for i, cond in enumerate(conditions):
+            H.write('#define DEM_CONTIDION_%s (1<<%s)\n' % (toMacro(cond), i))
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
     H.write(
@@ -52,6 +92,9 @@ def Gen_Dem(cfg, dir):
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     C.write('#include "Dem_Priv.h"\n')
     C.write('#include "NvM_Cfg.h"\n')
+    C.write('#ifdef USE_SHELL\n')
+    C.write('#include "shell.h"\n')
+    C.write('#endif\n')
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
     for i, data in enumerate(cfg['Environments']):
@@ -69,6 +112,7 @@ def Gen_Dem(cfg, dir):
     for i, data in enumerate(cfg['Environments']):
         C.write(
             'Std_ReturnType Dem_FFD_Get%s(Dem_EventIdType EventId, uint8_t *data);\n' % (data['name']))
+        gen_shell_data_print(C, data)
     C.write('\n')
     for i, data in enumerate(cfg['ExtendedDatas']):
         C.write(
@@ -103,8 +147,14 @@ def Gen_Dem(cfg, dir):
     C.write(
         'static const Dem_FreeFrameDataConfigType FreeFrameDataConfigs[] = {\n')
     for data in cfg['Environments']:
-        C.write('  {Dem_FFD_Get%s, %s, %s},\n' %
-                (data['name'], data['id'], GetDataSize(data)))
+        C.write('  {')
+        C.write('    Dem_FFD_Get%s,\n' % (data['name']))
+        C.write('    %s,\n' % (data['id']))
+        C.write('    %s,\n' % (GetDataSize(data)))
+        C.write('#ifdef USE_SHELL\n')
+        C.write('    Dem_FFD_Print%s,\n' % (data['name']))
+        C.write('#endif\n')
+        C.write('  },')
     C.write('};\n\n')
     C.write(
         'static const Dem_ExtendedDataConfigType ExtendedDataConfigs[] = {\n')
@@ -180,6 +230,12 @@ def Gen_Dem(cfg, dir):
         C.write('    %s,\n' % (data['priority']))
         C.write('#ifdef DEM_USE_NVM\n')
         C.write('    NVM_BLOCKID_Dem_NvmEventStatusRecord%s,\n' % (i))
+        C.write('#endif\n')
+        C.write('#ifdef DEM_USE_ENABLE_CONDITION\n')
+        mask = '0'
+        for cond in data.get('conditions', []):
+            mask += '|DEM_CONTIDION_%s' % (toMacro(cond))
+        C.write('    %s,\n' % (mask))
         C.write('#endif\n')
         C.write('  },\n')
     C.write('};\n\n')

@@ -95,6 +95,11 @@
 #include "osal.h"
 #endif
 
+
+#ifdef USE_SHELL
+#include "shell.h"
+#endif
+
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
@@ -180,6 +185,10 @@ static void Net_Init(void) {
 
 #ifdef USE_PLUGIN
   plugin_init();
+#endif
+
+#ifdef USE_SHELL
+  Shell_Init();
 #endif
 }
 
@@ -284,6 +293,9 @@ void Task_MainLoop(void) {
 #endif
 #ifdef USE_SOAD
     SoAd_MainFunction();
+#endif
+#ifdef USE_SHELL
+    Shell_MainFunction();
 #endif
     App_MainFunction();
 #ifdef USE_OSAL

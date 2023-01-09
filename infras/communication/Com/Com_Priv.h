@@ -96,6 +96,10 @@ typedef struct {
   const Com_SignalRxConfigType *rxConfig;
   const Com_SignalTxConfigType *txConfig;
 #endif
+#ifdef USE_SHELL
+  char* name;
+  bool isGroupSignal;
+#endif
 } Com_SignalConfigType;
 
 typedef struct {
@@ -131,6 +135,9 @@ typedef struct {
   Com_GroupMaskType GroupRefMask;
   uint8_t length;
   uint8_t numOfSignals;
+#ifdef USE_SHELL
+  char* name;
+#endif
 } Com_IPduConfigType;
 
 typedef struct {
