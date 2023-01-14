@@ -10,14 +10,13 @@
 #include "OsMem.h"
 #endif
 #include "Std_Debug.h"
+#ifdef USE_SHELL
+#include "shell.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 #ifdef USE_SHELL
-int statOsFunc(int argc, char *argv[]);
-#ifdef USE_PTHREAD_SIGNAL
-static int killOsFunc(int argc, char *argv[]);
-#endif
 extern void statOsTask(void);
 extern void statOsAlarm(void);
 extern void statOsCounter(void);
@@ -39,24 +38,6 @@ unsigned int CallLevel;
 TickType OsTickCounter;
 
 static AppModeType appMode;
-#ifdef USE_SHELL
-static SHELL_CONST ShellCmdT statOsCmd = {
-  statOsFunc,  0, 0, "ps", "ps <task/alarm/counter>", "Show the status of operationg system\n",
-  {NULL, NULL}};
-SHELL_CMD_EXPORT(statOsCmd);
-#ifdef USE_PTHREAD_SIGNAL
-static SHELL_CONST ShellCmdT killOsCmd = {
-  killOsFunc,
-  1,
-  2,
-  "kill",
-  "kill pid [sig]",
-  "kill signal sign to the posix thread by pid,\n"
-  "if sig is not specified, will kill SIGKILL(9) by default\n",
-  {NULL, NULL}};
-SHELL_CMD_EXPORT(killOsCmd);
-#endif
-#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static void Os_MiscInit(void) {
 #ifdef USE_SMP
@@ -80,15 +61,9 @@ static void Os_MiscInit(void) {
 #endif
 
   Sched_Init();
-#if defined(USE_SHELL) && !defined(USE_SHELL_SYMTAB)
-  SHELL_AddCmd(&statOsCmd);
-#ifdef USE_PTHREAD_SIGNAL
-  SHELL_AddCmd(&killOsCmd);
-#endif
-#endif
 }
 #ifdef USE_SHELL
-int statOsFunc(int argc, char *argv[]) {
+int statOsFunc(int argc, const char *argv[]) {
   if ((1 == argc) || (0 == strcmp(argv[1], "task"))) {
     statOsTask();
   }
@@ -104,7 +79,7 @@ int statOsFunc(int argc, char *argv[]) {
   return 0;
 }
 #ifdef USE_PTHREAD_SIGNAL
-static int killOsFunc(int argc, char *argv[]) {
+static int killOsFunc(int argc, const char *argv[]) {
   int ercd;
   int pid;
   int sig = SIGKILL;
@@ -129,6 +104,20 @@ static int killOsFunc(int argc, char *argv[]) {
 
   return ercd;
 }
+#endif
+
+#ifdef USE_SHELL
+SHELL_REGISTER(ps,
+               "ps <task/alarm/counter>\n"
+               "  Show the status of operationg system\n",
+               statOsFunc);
+#ifdef USE_PTHREAD_SIGNAL
+SHELL_REGISTER(kill,
+               "\n  kill pid [sig]\n"
+               "  kill signal sign to the posix thread by pid,\n"
+               "  if sig is not specified, will kill SIGKILL(9) by default\n",
+               killOsFunc);
+#endif
 #endif
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */

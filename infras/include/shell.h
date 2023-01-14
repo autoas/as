@@ -6,6 +6,7 @@
 #define _SHELL_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #ifdef __cplusplus
 extern "C" {
@@ -19,8 +20,7 @@ extern "C" {
   }
 #else
 #define SHELL_REGISTER(name, desc, func)                                                           \
-  const Shell_CmdType __attribute__((section("ShellCmdTab"))) shCmd_##name =                       \
-    shCmd_##name = {#name, desc, func};
+  const Shell_CmdType __attribute__((section("ShellCmdTab"))) shCmd_##name = {#name, desc, func};
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef int (*Sh_CmdFuncType)(int argc, const char *argv[]);

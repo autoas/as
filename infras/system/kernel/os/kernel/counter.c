@@ -71,11 +71,11 @@ void statOsCounter(void) {
 
   Irq_Save(mask);
 
-  SHELL_printf("\nName\n");
+  printf("\nName\n");
   for (id = 0; id < COUNTER_NUM; id++) {
-    SHELL_printf("%-16s ", CounterConstArray[id].name);
+    printf("%-16s ", CounterConstArray[id].name);
     TAILQ_FOREACH(pVar, &(CounterVarArray[id].head), entry) {
-      SHELL_printf("%s(%d) -> ", AlarmConstArray[pVar - AlarmVarArray].name, pVar->value);
+      printf("%s(%d) -> ", AlarmConstArray[pVar - AlarmVarArray].name, pVar->value);
     }
   }
 

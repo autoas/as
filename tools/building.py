@@ -1285,7 +1285,7 @@ class BuildBase():
         config = kwargs['config']
         self.RegisterConfig(self.os, config)
         self.LIBS += [self.os]
-        self.Append(CPPDEFINES=['USE_%s' %(self.os.upper())])
+        self.Append(CPPDEFINES=['USE_%s' % (self.os.upper())])
         if 'CPPDEFINES' in kwargs:
             self.Append(CPPDEFINES=kwargs['CPPDEFINES'])
         if 'CPPPATH' in kwargs:
@@ -1441,6 +1441,18 @@ class BuildBase():
                 CPPPATH2.append(x)
         return CPPPATH2
 
+    def sortL(self, L):
+        newL = []
+        for x in L:
+            if type(x) is list:
+                for x1 in x:
+                    if x1 not in newL:
+                        newL.append(x1)
+            else:
+                if x not in newL:
+                    newL.append(x)
+        return newL
+
 
 class Library(BuildBase):
     # for a library, it provides header files(*.h) and the library(*.a)
@@ -1521,6 +1533,8 @@ class Library(BuildBase):
                     CPPPATH.append(libInclude)
                 except KeyError:
                     pass
+        CPPPATH = self.sortL(CPPPATH)
+        CPPDEFINES = self.sortL(CPPDEFINES)
         objs = []
         for c in self.source:
             if str(c).endswith('.a') or str(c).endswith('.dll') or str(c).endswith('.so'):
@@ -1530,8 +1544,12 @@ class Library(BuildBase):
                                          CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
             else:
                 if 'gcc' in self.env['AS']:
-                    ASFLAGS += ['-I%s' % (x) for x in CPPPATH] + ['-D%s' % (x) for x in CPPDEFINES]
-                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, ASFLAGS=ASFLAGS,
+                    if str(c).endswith('.S'):
+                        ASFLAGS += ['-I%s' % (x) for x in CPPPATH]
+                        ASFLAGS += ['-D%s' % (x) for x in CPPDEFINES]
+                        objs += env.Object(c, ASFLAGS=ASFLAGS)
+                        continue
+                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES,
                                    CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
         return objs
 
@@ -1716,7 +1734,7 @@ class Qemu():
             qemu = self.GetQemu()
         if(IsPlatformWindows()):
             qemu += '.exe'
-            qemu = '"%s"'%(qemu)
+            qemu = '"%s"' % (qemu)
         return qemu
 
     def Run(self, params):

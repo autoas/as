@@ -546,44 +546,44 @@ void statOsTask(void) {
   uint32_t pused;
   uint32_t used;
   DECLARE_SMP_PROCESSOR_ID();
-  SHELL_printf("Name             State      Prio IPrio RPrio  StackBase  StackSize"
-               "   Used       Event(set/wait)   Act/ActSum parent\n");
+  printf("Name             State      Prio IPrio RPrio  StackBase  StackSize"
+         "   Used       Event(set/wait)   Act/ActSum parent\n");
 #if (OS_PTHREAD_NUM > 0)
-  SHELL_printf("                                                                  "
-               "              list/entry\n");
+  printf("                                                                  "
+         "              list/entry\n");
 #endif
 
   for (id = 0; id < TASK_NUM; id++) {
     pTaskConst = &TaskConstArray[id];
     pTaskVar = &TaskVarArray[id];
     pused = checkStackUsage(pTaskConst, &used);
-    SHELL_printf("%-16s %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) ", pTaskConst->name,
-                 taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
-                 (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
-                 (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
-                 (uint32_t)used);
+    printf("%-16s %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) ", pTaskConst->name,
+           taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
+           (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
+           (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
+           (uint32_t)used);
     if (NULL != pTaskConst->pEventVar) {
-      SHELL_printf("%08X/%08X %3d/%-6d ", (uint32_t)pTaskConst->pEventVar->set,
-                   (uint32_t)pTaskConst->pEventVar->wait,
+      printf("%08X/%08X %3d/%-6d ", (uint32_t)pTaskConst->pEventVar->set,
+             (uint32_t)pTaskConst->pEventVar->wait,
 #ifdef MULTIPLY_TASK_ACTIVATION
-                   (uint32_t)pTaskVar->activation,
+             (uint32_t)pTaskVar->activation,
 #else
-                   (uint32_t)1,
+             (uint32_t)1,
 #endif
-                   (uint32_t)pTaskVar->actCnt);
+             (uint32_t)pTaskVar->actCnt);
     } else {
-      SHELL_printf("null              %3d/%-6d ",
+      printf("null              %3d/%-6d ",
 #ifdef MULTIPLY_TASK_ACTIVATION
-                   (uint32_t)pTaskVar->activation,
+             (uint32_t)pTaskVar->activation,
 #else
-                   (uint32_t)1,
+             (uint32_t)1,
 #endif
-                   (uint32_t)pTaskVar->actCnt);
+             (uint32_t)pTaskVar->actCnt);
     }
 #ifdef USE_SMP
-    SHELL_printf(" on CPU%d", pTaskVar->oncpu);
+    printf(" on CPU%d", pTaskVar->oncpu);
 #endif
-    SHELL_printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
+    printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
   }
 
 #if (OS_PTHREAD_NUM > 0)
@@ -593,33 +593,32 @@ void statOsTask(void) {
     pTaskConst = pTaskVar->pConst;
     tid = (struct pthread *)pTaskConst;
     if (tid > (struct pthread *)1) {
-      SHELL_printf(
-        "pthread%-9d %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) %08X/%08X %3d/%-6d ",
-        (uint32_t)id, taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
-        (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
-        (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
-        (uint32_t)used, (uint32_t)(long)pTaskVar->list, (uint32_t)(long)tid->start,
+      printf("pthread%-9d %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) %08X/%08X %3d/%-6d ",
+             (uint32_t)id, taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
+             (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
+             (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
+             (uint32_t)used, (uint32_t)(long)pTaskVar->list, (uint32_t)(long)tid->start,
 #ifdef MULTIPLY_TASK_ACTIVATION
-        (uint32_t)pTaskVar->activation,
+             (uint32_t)pTaskVar->activation,
 #else
-        (uint32_t)1,
+             (uint32_t)1,
 #endif
-        (uint32_t)pTaskVar->actCnt);
+             (uint32_t)pTaskVar->actCnt);
 #ifdef USE_PTHREAD_PARENT
       if (NULL != tid->parent) {
         if ((tid->parent - TaskVarArray) < TASK_NUM) {
-          SHELL_printf(" %s", tid->parent->pConst->name);
+          printf(" %s", tid->parent->pConst->name);
         } else {
-          SHELL_printf(" pthread%d", (uint32)(tid->parent - TaskVarArray));
+          printf(" pthread%d", (uint32)(tid->parent - TaskVarArray));
         }
       } else {
-        SHELL_printf(" none");
+        printf(" none");
       }
 #endif
 #ifdef USE_SMP
-      SHELL_printf(" on CPU%d", pTaskVar->oncpu);
+      printf(" on CPU%d", pTaskVar->oncpu);
 #endif
-      SHELL_printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
+      printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
     }
   }
 #endif

@@ -300,6 +300,24 @@ size_t heap_free_size(void) {
   return sz;
 }
 
+#if !defined(linux) && !defined(_WIN32)
+void *mallic(size_t sz) {
+  return heap_malloc(sz);
+}
+
+void free(void *ptr) {
+  return heap_free(ptr);
+}
+
+void *calloc(size_t nitems, size_t size) {
+  void *ptr = heap_malloc(nitems * size);
+  if (NULL != ptr) {
+    memset(ptr, 0, nitems * size);
+  }
+  return ptr;
+}
+#endif
+
 #ifdef HEAP_TEST
 /* gcc -g infras\libraries\heap\heap.c -I infras\include -DHEAP_TEST */
 int main(int argc, char *argv[]) {
