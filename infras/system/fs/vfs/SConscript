@@ -1,0 +1,28 @@
+from building import *
+import os
+
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+generate(Glob('config/*.json'))
+
+objs = Glob('*.c') + Glob('config/GEN/*.c')
+objsEx = Glob('example/*.c')
+
+@register_os
+class LibraryVFS(Library):
+
+    def config(self):
+        self.source = objs
+        self.include += [CWD]
+        self.CPPPATH = ['$INFRAS', '%s/config/GEN/' % (CWD)]
+        self.LIBS += ['Device', 'MemPool', 'Heap']
+        if os.getenv("DISABLE_VFS_FATFS") != "YES":
+            self.LIBS += ["FatFS"]
+            self.Append(CPPDEFINES=['USE_FATFS'])
+        if os.getenv("DISABLE_VFS_LWEXT4") != "YES":
+            self.LIBS += ["LwExt4"]
+            self.Append(CPPDEFINES=['USE_LWEXT4'])
+        if IsBuildForHost(self.GetCompiler()):
+            self.source += objsEx

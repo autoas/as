@@ -310,10 +310,10 @@ static int cmdComWrSgFunc(int argc, const char *argv[]) {
 
   return 0;
 }
-SHELL_REGISTER(lssg, "list all the value of com signals", cmdComLsSgFunc);
+SHELL_REGISTER(lssg, "list all the value of com signals\n", cmdComLsSgFunc);
 SHELL_REGISTER(wrsg,
                "wrsg sid value [gid]\n"
-               "  write signal, if sid is group signals, need the gid",
+               "  write signal, if sid is group signals, need the gid\n",
                cmdComWrSgFunc);
 #endif
 /* ================================ [ FUNCTIONS ] ==============================================

@@ -55,8 +55,8 @@ static void *ProcessStdio(void *arg) {
 
 static int Shell_Help(int argc, const char *argv[]) {
   int r = 0;
-  Shell_CmdType *cmdIt;
-  Shell_CmdType *cmd;
+  const Shell_CmdType *cmdIt;
+  const Shell_CmdType *cmd;
   int i;
 
   if (1 == argc) {
@@ -80,7 +80,7 @@ static int Shell_Help(int argc, const char *argv[]) {
   }
   return r;
 }
-SHELL_REGISTER(help, "help [cmd]", Shell_Help)
+SHELL_REGISTER(help, "help [cmd]\n", Shell_Help)
 
 static void Shell_PutC(char ch) {
 #ifdef SHELL_DISABLE_ECHO_BACK
@@ -99,8 +99,8 @@ static void Shell_RunCmd(void) {
   char ch;
   boolean isArg;
   boolean isEol = FALSE;
-  Shell_CmdType *cmdIt;
-  Shell_CmdType *cmd = NULL;
+  const Shell_CmdType *cmdIt;
+  const Shell_CmdType *cmd = NULL;
 
   while ((argc < SHELL_MAX_ARGS) && (FALSE == isEol)) {
     isArg = FALSE;

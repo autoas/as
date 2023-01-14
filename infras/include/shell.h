@@ -36,7 +36,9 @@ typedef struct {
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Shell_Init(void);
 void Shell_Input(char ch);
+#if defined(_WIN32) || defined(linux)
 void Shell_Register(const Shell_CmdType *cmd);
+#endif
 void Shell_MainFunction(void);
 #ifdef __cplusplus
 }

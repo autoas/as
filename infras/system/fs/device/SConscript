@@ -1,0 +1,14 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = Glob('*.c')
+
+@register_os
+class LibraryDevice(Library):
+
+    def config(self):
+        self.source = objs
+        self.include += [CWD]
+        self.CPPPATH = ['$INFRAS']

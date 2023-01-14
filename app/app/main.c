@@ -100,6 +100,10 @@
 #include "shell.h"
 #endif
 
+#ifdef USE_VFS
+#include "vfs.h"
+#endif
+
 #include "app.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
@@ -167,6 +171,9 @@ static void MainTask_10ms(void) {
 }
 
 static void Net_Init(void) {
+#ifdef USE_VFS
+  int ercd;
+#endif
 #ifdef USE_TCPIP
   TcpIp_Init(NULL);
 #endif
@@ -185,6 +192,43 @@ static void Net_Init(void) {
 
 #ifdef USE_PLUGIN
   plugin_init();
+#endif
+
+#ifdef USE_VFS
+  vfs_init();
+#ifdef USE_LWEXT4
+  extern const device_t dev_sd1;
+  ercd = vfs_mount(&dev_sd1, "ext", "/");
+  if (0 != ercd) {
+    ercd = vfs_mkfs(&dev_sd1, "ext");
+    if (0 == ercd) {
+      ercd = vfs_mount(&dev_sd1, "ext", "/");
+    }
+  }
+  printf("mount sd1 on / %s\n", ercd ? "failed" : "okay");
+#endif
+#ifdef USE_FATFS
+#ifdef USE_LWEXT4
+#define FATFS_MP "/dos"
+  vfs_mkdir(FATFS_MP, 0777);
+#else
+#define FATFS_MP "/"
+#endif
+  extern const device_t dev_sd0;
+  ercd = vfs_mount(&dev_sd0, "vfat", FATFS_MP);
+  if (0 != ercd) {
+    ercd = vfs_mkfs(&dev_sd0, "vfat");
+    if (0 == ercd) {
+      ercd = vfs_mount(&dev_sd0, "vfat", FATFS_MP);
+    }
+  }
+  printf("mount sd0 on %s %s\n", FATFS_MP, ercd ? "failed" : "okay");
+#endif
+#if defined(_WIN32) || defined(linux)
+  extern const device_t dev_host;
+  vfs_mkdir("/share", 0777);
+  vfs_mount(&dev_host, "host", "/share");
+#endif
 #endif
 
 #ifdef USE_SHELL

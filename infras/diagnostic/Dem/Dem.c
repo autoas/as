@@ -666,7 +666,7 @@ static int cmdLsDtcFunc(int argc, const char *argv[]) {
   }
   return 0;
 }
-SHELL_REGISTER(lsdtc, "list DTC status and its related information", cmdLsDtcFunc);
+SHELL_REGISTER(lsdtc, "list DTC status and its related information\n", cmdLsDtcFunc);
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Dem_PreInit(void) {

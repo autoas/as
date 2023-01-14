@@ -1,0 +1,20 @@
+from building import *
+
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+
+@register_os
+class LibraryFatFS(Library):
+    def get_objs(self, pkg):
+        objs = ['source/ff.c', 'source/ffsystem.c', 'source/ffunicode.c']
+        return PkgGlob(pkg, objs)
+
+    def config(self):
+        cmd = 'sed -i "116c #define FF_USE_LFN        1" source/ffconf.h'
+        cmd += ' && sed -i "156c #define FF_FS_RPATH       2" source/ffconf.h'
+        cmd += ' && sed -i "169c #define FF_VOLUMES        4" source/ffconf.h'
+        cmd += ' && sed -i "33c #define FF_USE_MKFS        1" source/ffconf.h'
+        pkg = Package(url='http://elm-chan.org/fsw/ff/arc/ff15.zip', cmd = cmd)
+        self.source = self.get_objs(pkg)
+        self.include += ['%s/source' % (pkg)]

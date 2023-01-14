@@ -34,8 +34,9 @@
     if (NULL != (o)) {                                                                             \
       (*o) = (c);                                                                                  \
       ++(o);                                                                                       \
-    } else                                                                                         \
+    } else {                                                                                       \
       __putchar((c));                                                                              \
+    }                                                                                              \
   } while (0)
 
 #define STDIO_EXPR(o, e)                                                                           \

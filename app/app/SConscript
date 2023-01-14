@@ -62,6 +62,8 @@ class ApplicationCanApp(ApplicationApp):
         self.LIBS.append('Plugin')
         self.Append(CPPDEFINES=['USE_SHELL'])
         self.LIBS.append('Shell')
+        self.LIBS.append('VFS')
+        self.Append(CPPDEFINES=['USE_VFS'])
 
     def config(self):
         if LL_DL != None:

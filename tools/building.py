@@ -162,18 +162,24 @@ def IsBuildForWindows(compiler=None):
     return False
 
 
-def IsBuildForWin32():
+def IsBuildForWin32(compiler=None):
+    if compiler is None:
+        compiler = GetOption('compiler')
     if IsPlatformWindows():
-        return GetOption('compiler') in ['x86GCC']
+        return compiler in ['x86GCC']
     return False
 
 
-def IsBuildForAndroid():
-    return GetOption('compiler') in ['NDK']
+def IsBuildForAndroid(compiler=None):
+    if compiler is None:
+        compiler = GetOption('compiler')
+    return compiler in ['NDK']
 
 
-def IsBuildForHost():
-    return GetOption('compiler') in ['GCC', 'MSVC', 'NDK', 'x86GCC']
+def IsBuildForHost(compiler=None):
+    if compiler is None:
+        compiler = GetOption('compiler')
+    return compiler in ['GCC', 'MSVC', 'NDK', 'x86GCC', 'PYCC']
 
 
 def IsPlatformWindows():
