@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2023 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdio.h>
@@ -12,47 +12,36 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+void std_set_log_file(const char *path);
+void std_set_log_level(int level);
 /* ================================ [ DATAS     ] ============================================== */
-FILE *_stddebug = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
+         "[-S crc16|crc32] [-c choice] [-F funcAddr]"
          "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate]\n",
          prog);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-int std_printf(const char *fmt, ...) {
-  va_list args;
-  int length;
-  static char buf[1024];
-
-  va_start(args, fmt);
-  length = vsnprintf(buf, sizeof(buf), fmt, args);
-  if (_stddebug) {
-    fprintf(_stddebug, buf);
-  } else {
-    fprintf(stdout, buf);
-  }
-  va_end(args);
-
-  return length;
-}
-
 int main(int argc, char *argv[]) {
   int ch;
   char *device = "CAN.simulator_v2";
   int port = 0;
   int baudrate = 500000;
   int rxid = 0x732, txid = 0x731;
+  int funcAddr = 0x7DF;
   int ll_dl = 8;
   char *appSRecPath = NULL;
   char *flsSRecPath = NULL;
   srec_t *appSRec = NULL;
   srec_t *flsSRec = NULL;
-  size_t total = 0;       /* for sign */
+  size_t total = 0; /* for sign */
+  srec_sign_type_t signType = SREC_SIGN_CRC16;
   uint32_t timeout = 100; /* ms */
   int r = 0;
   int verbose = 0;
+  const char *choice = "FBL";
+  loader_args_t args;
 
   int progress = 0;
   int lastProgress = 0;
@@ -64,7 +53,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:d:f:l:p:r:s:t:T:v")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:c:d:f:l:p:r:s:S:t:T:v")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -72,11 +61,17 @@ int main(int argc, char *argv[]) {
     case 'b':
       baudrate = atoi(optarg);
       break;
+    case 'c':
+      choice = optarg;
+      break;
     case 'd':
       device = optarg;
       break;
     case 'f':
       flsSRecPath = optarg;
+      break;
+    case 'F':
+      funcAddr = atoi(optarg);
       break;
     case 'l':
       ll_dl = atoi(optarg);
@@ -89,6 +84,16 @@ int main(int argc, char *argv[]) {
       break;
     case 's':
       total = strtoul(optarg, NULL, 10);
+      break;
+    case 'S':
+      if (0 == strcmp("crc32", optarg)) {
+        signType = SREC_SIGN_CRC32;
+      } else if (0 == strcmp("crc16", optarg)) {
+        signType = SREC_SIGN_CRC16;
+      } else {
+        usage(argv[0]);
+        return -1;
+      }
       break;
     case 't':
       txid = strtoul(optarg, NULL, 16);
@@ -110,16 +115,16 @@ int main(int argc, char *argv[]) {
       r = -1;
     } else {
       if (NULL != appSRecPath) {
-        r = srec_sign(appSRecPath, total);
+        r = srec_sign(appSRecPath, total, signType);
       } else {
-        r = srec_sign(flsSRecPath, total);
+        r = srec_sign(flsSRecPath, total, signType);
       }
       return r;
     }
   }
 
   if ((NULL == device) || (port < 0) || (rxid < 0) || (txid < 0) || (baudrate < 0) ||
-      (opterr != 0) || ((ll_dl != 8) && (ll_dl != 64))) {
+      (opterr != 0) || ((ll_dl != 8) && (ll_dl != 64)) || (funcAddr < 0)) {
     usage(argv[0]);
     return -1;
   }
@@ -173,15 +178,15 @@ int main(int argc, char *argv[]) {
     params.U.LIN.RxId = (uint8_t)rxid;
     params.U.LIN.TxId = (uint8_t)txid;
     params.U.LIN.timeout = timeout;
+    funcAddr = 0; /* This is not avaiable for LIN */
   } else {
     printf("%s not supported\n", device);
     usage(argv[0]);
     r = -5;
   }
 
-  _stddebug = fopen("ssas.log", "w");
-  if (NULL == _stddebug) {
-    _stddebug = stdout;
+  if (0 == r) {
+    std_set_log_file(".loader.log");
   }
 
   if (0 == r) {
@@ -192,13 +197,19 @@ int main(int argc, char *argv[]) {
   }
 
   if (0 == r) {
-    loader = loader_create(isotp, appSRec, flsSRec);
+    args.isotp = isotp;
+    args.appSRec = appSRec;
+    args.flsSRec = flsSRec;
+    args.choice = choice;
+    args.funcAddr = (uint32_t)funcAddr;
+    loader = loader_create(&args);
     if (NULL == loader) {
       printf("failed to create loader\n");
       r = -7;
     } else {
       if (verbose) {
         loader_set_log_level(loader, L_LOG_DEBUG);
+        std_set_log_level(0);
       }
     }
   }
@@ -222,10 +233,6 @@ int main(int argc, char *argv[]) {
 
   if (NULL != isotp) {
     isotp_destory(isotp);
-  }
-
-  if ((stdout != _stddebug) && (NULL != _stddebug)) {
-    fclose(_stddebug);
   }
 
   return r;

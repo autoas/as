@@ -8,6 +8,7 @@
 #include "Std_Types.h"
 #include "sched.h"
 #include <sys/time.h>
+#include <sys/types.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define PTHREAD_CREATE_JOINABLE 0x00
 #define PTHREAD_CREATE_DETACHED 0x01

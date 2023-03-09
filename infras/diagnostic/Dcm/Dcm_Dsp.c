@@ -4,13 +4,6 @@
  *
  * ref: Specification of Diagnostic CommunicationManager AUTOSAR CP Release 4.4.0
  */
-/* ================================ [ WEAD DEF  ] ============================================== */
-#if defined(_WIN32) || defined(linux)
-#define STD_DEF_API(ret, api, args)                                                                \
-  ret __attribute__((weak)) api args {                                                             \
-    return E_NOT_OK;                                                                               \
-  }
-#endif
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Dcm.h"
 #include "Dcm_Cfg.h"
@@ -79,7 +72,7 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     Dcm_DslInit();
-    Dcm_SessionChangeIndication(context->currentSession, sesCtrl);
+    Dcm_SessionChangeIndication(context->currentSession, sesCtrl, FALSE);
     context->currentSession = sesCtrl;
     u16V = config->timing->S3Server * DCM_MAIN_FUNCTION_PERIOD;
     msgContext->resData[0] = sesCtrl;
@@ -241,11 +234,84 @@ Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x20;
+    msgContext->resData[0] = 0x20; /* lengthFormatIdentifier */
     msgContext->resData[1] = (BlockLength >> 8) & 0xFF;
     msgContext->resData[2] = BlockLength & 0xFF;
     msgContext->resDataLen = 3;
     context->UDTData.state = DCM_UDT_DOWNLOAD_STATE;
+    context->UDTData.memoryAddress = memoryAddress;
+    context->UDTData.memorySize = memorySize;
+    context->UDTData.offset = 0;
+    context->UDTData.blockSequenceCounter = 1;
+  }
+
+  return r;
+}
+#endif
+
+#if defined(DCM_USE_SERVICE_REQUEST_UPLOAD)
+Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
+                                    Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_NOT_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ConfigType *config = Dcm_GetConfig();
+  const Dcm_RequestUploadConfigType *ruConfig =
+    (const Dcm_RequestUploadConfigType *)context->curService->config;
+  uint8_t dataFormatIdentifier;
+  uint8_t memorySizeLen;
+  uint8_t memoryAddressLen;
+  uint32_t memoryAddress;
+  uint32_t memorySize;
+  /* @SWS_Dcm_01422 */
+  uint32_t BlockLength = config->txBufferSize;
+  int i;
+
+  if (msgContext->reqDataLen > 3) {
+    dataFormatIdentifier = msgContext->reqData[0];
+    memorySizeLen = (msgContext->reqData[1] >> 4) & 0xF;
+    memoryAddressLen = msgContext->reqData[1] & 0xF;
+    if ((memorySizeLen >= 1) && (memorySizeLen <= 4) && (memoryAddressLen >= 1) &&
+        (memoryAddressLen <= 4)) {
+      if ((2 + memoryAddressLen + memorySizeLen) == msgContext->reqDataLen) {
+        /* @SWS_Dcm_00857: support all possible case */
+        r = E_OK;
+        memoryAddress = 0;
+        for (i = 0; i < memoryAddressLen; i++) {
+          memoryAddress = (memoryAddress << 8) + msgContext->reqData[2 + i];
+        }
+        memorySize = 0;
+        for (i = 0; i < memorySizeLen; i++) {
+          memorySize = (memorySize << 8) + msgContext->reqData[2 + memoryAddressLen + i];
+        }
+      } else {
+        *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      }
+    } else {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+    }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+  }
+
+  if (E_OK == r) {
+    if (DCM_UDT_IDLE_STATE != context->UDTData.state) {
+      *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
+    }
+  }
+
+  if (E_OK == r) {
+    ASLOG(DCM, ("upload memoryAddress=0x%X memorySize=0x%X\n", memoryAddress, memorySize));
+    /* @SWS_Dcm_91070: MemoryIdentifier is not used, set it to 0x00 */
+    r = ruConfig->ProcessRequestUploadFnc(context->opStatus, dataFormatIdentifier, 0x00,
+                                          memoryAddress, memorySize, &BlockLength, nrc);
+  }
+
+  if (E_OK == r) {
+    msgContext->resData[0] = 0x20; /* lengthFormatIdentifier */
+    msgContext->resData[1] = (BlockLength >> 8) & 0xFF;
+    msgContext->resData[2] = BlockLength & 0xFF;
+    msgContext->resDataLen = 3;
+    context->UDTData.state = DCM_UDT_UPLOAD_STATE;
     context->UDTData.memoryAddress = memoryAddress;
     context->UDTData.memorySize = memorySize;
     context->UDTData.offset = 0;
@@ -571,10 +637,16 @@ Std_ReturnType Dcm_DspControlDTCSetting(Dcm_MsgContextType *msgContext,
   if (1 == msgContext->reqDataLen) {
     switch (msgContext->reqData[0]) {
     case 0x01: /* ON */
-      Dem_EnableDTCSetting(0);
+      r = Dem_EnableDTCSetting(0);
+      if (E_OK != r) {
+        *nrc = DCM_E_CONDITIONS_NOT_CORRECT;
+      }
       break;
     case 0x02: /* OFF */
-      Dem_DisableDTCSetting(0);
+      r = Dem_DisableDTCSetting(0);
+      if (E_OK != r) {
+        *nrc = DCM_E_CONDITIONS_NOT_CORRECT;
+      }
       break;
     default:
       *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
@@ -925,6 +997,54 @@ Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
 
   /* TODO: @SWS_Dcm_00858, @SWS_Dcm_00628
    * For now, it's depend on callback Dcm_SessionChangeIndication */
+
+  return r;
+}
+#endif
+
+#ifdef DCM_USE_SERVICE_COMMUNICATION_CONTROL
+Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
+                                           Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_NOT_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_CommunicationControlConfigType *config =
+    (const Dcm_CommunicationControlConfigType *)context->curService->config;
+  const Dcm_ComCtrlType *ComCtrl = NULL;
+  uint8_t id;
+  uint8_t comType;
+  int i;
+
+  if (2 == msgContext->reqDataLen) {
+    id = msgContext->reqData[0];
+    comType = msgContext->reqData[2];
+    for (i = 0; i < config->numOfComCtrls; i++) {
+      if (config->ComCtrls[i].id == id) {
+        ComCtrl = &config->ComCtrls[i];
+        r = E_OK;
+        break;
+      }
+    }
+
+    if (E_OK != r) {
+      *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
+    }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+  }
+
+  if (E_OK == r) {
+    if (ComCtrl->comCtrlFnc != NULL) {
+      r = ComCtrl->comCtrlFnc(comType, nrc);
+    } else {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+      r = E_NOT_OK;
+    }
+  }
+
+  if (E_OK == r) {
+    msgContext->resData[0] = id;
+    msgContext->resDataLen = 1;
+  }
 
   return r;
 }

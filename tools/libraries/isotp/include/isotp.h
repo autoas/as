@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#define ISOTP_OTCTL_SET_TX_ID  0
+
 /* ================================ [ TYPES     ] ============================================== */
 typedef enum
 {
@@ -52,6 +54,7 @@ isotp_t *isotp_create(isotp_parameter_t *params);
 int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize);
 int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
+int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
 void isotp_destory(isotp_t *isotp);
 #ifdef __cplusplus
 }

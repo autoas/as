@@ -14,6 +14,11 @@ class LibraryCrc(Library):
         RunCommand(cmd)
         cmd = '{0} {1}/pycrc.py --model crc-16 --poly 0x1021 --reflect-in False --reflect-out False --algorithm table-driven --generate c -o {2}/src/crc16/crc16.c'.format(sys.executable, pkg, CWD)
         RunCommand(cmd)
+        MKDir('%s/src/crc32'%(CWD))
+        cmd = '{0} {1}/pycrc.py --model crc-32 --poly 0x04C11DB7 --reflect-in True --reflect-out True --algorithm table-driven --generate h -o {2}/src/crc32/crc32.h'.format(sys.executable, pkg, CWD)
+        RunCommand(cmd)
+        cmd = '{0} {1}/pycrc.py --model crc-32 --poly 0x04C11DB7 --reflect-in True --reflect-out True --algorithm table-driven --generate c -o {2}/src/crc32/crc32.c'.format(sys.executable, pkg, CWD)
+        RunCommand(cmd)
 
     def config(self):
         if (not os.path.exists('%s/src/crc16/crc16.c'%(CWD))):

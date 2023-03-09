@@ -5,94 +5,102 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "loader.h"
 #include <stdio.h>
+#include <stdarg.h>
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
-#include "Std_Types.h"
-#include "Std_Debug.h"
+#include <dlfcn.h>
 #include "Std_Timer.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define LOADER_LOG_SIZE (1024 * 32)
-#define LOADER_MSG_SIZE 4096
-
-#define FLASH_SECTOR_SIZE 512
-#define FLASH_WRITE_SIZE 1
-
-#define FL_ALIGN(length, sz) (((length + sz - 1) / sz) * sz)
-
-#define FL_MIN_ABILITY 128
 
 #define LOADER_STS_CREATED 0
 #define LOADER_STS_STARTED 1
 #define LOADER_STS_EXITED 2
 
-#define LDLOG(level, fmt, ...)                                                                     \
-  do {                                                                                             \
-    if ((L_LOG_##level) >= loader->logLevel) {                                                     \
-      pthread_mutex_lock(&loader->mutex);                                                          \
-      loader->lsz += snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, fmt, \
-                              ##__VA_ARGS__);                                                      \
-      pthread_mutex_unlock(&loader->mutex);                                                        \
-    }                                                                                              \
-  } while (0)
+#ifndef LOADER_KEEP_TESTER_ONLINE
+#define LOADER_KEEP_TESTER_ONLINE 2000000
+#endif
 
-#define FDLOG(level, prefix, data, len)                                                            \
-  do {                                                                                             \
-    size_t i;                                                                                      \
-    if ((L_LOG_##level) >= loader->logLevel) {                                                     \
-      pthread_mutex_lock(&loader->mutex);                                                          \
-      loader->lsz +=                                                                               \
-        snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, prefix);          \
-      for (i = 0; (i < len) && (i < (size_t)16); i++) {                                            \
-        loader->lsz += snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz,    \
-                                " %02X", data[i]);                                                 \
-      }                                                                                            \
-      loader->lsz +=                                                                               \
-        snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, "\n");            \
-      pthread_mutex_unlock(&loader->mutex);                                                        \
-    }                                                                                              \
-  } while (0)
+#define SUPPRESS_POS_RESP_BIT (uint8_t)0x80
 
-#define L_R_OK 0
-#define L_R_NOK 1
-#define L_R_ERROR 2 /* timeout or LVDS bus error */
+#ifdef _WIN32
+#define DLL ".dll"
+#else
+#define DLL ".so"
+#endif
 
-#define L_R_OK_FOR_NOW 3
+#ifndef LOADER_BUILT_IN_APP_MAX
+#define LOADER_BUILT_IN_APP_MAX 32
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct loader_s {
   srec_t *appSRec;
   srec_t *flsSRec;
   size_t totalSize;
-  size_t lsz;   /* log size */
+  size_t lsz; /* log size */
+  uint32_t funcAddr; /* functional address for CAN/FD only*/
+  const loader_app_t *app;
   int progress; /* resolution in 0.01% */
   pthread_t pthread;
-  pthread_mutex_t mutex;
+  pthread_mutex_t logMutex;
+  pthread_mutex_t tpMutex;
   int status;
-  uint16_t crc;
+  Std_TimerType testerTimer;
   uint8_t request[LOADER_MSG_SIZE];
   uint8_t response[LOADER_MSG_SIZE];
   char logs[LOADER_LOG_SIZE];
   isotp_t *isotp;
   boolean stop;
   int logLevel;
+#ifndef LOADER_USE_APP_BUILT_IN
+  void *dll;
+#endif
 } loader_t;
-
-typedef struct {
-  char *preLog;
-  char *postLog;
-  int (*handle)(loader_t *loader);
-} step_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
+#ifdef LOADER_USE_APP_BUILT_IN
+static const loader_app_t *lLoaderApps[LOADER_BUILT_IN_APP_MAX];
+static uint32_t lLoaderAppsNum = 0;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
-static int uds_request_service(loader_t *loader, const uint8_t *data, size_t length,
-                               const int *expected, size_t eLen) {
+static void uds_keep_tester_online(loader_t *loader) {
+  static const uint8_t testerKeep[2] = {0x3E, 0x00 | SUPPRESS_POS_RESP_BIT};
+  uint32_t funcAddr = loader->funcAddr;
+
+  if (Std_GetTimerElapsedTime(&loader->testerTimer) > LOADER_KEEP_TESTER_ONLINE) {
+    if (funcAddr != 0) {
+      isotp_ioctl(loader->isotp, ISOTP_OTCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
+    }
+
+    isotp_transmit(loader->isotp, testerKeep, 2, NULL, 0);
+
+    if (funcAddr != 0) {
+      isotp_ioctl(loader->isotp, ISOTP_OTCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
+    }
+
+    Std_TimerStart(&loader->testerTimer);
+    usleep(10000);
+  }
+}
+
+static int uds_request_service_impl(loader_t *loader, const uint8_t *data, size_t length,
+                                    const int *expected, size_t eLen, int functional) {
   int r = L_R_OK;
   int rlen = 0;
   size_t i;
+  uint32_t funcAddr = loader->funcAddr;
 
   LDLOG(DEBUG, "\n request service %02X:\n", data[0]);
-  FDLOG(DEBUG, "  TX:", data, length);
+  LDHEX(DEBUG, "  TX:", data, length);
+
+  pthread_mutex_lock(&loader->tpMutex);
+  if ((TRUE == functional) && (funcAddr != 0)) {
+    /* switch to functional addressing mode */
+    isotp_ioctl(loader->isotp, ISOTP_OTCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
+  }
+
+  uds_keep_tester_online(loader);
 
   r = isotp_transmit(loader->isotp, data, length, NULL, 0);
   if (0 != r) {
@@ -101,12 +109,13 @@ static int uds_request_service(loader_t *loader, const uint8_t *data, size_t len
   while (L_R_OK == r) {
     rlen = isotp_receive(loader->isotp, loader->response, sizeof(loader->response));
     if (rlen > 0) {
-      FDLOG(DEBUG, "  RX:", loader->response, (size_t)rlen);
+      LDHEX(DEBUG, "  RX:", loader->response, (size_t)rlen);
     }
     if ((3 == rlen)) {
       if ((0x7F == loader->response[0]) && (loader->response[1] == data[0])) {
         if (0x78 == loader->response[2]) {
           /* pending response */
+          uds_keep_tester_online(loader);
         } else {
           /* negative response */
           LDLOG(INFO, "  negative response %02X\n", loader->response[2]);
@@ -122,6 +131,13 @@ static int uds_request_service(loader_t *loader, const uint8_t *data, size_t len
     } else {
       LDLOG(ERROR, "  isotp receive error: %d\n", rlen);
       r = L_R_ERROR;
+    }
+  }
+
+  if (L_R_OK_FOR_NOW == r) {
+    if (rlen < eLen) {
+      LDLOG(INFO, "  response too short\n");
+      r = L_R_NOK;
     }
   }
 
@@ -143,262 +159,15 @@ static int uds_request_service(loader_t *loader, const uint8_t *data, size_t len
     LDLOG(DEBUG, "  FAIL: %d\n", r);
   }
 
-  return r;
-}
-
-static int enter_extend_session(loader_t *loader) {
-  static const uint8_t data[] = {0x10, 0x03};
-  static const int expected[] = {0x50, 0x03, -1, -1, -1, -1};
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
-
-  return r;
-}
-
-static int security_extds_access(loader_t *loader) {
-  static const uint8_t data[] = {0x27, 0x01};
-  static const int expected1[] = {0x67, 0x01, -1, -1, -1, -1};
-  static const int expected2[] = {0x67, 0x02};
-  uint32_t seed, key;
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
-  if (L_R_OK == r) {
-    seed = ((uint32_t)loader->response[2] << 24) + ((uint32_t)loader->response[3] << 16) +
-           ((uint32_t)loader->response[4] << 8) + loader->response[5];
-    /* TODO: TBD */
-    key = seed ^ 0x78934673;
-    loader->request[0] = 0x27;
-    loader->request[1] = 0x02;
-    loader->request[2] = (key >> 24) & 0xFF;
-    loader->request[3] = (key >> 16) & 0xFF;
-    loader->request[4] = (key >> 8) & 0xFF;
-    loader->request[5] = key & 0xFF;
-    r = uds_request_service(loader, loader->request, 6, expected2, ARRAY_SIZE(expected2));
+  if ((TRUE == functional) && (funcAddr != 0)) {
+    /* switch back to physical addressing mode */
+    isotp_ioctl(loader->isotp, ISOTP_OTCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
   }
 
-  return r;
-}
-
-static int enter_program_session(loader_t *loader) {
-  static const uint8_t data[] = {0x10, 0x02};
-  static const int expected[] = {0x50, 0x02, -1, -1, -1, -1};
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  pthread_mutex_unlock(&loader->tpMutex);
 
   return r;
 }
-
-static int security_prgs_access(loader_t *loader) {
-  static const uint8_t data[] = {0x27, 0x03};
-  static const int expected1[] = {0x67, 0x03, -1, -1, -1, -1};
-  static const int expected2[] = {0x67, 0x04};
-  uint32_t seed, key;
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
-  if (L_R_OK == r) {
-    seed = ((uint32_t)loader->response[2] << 24) + ((uint32_t)loader->response[3] << 16) +
-           ((uint32_t)loader->response[4] << 8) + loader->response[5];
-    /* TODO: TBD */
-    key = seed ^ 0x94586792;
-    loader->request[0] = 0x27;
-    loader->request[1] = 0x04;
-    loader->request[2] = (key >> 24) & 0xFF;
-    loader->request[3] = (key >> 16) & 0xFF;
-    loader->request[4] = (key >> 8) & 0xFF;
-    loader->request[5] = key & 0xFF;
-    r = uds_request_service(loader, loader->request, 6, expected2, ARRAY_SIZE(expected2));
-  }
-
-  return r;
-}
-
-static int routine_erase_flash(loader_t *loader) {
-  static const int expected[] = {0x71, 0x01, 0xFF, 0x01};
-  int r;
-
-  loader->request[0] = 0x31;
-  loader->request[1] = 0x01;
-  loader->request[2] = 0xFF;
-  loader->request[3] = 0x01;
-
-  r = uds_request_service(loader, loader->request, 4, expected, ARRAY_SIZE(expected));
-
-  if (L_R_OK == r) {
-    loader->progress += 500; /* step 5% */
-  }
-
-  return r;
-}
-
-static int request_download(loader_t *loader, uint32_t address, size_t length) {
-  int r;
-  static const int expected[] = {0x74, 0x20};
-  loader->request[0] = 0x34;
-  loader->request[1] = 0x00;
-  loader->request[2] = 0x44;
-
-  loader->request[3] = (address >> 24) & 0xFF;
-  loader->request[4] = (address >> 16) & 0xFF;
-  loader->request[5] = (address >> 8) & 0xFF;
-  loader->request[6] = address & 0xFF;
-
-  loader->request[7] = (length >> 24) & 0xFF;
-  loader->request[8] = (length >> 16) & 0xFF;
-  loader->request[9] = (length >> 8) & 0xFF;
-  loader->request[10] = length & 0xFF;
-
-  r = uds_request_service(loader, loader->request, 11, expected, ARRAY_SIZE(expected));
-
-  return r;
-}
-
-static int transfer_data(loader_t *loader, uint32_t ability, uint8_t *data, size_t length) {
-  int r = L_R_OK;
-  uint8_t blockSequenceCounter = 1;
-  size_t leftSize = length;
-  size_t doSz;
-  size_t curPos = 0;
-  size_t i;
-  int expected[] = {0x76, 0};
-
-  while ((leftSize > 0) && (L_R_OK == r) && (FALSE == loader->stop)) {
-    loader->request[0] = 0x36;
-    loader->request[1] = blockSequenceCounter;
-    expected[1] = blockSequenceCounter;
-
-    if (leftSize > ability) {
-      doSz = ability;
-      leftSize = leftSize - ability;
-    } else {
-      doSz = FL_ALIGN(leftSize, FLASH_WRITE_SIZE);
-      leftSize = 0;
-    }
-
-    for (i = 0; i < doSz; i++) {
-      if ((curPos + i) < length) {
-        loader->request[2 + i] = data[curPos + i];
-      } else {
-        loader->request[2 + i] = 0xFF;
-      }
-    }
-
-    r = uds_request_service(loader, loader->request, 2 + doSz, expected, ARRAY_SIZE(expected));
-
-    if (L_R_OK == r) {
-      loader->progress += (doSz * 8000) / loader->totalSize;
-    }
-
-    blockSequenceCounter = (blockSequenceCounter + 1) & 0xFF;
-    curPos += doSz;
-  }
-
-  return r;
-}
-
-static int transfer_exit(loader_t *loader) {
-  static const uint8_t data[] = {0x37};
-  static const int expected[] = {0x77};
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
-
-  return r;
-}
-
-static int download_one_section(loader_t *loader, sblk_t *blk) {
-  int r;
-  uint32_t ability = sizeof(loader->request);
-
-  r = request_download(loader, blk->address, blk->length);
-
-  if (L_R_OK == r) {
-    ability = ((uint32_t)loader->response[2] << 8) + loader->response[3];
-    if ((ability >= FL_MIN_ABILITY) && (ability < sizeof(loader->request))) {
-      r = transfer_data(loader, ability - 2, blk->data, blk->length);
-    } else {
-      LDLOG(DEBUG, "server ability error %d", ability);
-      r = L_R_NOK;
-    }
-  }
-
-  if (L_R_OK == r) {
-    r = transfer_exit(loader);
-  }
-
-  return r;
-}
-
-static int download_application(loader_t *loader) {
-  int r = L_R_OK;
-  size_t i;
-
-  for (i = 0; (L_R_OK == r) && (i < loader->appSRec->numOfBlks); i++) {
-    r = download_one_section(loader, &loader->appSRec->blks[i]);
-  }
-
-  return r;
-}
-
-static int download_flash_driver(loader_t *loader) {
-  int r = L_R_OK;
-  size_t i;
-
-  if (NULL != loader->flsSRec) {
-    LDLOG(INFO, "download flash driver");
-    for (i = 0; (L_R_OK == r) && (i < loader->flsSRec->numOfBlks); i++) {
-      r = download_one_section(loader, &loader->flsSRec->blks[i]);
-    }
-    if (L_R_OK == r) {
-      LDLOG(INFO, " okay\n");
-    }
-  }
-
-  return r;
-}
-
-static int routine_check_integrity(loader_t *loader) {
-  static const int expected[] = {0x71, 0x01, 0xFF, 0x02};
-  int r;
-
-  loader->request[0] = 0x31;
-  loader->request[1] = 0x01;
-  loader->request[2] = 0xFF;
-  loader->request[3] = 0x02;
-
-  r = uds_request_service(loader, loader->request, 4, expected, ARRAY_SIZE(expected));
-
-  if (L_R_OK == r) {
-    loader->progress += 500; /* step 5% */
-  }
-
-  return r;
-}
-
-static int ecu_reset(loader_t *loader) {
-  static const uint8_t data[] = {0x11, 0x03};
-  static const int expected[] = {0x51, 0x03};
-  int r;
-
-  r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
-
-  return r;
-}
-
-static const step_t lSteps[] = {
-  {"enter extended session", " okay\n", enter_extend_session},
-  {"level 1 security access", " okay\n", security_extds_access},
-  {"enter program session", " okay\n", enter_program_session},
-  {"level 2 security access", " okay\n", security_prgs_access},
-  {NULL, NULL, download_flash_driver},
-  {"erase flash", " okay\n", routine_erase_flash},
-  {"download application", " okay\n", download_application},
-  {"check integrity", " okay\n", routine_check_integrity},
-  {"ecu reset", " okay\n", ecu_reset},
-};
 
 static void *loader_main(void *args) {
   int r = L_R_OK;
@@ -407,20 +176,22 @@ static void *loader_main(void *args) {
   float cost = 0;
   float speed = 0;
   loader_t *loader = (loader_t *)args;
+  const loader_app_t *app = loader->app;
 
   loader->status = LOADER_STS_STARTED;
-  LDLOG(INFO, "loader started:\n");
+  LDLOG(INFO, "loader %s started:\n", app->name);
   LDLOG(INFO, "Total data size %llu bytes\n", loader->totalSize);
   Std_TimerStart(&timer);
+  Std_TimerStart(&loader->testerTimer);
 
-  for (i = 0; (L_R_OK == r) && (i < ARRAY_SIZE(lSteps) && (FALSE == loader->stop)); i++) {
-    if (NULL != lSteps[i].preLog) {
-      LDLOG(INFO, lSteps[i].preLog);
+  for (i = 0; (L_R_OK == r) && (i < app->numOfServices && (FALSE == loader->stop)); i++) {
+    if (NULL != app->services[i].preLog) {
+      LDLOG(INFO, app->services[i].preLog);
     }
-    r = lSteps[i].handle(loader);
+    r = app->services[i].handle(loader);
     if (0 == r) {
-      if (NULL != lSteps[i].postLog) {
-        LDLOG(INFO, lSteps[i].postLog);
+      if (NULL != app->services[i].postLog) {
+        LDLOG(INFO, app->services[i].postLog);
       }
     }
   }
@@ -437,26 +208,69 @@ static void *loader_main(void *args) {
   return (void *)(unsigned long long)r;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-loader_t *loader_create(isotp_t *isotp, srec_t *appSRec, srec_t *flsSRec) {
+loader_t *loader_create(loader_args_t *args) {
   int r = 0;
   loader_t *loader;
   loader = malloc(sizeof(loader_t));
+#ifdef LOADER_USE_APP_BUILT_IN
+  uint32_t i;
+#else
+  char *path;
+  loader_get_app_func_t get_app_func;
+#endif
 
   if (NULL != loader) {
     memset(loader, 0, sizeof(loader_t));
-    loader->isotp = isotp;
-    loader->appSRec = appSRec;
-    loader->flsSRec = flsSRec;
-    loader->totalSize = appSRec->totalSize;
+    loader->isotp = args->isotp;
+    loader->appSRec = args->appSRec;
+    loader->flsSRec = args->flsSRec;
+    loader->totalSize = args->appSRec->totalSize;
     if (loader->flsSRec != NULL) {
-      loader->totalSize += flsSRec->totalSize;
+      loader->totalSize += args->flsSRec->totalSize;
     }
+    loader->funcAddr = args->funcAddr;
     loader->logLevel = L_LOG_INFO;
     loader->status = LOADER_STS_CREATED;
     loader->stop = FALSE;
+    loader->app = NULL;
+#ifdef LOADER_USE_APP_BUILT_IN
+    for (i = 0; i < lLoaderAppsNum; i++) {
+      if (0 == strcmp(args->choice, lLoaderApps[i]->name)) {
+        loader->app = lLoaderApps[i];
+        break;
+      }
+    }
+    if (NULL == loader->app) {
+      printf("invalid app %s, choose from:", args->choice);
+      for (i = 0; i < lLoaderAppsNum; i++) {
+        printf(" %s", lLoaderApps[i]->name);
+      }
+      printf("\n");
+      r = -EEXIST;
+    }
+#else
+    path = (char *)loader->request;
+    snprintf(path, sizeof(loader->request), "Loader%s" DLL, args->choice);
+    loader->dll = dlopen(path, RTLD_NOW);
+    if (NULL != loader->dll) {
+      get_app_func = (loader_get_app_func_t)dlsym(loader->dll, "get");
+      if (NULL != get_app_func) {
+        loader->app = get_app_func();
+      }
+      if (NULL == loader->app) {
+        dlclose(loader->dll);
+        printf("loader application %s is invalid\n", path);
+        r = -EINVAL;
+      }
+    } else {
+      printf("loader application %s doesn't exist\n", path);
+      r = -EEXIST;
+    }
+#endif
 
     if (0 == r) {
-      r = pthread_mutex_init(&loader->mutex, NULL);
+      r = pthread_mutex_init(&loader->logMutex, NULL);
+      r |= pthread_mutex_init(&loader->tpMutex, NULL);
       r |= pthread_create(&loader->pthread, NULL, loader_main, loader);
     }
 
@@ -472,6 +286,33 @@ loader_t *loader_create(isotp_t *isotp, srec_t *appSRec, srec_t *flsSRec) {
 
 void loader_set_log_level(loader_t *loader, int level) {
   loader->logLevel = level;
+}
+
+void loader_log(loader_t *loader, int level, const char *fmt, ...) {
+  va_list args;
+  if ((level) >= loader->logLevel) {
+    pthread_mutex_lock(&loader->logMutex);
+    va_start(args, fmt);
+    loader->lsz +=
+      vsnprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, fmt, args);
+    va_end(args);
+    pthread_mutex_unlock(&loader->logMutex);
+  }
+}
+
+void loader_log_hex(loader_t *loader, int level, const char *prefix, const uint8_t *data,
+                    size_t len) {
+  size_t i;
+  if (level >= loader->logLevel) {
+    pthread_mutex_lock(&loader->logMutex);
+    loader->lsz += snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, prefix);
+    for (i = 0; (i < len) && (i < (size_t)16); i++) {
+      loader->lsz +=
+        snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, " %02X", data[i]);
+    }
+    loader->lsz += snprintf(&loader->logs[loader->lsz], sizeof(loader->logs) - loader->lsz, "\n");
+    pthread_mutex_unlock(&loader->logMutex);
+  }
 }
 
 int loader_poll(loader_t *loader, int *progress, char **msg) {
@@ -494,12 +335,12 @@ int loader_poll(loader_t *loader, int *progress, char **msg) {
     }
   }
 
-  pthread_mutex_lock(&loader->mutex);
+  pthread_mutex_lock(&loader->logMutex);
   if (loader->lsz > 0) {
     *msg = strdup(loader->logs);
     loader->lsz = 0;
   }
-  pthread_mutex_unlock(&loader->mutex);
+  pthread_mutex_unlock(&loader->logMutex);
 
   return r;
 }
@@ -508,6 +349,53 @@ void loader_destory(loader_t *loader) {
   if (LOADER_STS_EXITED != loader->status) {
     loader->stop = TRUE;
     pthread_join(loader->pthread, NULL);
+#ifndef LOADER_USE_APP_BUILT_IN
+    dlclose(loader->dll);
+#endif
   }
   free(loader);
 }
+
+int uds_request_service(loader_t *loader, const uint8_t *data, size_t length, const int *expected,
+                        size_t eLen) {
+  return uds_request_service_impl(loader, data, length, expected, eLen, FALSE);
+}
+
+int uds_broadcast_service(loader_t *loader, const uint8_t *data, size_t length, const int *expected,
+                          size_t eLen) {
+  return uds_request_service_impl(loader, data, length, expected, eLen, TRUE);
+}
+
+uint8_t *loader_get_request(loader_t *loader) {
+  return loader->request;
+}
+
+uint8_t *loader_get_response(loader_t *loader) {
+  return loader->response;
+}
+
+boolean loader_is_stopt(loader_t *loader) {
+  return loader->stop;
+}
+
+void loader_add_progress(loader_t *loader, int progress, uint32_t doSize) {
+  loader->progress += progress;
+  loader->progress += (doSize * 8000) / loader->totalSize;
+}
+
+srec_t *loader_get_app_srec(loader_t *loader) {
+  return loader->appSRec;
+}
+
+srec_t *loader_get_flsdrv_srec(loader_t *loader) {
+  return loader->flsSRec;
+}
+
+#ifdef LOADER_USE_APP_BUILT_IN
+void loader_register_app(const loader_app_t *app) {
+  if (lLoaderAppsNum < ARRAY_SIZE(lLoaderApps)) {
+    lLoaderApps[lLoaderAppsNum] = app;
+    lLoaderAppsNum++;
+  }
+}
+#endif

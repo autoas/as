@@ -6,7 +6,7 @@ generate(Glob('*.json'))
 libsForVicServer = {
     'SoAd': Glob('GEN/SoAd_*.c') + Glob('GEN/NetMem.c'),
     'Sd': Glob('GEN/Sd_*.c'),
-    'SomeIp': Glob('GEN/SomeIp_*.c') + Glob('server.cpp') + Glob('GEN/SS_VIC.cpp') + Glob('GEN/*.pb.cc'),
+    'SomeIp': Glob('GEN/SomeIp_*.c') + Glob('server.cpp') + Glob('GEN/SS_VIC.cpp') + Glob('GEN/msg/*.pb.cc'),
 }
 
 # ensure "pacman -S mingw-w64-x86_64-protobuf"
@@ -29,7 +29,7 @@ class LibraryVicServer(Library):
 libsForVicClient = {
     'SoAd': Glob('GENT/SoAd_*.c') + Glob('GEN/NetMem.c'),
     'Sd': Glob('GENT/Sd_*.c'),
-    'SomeIp': Glob('GENT/SomeIp_*.c') + Glob('client.cpp') + Glob('GENT/CS_VIC.cpp') + Glob('GEN/*.pb.cc'),
+    'SomeIp': Glob('GENT/SomeIp_*.c') + Glob('client.cpp') + Glob('GENT/CS_VIC.cpp') + Glob('GEN/msg/*.pb.cc'),
 }
 
 

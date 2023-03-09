@@ -37,17 +37,17 @@
 #define DCM_NEG_RESPONSE_SENT 0x06
 #define DCM_NEG_RESPONSE_FAILED 0x07
 
-#define DCM_READ_OK (Dcm_ReturnReadMemoryType)0x00
+#define DCM_READ_OK (Dcm_ReturnReadMemoryType)E_OK
 #define DCM_READ_PENDING (Dcm_ReturnReadMemoryType)0x01
 #define DCM_READ_FAILED (Dcm_ReturnReadMemoryType)0x02
 #define DCM_READ_FORCE_RCRRP (Dcm_ReturnReadMemoryType)0x03
 
-#define DCM_WRITE_OK (Dcm_ReturnWriteMemoryType)0x00
+#define DCM_WRITE_OK (Dcm_ReturnWriteMemoryType)E_OK
 #define DCM_WRITE_PENDING (Dcm_ReturnWriteMemoryType)0x01
 #define DCM_WRITE_FAILED (Dcm_ReturnWriteMemoryType)0x02
 #define DCM_WRITE_FORCE_RCRRP (Dcm_ReturnWriteMemoryType)0x03
 
-#define DCM_ERASE_OK (Dcm_ReturnEraseMemoryType)0x00
+#define DCM_ERASE_OK (Dcm_ReturnEraseMemoryType)E_OK
 #define DCM_ERASE_PENDING (Dcm_ReturnEraseMemoryType)0x01
 #define DCM_ERASE_FAILED (Dcm_ReturnEraseMemoryType)0x02
 #define DCM_ERASE_FORCE_RCRRP (Dcm_ReturnEraseMemoryType)0x03
@@ -74,7 +74,7 @@
 #define DCM_SEC_LEVEL2 0x02
 #define DCM_SEC_LEVEL3 0x03
 #define DCM_SEC_LEVEL4 0x04
-#define DCM_SEC_LEVEL5 0x04
+#define DCM_SEC_LEVEL5 0x05
 #define DCM_SEC_LEVEL6 0x06
 #define DCM_SEC_LEVEL7 0x07
 
@@ -210,7 +210,8 @@ Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType SesCtrlType);
 /* @SWS_Dcm_00520 */
 Std_ReturnType Dcm_ResetToDefaultSession(void);
 
-void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew);
+void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
+                                 boolean timeout);
 
 void Dcm_PerformReset(uint8_t resetType);
 

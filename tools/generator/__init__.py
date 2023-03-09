@@ -18,6 +18,7 @@ from .CanIf import Gen as CanIfGen
 from .Rte import Gen as RteGen
 from .protoc import Gen as ProtocGen
 from .Os import Gen as OsGen
+from .Dcm import Gen as DcmGen
 
 __GEN__ = {
   'NvM': NvMGen,
@@ -32,6 +33,7 @@ __GEN__ = {
   'Rte': RteGen,
   'protoc': ProtocGen,
   'OS': OsGen,
+  'Dcm': DcmGen,
 }
 
 RootDir = os.path.abspath(os.path.dirname(__file__)+ '/../..')

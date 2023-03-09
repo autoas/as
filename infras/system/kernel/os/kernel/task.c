@@ -557,13 +557,13 @@ void statOsTask(void) {
     pTaskConst = &TaskConstArray[id];
     pTaskVar = &TaskVarArray[id];
     pused = checkStackUsage(pTaskConst, &used);
-    printf("%-16s %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) ", pTaskConst->name,
+    printf("%-16s %-9s %3u  %3u   %3u     0x%08X 0x%08X %2d%%(0x%04X) ", pTaskConst->name,
            taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
            (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
            (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
            (uint32_t)used);
     if (NULL != pTaskConst->pEventVar) {
-      printf("%08X/%08X %3d/%-6d ", (uint32_t)pTaskConst->pEventVar->set,
+      printf("%08X/%08X %3u/%-6u ", (uint32_t)pTaskConst->pEventVar->set,
              (uint32_t)pTaskConst->pEventVar->wait,
 #ifdef MULTIPLY_TASK_ACTIVATION
              (uint32_t)pTaskVar->activation,
@@ -572,7 +572,7 @@ void statOsTask(void) {
 #endif
              (uint32_t)pTaskVar->actCnt);
     } else {
-      printf("null              %3d/%-6d ",
+      printf("null              %3u/%-6u ",
 #ifdef MULTIPLY_TASK_ACTIVATION
              (uint32_t)pTaskVar->activation,
 #else
@@ -581,7 +581,7 @@ void statOsTask(void) {
              (uint32_t)pTaskVar->actCnt);
     }
 #ifdef USE_SMP
-    printf(" on CPU%d", pTaskVar->oncpu);
+    printf(" on CPU%d", (int)pTaskVar->oncpu);
 #endif
     printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
   }
@@ -593,7 +593,8 @@ void statOsTask(void) {
     pTaskConst = pTaskVar->pConst;
     tid = (struct pthread *)pTaskConst;
     if (tid > (struct pthread *)1) {
-      printf("pthread%-9d %-9s %3d  %3d   %3d     0x%08X 0x%08X %2d%%(0x%04X) %08X/%08X %3d/%-6d ",
+      pused = checkStackUsage(pTaskConst, &used);
+      printf("pthread%-9u %-9s %3u  %3u   %3u     0x%08X 0x%08X %2d%%(0x%04X) %08X/%08X %3d/%-6d ",
              (uint32_t)id, taskStateToString(pTaskVar->state), (uint32_t)pTaskVar->priority,
              (uint32_t)pTaskConst->initPriority, (uint32_t)pTaskConst->runPriority,
              (uint32_t)pTaskConst->pStack, (uint32_t)pTaskConst->stackSize, (uint32_t)pused,
@@ -609,14 +610,14 @@ void statOsTask(void) {
         if ((tid->parent - TaskVarArray) < TASK_NUM) {
           printf(" %s", tid->parent->pConst->name);
         } else {
-          printf(" pthread%d", (uint32)(tid->parent - TaskVarArray));
+          printf(" pthread%u", (uint32)(tid->parent - TaskVarArray));
         }
       } else {
         printf(" none");
       }
 #endif
 #ifdef USE_SMP
-      printf(" on CPU%d", pTaskVar->oncpu);
+      printf(" on CPU%d", (int)pTaskVar->oncpu);
 #endif
       printf(" %s\n", isRunning(pTaskVar) ? "<-RunningVar" : "");
     }

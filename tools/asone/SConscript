@@ -1,8 +1,7 @@
 # How to build this, this is for windows
 # scons --lib=AsOne
 # scons --app=asone --prebuilt
-# scons --lib=UIFBL --prebuilt
-# scons --lib=UICan --prebuilt
+# scons --lib=UIVIC --os=OSAL --prebuilt
 
 from building import *
 

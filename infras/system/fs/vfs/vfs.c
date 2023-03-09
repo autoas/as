@@ -255,7 +255,7 @@ static int lsFunc(int argc, const char *argv[]) {
         r = vfs_stat(dirent->d_name, &st);
       }
       if (0 == r) {
-        printf("%srw-rw-rw- 1 as vfs %11u %s\r\n", VFS_ISDIR(st.st_mode) ? "d" : "-",
+        PRINTF("%srw-rw-rw- 1 as vfs %11u %s\r\n", VFS_ISDIR(st.st_mode) ? "d" : "-",
                (uint32_t)st.st_size, dirent->d_name);
         dirent = vfs_readdir(dir);
       } else {
@@ -266,7 +266,7 @@ static int lsFunc(int argc, const char *argv[]) {
   } else {
     r = vfs_stat(path, &st);
     if (0 == r) {
-      printf("-rw-rw-rw- 1 as vfs %11u %s\r\n", (uint32_t)st.st_size, path);
+      PRINTF("-rw-rw-rw- 1 as vfs %11u %s\r\n", (uint32_t)st.st_size, path);
     }
   }
 
@@ -298,7 +298,7 @@ SHELL_REGISTER(cd,
                chdirFunc);
 
 static int pwdFunc(int argc, const char *argv[]) {
-  printf("\n%s\n", vfs_cwd);
+  PRINTF("\n%s\n", vfs_cwd);
   return 0;
 }
 SHELL_REGISTER(pwd, "show full path of current working directory\n", pwdFunc);
@@ -342,11 +342,11 @@ static int cpFunc(int argc, const char *argv[]) {
   if (NULL != buf) {
     fps = vfs_fopen(argv[1], "rb");
     if (NULL == fps) {
-      printf("open %s failed!\n", argv[1]);
+      PRINTF("open %s failed!\n", argv[1]);
     } else {
       fpt = vfs_fopen(argv[2], "wb");
       if (NULL == fpt) {
-        printf("create %s failed!\n", argv[2]);
+        PRINTF("create %s failed!\n", argv[2]);
         vfs_fclose(fps);
       } else {
         do {
@@ -354,7 +354,7 @@ static int cpFunc(int argc, const char *argv[]) {
           if (len > 0) {
             r = vfs_fwrite(buf, 1, len, fpt);
             if (len != r) {
-              printf("write to %s failed!\n", argv[2]);
+              PRINTF("write to %s failed!\n", argv[2]);
               r = -2;
               break;
             } else {
@@ -391,7 +391,7 @@ static int catFunc(int argc, const char *argv[]) {
         r = vfs_fread(buf, 1, 512, f);
         if (r > 0) {
           buf[r] = '\0';
-          printf("%s", buf);
+          PRINTF("%s", buf);
         }
       } while (r > 0);
       vfs_fclose(f);
@@ -441,29 +441,29 @@ static int hexdumpFunc(int argc, const char *argv[]) {
     if (NULL != f) {
       r = vfs_fseek(f, (long int)offset, SEEK_SET);
       if (0 == r) {
-        printf("         :: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
+        PRINTF("         :: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
         do {
           r = vfs_fread(buf, 1, 16, f);
           if (r > 0) {
-            printf("%08X ::", (uint32_t)offset);
+            PRINTF("%08X ::", (uint32_t)offset);
             for (i = 0; i < 16; i++) {
               if (i < r) {
-                printf(" %02X", buf[i]);
+                PRINTF(" %02X", buf[i]);
               } else {
-                printf("   ");
+                PRINTF("   ");
               }
             }
-            printf("\t");
+            PRINTF("\t");
             for (i = 0; i < 16; i++) {
               if (i >= r)
                 break;
               if (isprint(buf[i])) {
-                printf("%c", buf[i]);
+                PRINTF("%c", buf[i]);
               } else {
-                printf(".");
+                PRINTF(".");
               }
             }
-            printf("\n");
+            PRINTF("\n");
           }
           offset += 16;
           size = (size > 16) ? (size - 16) : 0;
@@ -493,7 +493,7 @@ static int mountFunc(int argc, const char *argv[]) {
   if (argc == 1) {
     VFS_LOCK();
     TAILQ_FOREACH(m, &vfs_mount_list, entry) {
-      printf("mount device %s(%s) to %s\n", m->device->name, m->ops->name, m->mount_point);
+      PRINTF("mount device %s(%s) to %s\n", m->device->name, m->ops->name, m->mount_point);
     }
     VFS_UNLOCK();
   } else if (argc == 4) {
@@ -504,9 +504,9 @@ static int mountFunc(int argc, const char *argv[]) {
     if (NULL != device) {
       r = vfs_mount(device, fmt, mount_point);
       if (0 == r) {
-        printf("mount device %s(%s) to %s\n", dname, fmt, mount_point);
+        PRINTF("mount device %s(%s) to %s\n", dname, fmt, mount_point);
       } else {
-        printf("mount device %s(%s) to %s: error %d\n", dname, fmt, mount_point, r);
+        PRINTF("mount device %s(%s) to %s: error %d\n", dname, fmt, mount_point, r);
       }
     } else {
       r = -2;
@@ -525,13 +525,13 @@ static int mkfsFunc(int argc, const char *argv[]) {
   const char *fmt;
   const device_t *device;
   if ((2 == argc) && (0 == strcmp(argv[1], "-h"))) {
-    printf("mkfs device format\n  format: ");
+    PRINTF("mkfs device format\n  format: ");
     o = vfs_ops;
     while (*o != NULL) {
-      printf(" %s", (*o)->name);
+      PRINTF(" %s", (*o)->name);
       o++;
     }
-    printf("\n");
+    PRINTF("\n");
   } else if (3 == argc) {
     dname = argv[1];
     fmt = argv[2];
@@ -539,9 +539,9 @@ static int mkfsFunc(int argc, const char *argv[]) {
     if (NULL != device) {
       r = vfs_mkfs(device, fmt);
       if (0 == r) {
-        printf("mkfs device %s to %s\n", dname, fmt);
+        PRINTF("mkfs device %s to %s\n", dname, fmt);
       } else {
-        printf("mkfs device %s to %s: error %d\n", dname, fmt, r);
+        PRINTF("mkfs device %s to %s: error %d\n", dname, fmt, r);
       }
     } else {
       r = -1;

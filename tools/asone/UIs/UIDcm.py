@@ -1,5 +1,5 @@
 # SSAS - Simple Smart Automotive Software
-# Copyright (C) 2015 Parai Wang <parai@foxmail.com>
+# Copyright (C) 2015 - 2023 Parai Wang <parai@foxmail.com>
 import os
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtGui import *

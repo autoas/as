@@ -16,7 +16,7 @@
 #include "Log.hpp"
 using namespace as;
 /* ================================ [ MACROS    ] ============================================== */
-#ifdef WIN32
+#ifdef _WIN32
 #define DLL ".dll"
 #else
 #define DLL ".so"
@@ -113,7 +113,7 @@ Window::~Window() {
 
 int main(int argc, char *argv[]) {
   /* https://doc.qt.io/archives/qt-5.6/highdpi.html */
-  qputenv("QT_SCALE_FACTOR", "0.75");
+  //qputenv("QT_SCALE_FACTOR", "0.75");
   QApplication a(argc, argv);
   Log::setLogFile(".asone.log");
   Window w;

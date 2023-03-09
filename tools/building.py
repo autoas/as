@@ -537,11 +537,19 @@ class ReleaseEnv(CustomEnv):
 
     def link_flags(self, LINKFLAGS):
         cstr = ''
+        bIsLDS = False
         for flg in LINKFLAGS:
             if '-T' in flg:
                 lds = flg.replace('-T', '').replace('"', '')
-                self.copy(lds)
-                cstr = '%s -T"%s"' % (cstr, self.relpath(lds))
+                if lds != '':
+                    self.copy(lds)
+                    cstr = '%s -T"%s"' % (cstr, self.relpath(lds))
+                else:
+                    bIsLDS = True
+            elif bIsLDS:
+                self.copy(flg)
+                cstr = '%s -T"%s"' % (cstr, self.relpath(flg))
+                bIsLDS = False
             elif '-Map=' in flg:
                 ss = flg.split('=')
                 prefix = ss[0]
@@ -898,6 +906,28 @@ def __CompilerGCC(**kwargs):
 def CompilerGCC(**kwargs):
     return __CompilerGCC(**kwargs)
 
+
+@register_compiler
+def CompilerI686GCC(**kwargs):
+    env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
+    env.Append(CFLAGS=['-std=gnu99'])
+    env.Append(CPPFLAGS=['-Wall', '-fno-stack-protector'])
+    if not GetOption('strip'):
+        env.Append(CPPFLAGS=['-g'])
+        env.Append(ASFLAGS=['-g'])
+    if(IsPlatformWindows()):
+        gccx86='i686-elf-tools-windows.zip'
+    else:
+        gccx86='i686-elf-tools-linux.zip'
+    cpl = Package('https://github.com/lordmilko/i686-elf-tools/releases/download/7.1.0/%s'%(gccx86))
+    env['CC']   = '%s/bin/i686-elf-gcc -m32'%(cpl)
+    env['AS']   = '%s/bin/i686-elf-gcc -m32 -c'%(cpl)
+    env['CXX']  = '%s/bin/i686-elf-g++ -m32'%(cpl)
+    env['LINK'] = '%s/bin/i686-elf-ld -m32 -melf_i386'%(cpl)
+    env.Append(CPPPATH=['%s/lib/gcc/i686-elf/7.1.0/include'%(cpl)])
+    env.Append(CPPFLAGS=['-ffunction-sections', '-fdata-sections'])
+    env.Append(LINKFLAGS=['--gc-sections'])
+    return env
 
 @register_compiler
 def CompilerNDK(**kwargs):
@@ -1441,6 +1471,14 @@ class BuildBase():
                 CPPPATH2.append(x)
         return CPPPATH2
 
+    def GetInclude(self, libName):
+        CPPPATH = []
+        searched_libs = []
+        if libName in __libraries__:
+            lib = __libraries__[libName]()
+            CPPPATH += lib.get_includes(searched_libs)
+        return CPPPATH
+
     def sortL(self, L):
         newL = []
         for x in L:
@@ -1543,7 +1581,7 @@ class Library(BuildBase):
                 objs += env.SharedObject(c, CPPPATH=CPPPATH,
                                          CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
             else:
-                if 'gcc' in self.env['AS']:
+                if 'AS'in env and 'gcc' in env['AS']:
                     if str(c).endswith('.S'):
                         ASFLAGS += ['-I%s' % (x) for x in CPPPATH]
                         ASFLAGS += ['-D%s' % (x) for x in CPPDEFINES]

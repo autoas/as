@@ -54,11 +54,11 @@ class LibraryCanLib(Library):
         self.CPPPATH = ['$INFRAS']
         self.CPPDEFINES = []
         self.LIBPATH = []
-        self.LIBS = ['TcpIp', 'StdTimer']
+        self.LIBS = ['TcpIp', 'StdTimer', 'Utils']
         self.CPPFLAGS = []
         self.source = objs
         if IsBuildForWindows():
-            self.LIBS += ['wsock32']
+            self.LIBS += ['wsock32', 'Ole32']
             self.config_peakcan()
             self.config_vxl()
             self.config_zlg()

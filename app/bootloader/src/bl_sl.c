@@ -105,7 +105,17 @@ Std_ReturnType BL_CompareExtendedSessionKey(uint8_t *key, Dcm_NegativeResponseCo
   return ercd;
 }
 
-void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive,
-                                 Dcm_SesCtrlType sesCtrlTypeNew) {
+void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
+                                 boolean timeout) {
   BL_SessionReset();
+  if (timeout) {
+    if ((DCM_EXTENDED_DIAGNOSTIC_SESSION == sesCtrlTypeActive) ||
+        (DCM_PROGRAMMING_SESSION == sesCtrlTypeActive)) {
+      Dcm_PerformReset(DCM_WARM_START);
+    }
+  } else if ((DCM_PROGRAMMING_SESSION == sesCtrlTypeActive) &&
+             (DCM_DEFAULT_SESSION == sesCtrlTypeNew)) {
+    Dcm_PerformReset(DCM_WARM_START);
+  } else {
+  }
 }

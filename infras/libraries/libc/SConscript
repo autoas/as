@@ -8,5 +8,7 @@ objs = Glob('*.c')
 class LibraryLibC(Library):
     def config(self):
         self.source = objs
+        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ['RingBuffer']
 
     

@@ -1,0 +1,96 @@
+{
+  "class": "Dcm",
+  "timings":{ "S3Server": 5000, "P2ServerMin": 450, "P2ServerMax": 500 },
+  "buffer": { "rx": 514, "tx": 514 },
+  "sessions": [
+    { "name": "Default", "id": "0x01" },
+    { "name": "Program", "id": "0x02" },
+    { "name": "Extended", "id": "0x03" }
+  ],
+  "securities": [
+    { "name": "Extended", "level": 1, "size": 4, "sessions": ["Extended"],
+      "API": ["BL_GetExtendedSessionSeed", "BL_CompareExtendedSessionKey"] },
+    { "name": "Program", "level": 2, "size": 4, "sessions": ["Program"], 
+      "API": ["BL_GetProgramSessionSeed", "BL_CompareProgramSessionKey"] }
+  ],
+  "services": [
+    {
+      "name": "session_control", "id": "0x10",
+      "access": ["physical", "functional"],
+      "API": "BL_GetSessionChangePermission"
+    },
+    {
+      "name": "ecu_reset", "id": "0x11",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "access": ["physical", "functional"]
+    },
+    {
+      "name": "read_did", "id": "0x22",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "DIDs":[
+        {
+          "name": "FingerPrint", "id":"0xFE5E", "size": 9,
+          "API": "BL_ReadFingerPrint",
+          "sessions":["Program", "Extended"],
+          "securities": ["Program", "Extended"]
+        }
+      ]
+    },
+    {
+      "name": "security_access", "id": "0x27",
+      "sessions":["Default", "Program", "Extended"]
+    },
+    {
+      "name": "communication_control", "id": "0x28",
+      "functions": [ { "id": 0, "API": "BL_ComCtrlEnableRxAndTx" },
+                     { "id": 3, "API": "BL_ComCtrlDisableRxAndTx" }
+                   ],
+      "access": ["physical", "functional"]
+    },
+    {
+      "name": "write_did", "id": "0x2E",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "DIDs":[
+        {
+          "name": "FingerPrint", "id":"0xFE5E", "size": 9,
+          "API": "BL_WriteFingerPrint",
+          "sessions":["Program", "Extended"],
+          "securities": ["Program", "Extended"]
+        }
+      ]
+    },
+    {
+      "name": "routine", "id": "0x31", "sessions":["Program"], "securities": ["Program"],
+      "routines":[
+        {
+          "name": "EraseFlash", "id":"0xFF01", "API": "BL_StartEraseFlash",
+          "sessions":["Program"], "securities": ["Program"]
+        },
+        {
+          "name": "CheckIntegrity", "id":"0xFF02", "API": "BL_CheckIntegrity",
+          "sessions":["Program"], "securities": ["Program"]
+        }
+      ]
+    },
+    {
+      "name": "request_download", "id": "0x34",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": "BL_ProcessRequestDownload"
+    },
+    {
+      "name": "transfer_data", "id": "0x36",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": ["BL_ProcessTransferDataWrite", "BL_ProcessTransferDataRead"]
+    },
+    {
+      "name": "transfer_exit", "id": "0x37",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": "BL_ProcessRequestTransferExit"
+    },
+    { "name": "tester_present", "id": "0x3E" },
+    { "name": "control_dtc_setting", "id": "0x85", "access": ["physical", "functional"] }
+  ]
+}

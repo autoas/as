@@ -405,4 +405,8 @@ void isotp_lin_destory(isotp_t *isotp) {
   lServerUp = FALSE;
   pthread_join(isotp->serverThread, NULL);
 }
+
+int isotp_lin_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+  return -__LINE__;
+}
 #endif /* USE_LINTP */

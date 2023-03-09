@@ -16,13 +16,15 @@
 extern isotp_t *isotp_can_create(isotp_parameter_t *params);
 extern int isotp_can_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,
                               uint8_t *rxBuffer, size_t rxSize);
-int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
+extern int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
+extern int isotp_can_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
 extern void isotp_can_destory(isotp_t *isotp);
 
 extern isotp_t *isotp_lin_create(isotp_parameter_t *params);
 extern int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,
                               uint8_t *rxBuffer, size_t rxSize);
-int isotp_lin_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
+extern int isotp_lin_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
+extern int isotp_lin_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
 extern void isotp_lin_destory(isotp_t *isotp);
 
 /* ================================ [ DATAS     ] ============================================== */
@@ -74,6 +76,23 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
     r = isotp_lin_receive(isotp, rxBuffer, rxSize);
+    break;
+#endif
+  default:
+    break;
+  }
+  return r;
+}
+
+int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+  int r = -1;
+  switch (isotp->params.protocol) {
+  case ISOTP_OVER_CAN:
+    r = isotp_can_ioctl(isotp, cmd, data, size);
+    break;
+#ifdef USE_LINTP
+  case ISOTP_OVER_LIN:
+    r = isotp_lin_ioctl(isotp, cmd, data, size);
     break;
 #endif
   default:

@@ -47,8 +47,13 @@ typedef unsigned char StatusType; /* OSEK compliance */
 #define STD_IDLE 0x00u   /* Logical state idle */
 
 /* @SWS_Std_00010 */
+#ifndef STD_ON
 #define STD_ON 0x01u
+#endif
+#ifndef STD_OFF
 #define STD_OFF 0x00u
+#endif
+
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))

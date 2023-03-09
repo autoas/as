@@ -193,7 +193,7 @@ void Dcm_DslMainFunction(void) {
   if (context->timerS3Server > 0) {
     context->timerS3Server--;
     if (0 == context->timerS3Server) {
-      Dcm_SessionChangeIndication(context->currentSession, DCM_DEFAULT_SESSION);
+      Dcm_SessionChangeIndication(context->currentSession, DCM_DEFAULT_SESSION, TRUE);
       memset(context, 0, sizeof(Dcm_ContextType));
       context->rxBufferState = DCM_BUFFER_IDLE;
       context->txBufferState = DCM_BUFFER_IDLE;

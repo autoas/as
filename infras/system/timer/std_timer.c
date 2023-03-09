@@ -4,7 +4,7 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Timer.h"
-#include <assert.h>
+#include "Std_Debug.h"
 #if defined(linux) || defined(_WIN32)
 #if defined(_WIN32)
 #include <windows.h>
@@ -99,7 +99,7 @@ std_time_t Std_GetTimerElapsedTime(Std_TimerType *timer) {
 void Std_TimerSet(Std_TimerType *timer, std_time_t timeout) {
   std_time_t curTime = Std_GetTime();
 
-  assert(timeout <= STD_TIMER_SET_MAX);
+  asAssert(timeout <= STD_TIMER_SET_MAX);
 
   if (timeout <= (STD_TIME_MAX - curTime)) {
     timer->time = curTime + timeout;

@@ -61,7 +61,7 @@ static int Shell_Help(int argc, const char *argv[]) {
 
   if (1 == argc) {
     for (cmdIt = __ssymtab_start; cmdIt < __ssymtab_end; cmdIt++) {
-      printf("%s - %s\n", cmdIt->cmdName, cmdIt->cmdDesc);
+      PRINTF("%s - %s\n", cmdIt->cmdName, cmdIt->cmdDesc);
     }
   } else {
     for (i = 1; i < argc; i++) {
@@ -72,7 +72,7 @@ static int Shell_Help(int argc, const char *argv[]) {
         }
       }
       if (cmd) {
-        printf("%s - %s\n", cmd->cmdName, cmd->cmdDesc);
+        PRINTF("%s - %s\n", cmd->cmdName, cmd->cmdDesc);
       } else {
         ASLOG(ERROR, ("command %s is not found!\n", argv[i]));
       }
@@ -85,12 +85,12 @@ SHELL_REGISTER(help, "help [cmd]\n", Shell_Help)
 static void Shell_PutC(char ch) {
 #ifdef SHELL_DISABLE_ECHO_BACK
 #else
-  printf("%c", ch);
+  PRINTF("%c", ch);
 #endif
 }
 
 static void Shell_Prompt(void) {
-  printf("# ");
+  PRINTF("as # ");
 }
 
 static void Shell_RunCmd(void) {

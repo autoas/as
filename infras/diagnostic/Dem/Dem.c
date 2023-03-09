@@ -689,7 +689,6 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
                  DEM_CONFIG->EventConfigs[i].EventStatusRecords->faultOccuranceCounter));
   }
 
-#if AS_LOG_DEMI >= AS_LOG_DEFAULT
   for (i = 0; i < DEM_CONFIG->numOfFreezeFrameRecords; i++) {
     if (DEM_CONFIG->FreezeFrameRecords[i]->EventId != DEM_INVALID_EVENT_ID) {
       int j;
@@ -703,7 +702,7 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
       }
     }
   }
-#endif
+
   memset(&Dem_Context, 0, sizeof(Dem_Context));
   Dem_Context.disableDtcSetting = FALSE;
 }

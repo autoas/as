@@ -38,9 +38,9 @@ class ApplicationBL(Application):
 
 
 libsForCanBL = {}
-for libName in ['BL', 'Dcm']:
+for libName in ['BL']:
     libsForCanBL[libName] = Glob('config/%s_Cfg.c' % (libName))
-for libName in ['CanTp', 'PduR']:
+for libName in ['Dcm', 'CanTp', 'PduR']:
     libsForCanBL[libName] = Glob('config/GEN/%s_Cfg.c' % (libName))
 
 

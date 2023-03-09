@@ -17,9 +17,9 @@
 #include "devlib.h"
 #include "loader.h"
 #include "srec.h"
-#define WEAK_ALIAS_PRINTF
-#include "Std_Debug.h"
+#include "Log.hpp"
 
+using namespace as;
 namespace py = pybind11;
 /* ================================ [ MACROS    ] ============================================== */
 #define ISOTP_KWARGS                                                                               \
@@ -62,8 +62,8 @@ public:
 
   py::object read(int canid) {
     uint32_t rcanid = (uint32_t)canid;
-    uint8_t dlc;
     uint8_t data[64];
+    uint8_t dlc = sizeof(data);
     bool r = can_read(busid, &rcanid, &dlc, data);
     py::list L;
     L.append(py::bool_(r));
@@ -198,7 +198,6 @@ public:
     return tp;
   }
 
-
 private:
   isotp_t *tp = nullptr;
   uint8_t buffer[4096];
@@ -227,7 +226,7 @@ public:
   py::object read() {
     int r = dev_read(fd, data, sizeof(data));
     py::object obj;
-    if (data != NULL) {
+    if (r > 0) {
       obj = py::bytes((char *)data, r);
     } else {
       obj = py::none();
@@ -247,6 +246,8 @@ public:
     m_App = py::str(kwargs["app"]);
     m_Fls = py::str(kwargs["fls"]);
     m_LogLevel = get<int, py::int_>(kwargs, "logLevel", L_LOG_INFO);
+    m_Choice = get<std::string, py::str>(kwargs, "choice", "FBL");
+    m_FuncAddr = (uint32_t)get<int, py::int_>(kwargs, "funcAddr", 0x7DF);
 
     m_AppSrec = srec_open(m_App.c_str());
     if (nullptr == m_AppSrec) {
@@ -278,7 +279,13 @@ public:
   }
 
   bool start() {
-    m_Loader = loader_create(m_IsoTp->get_isotp(), m_AppSrec, m_FlsSrec);
+    loader_args_t args;
+    args.isotp = m_IsoTp->get_isotp();
+    args.appSRec = m_AppSrec;
+    args.flsSRec = m_FlsSrec;
+    args.choice = m_Choice.c_str();
+    args.funcAddr = m_FuncAddr;
+    m_Loader = loader_create(&args);
     if (nullptr == m_Loader) {
       throw std::runtime_error("failed to start loader");
     }
@@ -319,38 +326,17 @@ private:
   srec_t *m_AppSrec = nullptr;
   srec_t *m_FlsSrec = nullptr;
   loader_t *m_Loader = nullptr;
+  std::string m_Choice = "FBL";
   int m_LogLevel = L_LOG_INFO;
+  uint32_t m_FuncAddr = 0;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-FILE *_stddebug = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
-static void AsPyExit(void) {
-  if (_stddebug) {
-    fclose(_stddebug);
-  }
-}
-
 static void __attribute__((constructor)) AsPyInit(void) {
-  _stddebug = fopen(".AsPy.log", "w");
-  atexit(AsPyExit);
+  Log::setLogFile(".AsPy.log");
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-extern "C" int std_printf(const char *fmt, ...) {
-  va_list args;
-  int length;
-
-  va_start(args, fmt);
-  if (_stddebug) {
-    length = vfprintf(_stddebug, fmt, args);
-  } else {
-    length = vprintf(fmt, args);
-  }
-  va_end(args);
-
-  return length;
-}
-
 PYBIND11_MODULE(AsPy, m) {
   m.doc() = "pybind11 AsPy library";
   py::class_<can>(m, "can")

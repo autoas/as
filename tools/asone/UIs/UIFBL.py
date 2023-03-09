@@ -1,5 +1,5 @@
 # SSAS - Simple Smart Automotive Software
-# Copyright (C) 2015 Parai Wang <parai@foxmail.com>
+# Copyright (C) 2015 - 2023 Parai Wang <parai@foxmail.com>
 import os
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtGui import *
@@ -36,7 +36,7 @@ class UIFBL(QWidget):
         grid.addWidget(self.cmbxDevicePort, 0, 5)
         grid.addWidget(QLabel('baurdare:'), 0, 6)
         self.cmbxDeviceBaudrate = QComboBox()
-        self.cmbxDeviceBaudrate.addItems(['125000','250000','500000','1000000'])
+        self.cmbxDeviceBaudrate.addItems(['125000', '250000', '500000', '1000000'])
         self.cmbxDeviceBaudrate.setCurrentIndex(2)
         self.cmbxDeviceBaudrate.setEditable(True)
         grid.addWidget(self.cmbxDeviceBaudrate, 0, 7)
@@ -46,8 +46,12 @@ class UIFBL(QWidget):
         grid.addWidget(QLabel('RxId:'), 1, 2)
         self.leRxId = QLineEdit('0x732')
         grid.addWidget(self.leRxId, 1, 3)
-        self.cbxDebug = QCheckBox("debug")
-        grid.addWidget(self.cbxDebug, 1, 4)
+        grid.addWidget(QLabel('FuncAddr:'), 1, 4);
+        self.leFuncAddr = QLineEdit('0x7DF');
+        grid.addWidget(self.leFuncAddr, 1, 5);
+        self.cbxDebug = QCheckBox('debug')
+        grid.addWidget(self.cbxDebug, 1, 7)
+
         # application and flash driver selection
         vbox.addLayout(grid)
         grid = QGridLayout()
@@ -127,6 +131,7 @@ class UIFBL(QWidget):
             args['app'] = str(self.leApplication.text())
             args['fls'] = str(self.leFlsDrv.text())
             args['logLevel'] = logLevel
+            args['funcAddr'] = eval(str(self.leFuncAddr.text()))
             try:
                 self.leinfor.clear()
                 self.loader = loader(**args)

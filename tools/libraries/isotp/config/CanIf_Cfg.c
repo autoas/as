@@ -42,3 +42,7 @@ void CanIf_CanTpReconfig(uint8_t Channel, CanTp_ParamType *params) {
 
   Can_ReConfig(Channel, params->device, params->port, params->baudrate);
 }
+
+void CanIf_CanTpSetTxCanId(uint8_t Channel, uint32_t TxCanId) {
+  CanIf_TxPdus[Channel].canid = TxCanId;
+}

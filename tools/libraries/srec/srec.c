@@ -197,7 +197,7 @@ srec_t *srec_open(const char *path) {
   return srec;
 }
 
-int srec_sign(const char *path, size_t total) {
+int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
   srec_t *srec;
   int r = 0;
   uint8_t *buffer = NULL;
@@ -206,20 +206,31 @@ int srec_sign(const char *path, size_t total) {
   FILE *fpB = NULL;
   uint32_t saddr, length;
   int i;
-  uint16_t crc;
+  uint32_t crc;
+  uint32_t crcLen = 2;
   uint8_t checksum;
   char sline[SREC_MAX_ONE_LINE];
+  static const char *signTypeName[] = {"CRC16", "CRC32"};
+
+  if (signType >= SREC_SIGN_MAX) {
+    printf("invalid sign type %d\n", signType);
+    return -11;
+  }
+
+  if (SREC_SIGN_CRC32 == signType) {
+    crcLen = 4;
+  }
 
   memset(sline, 0, sizeof(sline));
 
-  printf("sign %s:", path);
+  printf("sign %s by %s:", path, signTypeName[signType]);
 
   srec = srec_open(path);
   if (NULL == srec) {
     r = -1;
   } else {
     saddr = srec_range(srec, &length);
-    if ((total - 2) < length) {
+    if ((total - crcLen) < length) {
       printf(" range=0x%X not correct\n", (uint32_t)total);
       srec_print(srec);
       r = -2;
@@ -234,13 +245,21 @@ int srec_sign(const char *path, size_t total) {
   }
 
   if (0 == r) {
-    memset(buffer, 0xFF, total - 2);
+    memset(buffer, 0xFF, total - crcLen);
     for (i = 0; i < srec->numOfBlks; i++) {
       memcpy(&buffer[srec->blks[i].address - saddr], srec->blks[i].data, srec->blks[i].length);
     }
-    crc = Crc_CalculateCRC16(buffer, total - 2, 0xFFFF, TRUE);
-    buffer[total - 2] = (crc >> 8) & 0xFF;
-    buffer[total - 1] = crc & 0xFF;
+    if (SREC_SIGN_CRC32 == signType) {
+      crc = Crc_CalculateCRC32(buffer, total - crcLen, 0xFFFFFFFF, TRUE);
+      buffer[total - 4] = (crc >> 24) & 0xFF;
+      buffer[total - 3] = (crc >> 16) & 0xFF;
+      buffer[total - 2] = (crc >> 8) & 0xFF;
+      buffer[total - 1] = crc & 0xFF;
+    } else {
+      crc = Crc_CalculateCRC16(buffer, total - crcLen, 0xFFFF, TRUE);
+      buffer[total - 2] = (crc >> 8) & 0xFF;
+      buffer[total - 1] = crc & 0xFF;
+    }
   }
 
   if (0 == r) {
@@ -269,17 +288,21 @@ int srec_sign(const char *path, size_t total) {
   }
 
   if (0 == r) {
-    saddr += total - 2;
-    checksum = 7;
+    saddr += total - crcLen;
+    checksum = 5 + crcLen;
     checksum +=
       ((saddr >> 24) & 0xFF) + ((saddr >> 16) & 0xFF) + ((saddr >> 8) & 0xFF) + (saddr & 0xFF);
-    checksum += ((crc >> 8) & 0xFF) + (crc & 0xFF);
+    if (SREC_SIGN_CRC32 == signType) {
+      checksum += ((crc >> 24) & 0xFF) + ((crc >> 16) & 0xFF) + ((crc >> 8) & 0xFF) + (crc & 0xFF);
+    } else {
+      checksum += ((crc >> 8) & 0xFF) + (crc & 0xFF);
+    }
     checksum = ~checksum;
     while ((0 == r) && fgets(sline, sizeof(sline), fpO)) {
       fputs(sline, fpS);
     }
 
-    snprintf(sline, sizeof(sline), "S307%08X%04X%02X\n", saddr, crc, checksum);
+    snprintf(sline, sizeof(sline), "S3%02X%08X%04X%02X\n", 5 + crcLen, saddr, crc, checksum);
     fputs(sline, fpS);
   }
 

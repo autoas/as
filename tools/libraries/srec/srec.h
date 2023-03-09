@@ -25,12 +25,19 @@ typedef struct {
   size_t numOfBlks;
   size_t totalSize;
 } srec_t;
+
+typedef enum
+{
+  SREC_SIGN_CRC16,
+  SREC_SIGN_CRC32,
+  SREC_SIGN_MAX
+} srec_sign_type_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 srec_t *srec_open(const char *path);
-int srec_sign(const char *path, size_t total);
+int srec_sign(const char *path, size_t total, srec_sign_type_t signType);
 void srec_print(srec_t *srec);
 uint32_t srec_range(srec_t *srec, uint32_t *length);
 void srec_close(srec_t *srec);

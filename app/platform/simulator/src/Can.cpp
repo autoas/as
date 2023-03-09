@@ -16,11 +16,22 @@
 #include <string.h>
 #include "Std_Timer.h"
 #include <queue>
+#include "shell.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* this simulation just alow only one HTH/HRH for each CAN controller */
 #define CAN_MAX_HOH 32
 
 #define CAN_CONFIG (&Can_Config)
+
+#ifndef STDIO_TX_CANID
+#define STDIO_TX_CANID 0x7FF
+#endif
+#ifndef STDIO_RX_CANID
+#define STDIO_RX_CANID 0x7FE
+#endif
+#ifndef STDIO_TX_CAN_HANDLE
+#define STDIO_TX_CAN_HANDLE 0xFFFE
+#endif
 
 /* ================================ [ TYPES     ] ============================================== */
 struct CanFrame {
@@ -169,7 +180,9 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
   EnterCritical();
   if (lOpenFlag & (1 << Hth)) {
     if (0 == (lWriteFlag & (1 << Hth))) {
+      InterLeaveCritical();
       r = can_write(lBusIdMap[Hth], PduInfo->id, PduInfo->length, PduInfo->sdu);
+      InterEnterCritical();
       if (TRUE == r) {
         logCan(FALSE, Hth, PduInfo->id, PduInfo->length, PduInfo->sdu);
         lWriteFlag |= (1 << Hth);
@@ -196,15 +209,24 @@ void Can_MainFunction_WriteChannel(uint8_t Channel) {
     if (lWriteFlag & (1 << Channel)) {
       swPduHandle = lswPduHandle[Channel];
       lWriteFlag &= ~(1 << Channel);
-      CanIf_TxConfirmation(swPduHandle);
+      if (STDIO_TX_CAN_HANDLE == swPduHandle) {
+      } else {
+        InterLeaveCritical();
+        CanIf_TxConfirmation(swPduHandle);
+        InterEnterCritical();
+      }
     }
     CanFrame frame;
     auto ret = pop_from_queue(Channel, frame);
     if (ret) {
+      InterLeaveCritical();
       auto r = can_write(lBusIdMap[Channel], frame.canid, frame.dlc, frame.data);
+      InterEnterCritical();
       if (TRUE == r) {
         logCan(FALSE, Channel, frame.canid, frame.dlc, frame.data);
+        InterLeaveCritical();
         CanIf_TxConfirmation(frame.handle);
+        InterEnterCritical();
       }
     }
   }
@@ -231,7 +253,17 @@ extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId)
     if (lOpenFlag & (1 << Channel)) {
       canid = byId;
       dlc = sizeof(data);
+      InterLeaveCritical();
       r = can_read(lBusIdMap[Channel], &canid, &dlc, data);
+      InterEnterCritical();
+#if defined(USE_STDIO_CAN) && defined(USE_SHELL)
+      if ((TRUE == r) && (STDIO_RX_CANID == canid)) {
+        for (r = 0; r < dlc; r++) {
+          Shell_Input((char)data[r]);
+        }
+        r = FALSE;
+      }
+#endif
       if (TRUE == r) {
         Mailbox.CanId = canid;
         Mailbox.ControllerId = Channel;
@@ -240,7 +272,9 @@ extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId)
         PduInfo.SduDataPtr = data;
         PduInfo.MetaDataPtr = (uint8_t *)&Mailbox;
         logCan(TRUE, Channel, canid, dlc, data);
+        InterLeaveCritical();
         CanIf_RxIndication(&Mailbox, &PduInfo);
+        InterEnterCritical();
       }
     }
   }
@@ -256,4 +290,17 @@ void Can_MainFunction_Read(void) {
   for (i = 0; i < CAN_MAX_HOH; i++) {
     Can_MainFunction_ReadChannel(i);
   }
+}
+
+extern "C" int stdio_can_put(uint8_t *data, uint8_t dlc) {
+  Std_ReturnType ret;
+  Can_PduType PduInfo;
+  PduInfo.id = STDIO_TX_CANID;
+  PduInfo.length = dlc;
+  PduInfo.sdu = data;
+  PduInfo.swPduHandle = STDIO_TX_CAN_HANDLE;
+
+  ret = Can_Write(0, &PduInfo);
+
+  return (int)ret;
 }

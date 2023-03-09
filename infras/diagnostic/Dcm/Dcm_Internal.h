@@ -15,6 +15,8 @@
 #define DCM_EXTDS_MASK 0x04
 #define DCM_SSDS_MASK 0x08
 
+#define DCM_ANY_SESSION_MASK 0xFF
+
 /* @SWS_Dcm_00977 */
 #define DCM_SEC_LOCKED_MASK 0x01
 #define DCM_SEC_LEVEL1_MASK 0x02
@@ -25,6 +27,8 @@
 #define DCM_SEC_LEVEL6_MASK 0x40
 #define DCM_SEC_LEVEL7_MASK 0x80
 
+#define DCM_ANY_SECURITY_MASK 0xFF
+
 /* @SWS_Dcm_00442 UDS Services */
 #define SID_DIAGNOSTIC_SESSION_CONTROL 0x10
 #define SID_ECU_RESET 0x11
@@ -32,6 +36,7 @@
 #define SID_READ_DTC_INFORMATION 0x19
 #define SID_READ_DATA_BY_IDENTIFIER 0x22
 #define SID_SECURITY_ACCESS 0x27
+#define SID_COMMUNICATION_CONTROL 0x28
 #define SID_WRITE_DATA_BY_IDENTIFIER 0x2E
 #define SID_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER 0x2F
 #define SID_ROUTINE_CONTROL 0x31
@@ -62,6 +67,30 @@
 #define DCM_IOCTRL_RESET_TO_DEFAULT 0x01
 #define DCM_IOCTRL_FREEZE_CURRENT_STATE 0x02
 #define DCM_IOCTRL_SHORT_TERM_ADJUSTMENT 0x03
+
+#define DCM_COMCTRL_ENABLE_RX_AND_TX 0x00
+#define DCM_COMCTRL_ENABLE_RX_AND_DISABLE_TX 0x01
+#define DCM_COMCTRL_DISABLE_RX_AND_ENABLE_TX 0x02
+#define DCM_COMCTRL_DISABLE_RX_AND_TX 0x03
+
+#define DCM_COMTYPE_NORMAL 0x01
+#define DCM_COMTYPE_NM 0x02
+#define DCM_COMTYPE_NM_AND_NORMAL 0x03
+
+#define DCM_ENABLE_RX_TX_NORM ((Dcm_CommunicationModeType)0x00)
+#define DCM_ENABLE_RX_DISABLE_TX_NORM ((Dcm_CommunicationModeType)0x01)
+#define DCM_DISABLE_RX_ENABLE_TX_NORM ((Dcm_CommunicationModeType)0x02)
+#define DCM_DISABLE_RX_TX_NORMAL ((Dcm_CommunicationModeType)0x03)
+
+#define DCM_ENABLE_RX_TX_NM ((Dcm_CommunicationModeType)0x04)
+#define DCM_ENABLE_RX_DISABLE_TX_NM ((Dcm_CommunicationModeType)0x05)
+#define DCM_DISABLE_RX_ENABLE_TX_NM ((Dcm_CommunicationModeType)0x06)
+#define DCM_DISABLE_RX_TX_NM ((Dcm_CommunicationModeType)0x07)
+
+#define DCM_ENABLE_RX_TX_NORM_NM ((Dcm_CommunicationModeType)0x08)
+#define DCM_ENABLE_RX_DISABLE_TX_NORM_NM ((Dcm_CommunicationModeType)0x09)
+#define DCM_DISABLE_RX_ENABLE_TX_NORM_NM ((Dcm_CommunicationModeType)0x0A)
+#define DCM_DISABLE_RX_TX_NORM_NM ((Dcm_CommunicationModeType)0x0B)
 /* ================================ [ TYPES     ] ============================================== */
 enum
 {
@@ -212,9 +241,34 @@ typedef Std_ReturnType (*Dcm_ProcessRequestDownloadFncType)(
   uint32_t MemoryAddress, uint32_t MemorySize, uint32_t *BlockLength /*InOut*/,
   Dcm_NegativeResponseCodeType *ErrorCode);
 
+/* @SWS_Dcm_00756 */
+typedef Std_ReturnType (*Dcm_ProcessRequestUploadFncType)(
+  Dcm_OpStatusType OpStatus, uint8_t DataFormatIdentifier, uint8_t MemoryIdentifier,
+  uint32_t MemoryAddress, uint32_t MemorySize, uint32_t *BlockLength /*InOut*/,
+  Dcm_NegativeResponseCodeType *ErrorCode);
+
 typedef struct {
   Dcm_ProcessRequestDownloadFncType ProcessRequestDownloadFnc;
 } Dcm_RequestDownloadConfigType;
+
+typedef struct {
+  Dcm_ProcessRequestUploadFncType ProcessRequestUploadFnc;
+} Dcm_RequestUploadConfigType;
+
+typedef Std_ReturnType (*Dcm_ComCtrlFncType)(uint8_t comType,
+                                             Dcm_NegativeResponseCodeType *ErrorCode);
+
+/* @SWS_Dcm_00981 */
+typedef uint8_t Dcm_CommunicationModeType;
+typedef struct {
+  uint8_t id;
+  Dcm_ComCtrlFncType comCtrlFnc;
+} Dcm_ComCtrlType;
+
+typedef struct {
+  const Dcm_ComCtrlType *ComCtrls;
+  uint8_t numOfComCtrls;
+} Dcm_CommunicationControlConfigType;
 
 /* @SWS_Dcm_91071 */
 typedef Dcm_ReturnWriteMemoryType (*Dcm_ProcessTransferDataWriteFncType)(
@@ -328,6 +382,8 @@ Std_ReturnType Dcm_DspRoutineControl(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
                                       Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
+                                    Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspTransferData(Dcm_MsgContextType *msgContext,
                                    Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspRequestTransferExit(Dcm_MsgContextType *msgContext,
@@ -337,6 +393,8 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
                                            Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspWriteDataByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
+                                           Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspTesterPresent(Dcm_MsgContextType *msgContext,
                                     Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspControlDTCSetting(Dcm_MsgContextType *msgContext,

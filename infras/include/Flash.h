@@ -63,23 +63,22 @@
 #endif
 /* must be n times of FLASH_WRITE_SIZE */
 #ifndef FLASH_WRITE_SIZE
-#define FLASH_WRITE_SIZE 1
+#define FLASH_WRITE_SIZE 8
 #endif
 #define FLASH_IS_WRITE_ADDRESS_ALIGNED(a) (0 == ((FLASH_WRITE_SIZE - 1) & (a)))
 
 /* must be 1 or 2 */
+#ifndef FLASH_READ_SIZE
 #define FLASH_READ_SIZE 2
+#endif
 #define FLASH_IS_READ_ADDRESS_ALIGNED(a) (0 == ((FLASH_READ_SIZE - 1) & (a)))
+
+#define FLASH_ALIGNED_ERASE_SIZE(s) (((s) + FLASH_ERASE_SIZE - 1) & (~(FLASH_ERASE_SIZE - 1)))
+#define FLASH_ALIGNED_WRITE_SIZE(s) (((s) + FLASH_WRITE_SIZE - 1) & (~(FLASH_WRITE_SIZE - 1)))
+#define FLASH_ALIGNED_READ_SIZE(s) (((s) + FLASH_READ_SIZE - 1) & (~(FLASH_READ_SIZE - 1)))
 
 #ifndef NULL
 #define NULL 0
-#endif
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef unsigned long tFlashAddress;
@@ -90,16 +89,11 @@ typedef unsigned char tFlashData;
 typedef unsigned char tMajorVersion;  /* flash driver major version number */
 typedef unsigned char tMinorVersion;  /* flash driver minor version number */
 typedef unsigned char tBugfixVersion; /* bugfix / patchlevel number */
-typedef unsigned short tFlashResult;
-/* result of flash driver routines */
-typedef unsigned long tAddress;
-/* logical address */
-typedef unsigned long tLength;
-/* length (in bytes) */
-typedef unsigned char tData;
-/* ambiguous data */
-typedef void (*tWDTriggerFct)(void);
-/* watchdog trigger routine */
+typedef unsigned short tFlashResult;  /* result of flash driver routines */
+typedef unsigned long tAddress;       /* logical address */
+typedef unsigned long tLength;        /* length (in bytes) */
+typedef unsigned char tData;          /* ambiguous data */
+typedef void (*tWDTriggerFct)(void);  /* watchdog trigger routine */
 
 typedef struct {
   /* initialization: inout parameters */

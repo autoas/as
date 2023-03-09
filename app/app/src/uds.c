@@ -146,8 +146,8 @@ Std_ReturnType Dem_FFD_GetTime(Dem_EventIdType EventId, uint8_t *data) {
   return E_OK;
 }
 #endif
-void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive,
-                                 Dcm_SesCtrlType sesCtrlTypeNew) {
+void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
+                                 boolean timeout) {
   if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
     App_EnterProgramSession();
   }

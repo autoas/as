@@ -15,30 +15,31 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
-#ifndef AS_LOG_DEFAULT
-#define AS_LOG_DEFAULT 1
-#endif
-#define AS_LOG_DEBUG 1
-#define AS_LOG_INFO 2
-#define AS_LOG_WARN 3
-#define AS_LOG_ERROR 4
-
 #if defined(linux) || defined(_WIN32)
 #ifndef USE_STD_DEBUG
 #define USE_STD_DEBUG
 #endif
-#ifndef WEAK_ALIAS_PRINTF
-#define WEAK_ALIAS_PRINTF __attribute__((weak, alias("_asprintf")));
+#ifndef AS_LOG_DEFAULT
+#define AS_LOG_DEFAULT std_get_log_level()
 #endif
-#else
-#define WEAK_ALIAS_PRINTF
 #endif
 
-#ifndef USE_STD_PRINTF
-#define PRINTF printf
-#else
+#ifndef AS_LOG_DEFAULT
+#define AS_LOG_DEFAULT 1
+#endif
+#define AS_LOG_DEBUG 0
+#define AS_LOG_INFO 1
+#define AS_LOG_WARN 2
+#define AS_LOG_ERROR 3
+
+#ifdef USE_STD_PRINTF
 #define PRINTF std_printf
 #endif
+
+#ifndef PRINTF
+#define PRINTF printf
+#endif
+
 #ifdef USE_STD_DEBUG
 #define ASLOG(level, msg)                                                                          \
   do {                                                                                             \
@@ -84,25 +85,16 @@ extern "C" {
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 #ifdef USE_STD_PRINTF
-extern int std_printf(const char *fmt, ...) WEAK_ALIAS_PRINTF;
+extern int std_printf(const char *fmt, ...);
+#endif
+#if defined(linux) || defined(_WIN32)
+extern int std_get_log_level(void);
+extern void std_set_log_level(int level);
+extern void std_set_log_file(const char *path);
 #endif
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#if defined(linux) || defined(_WIN32)
-#ifdef USE_STD_PRINTF
-int __attribute__((weak)) _asprintf(const char *fmt, ...) {
-  va_list args;
-  int length;
-
-  va_start(args, fmt);
-  length = vprintf(fmt, args);
-  va_end(args);
-
-  return length;
-}
-#endif
-#endif
 #ifdef __cplusplus
 }
 #endif

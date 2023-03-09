@@ -12,6 +12,7 @@
 #include "Std_Bit.h"
 #include <string.h>
 #ifdef USE_SHELL
+#include "Std_Debug.h"
 #include "shell.h"
 #endif
 /* ================================ [ MACROS    ] ============================================== */
@@ -220,32 +221,32 @@ static int cmdComLsSgFunc(int argc, const char *argv[]) {
     for (j = 0; j < IPdu->numOfSignals; j++) {
       signal = IPdu->signals[j];
 
-      printf("%s ", (IPdu->txConfig) ? "T" : "R");
+      PRINTF("%s ", (IPdu->txConfig) ? "T" : "R");
       if (signal->isGroupSignal) {
-        printf("%s.%s(GID=%d) is group signal\n", IPdu->name, signal->name, signal->HandleId);
+        PRINTF("%s.%s(GID=%d) is group signal\n", IPdu->name, signal->name, signal->HandleId);
         continue;
       }
       switch (signal->type) {
       case COM_UINT8:
       case COM_SINT8:
         (void)Com_ReceiveSignal(signal->HandleId, &uV.u8V);
-        printf("%s.%s(SID=%d): V = 0x%02X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+        PRINTF("%s.%s(SID=%d): V = 0x%02X(%d)\n", IPdu->name, signal->name, signal->HandleId,
                uV.u8V, uV.u8V);
         break;
       case COM_UINT16:
       case COM_SINT16:
         (void)Com_ReceiveSignal(signal->HandleId, &uV.u16V);
-        printf("%s.%s(SID=%d): V = 0x%04X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+        PRINTF("%s.%s(SID=%d): V = 0x%04X(%d)\n", IPdu->name, signal->name, signal->HandleId,
                uV.u16V, uV.u16V);
         break;
       case COM_UINT32:
       case COM_SINT32:
         (void)Com_ReceiveSignal(signal->HandleId, &uV.u32V);
-        printf("%s.%s(SID=%d): V = 0x%08X(%d)\n", IPdu->name, signal->name, signal->HandleId,
+        PRINTF("%s.%s(SID=%d): V = 0x%08X(%d)\n", IPdu->name, signal->name, signal->HandleId,
                uV.u32V, uV.u32V);
         break;
       default:
-        printf("%s.%s(SID=%d): unsupported type %d\n", IPdu->name, signal->name, signal->HandleId,
+        PRINTF("%s.%s(SID=%d): unsupported type %d\n", IPdu->name, signal->name, signal->HandleId,
                signal->type);
         break;
       }

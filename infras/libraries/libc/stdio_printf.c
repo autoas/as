@@ -4,10 +4,13 @@
  */
 
 /* ================================ [ INCLUDES  ] ============================================== */
+#if !defined(_WIN32) && !defined(linux)
 #include <stdio.h>
+#endif
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdint.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define TM_PRINTF_LONGLONG
 #define TM_PRINTF_PRECISION
@@ -35,7 +38,7 @@
       (*o) = (c);                                                                                  \
       ++(o);                                                                                       \
     } else {                                                                                       \
-      __putchar((c));                                                                              \
+      stdio_putc((c));                                                                             \
     }                                                                                              \
   } while (0)
 
@@ -48,7 +51,7 @@
 
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern void __putchar(char chr);
+extern void stdio_putc(char chr);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static long divide(long *n, long base) {
@@ -195,7 +198,7 @@ static char *print_number(char *buf, char *end, long num, int base, int s, int t
   return buf;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-int vsnprintf(char *__restrict buf, size_t size, const char *__restrict fmt, _G_va_list args) {
+int vsnprintf(char *buf, size_t size, const char *fmt, _G_va_list args) {
 #ifdef TM_PRINTF_LONGLONG
   unsigned long long num;
 #else
@@ -447,7 +450,7 @@ int vsnprintf(char *__restrict buf, size_t size, const char *__restrict fmt, _G_
  * @param size the size of buffer
  * @param fmt the format
  */
-int snprintf(char *__restrict buf, size_t size, const char *__restrict fmt, ...) {
+int snprintf(char *buf, size_t size, const char *fmt, ...) {
   int n;
   va_list args;
 
@@ -465,7 +468,7 @@ int snprintf(char *__restrict buf, size_t size, const char *__restrict fmt, ...)
  * @param arg_ptr the arg_ptr
  * @param format the format
  */
-int vsprintf(char *__restrict buf, const char *__restrict format, _G_va_list arg_ptr) {
+int vsprintf(char *buf, const char *format, _G_va_list arg_ptr) {
   return vsnprintf(buf, (unsigned long)-1, format, arg_ptr);
 }
 
@@ -475,7 +478,7 @@ int vsprintf(char *__restrict buf, const char *__restrict format, _G_va_list arg
  * @param buf the buffer to save formatted string
  * @param format the format
  */
-int sprintf(char *__restrict buf, const char *__restrict format, ...) {
+int sprintf(char *buf, const char *format, ...) {
   int n;
   va_list arg_ptr;
 
@@ -491,7 +494,11 @@ int sprintf(char *__restrict buf, const char *__restrict format, ...) {
  *
  * @param fmt the format
  */
-int printf(const char *__restrict fmt, ...) {
+#ifdef USE_STD_PRINTF
+int std_printf(const char *fmt, ...) {
+#else
+int printf(const char *fmt, ...) {
+#endif
   va_list args;
   unsigned long length;
 
@@ -512,6 +519,6 @@ int puts(const char *pstr) {
 #undef putchar
 #endif
 int putchar(int c) {
-  __putchar(c);
+  stdio_putc(c);
   return 1;
 }

@@ -4,6 +4,11 @@
 import os
 import time
 
+def toNum(v):
+    if type(v) is str:
+        return eval(v)
+    return v
+
 
 def toMacro(s):
     words = []

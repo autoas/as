@@ -9,6 +9,12 @@
 #include "canlib.h"
 #include "canlib_types.h"
 #include "TcpIp.h"
+
+#if defined(_WIN32)
+#include <objbase.h>
+#else
+#include <uuid/uuid.h>
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
 #define CAN_MTU sizeof(struct can_frame)
@@ -53,6 +59,11 @@
   } while (0)
 #endif
 
+#if defined(_WIN32)
+#define CAN_UUID_LENGTH sizeof(GUID)
+#else
+#define CAN_UUID_LENGTH 16
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /**
  * struct can_frame - basic CAN frame structure
@@ -70,6 +81,7 @@ struct can_frame {
   uint8_t can_dlc; /* frame payload length in byte (0 .. CAN_MAX_DLEN) */
   uint8_t data[CAN_MAX_DLEN] __attribute__((aligned(8)));
 #endif
+  uint8_t uuid[CAN_UUID_LENGTH];
 };
 struct Can_socketHandle_s {
   uint32_t busid;
@@ -78,6 +90,7 @@ struct Can_socketHandle_s {
   TcpIp_SocketIdType sockRd;
   TcpIp_SocketIdType sockWt;
   STAILQ_ENTRY(Can_socketHandle_s) entry;
+  uint8_t uuid[CAN_UUID_LENGTH];
 };
 struct Can_socketHandleList_s {
   bool initialized;
@@ -105,6 +118,20 @@ static struct Can_socketHandleList_s socketH = {
   .mutex = PTHREAD_MUTEX_INITIALIZER,
 };
 /* ================================ [ LOCALS    ] ============================================== */
+#ifdef _WIN32
+static void get_uuid(uint8_t *uuid, size_t length) {
+  GUID guid;
+  CoCreateGuid(&guid);
+  memcpy(uuid, &guid, length);
+}
+#else
+static void get_uuid(uint8_t *uuid, size_t length) {
+  uuid_t uu;
+  uuid_generate(uu);
+  memcpy(uuid, uu, length);
+}
+#endif
+
 static struct Can_socketHandle_s *getHandle(uint32_t port) {
   struct Can_socketHandle_s *handle, *h;
   handle = NULL;
@@ -179,6 +206,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->rx_notification = rx_notification;
       handle->sockRd = sockRd;
       handle->sockWt = sockWt;
+      get_uuid(handle->uuid, sizeof(handle->uuid));
       pthread_mutex_lock(&socketH.mutex);
       STAILQ_INSERT_TAIL(&socketH.head, handle, entry);
       pthread_mutex_unlock(&socketH.mutex);
@@ -210,6 +238,7 @@ static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8
     mSetCANDLC(frame, dlc);
     assert(dlc <= CAN_MAX_DLEN);
     memcpy(frame.data, data, dlc);
+    memcpy(frame.uuid, handle->uuid, sizeof(frame.uuid));
     TcpIp_SetupAddrFrom(&RemoteAddr, CAN_CAST_IP, CAN_PORT_MIN + handle->port);
     ret = TcpIp_SendTo(handle->sockWt, &RemoteAddr, (const uint8_t *)&frame, CAN_MTU);
     if (E_OK != ret) {
@@ -249,7 +278,9 @@ static void rx_notifiy(struct Can_socketHandle_s *handle) {
   do {
     ret = TcpIp_RecvFrom(handle->sockRd, &RemoteAddr, (uint8_t *)&frame, &len);
     if ((E_OK == ret) && (len == sizeof(frame))) {
-      handle->rx_notification(handle->busid, mCANID(frame), mCANDLC(frame), frame.data);
+      if (0 != memcmp(frame.uuid, handle->uuid, sizeof(frame.uuid))) {
+        handle->rx_notification(handle->busid, mCANID(frame), mCANDLC(frame), frame.data);
+      }
     } else {
       ret = E_NOT_OK;
     }

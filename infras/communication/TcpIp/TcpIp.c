@@ -50,7 +50,7 @@
 #endif
 
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_TCPIP 0
+#define AS_LOG_TCPIP -10
 #define AS_LOG_TCPIPI 1
 #define AS_LOG_TCPIPE 2
 #define NETIF_ADDRS ipaddr, netmask, gw,

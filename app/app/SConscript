@@ -28,7 +28,7 @@ class ApplicationApp(Application):
         self.source = objsApp
 
 
-libsCommon = {'Dcm': Glob('config/Dcm/Dcm_Cfg.c'),
+libsCommon = {'Dcm': Glob('config/GEN/Dcm_Cfg.c'),
               'Dem': Glob('config/GEN/Dem_Cfg.c'),
               'NvM': Glob('config/GEN/NvM_Cfg.c'),
               }

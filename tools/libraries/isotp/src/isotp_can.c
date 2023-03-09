@@ -26,6 +26,7 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId);
+extern void CanIf_CanTpSetTxCanId(uint8_t Channel, uint32_t TxCanId);
 int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
 /* ================================ [ DATAS     ] ============================================== */
 static isotp_t lIsoTp[CANTP_MAX_CHANNELS];
@@ -233,6 +234,26 @@ int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   Std_TimerStop(&isotp->timerErrorNotify);
   pthread_mutex_unlock(&isotp->mutex);
 
+  return r;
+}
+
+int isotp_can_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+  int r = -__LINE__;
+  pthread_mutex_lock(&isotp->mutex);
+  switch (cmd) {
+  case ISOTP_OTCTL_SET_TX_ID:
+    if ((NULL != data) && (size == sizeof(uint32_t))) {
+      uint32_t txId = *(uint32_t *)data;
+      *(uint32_t *)data = isotp->params.U.CAN.TxCanId;
+      isotp->params.U.CAN.TxCanId = txId;
+      CanIf_CanTpSetTxCanId(isotp->Channel, txId);
+      r = 0;
+    }
+    break;
+  default:
+    break;
+  }
+  pthread_mutex_unlock(&isotp->mutex);
   return r;
 }
 

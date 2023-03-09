@@ -3,6 +3,7 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
+#define AS_LOG_DEFAULT AS_LOG_ERROR
 #include "canlib.h"
 #include "canlib_types.h"
 #include <ctype.h>
@@ -10,7 +11,7 @@
 #include "Std_Timer.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_BUS_NUM 32
-#define CAN_BUS_PDU_NUM 16
+#define CAN_BUS_PDU_NUM 128
 #define CAN_BUS_Q_PDU_NUM 1024
 
 #define AS_LOG_CAN 0

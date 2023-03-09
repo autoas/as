@@ -1,21 +1,37 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c')
+objs = Glob('src/*.c') + Glob('src/loader/*.c')
+objsApp = Glob('src/custom/*.c')
+
 
 @register_library
 class LibraryLoader(Library):
     def config(self):
-        self.include = '%s/src'%(CWD)
+        self.include = '%s/src' % (CWD)
         self.LIBS = ['SRec', 'Crc', 'IsoTp']
         self.CPPPATH = ['$INFRAS']
         self.source = objs
 
+
+@register_library
+class LibraryLoaderApp(Library):
+    def config(self):
+        self.include = '%s/src' % (CWD)
+        self.LIBS = ['Loader']
+        self.Append(CPPDEFINES=["LOADER_USE_APP_BUILT_IN"])
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsApp
+
+
 objsCmd = Glob('utils/loader_cmd.c')
+
+
 @register_application
 class ApplicationLoader(Application):
     def config(self):
-        self.LIBS = ['Loader']
+        self.LIBS = ['Loader', 'Utils']
         self.CPPPATH = ['$INFRAS']
-        self.Append(CPPDEFINES = ['USE_STD_DEBUG', 'USE_STD_PRINTF'])
-        self.source = objsCmd
+        self.Append(CPPDEFINES=["LOADER_USE_APP_BUILT_IN"])
+        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
+        self.source = objsCmd + objsApp

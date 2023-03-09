@@ -321,14 +321,12 @@ static void zlg_close(uint32_t port) {
     pthread_mutex_lock(&zlgH.mutex);
     STAILQ_REMOVE(&zlgH.head, handle, Can_ZLGHandle_s, entry);
     pthread_mutex_unlock(&zlgH.mutex);
-
-    free(handle);
-
     if (true == STAILQ_EMPTY(&zlgH.head)) {
       ZLG_CALL(CloseDevice)(handle->DeviceType, 0);
       zlgH.terminated = true;
       pthread_join(zlgH.rx_thread, NULL);
     }
+    free(handle);
   }
 }
 

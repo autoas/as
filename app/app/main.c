@@ -7,7 +7,6 @@
 #include "Std_Debug.h"
 #include "Std_Timer.h"
 #include <string.h>
-#include <assert.h>
 #if defined(_WIN32) || defined(linux)
 #include <stdlib.h>
 #include <unistd.h>
@@ -205,7 +204,7 @@ static void Net_Init(void) {
       ercd = vfs_mount(&dev_sd1, "ext", "/");
     }
   }
-  printf("mount sd1 on / %s\n", ercd ? "failed" : "okay");
+  ASLOG(INFO, ("mount sd1 on / %s\n", ercd ? "failed" : "okay"));
 #endif
 #ifdef USE_FATFS
 #ifdef USE_LWEXT4
@@ -222,7 +221,7 @@ static void Net_Init(void) {
       ercd = vfs_mount(&dev_sd0, "vfat", FATFS_MP);
     }
   }
-  printf("mount sd0 on %s %s\n", FATFS_MP, ercd ? "failed" : "okay");
+  ASLOG(INFO, ("mount sd0 on %s %s\n", FATFS_MP, ercd ? "failed" : "okay"));
 #endif
 #if defined(_WIN32) || defined(linux)
   extern const device_t dev_host;

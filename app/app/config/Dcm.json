@@ -1,0 +1,38 @@
+{
+  "class": "Dcm",
+  "timings":{ "S3Server": 5000, "P2ServerMin": 450, "P2ServerMax": 500 },
+  "buffer": { "rx": 514, "tx": 514 },
+  "sessions": [
+    { "name": "Default", "id": "0x01" },
+    { "name": "Program", "id": "0x02" },
+    { "name": "Extended", "id": "0x03" },
+    { "name": "Factory", "id": "0x50" }
+  ],
+  "securities": [
+    { "name": "Extended", "level": 1, "size": 4, "sessions": ["Extended"],
+      "API": ["App_GetExtendedSessionSeed", "App_CompareExtendedSessionKey"] },
+    { "name": "Program", "level": 2, "size": 4, "sessions": ["Program"], 
+      "API": ["App_GetProgramSessionSeed", "App_CompareProgramSessionKey"] }
+  ],
+  "services": [
+    {
+      "name": "session_control", "id": "0x10",
+      "access": ["physical", "functional"],
+      "API": "App_GetSessionChangePermission"
+    },
+    {
+      "name": "ecu_reset", "id": "0x11",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "access": ["physical", "functional"]
+    },
+    { "name": "clear_dtc", "id": "0x14", "sessions":["Extended"], "access": ["physical", "functional"] },
+    { "name": "read_dtc", "id": "0x19", "sessions":["Extended"], "access": ["physical", "functional"] },
+    {
+      "name": "security_access", "id": "0x27",
+      "sessions":["Default", "Program", "Extended"]
+    },
+    { "name": "tester_present", "id": "0x3E" },
+    { "name": "control_dtc_setting", "id": "0x85", "access": ["physical", "functional"] }
+  ]
+}

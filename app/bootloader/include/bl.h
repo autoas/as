@@ -7,11 +7,13 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Dcm.h"
 #include "Std_Debug.h"
+#include "Std_Timer.h"
+#include "Std_Critical.h"
 #include "Flash.h"
 #include "Crc.h"
 #include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_BL 0
+#define AS_LOG_BL -1
 #define AS_LOG_BLI 1
 #define AS_LOG_BLE 2
 

@@ -6,7 +6,7 @@ objs = Glob('src/*.c') + Glob('src/*.cpp')
 @register_library
 class LibrarySimulator(Library):
     def config(self):
-        self.LIBS = ['CanLib', 'RS232', 'DevLib']
+        self.LIBS = ['CanLib', 'RS232', 'DevLib', 'Utils']
         if not IsBuildForAndroid():
             self.LIBS.append('pthread')
         self.CPPPATH = ['$INFRAS']

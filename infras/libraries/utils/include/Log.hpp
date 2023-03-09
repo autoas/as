@@ -7,6 +7,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <inttypes.h>
 #include <stdio.h>
+#include <mutex>
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 #define LOG(level, ...) Log::print(Log::level, #level ": " __VA_ARGS__)
@@ -23,15 +24,19 @@ public:
 
 public:
   static void setLogLevel(int level);
+  static int getLogLevel();
   static void print(int level, const char *fmt, ...);
   static void vprint(const char *fmt, va_list args);
+  static void putc(char chr);
   static void setLogFile(const char *path);
   static void setLogFile(FILE *fp);
   static void close(void);
 
 private:
   static int s_Level;
+  static int s_Ended;
   static FILE *s_File;
+  static std::mutex s_Lock;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

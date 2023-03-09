@@ -15,14 +15,19 @@
 #else
 #define __weak
 #define __naked
+#define __packed
 #endif
 
 #ifndef __weak
-# define __weak			__attribute__((weak))
+#define __weak __attribute__((weak))
 #endif
 
 #ifndef __naked
-# define __naked			__attribute__((naked))
+#define __naked __attribute__((naked))
+#endif
+
+#ifndef __packed
+#define __packed __attribute__((__packed__))
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

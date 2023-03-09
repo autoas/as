@@ -5,6 +5,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "device.h"
 #include <string.h>
+#include "Std_Debug.h"
 #ifdef USE_SHELL
 #include "shell.h"
 #endif
@@ -52,7 +53,7 @@ int lsdevFunc(int argc, const char *argv[]) {
     if (devIt->type == DEVICE_TYPE_BLOCK) {
       devIt->ops.ctrl(devIt, DEVICE_CTRL_GET_DISK_SIZE, &sz);
     }
-    printf("%crw-rw-rw- 1 as vfs %11u %s\r\n", deviceTypeMap[devIt->type], (uint32_t)sz,
+    PRINTF("%crw-rw-rw- 1 as vfs %11u %s\r\n", deviceTypeMap[devIt->type], (uint32_t)sz,
            devIt->name);
   }
   return 0;
