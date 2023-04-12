@@ -39,6 +39,7 @@ typedef struct loader_s {
   srec_t *flsSRec;
   size_t totalSize;
   size_t lsz; /* log size */
+  srec_sign_type_t signType;
   uint32_t funcAddr; /* functional address for CAN/FD only*/
   const loader_app_t *app;
   int progress; /* resolution in 0.01% */
@@ -228,6 +229,7 @@ loader_t *loader_create(loader_args_t *args) {
     if (loader->flsSRec != NULL) {
       loader->totalSize += args->flsSRec->totalSize;
     }
+    loader->signType = args->signType;
     loader->funcAddr = args->funcAddr;
     loader->logLevel = L_LOG_INFO;
     loader->status = LOADER_STS_CREATED;
@@ -321,7 +323,7 @@ int loader_poll(loader_t *loader, int *progress, char **msg) {
 
   *msg = NULL;
   *progress = loader->progress;
-  if (*progress > 10000) {
+  if (*progress >= 10000) {
     *progress = 9900;
   }
 
@@ -372,6 +374,58 @@ uint8_t *loader_get_request(loader_t *loader) {
 
 uint8_t *loader_get_response(loader_t *loader) {
   return loader->response;
+}
+
+loader_crc_t loader_crc_init(loader_t *loader) {
+  loader_crc_t crc = 0;
+  switch (loader->signType) {
+  case SREC_SIGN_CRC16:
+    crc = 0xFFFF;
+    break;
+  case SREC_SIGN_CRC32:
+    crc = 0xFFFFFFFF;
+    break;
+  default:
+    break;
+  }
+  return crc;
+}
+
+loader_crc_t loader_calulate_crc(loader_t *loader, const uint8_t *DataPtr, uint32_t Length,
+                                 loader_crc_t StartValue, boolean IsFirstCall) {
+  loader_crc_t crc;
+  switch (loader->signType) {
+  case SREC_SIGN_CRC16:
+    crc = Crc_CalculateCRC16(DataPtr, Length, (uint16_t)StartValue, IsFirstCall);
+    break;
+  case SREC_SIGN_CRC32:
+    crc = Crc_CalculateCRC32(DataPtr, Length, (uint32_t)StartValue, IsFirstCall);
+    break;
+  default:
+    break;
+  }
+  return crc;
+}
+
+uint32_t loader_set_crc(loader_t *loader, uint8_t *DataPtr, loader_crc_t Crc) {
+  uint32_t len = 0;
+  switch (loader->signType) {
+  case SREC_SIGN_CRC16:
+    DataPtr[0] = (Crc >> 8) & 0xFF;
+    DataPtr[1] = Crc & 0xFF;
+    len = 2;
+    break;
+  case SREC_SIGN_CRC32:
+    DataPtr[0] = (Crc >> 24) & 0xFF;
+    DataPtr[1] = (Crc >> 16) & 0xFF;
+    DataPtr[2] = (Crc >> 8) & 0xFF;
+    DataPtr[3] = Crc & 0xFF;
+    len = 4;
+    break;
+  default:
+    break;
+  }
+  return len;
 }
 
 boolean loader_is_stopt(loader_t *loader) {

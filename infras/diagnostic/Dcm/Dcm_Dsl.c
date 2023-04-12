@@ -12,6 +12,7 @@
 #include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 1
+#define AS_LOG_DCME 3
 
 #ifndef Dcm_DslCustomerSession2Mask
 #define Dcm_DslCustomerSession2Mask(mask, sesCtrl)
@@ -179,14 +180,27 @@ Std_ReturnType Dcm_GetSesCtrlType(Dcm_SesCtrlType *SesCtrlType) {
 }
 
 void Dcm_DslMainFunction(void) {
+  Dcm_NegativeResponseCodeType nrc;
   Dcm_ContextType *context = Dcm_GetContext();
   const Dcm_ConfigType *config = Dcm_GetConfig();
 
-  if (context->timerP2Server > 0) {
+  if (context->timerP2Server > 0) { /* @SWS_Dcm_00024 */
     context->timerP2Server--;
     if (0 == context->timerP2Server) {
-      ASLOG(DCM, ("p2server timeout!\n"));
-      Dcm_DslProcessingDone(context, config, DCM_E_RESPONSE_PENDING);
+      if (context->respPendCnt < config->dslDisgResp->MaxNumRespPend) {
+        ASLOG(DCM, ("p2server timeout!\n"));
+        Dcm_DslProcessingDone(context, config, DCM_E_RESPONSE_PENDING);
+        context->respPendCnt++;
+      } else { /* @SWS_Dcm_00120 */
+        context->opStatus = DCM_CANCEL;
+        if (context->curService != NULL) {
+          (void)context->curService->dspServiceFnc(&context->msgContext, &nrc);
+          (void)nrc;
+        } else {
+          ASLOG(DCME, ("Fatal ERROR as null service\n"));
+        }
+        Dcm_DslProcessingDone(context, config, DCM_E_GENERAL_REJECT);
+      }
     }
   }
 
@@ -199,6 +213,7 @@ void Dcm_DslMainFunction(void) {
       context->txBufferState = DCM_BUFFER_IDLE;
       context->curPduId = DCM_INVALID_PDU_ID;
       Dcm_DslInit();
+      Dcm_DspInit();
       ASLOG(INFO, ("DCM s3server timeout!\n"));
     }
   }
@@ -253,6 +268,9 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
     msgContext->resDataLen = 1;
     context->currentLevel = secLevelConfig->secLevel;
     context->requestLevel = DCM_SEC_LEV_LOCKED;
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+    Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01112 */
+#endif
   } else {
     if (*nrc == DCM_POS_RESP) {
       *nrc = DCM_E_INVALID_KEY;

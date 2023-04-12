@@ -69,7 +69,7 @@ void statOsCounter(void) {
   AlarmVarType *pVar;
   
 
-  Irq_Save(mask);
+  EnterCritical();
 
   printf("\nName\n");
   for (id = 0; id < COUNTER_NUM; id++) {
@@ -79,7 +79,7 @@ void statOsCounter(void) {
     }
   }
 
-  Irq_Restore(mask);
+  ExitCritical();
 }
 #endif
 #else

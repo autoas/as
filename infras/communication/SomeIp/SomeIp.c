@@ -692,7 +692,7 @@ static Std_ReturnType SomeIp_ReplyRequest(const SomeIp_ServerServiceType *config
       }
     } else {
       ret = SOMEIP_E_NOMEM;
-      ASLOG(SOMEIPE, ("OoM for cache Tp Tx\n"));
+      ASLOG(SOMEIPE, ("OoM for cache reply Tp Tx\n"));
     }
   } else {
     ret = SomeIp_Transmit(connection->TxPduId, RemoteAddr, res->data, config->serviceId,
@@ -757,7 +757,7 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
       }
     } else {
       ret = SOMEIP_E_NOMEM;
-      ASLOG(SOMEIPE, ("OoM for cache Tp Tx\n"));
+      ASLOG(SOMEIPE, ("OoM for cache request Tp Tx\n"));
     }
   } else {
     data = Net_MemAlloc(req->length + 16);
@@ -770,6 +770,9 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
       if (E_OK == ret) {
         ret = SomeIp_WaitResponse(config, methodId, sessionId);
       }
+    } else {
+      ASLOG(SOMEIPE, ("OoM for request SF Tx\n"));
+      ret = E_NOT_OK;
     }
   }
 
@@ -842,7 +845,7 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       }
     } else {
       ret = SOMEIP_E_NOMEM;
-      ASLOG(SOMEIPE, ("OoM for cache Tp Tx\n"));
+      ASLOG(SOMEIPE, ("OoM for cache notification Tp Tx\n"));
     }
   } else {
     data = Net_MemAlloc(req->length + 16);
@@ -850,6 +853,9 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       memcpy(&data[16], req->data, req->length);
       ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
       Net_MemFree(data);
+    } else {
+      ASLOG(SOMEIPE, ("OoM for notification SF Tx\n"));
+      ret = E_NOT_OK;
     }
   }
 

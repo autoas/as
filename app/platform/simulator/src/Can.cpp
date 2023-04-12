@@ -33,6 +33,10 @@
 #define STDIO_TX_CAN_HANDLE 0xFFFE
 #endif
 
+#ifndef USE_CAN_FILE_LOG
+#define logCan(isRx, Controller, canid, dlc, data)
+#endif
+
 /* ================================ [ TYPES     ] ============================================== */
 struct CanFrame {
   PduIdType handle;
@@ -47,7 +51,9 @@ static uint32_t lOpenFlag = 0;
 static uint32_t lWriteFlag = 0;
 static PduIdType lswPduHandle[32];
 static int lBusIdMap[32];
+#ifdef USE_CAN_FILE_LOG
 static FILE *lBusLog[32];
+#endif
 static std::queue<CanFrame> lPendingFrames[32];
 /* ================================ [ LOCALS    ] ============================================== */
 __attribute__((weak)) void CanIf_RxIndication(const Can_HwType *Mailbox,
@@ -55,7 +61,7 @@ __attribute__((weak)) void CanIf_RxIndication(const Can_HwType *Mailbox,
 }
 __attribute__((weak)) void CanIf_TxConfirmation(PduIdType CanTxPduId) {
 }
-
+#ifdef USE_CAN_FILE_LOG
 static void logCan(boolean isRx, uint8_t Controller, uint32_t canid, uint8_t dlc,
                    const uint8_t *data) {
   static Std_TimerType timer;
@@ -94,6 +100,7 @@ static void __mcal_can_sim_deinit(void) {
 static void __attribute__((constructor)) __mcal_can_sim_init(void) {
   atexit(__mcal_can_sim_deinit);
 }
+#endif /* USE_CAN_FILE_LOG */
 
 static void clear_queue(uint8_t Controller) {
   auto &queue = lPendingFrames[Controller];
@@ -135,7 +142,9 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
   Std_ReturnType ret = E_NOT_OK;
   Can_ChannelConfigType *config;
   int rv;
+#ifdef USE_CAN_FILE_LOG
   static char path[128];
+#endif
   EnterCritical();
   if (Controller < CAN_CONFIG->numOfChannels) {
     config = &CAN_CONFIG->channelConfigs[Controller];
@@ -147,8 +156,10 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
         lOpenFlag |= (1 << Controller);
         lWriteFlag = 0;
         clear_queue(Controller);
+#ifdef USE_CAN_FILE_LOG
         snprintf(path, sizeof(path), ".CAN%d-%s-%d.log", Controller, config->device, config->port);
         lBusLog[Controller] = fopen(path, "wb");
+#endif
       }
       break;
     case CAN_CS_STOPPED:
@@ -157,10 +168,12 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
       if (TRUE == rv) {
         ret = E_OK;
         lOpenFlag &= ~(1 << Controller);
+#ifdef USE_CAN_FILE_LOG
         if (NULL != lBusLog[Controller]) {
           fclose(lBusLog[Controller]);
           lBusLog[Controller] = NULL;
         }
+#endif
         clear_queue(Controller);
       }
       break;

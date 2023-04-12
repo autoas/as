@@ -34,6 +34,19 @@
 #define	_SYS_QUEUE_H_
 
 #include <sys/cdefs.h>
+#include <stddef.h>
+
+#ifndef __offsetof
+#ifdef __compiler_offsetof
+#define __offsetof(TYPE, MEMBER) __compiler_offsetof(TYPE, MEMBER)
+#else
+#define __offsetof(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
+#endif
+#endif
+
+#ifndef __containerof
+#define __containerof(x, s, m) ((s *)((const volatile char *)(x)-__offsetof(s, m)))
+#endif
 
 /*
  * This file defines four types of data structures: singly-linked lists,

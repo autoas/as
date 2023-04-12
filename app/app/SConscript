@@ -186,6 +186,6 @@ class ApplicationNetAppT(query_application('NetApp')):
 
     def config(self):
         super().config()
-        self.Append(CPPDEFINES=['LWIP_AS_LOCAL_IP_TEST'])
+        self.Append(CPPDEFINES=['LWIP_IPADDR_CFG_NR=1'])
         self.Append(CPPPATH=['%s/config/Net/GEN' % (CWD)])
         self.source += netMemSrc

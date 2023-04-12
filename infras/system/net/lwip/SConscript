@@ -12,6 +12,7 @@ objs = Glob('src/*.c')
 class LibraryLWIP(Library):
     def get_lwip_objs(self, lwip):
         objs = ['src/api/*.c', 'src/core/*.c', 'src/core/ipv4/*.c', 'src/core/ipv6/*.c',
+                'src/apps/netbiosns/*.c',
                 'src/netif/*.c', 'src/netif/ppp/*.c', 'src/netif/ppp/polarssl/*.c']
         return PkgGlob(lwip, objs)
 
@@ -25,12 +26,21 @@ class LibraryLWIP(Library):
             shutil.copy('%s/wpcap.lib' % (libP), '%s/libwpcap.a' % (libP))
         self.LIBPATH += [libP]
 
+    def get_lwip_contrib_objs_for_arm64(self, lwipc):
+        objs = ['ports/unix/port/sys_arch.c']
+        self.include += ['%s/ports/unix/port/include' % (lwipc)]
+        self.LIBS += ['OS']
+        return PkgGlob(lwipc, objs)
+
     def get_lwip_contrib_objs(self, lwipc):
+        if GetOption('compiler') in ['Arm64GCC']:
+            return self.get_lwip_contrib_objs_for_arm64(lwipc)
+
         if GetOption('compiler') not in ['GCC']:
             return []
         objs = []
         if IsBuildForWindows():
-            if TARGET_OS == 'FreeRTOS':
+            if self.GetOS() == 'FreeRTOS':
                 objs += ['ports/win32/pcapif*.c',
                          'ports/win32/sio.c', 'ports/freertos/*.c']
             else:
@@ -42,7 +52,7 @@ class LibraryLWIP(Library):
             # install the wpcap(https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip) to msys2
             # copy and rename the *.lib to lib*.a
             self.install_pcap()
-            if TARGET_OS == 'FreeRTOS':
+            if self.GetOS() == 'FreeRTOS':
                 self.LIBS += ['FreeRTOS']
                 self.include += ['%s/ports/freertos/include/' % (lwipc)]
             self.include += ['%s/ports/win32/' % (lwipc),
@@ -72,6 +82,7 @@ class LibraryLWIP(Library):
 
     def config(self):
         self.source = objs
+        self.CPPPATH = ['$INFRAS']
         self.download()
 
 
@@ -90,5 +101,5 @@ class ApplicationLwipExample(Application):
         self.Append(CPPDEFINES=['USE_LWIP', 'USE_STD_DEBUG'])
         self.CPPPATH = ['$INFRAS', LWIPC]
         self.CPPDEFINES = ['LWIP_HTTPD_APP', 'LWIP_HTTPD_APP_NETCONN']
-        self.LIBS = ['LWIP']
+        self.LIBS = ['LWIP', 'Utils']
         self.source = objsLwipEx

@@ -12,6 +12,8 @@
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_FATFS 0
+#define AS_LOG_FATFSE 3
+
 #define TO_FATFS_PATH(f) fatfsP
 #define BEGIN_FATFS_PATH(f)                                                                        \
   do {                                                                                             \
@@ -83,7 +85,7 @@ static char *to_fatfs_path(const vfs_mount_t *mnt, const char *filename, char *c
 
 static char *restore_fatfs_path(const vfs_mount_t *mnt, const char *filename, char *cache) {
   int len;
-  char *p;
+  char *p = (char *)filename;
 
   len = strlen(mnt->mount_point);
   if (len >= 2) {
@@ -473,6 +475,7 @@ static int fatfs_mkfs(const device_t *device) {
     ercd = f_mkfs(mp, &opt, fatfs_FatFS[index].win, sizeof(fatfs_FatFS[index].win));
     if (FR_OK != ercd) {
       fatfs_device_table[index] = NULL;
+      ASLOG(FATFSE, ("mkfs error %d\n", ercd));
     }
   } else {
     ercd = -1;

@@ -40,9 +40,17 @@
 #define HEAP_SYSTEM_BASE_TYPE uint64_t
 #endif
 
-#define HEAP_ALIGN(x) (((x + sizeof(heap_base_t) - 1) / sizeof(heap_base_t)) * sizeof(heap_base_t))
+#ifndef HEAP_MIN_ALIGNED_SIZE
+/* must >= max(sizeof(heap_block_t), sizeof(heap_magic_t)) */
+#define HEAP_MIN_ALIGNED_SIZE 16
+#endif
+
+#define HEAP_ALIGN_BY(x, alignment) (((x) + (alignment)-1) & (~((alignment)-1)))
+
+#define HEAP_ALIGN(x) HEAP_ALIGN_BY(x, HEAP_MIN_ALIGNED_SIZE)
 
 #define HEAP_MAGIC_SIZE HEAP_ALIGN(sizeof(heap_magic_t))
+
 #ifndef HEAP_SIZE
 #define HEAP_SIZE (1 * 1024 * 1024)
 #endif
@@ -112,7 +120,9 @@ static void heap_add_block(heap_block_t *block) {
 #ifdef USE_SHELL
 static int freeFunc(int argc, const char *argv[]) {
   heap_block_t *b;
+#ifdef HEAP_TRACK
   heap_magic_t *m;
+#endif
   size_t free_size = heap_free_size();
   printf("free %u%%(%ub)\n", (uint32_t)(free_size * 100 / sizeof(lHeapMem)), (uint32_t)free_size);
   SLIST_FOREACH(b, &lHeap.free, entry) {
@@ -300,8 +310,85 @@ size_t heap_free_size(void) {
   return sz;
 }
 
+void *heap_memalign(size_t alignment, size_t size) {
+  heap_magic_t *pMagic;
+  void *pMem;
+  size_t aligned_size = HEAP_ALIGN(size) + HEAP_MAGIC_SIZE;
+  size_t offset;
+  size_t left_size;
+  heap_block_t *b;
+  heap_block_t *prev = NULL;
+  heap_block_t *best = NULL;
+
+  asAssert(0 == (alignment % HEAP_MIN_ALIGNED_SIZE));
+  asAssert(alignment >= HEAP_MIN_ALIGNED_SIZE);
+
+  HEAP_LOCK();
+  if (0 == lHeap.initialized) {
+    heap_init();
+  }
+  ASLOG(HEAP, ("memalign(%u, %u)\n", (uint32_t)alignment, (uint32_t)size));
+  SLIST_FOREACH(b, &lHeap.free, entry) {
+    if (b->size >= aligned_size) {
+      pMem = (void *)HEAP_ALIGN_BY((uintptr_t)b, alignment);
+      offset = (uintptr_t)pMem - (uintptr_t)b;
+      if ((offset == HEAP_MAGIC_SIZE) || (offset >= (2 * HEAP_MAGIC_SIZE))) {
+        if (b->size >= (offset - HEAP_MAGIC_SIZE + aligned_size)) {
+          best = b;
+          break;
+        }
+      }
+    }
+    prev = b;
+  }
+
+  pMem = NULL;
+
+  if (best) {
+    ASLOG(HEAP, ("  Best Heap: %u@%p\n", (uint32_t)best->size, best));
+    pMem = (void *)HEAP_ALIGN_BY((uintptr_t)best, alignment);
+    pMagic = (heap_magic_t *)HEAP_ADDR(pMem, -HEAP_MAGIC_SIZE);
+
+    if (NULL == prev) {
+      SLIST_REMOVE_HEAD(&lHeap.free, entry);
+    } else {
+      SLIST_REMOVE_AFTER(prev, entry);
+    }
+
+    offset = (uintptr_t)pMem - (uintptr_t)best;
+
+    left_size = best->size - aligned_size - (offset - HEAP_MAGIC_SIZE);
+    if (left_size >= sizeof(heap_block_t)) {
+      b = (heap_block_t *)HEAP_ADDR(pMagic, aligned_size);
+      b->size = left_size;
+      (void)heap_add_block(b);
+      pMagic->size = aligned_size;
+    } else {
+      pMagic->size = aligned_size + left_size;
+    }
+
+    left_size = offset - HEAP_MAGIC_SIZE;
+    if (left_size > 0) {
+      asAssert(left_size >= HEAP_MAGIC_SIZE);
+      b = (heap_block_t *)best;
+      b->size = left_size;
+      (void)heap_add_block(b);
+    }
+    ASLOG(HEAP, ("  memalign(%u@%p) = %p\n", (uint32_t)pMagic->size,
+                 HEAP_ADDR(pMem, -HEAP_MAGIC_SIZE), pMem));
+#ifdef HEAP_TRACK
+    SLIST_INSERT_HEAD(&lHeap.used, pMagic, entry);
+#endif
+  } else {
+    ASLOG(HEAPE, ("  OoM\n"));
+  }
+  HEAP_UNLOCK();
+
+  return pMem;
+}
+
 #if !defined(linux) && !defined(_WIN32)
-void *mallic(size_t sz) {
+void *malloc(size_t sz) {
   return heap_malloc(sz);
 }
 
@@ -316,10 +403,24 @@ void *calloc(size_t nitems, size_t size) {
   }
   return ptr;
 }
+
+void *kzmalloc(size_t size) {
+
+  void *p = heap_malloc(size);
+  if (NULL != p) {
+    memset(p, 0, size);
+  }
+
+  return p;
+}
+
+void *memalign(size_t alignment, size_t size) {
+  return heap_memalign(alignment, size);
+}
 #endif
 
 #ifdef HEAP_TEST
-/* gcc -g infras\libraries\heap\heap.c -I infras\include -DHEAP_TEST */
+/* gcc -g infras\libraries\heap\heap.c -I infras\include -DHEAP_TEST -DAS_LOG_DEFAULT=1 */
 int main(int argc, char *argv[]) {
   int N;
   void **ptr;
@@ -344,7 +445,8 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < N; i++) {
     doFree = (1 == (rand() % 2));
     sz[i] = 1 + (rand() % 1000);
-    ptr[i] = heap_malloc(sz[i]);
+    // ptr[i] = heap_malloc(sz[i]);
+    ptr[i] = heap_memalign(4096, sz[i]);
     if (ptr[i]) {
       used += ((heap_magic_t *)HEAP_ADDR(ptr[i], -HEAP_MAGIC_SIZE))->size;
       memset(ptr[i], i, sz[i]);

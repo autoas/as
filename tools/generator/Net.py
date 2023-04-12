@@ -57,7 +57,7 @@ def ProcSomeIp(cfg, mod):
         for eg in service.get('event-groups', []):
             if 'multicast' in eg:
                 sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
-                        'protocol': 'UDP', 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
+                        'protocol': 'UDP', 'up': 'SOMEIP', 'ModeChg':'Sd', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
                 cfg['sockets'].append(sock)
     for service in mod.get('clients', []):
         name = 'SOMEIP_%s' % (service['name'].upper())
@@ -73,7 +73,7 @@ def ProcSomeIp(cfg, mod):
         for eg in service.get('event-groups', []):
             if 'multicast' in eg:
                 sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
-                        'protocol': 'UDP', 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
+                        'protocol': 'UDP', 'up': 'SOMEIP', 'ModeChg':'Sd', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
                 cfg['sockets'].append(sock)
 
 

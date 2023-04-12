@@ -53,9 +53,9 @@ AddOption('--cpl',
 
 AddOption('--release',
           dest='release',
-          action='store_true',
-          default=False,
-          help='release ssas software by makefile')
+          type=str,
+          default=None,
+          help='release ssas software: cmake, make, build')
 
 AddOption('--cfg',
           dest='cfg',
@@ -158,7 +158,7 @@ def IsBuildForWindows(compiler=None):
     if compiler is None:
         compiler = GetOption('compiler')
     if IsPlatformWindows():
-        return compiler in ['GCC', 'MSVC', 'x86GCC', 'PYCC']
+        return compiler in ['GCC', 'MSVC', 'x86GCC', 'PYCC', 'QMake']
     return False
 
 
@@ -184,9 +184,9 @@ def IsBuildForHost(compiler=None):
 
 def IsPlatformWindows():
     bYes = False
-    if(os.name == 'nt'):
+    if (os.name == 'nt'):
         bYes = True
-    if(sys.platform == 'msys'):
+    if (sys.platform == 'msys'):
         bYes = True
     return bYes
 
@@ -214,12 +214,12 @@ def MKDir(p):
     try:
         os.makedirs(ap)
     except:
-        if(not os.path.exists(ap)):
+        if (not os.path.exists(ap)):
             raise Exception('Fatal Error: can\'t create directory <%s>' % (ap))
 
 
 def RMDir(p):
-    if(os.path.exists(p)):
+    if (os.path.exists(p)):
         shutil.rmtree(p)
 
 
@@ -230,17 +230,17 @@ def MKFile(p, c='', m='w'):
 
 
 def RMFile(p):
-    if(os.path.exists(p)):
+    if (os.path.exists(p)):
         print('removing %s' % (os.path.abspath(p)))
         os.remove(os.path.abspath(p))
 
 
 def RunCommand(cmd, e=True):
     aslog(' >> RunCommand "%s"' % (cmd))
-    if(os.name == 'nt'):
+    if (os.name == 'nt'):
         cmd = cmd.replace('&&', '&')
     ret = os.system(cmd)
-    if(0 != ret and e):
+    if (0 != ret and e):
         raise Exception('FAIL of RunCommand "%s" = %s' % (cmd, ret))
     return ret
 
@@ -259,27 +259,27 @@ def RunSysCmd(cmd):
 
 def Download(url, tgt=None):
     # curl is better than wget on msys2
-    if(tgt == None):
+    if (tgt == None):
         tgt = url.split('/')[-1]
 
     def IsProperType(f):
         tL = {'.zip': 'Zip archive data', '.tar.gz': 'gzip compressed data',
               '.tar.xz': 'XZ compressed data', '.tar.bz2': 'bzip2 compressed data'}
-        if(not os.path.exists(f)):
+        if (not os.path.exists(f)):
             return False
-        if(0 == os.path.getsize(f)):
+        if (0 == os.path.getsize(f)):
             return False
         for t, v in tL.items():
-            if(f.endswith(t)):
+            if (f.endswith(t)):
                 err, info = RunSysCmd('file %s' % (tgt))
-                if(v not in info):
+                if (v not in info):
                     return False
                 break
         return True
-    if(not os.path.exists(tgt)):
+    if (not os.path.exists(tgt)):
         print('Downloading from %s to %s' % (url, tgt))
         ret = RunCommand('curl %s -o %s' % (url, tgt), False)
-        if((ret != 0) or (not IsProperType(tgt))):
+        if ((ret != 0) or (not IsProperType(tgt))):
             tf = url.split('/')[-1]
             RMFile(tf)
             print('temporarily saving to %s' % (os.path.abspath(tf)))
@@ -306,7 +306,7 @@ def PkgGlob(pkg, objs):
 
 
 def Package(url, ** parameters):
-    if(type(url) == dict):
+    if (type(url) == dict):
         parameters = url
         url = url['url']
     cwd = GetCurrentDir()
@@ -316,67 +316,67 @@ def Package(url, ** parameters):
         download = '%s/%s' % (download, parameters['dir'])
     MKDir(download)
     pkgBaseName = os.path.basename(url)
-    if(pkgBaseName.endswith('.zip')):
+    if (pkgBaseName.endswith('.zip')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkgName = pkgBaseName[:-4]
         pkg = '%s/%s' % (download, pkgName)
         MKDir(pkg)
         flag = '%s/.unzip.done' % (pkg)
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             try:
                 RunCommand('cd %s && unzip ../%s' % (pkg, pkgBaseName))
             except Exception as e:
                 print('WARNING:', e)
             MKFile(flag, 'url')
-    elif(pkgBaseName.endswith('.rar')):
+    elif (pkgBaseName.endswith('.rar')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkgName = pkgBaseName[:-4]
         pkg = '%s/%s' % (download, pkgName)
         MKDir(pkg)
         flag = '%s/.unrar.done' % (pkg)
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             try:
                 RunCommand('cd %s && unrar x ../%s' % (pkg, pkgBaseName))
             except Exception as e:
                 print('WARNING:', e)
             MKFile(flag, 'url')
-    elif(pkgBaseName.endswith('.tar.gz') or pkgBaseName.endswith('.tar.xz') or pkgBaseName.endswith('.tgz')):
+    elif (pkgBaseName.endswith('.tar.gz') or pkgBaseName.endswith('.tar.xz') or pkgBaseName.endswith('.tgz')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkgName = pkgBaseName[:-7]
         pkg = '%s/%s' % (download, pkgName)
         MKDir(pkg)
         flag = '%s/.unzip.done' % (pkg)
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             RunCommand('cd %s && tar xf ../%s' % (pkg, pkgBaseName))
             MKFile(flag, 'url')
-    elif(pkgBaseName.endswith('.tar.bz2')):
+    elif (pkgBaseName.endswith('.tar.bz2')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkgName = pkgBaseName[:-8]
         pkg = '%s/%s' % (download, pkgName)
         MKDir(pkg)
         flag = '%s/.unzip.done' % (pkg)
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             RunCommand('cd %s && tar xf ../%s' % (pkg, pkgBaseName))
             MKFile(flag, 'url')
-    elif(pkgBaseName.endswith('.git')):
+    elif (pkgBaseName.endswith('.git')):
         pkgName = pkgBaseName[:-4]
         pkg = '%s/%s' % (download, pkgName)
-        if(not os.path.exists(pkg)):
+        if (not os.path.exists(pkg)):
             RunCommand('cd %s && git clone %s' % (download, url))
-        if('version' in parameters):
+        if ('version' in parameters):
             flag = '%s/.%s.version.done' % (pkg, bsw)
-            if(not os.path.exists(flag)):
+            if (not os.path.exists(flag)):
                 ver = parameters['version']
                 RunCommand('cd %s && git checkout %s' % (pkg, ver))
                 MKFile(flag, ver)
                 # remove all cmd Done flags
                 for cmdF in Glob('%s/.*.cmd.done' % (pkg)):
                     RMFile(str(cmdF))
-    elif(pkgBaseName.endswith('.exe')):
+    elif (pkgBaseName.endswith('.exe')):
         tgt = '%s/%s' % (download, pkgBaseName)
         Download(url, tgt)
         pkg = '%s/%s' % (download, pkgBaseName[:-4])
@@ -389,32 +389,32 @@ def Package(url, ** parameters):
             MKFile(flag, url)
     else:
         pkg = '%s/%s' % (download, url)
-        if(not os.path.isdir(pkg)):
+        if (not os.path.isdir(pkg)):
             print('ERROR: %s require %s but now it is missing! It maybe downloaded later, so please try build again.' % (bsw, url))
     # cmd is generally a series of 'sed' operatiron to do some simple modifications
-    if('cmd' in parameters):
+    if ('cmd' in parameters):
         flag = '%s/.%s.cmd.done' % (pkg, bsw)
         cmd = 'cd %s && ' % (pkg)
         cmd += parameters['cmd']
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             RunCommand(cmd)
             MKFile(flag, cmd)
-    if('pyfnc' in parameters):
+    if ('pyfnc' in parameters):
         flag = '%s/.%s.pyfnc.done' % (pkg, bsw)
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             parameters['pyfnc'](pkg)
             MKFile(flag)
     if 'patch' in parameters:
         flag = '%s/.%s.patch.done' % (pkg, bsw)
         cmd = 'cd %s && ' % (pkg)
         cmd += 'patch -p1 < %s' % (parameters['patch'])
-        if(not os.path.exists(flag)):
+        if (not os.path.exists(flag)):
             RunCommand(cmd)
             MKFile(flag, cmd)
     # post check
     verList = Glob('%s/.*.version.done' % (pkg))
     cmdList = Glob('%s/.*.cmd.done' % (pkg))
-    if(len(verList) >= 2 or len(cmdList) >= 2):
+    if (len(verList) >= 2 or len(cmdList) >= 2):
         print('WARNING: BSW %s : 2 or more BSWs require package %s, '
               'please make sure version and cmd has no conflicts\n'
               '\t please check %s/SConscript' % (bsw, pkgBaseName, cwd))
@@ -452,6 +452,7 @@ class CustomEnv(dict):
                     L.append(x)
 
     def Object(self, src, **kwargs):
+        aslog('CC', src)
         self.objs[src] = kwargs
         return [src]
 
@@ -468,6 +469,12 @@ class CustomEnv(dict):
             return objs
         self.shared = True
         return self.Program(libName, objs, **kwargs)
+
+    def Program(self, appName, objs, **kwargs):
+        for x in objs:
+            if x not in self.objs:
+                aslog('CC', x)
+                self.objs[x] = kwargs
 
     def w(self, l):
         self.mkf.write(l)
@@ -486,6 +493,12 @@ class CustomEnv(dict):
     def abspath(self, p):
         p = os.path.abspath(p)
         p = p.replace(os.sep, '/')
+        return p
+
+    def unixpath(self, p):
+        p = self.abspath(p)
+        if p[1] == ':':
+            p = '/' + p[0].lower() + '/' + p[2:]
         return p
 
     def copy(self, src):
@@ -520,18 +533,27 @@ class CustomEnv(dict):
 
 
 class ReleaseEnv(CustomEnv):
-    def __init__(self, env):
+    def __init__(self, env, release):
         super().__init__()
         self.env = env
+        self.release = release
 
     def Program(self, appName, objs, **kwargs):
+        super().Program(appName, objs, **kwargs)
         self.appName = appName
         self.cplName = getattr(self, 'compiler', GetOption('compiler'))
-        self.WDIR = '%s/release/%s' % (RootDir, appName)
+        if self.release == 'build':
+            self.WDIR = os.path.join(RootDir, 'build', os.name, self.cplName,
+                                     self.appName).replace(os.sep, '/')
+        else:
+            self.WDIR = '%s/release/%s' % (RootDir, appName)
         MKDir(self.WDIR)
-        self.GenerateMakefile(objs, **kwargs)
-        self.GenerateCMake(objs, **kwargs)
-        self.CopyFiles(objs)
+        if self.release == 'make':
+            self.GenerateMakefile(objs, **kwargs)
+        if self.release in ['cmake', 'build']:
+            self.GenerateCMake(objs, **kwargs)
+        if self.release in ['cmake', 'make']:
+            self.CopyFiles(objs)
         print('release %s done!' % (appName))
         exit()
 
@@ -583,8 +605,7 @@ class ReleaseEnv(CustomEnv):
                for i in kwargs.get('LIBS', []))))
         self.w('LIBPATH=%s\n' % (' '.join('-L"%s"' % (i)
                for i in kwargs.get('LIBPATH', []))))
-        BUILD_DIR = os.path.join(
-            'build', os.name, self.cplName, self.appName).replace(os.sep, '/')
+        BUILD_DIR = os.path.join('build', os.name, self.cplName, self.appName).replace(os.sep, '/')
         objd = []
         objm = {}
         for src in objs:
@@ -655,9 +676,13 @@ class ReleaseEnv(CustomEnv):
         self.w('#   cmake -G "Unix Makefiles" ..\n\n')
         self.w('cmake_minimum_required(VERSION 3.2)\n\n')
         self.w('PROJECT(%s)\n\n' % (self.appName))
+        if self.release == 'build':
+            self.w('SET(ROOT_DIR "%s")\n' % (self.unixpath(RootDir)))
+        else:
+            self.w('SET(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})\n')
         self.w('SET(%s_SOURCES\n' % (self.appName.upper()))
         for obj in self.objs:
-            self.w('  %s\n' % (self.relpath(str(obj))))
+            self.w('  ${ROOT_DIR}/%s\n' % (self.relpath(str(obj))))
         self.w(')\n\n')
         self.w('SET(%s_LIBS\n' % (self.appName.upper()))
         for x in LIBS:
@@ -665,11 +690,11 @@ class ReleaseEnv(CustomEnv):
         self.w(')\n\n')
         self.w('SET(%s_LIBPATH\n' % (self.appName.upper()))
         for x in LIBPATH:
-            self.w('  "%s"\n' % (self.relpath(x, silent=True)))
+            self.w('  "${ROOT_DIR}/%s"\n' % (self.relpath(x, silent=True)))
         self.w(')\n\n')
         self.w('SET(%s_INCLUDE\n' % (self.appName.upper()))
         for x in CPPPATH:
-            self.w('  "%s"\n' % (self.relpath(x, silent=True)))
+            self.w('  "${ROOT_DIR}/%s"\n' % (self.relpath(x, silent=True)))
         self.w(')\n\n')
         self.w('SET(%s_DEFINES\n' % (self.appName.upper()))
         for x in CPPDEFINES:
@@ -692,6 +717,9 @@ class ReleaseEnv(CustomEnv):
         self.w('add_custom_command(TARGET %s POST_BUILD\n' % (self.appName))
         self.w('  COMMAND echo add the custom command here)\n')
         self.mkf.close()
+        if self.release == 'build':
+            cmd = 'cd %s && cmake -G "Unix Makefiles" . && make' % (self.WDIR)
+            RunCommand(cmd)
 
 
 def register_compiler(compiler):
@@ -705,7 +733,7 @@ def register_compiler(compiler):
         if IsPlatformWindows():
             win32_spawn = Win32Spawn()
             env['SPAWN'] = win32_spawn.spawn
-        if(not GetOption('verbose')):
+        if (not GetOption('verbose')):
             # override the default verbose command string
             env.Replace(
                 ARCOMSTR='AR $TARGET',
@@ -717,8 +745,11 @@ def register_compiler(compiler):
                 SHCCCOMSTR='SHCC $SOURCE',
                 SHCXXCOMSTR='SHCXX $SOURCE',
                 SHLINKCOMSTR='SHLINK $TARGET')
-        if GetOption('release'):
-            env = ReleaseEnv(env)
+        release = GetOption('release')
+        if release in ['build', 'cmake', 'make']:
+            env = ReleaseEnv(env, release)
+        elif release != None:
+            raise Exception('invalid release option, choose from: build, cmake, make')
         return env
     if name not in __compilers__:
         aslog('register compiler %s' % (name))
@@ -785,7 +816,7 @@ def CompilerArmGCC(**kwargs):
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
         env.Append(ASFLAGS=['-g'])
-    if(IsPlatformWindows()):
+    if (IsPlatformWindows()):
         gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-win32.zip'
     else:
         gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-linux.tar.bz2'
@@ -794,7 +825,7 @@ def CompilerArmGCC(**kwargs):
         cpl = ARMGCC
     else:
         cpl = Package(gccarm)
-        if(not IsPlatformWindows()):
+        if (not IsPlatformWindows()):
             cpl += '/gcc-arm-none-eabi-5_4-2016q3'
     env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/5.4.1' % (cpl)])
     env.Append(LIBPATH=['%s/arm-none-eabi/lib' % (cpl)])
@@ -817,7 +848,7 @@ def CompilerArm64GCC(**kwargs):
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
         env.Append(ASFLAGS=['-g'])
-    if(IsPlatformWindows()):
+    if (IsPlatformWindows()):
         gccarm64 = 'gcc-linaro-7.2.1-2017.11-i686-mingw32_aarch64-elf.tar.xz'
     else:
         gccarm64 = 'gcc-linaro-7.2.1-2017.11-x86_64_aarch64-elf.tar.xz'
@@ -828,6 +859,9 @@ def CompilerArm64GCC(**kwargs):
         pkg = Package(
             'https://releases.linaro.org/components/toolchain/binaries/7.2-2017.11/aarch64-elf/%s' % (gccarm64))
         cpl = '%s/%s' % (pkg, gccarm64[:-7])
+    env.Append(LIBPATH=['%s/lib/gcc/aarch64-elf/7.2.1' % (cpl)])
+    env.Append(LIBPATH=['%s/aarch64-elf/lib' % (cpl)])
+    env.Append(LIBPATH=['%s/aarch64-elf/libc/usr/lib' % (cpl)])
     env['CC'] = '%s/bin/aarch64-elf-gcc' % (cpl)
     env['CXX'] = '%s/bin/aarch64-elf-g++' % (cpl)
     env['AS'] = '%s/bin/aarch64-elf-gcc -c' % (cpl)
@@ -915,19 +949,20 @@ def CompilerI686GCC(**kwargs):
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
         env.Append(ASFLAGS=['-g'])
-    if(IsPlatformWindows()):
-        gccx86='i686-elf-tools-windows.zip'
+    if (IsPlatformWindows()):
+        gccx86 = 'i686-elf-tools-windows.zip'
     else:
-        gccx86='i686-elf-tools-linux.zip'
-    cpl = Package('https://github.com/lordmilko/i686-elf-tools/releases/download/7.1.0/%s'%(gccx86))
-    env['CC']   = '%s/bin/i686-elf-gcc -m32'%(cpl)
-    env['AS']   = '%s/bin/i686-elf-gcc -m32 -c'%(cpl)
-    env['CXX']  = '%s/bin/i686-elf-g++ -m32'%(cpl)
-    env['LINK'] = '%s/bin/i686-elf-ld -m32 -melf_i386'%(cpl)
-    env.Append(CPPPATH=['%s/lib/gcc/i686-elf/7.1.0/include'%(cpl)])
+        gccx86 = 'i686-elf-tools-linux.zip'
+    cpl = Package('https://github.com/lordmilko/i686-elf-tools/releases/download/7.1.0/%s' % (gccx86))
+    env['CC'] = '%s/bin/i686-elf-gcc -m32' % (cpl)
+    env['AS'] = '%s/bin/i686-elf-gcc -m32 -c' % (cpl)
+    env['CXX'] = '%s/bin/i686-elf-g++ -m32' % (cpl)
+    env['LINK'] = '%s/bin/i686-elf-ld -m32 -melf_i386' % (cpl)
+    env.Append(CPPPATH=['%s/lib/gcc/i686-elf/7.1.0/include' % (cpl)])
     env.Append(CPPFLAGS=['-ffunction-sections', '-fdata-sections'])
     env.Append(LINKFLAGS=['--gc-sections'])
     return env
+
 
 @register_compiler
 def CompilerNDK(**kwargs):
@@ -936,13 +971,13 @@ def CompilerNDK(**kwargs):
     if HOME is None:
         HOME = os.getenv('USERPROFILE')
     NDK = os.path.join(HOME, 'AppData/Local/Android/Sdk/ndk-bundle')
-    if(not os.path.exists(NDK)):
+    if (not os.path.exists(NDK)):
         NDK = os.getenv('ANDROID_NDK')
-    if(NDK is None or not os.path.exists(NDK)):
+    if (NDK is None or not os.path.exists(NDK)):
         print(
             '==> Please set environment ANDROID_NDK\n\tset ANDROID_NDK=/path/to/android-ndk')
         exit()
-    if(IsPlatformWindows()):
+    if (IsPlatformWindows()):
         host = 'windows'
         NDK = NDK.replace(os.sep, '/')
     else:
@@ -976,13 +1011,13 @@ def CompilerNDK(**kwargs):
 
 def AddPythonDev(env):
     pyp = sys.executable
-    if(IsPlatformWindows()):
+    if (IsPlatformWindows()):
         pyp = pyp.replace(os.sep, '/')[:-10]
         pylib = 'python'+sys.version[0]+sys.version[2]
-        if(pylib in env.get('LIBS', [])):
+        if (pylib in env.get('LIBS', [])):
             return
         pf = '%s/libs/lib%s.a' % (pyp, pylib)
-        if(not os.path.exists(pf)):
+        if (not os.path.exists(pf)):
             RunCommand(
                 'cp {0}/libs/{1}.lib {0}/libs/lib{1}.a'.format(pyp, pylib))
         env.Append(CPPDEFINES=['_hypot=hypot'])
@@ -992,7 +1027,7 @@ def AddPythonDev(env):
         pybind11 = '%s/Lib/site-packages/pybind11/include' % (pyp)
     else:
         pyp = os.sep.join(pyp.split(os.sep)[:-2])
-        if(sys.version[0:3] == '2.7'):
+        if (sys.version[0:3] == '2.7'):
             _, pyp = RunSysCmd('which python3')
             pyp = os.sep.join(pyp.split(os.sep)[:-2])
             _, version = RunSysCmd(
@@ -1000,10 +1035,10 @@ def AddPythonDev(env):
             pylib = 'python'+version+'m'
         else:
             pylib = 'python'+sys.version[0:3]+'m'
-        if(pylib in env.get('LIBS', [])):
+        if (pylib in env.get('LIBS', [])):
             return
         env.Append(CPPPATH=['%s/include/%s' % (pyp, pylib)])
-        if(pyp == '/usr'):
+        if (pyp == '/usr'):
             env.Append(LIBPATH=['%s/lib/x86_64-linux-gnu' % (pyp)])
             env.Append(CPPPATH=['%s/local/include/%s' % (pyp, pylib[:9])])
         else:
@@ -1093,6 +1128,7 @@ class QMakeEnv(CustomEnv):
                 os.system(cmd)
 
     def Program(self, appName, objs, **kwargs):
+        super().Program(appName, objs, **kwargs)
         CPPPATH = []
         LIBPATH = []
         CPPDEFINES = []
@@ -1581,7 +1617,7 @@ class Library(BuildBase):
                 objs += env.SharedObject(c, CPPPATH=CPPPATH,
                                          CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
             else:
-                if 'AS'in env and 'gcc' in env['AS']:
+                if 'AS' in env and 'gcc' in env['AS']:
                     if str(c).endswith('.S'):
                         ASFLAGS += ['-I%s' % (x) for x in CPPPATH]
                         ASFLAGS += ['-D%s' % (x) for x in CPPDEFINES]
@@ -1726,9 +1762,9 @@ class Qemu():
         self.params = '-serial stdio'
         if kwargs.get('CAN0', False):
             self.params += ' -serial tcp:127.0.0.1:%s,server' % (self.portCAN0)
-        if('gdb' in COMMAND_LINE_TARGETS):
+        if ('gdb' in COMMAND_LINE_TARGETS):
             self.params += ' -gdb tcp::1234 -S'
-        if(self.arch in arch_map.keys()):
+        if (self.arch in arch_map.keys()):
             self.arch = arch_map[self.arch]
         self.qemu = self.FindQemu()
 
@@ -1740,14 +1776,14 @@ class Qemu():
             url += 'gnuarmeclipse-qemu-debian64-2.8.0-201612271623-dev.tgz'
         pkg = Package(url)
         if IsPlatformWindows():
-            pkg = Glob('C:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
+            pkg = Glob('D:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
         return '%s/qemu-system-gnuarmeclipse' % (pkg)
 
     def GetQemu(self):
         if IsPlatformWindows():
             url = 'https://qemu.weilnetz.de/w64/2022/qemu-w64-setup-20221208.exe'
             Package(url)
-            pkg = Glob('C:/Program*/qemu')[0].rstr()
+            pkg = Glob('D:/Program*/qemu')[0].rstr()
             return '%s/qemu-system-%s' % (pkg, self.arch)
         else:
             return 'qemu-system-%s' % (self.arch)
@@ -1756,7 +1792,7 @@ class Qemu():
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         portMAX = port + 1000
-        while(port < portMAX):
+        while (port < portMAX):
             try:
                 sock.bind(("127.0.0.1", port))
                 break
@@ -1765,12 +1801,37 @@ class Qemu():
         sock.close()
         return port
 
+    def CreateDiskImg(self, file, **kwargs):
+        size = kwargs.get('size', 1024*1024*32)
+        type = kwargs.get('type', 'raw')
+        if (os.path.exists(file)):
+            print('DiskImg "%s" already exist!' % (file))
+            return
+        print('Create a New DiskImg "%s"!' % (file))
+        qemu = self.FindQemu()
+        qemuimg = '%s/%s' % (os.path.dirname(qemu), 'qemu-img')
+        if (IsPlatformWindows()):
+            qemuimg += '.exe'
+            qemuimg = '%s"' % (qemuimg)
+        RunCommand('%s create -f raw %s %s' % (qemuimg, file, size))
+
+        if (type.startswith('ext')):
+            if (IsPlatformWindows()):
+                pass  # TODO
+            else:
+                RunCommand('sudo mkfs.%s -b 4096 %s' % (type, file))
+        elif (type.startswith('vfat')):
+            if (IsPlatformWindows()):
+                pass  # TODO
+            else:
+                RunCommand('sudo mkfs.fat %s' % (file))
+
     def FindQemu(self):
         if self.arch == 'gnuarmeclipse':
             qemu = self.GetArmMcu()
         else:
             qemu = self.GetQemu()
-        if(IsPlatformWindows()):
+        if (IsPlatformWindows()):
             qemu += '.exe'
             qemu = '"%s"' % (qemu)
         return qemu

@@ -41,6 +41,8 @@
 #include "lwip/netif.h"
 #include "lwip/api.h"
 #include "lwip/tcpip.h"
+#include "lwip/dhcp.h"
+#include "lwip/apps/netbiosns.h"
 #if defined(_WIN32)
 #include "pcapif.h"
 #else
@@ -64,12 +66,21 @@
 /* ================================ [ DATAS     ] ============================================== */
 #ifdef USE_LWIP
 static struct netif netif;
+#if LWIP_DHCP
+/* dhcp struct for the ethernet netif */
+struct dhcp netif_dhcp;
+#endif /* LWIP_DHCP */
 #endif
 static boolean lInitialized = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef USE_LWIP
 static void init_default_netif(const ip4_addr_t *ipaddr, const ip4_addr_t *netmask,
                                const ip4_addr_t *gw) {
+  netif.name[0] = 'a';
+  netif.name[1] = 's';
+#if LWIP_NETIF_HOSTNAME
+  netif.hostname = "as";
+#endif
 #if defined(_WIN32)
   netif_add(&netif, NETIF_ADDRS NULL, pcapif_init, tcpip_input);
 #else
@@ -96,15 +107,44 @@ static void tcpIpInit(void *arg) { /* remove compiler warning */
 
   init_sem = (sys_sem_t *)arg;
 
+#if LWIP_DHCP
+  ipaddr.addr = 0;
+  netmask.addr = 0;
+  gw.addr = 0;
+#else
   LWIP_PORT_INIT_GW(&gw);
   LWIP_PORT_INIT_IPADDR(&ipaddr);
   LWIP_PORT_INIT_NETMASK(&netmask);
   ASLOG(TCPIPI, ("Starting lwIP, IP %s\n", ip4addr_ntoa(&ipaddr)));
-
+#endif
   init_default_netif(&ipaddr, &netmask, &gw);
 
+#if LWIP_DHCP
+  dhcp_set_struct(netif_default, &netif_dhcp);
+#endif
   netif_set_up(netif_default);
+#if LWIP_DHCP
+  /* start dhcp search */
+  dhcp_start(netif_default);
+  netbiosns_init();
+  netbiosns_set_name(netif_default->hostname);
+#if 0 // defined(_WIN32) || defined(linux)
+  uint32_t over_time = 0;
+  while (!dhcp_supplied_address(netif_default)) {
+    over_time++;
+    ASLOG(TCPIPI, ("dhcp_connect: DHCP discovering... for %d times\n", over_time));
+    if (over_time > 10) {
+      ASLOG(TCPIPE, ("dhcp_connect: overtime, not doing dhcp\n"));
+      break;
+    }
+    usleep(1000000);
+  }
 
+  ASLOG(TCPIPI, ("DHCP IP address: %s\n", ip4addr_ntoa(&netif_dhcp.offered_ip_addr)));
+  ASLOG(TCPIPI, ("DHCP Subnet mask: %s\n", ip4addr_ntoa(&netif_dhcp.offered_sn_mask)));
+  ASLOG(TCPIPI, ("DHCP Default gateway: %s\n", ip4addr_ntoa(&netif_dhcp.offered_gw_addr)));
+#endif
+#endif
   sys_sem_signal(init_sem);
 }
 #endif

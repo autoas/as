@@ -26,6 +26,8 @@ public:
   static void setLogLevel(int level);
   static int getLogLevel();
   static void print(int level, const char *fmt, ...);
+  static void hexdump(int level, const char *prefix, const void *data, size_t size,
+                      size_t len = 16);
   static void vprint(const char *fmt, va_list args);
   static void putc(char chr);
   static void setLogFile(const char *path);

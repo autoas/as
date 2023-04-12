@@ -4,16 +4,11 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <windows.h>
-#ifdef SLIST_ENTRY
-#undef SLIST_ENTRY
-#endif
+#include <minwindef.h>
 #include <sys/queue.h>
 #include <pthread.h>
 #include <assert.h>
-
 #include "PCANBasic.h"
-
 #include "Std_Types.h"
 #include "Std_Debug.h"
 #include "canlib.h"

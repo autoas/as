@@ -34,7 +34,6 @@
 /* |------------------+------------------------------------------------------------------| */
 StatusType GetAlarmBase(AlarmType AlarmID, AlarmBaseRefType Info) {
   StatusType ercd = E_OK;
-  DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
   if (AlarmID < ALARM_NUM) {
@@ -75,8 +74,6 @@ StatusType GetAlarmBase(AlarmType AlarmID, AlarmBaseRefType Info) {
 /* |------------------+------------------------------------------------------------------| */
 StatusType GetAlarm(AlarmType AlarmID, TickRefType Tick) {
   StatusType ercd = E_OK;
-  
-  DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
   if (AlarmID < ALARM_NUM) {
@@ -148,8 +145,6 @@ StatusType GetAlarm(AlarmType AlarmID, TickRefType Tick) {
 /* |------------------+-----------------------------------------------------------------| */
 StatusType SetRelAlarm(AlarmType AlarmID, TickType Increment, TickType Cycle) {
   StatusType ercd = E_OK;
-  
-  DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
   if (AlarmID >= ALARM_NUM) {
@@ -299,7 +294,6 @@ StatusType SetAbsAlarm(AlarmType AlarmID, TickType Start, TickType Cycle) {
 /* |------------------+-------------------------------------------------------------| */
 StatusType CancelAlarm(AlarmType AlarmID) {
   StatusType ercd = E_OK;
-  DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
   if (AlarmID < ALARM_NUM) {
@@ -379,7 +373,7 @@ void statOsAlarm(void) {
   AlarmVarType *pVar;
   const AlarmConstType *pConst;
 
-  Irq_Save(mask);
+  EnterCritical();
 
   printf("\nName             Status Value      Period     Counter\n");
   for (id = 0; id < ALARM_NUM; id++) {
@@ -391,7 +385,7 @@ void statOsAlarm(void) {
                  pConst->pCounter->name, pConst->pCounter->pVar->value);
   }
 
-  Irq_Restore(mask);
+  ExitCritical();
 }
 #endif
 #else

@@ -12,7 +12,6 @@
 #include "PduR_DoIP.h"
 
 #include "Std_Debug.h"
-#include <assert.h>
 #include <string.h>
 #include "NetMem.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -727,7 +726,7 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, DoIP_MsgTyp
       }
     } else {
       TargetAddressRef = connection->context->msg.TargetAddressRef;
-      assert(TargetAddressRef != NULL);
+      asAssert(TargetAddressRef != NULL);
       pduInfo.SduDataPtr = (uint8_t *)msg->req;
       pduInfo.SduLength = msg->reqLen;
       bufReq = PduR_DoIPCopyRxData(TargetAddressRef->RxPduId, &pduInfo, &bufferSize);
@@ -1092,7 +1091,7 @@ void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
     if (SoConId == config->UdpVehicleAnnouncementConnections[i].SoConId) {
       if (SOAD_SOCON_ONLINE == Mode) {
-        assert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
+        asAssert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
         config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_OPEN;
         config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
           config->InitialVehicleAnnouncementTime;
@@ -1107,7 +1106,7 @@ void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   for (i = 0; (i < config->MaxTesterConnections) && (E_NOT_OK == ret); i++) {
     if (SoConId == config->testerConnections[i].SoConId) {
       if (SOAD_SOCON_ONLINE == Mode) {
-        assert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
+        asAssert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
         memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
         config->testerConnections[i].context->InactivityTimer = config->InitialInactivityTime;
         config->testerConnections[i].context->state = DOIP_CON_OPEN;

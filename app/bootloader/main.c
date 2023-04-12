@@ -31,17 +31,37 @@
 #include <stdlib.h>
 #include <unistd.h>
 #endif
+
+#ifdef USE_OSAL
+#include "osal.h"
+#endif
+
+#ifdef USE_SHELL
+#include "shell.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
+
+#ifndef CAN_DIAG_RX
+#define CAN_DIAG_RX 0x731
+#endif
+
+#ifndef CAN_DIAG_TX
+#define CAN_DIAG_TX 0x732
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void BL_AliveIndicate(void);
+
+#if defined(_WIN32) || defined(linux)
+void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
+#endif
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
 static Std_TimerType timer500ms;
 
-static uint32_t lRxId = 0x731;
-static uint32_t lTxId = 0x732;
+static uint32_t lRxId = CAN_DIAG_RX;
+static uint32_t lTxId = CAN_DIAG_TX;
 static uint8_t lController = 0;
 /* ================================ [ LOCALS    ] ============================================== */
 static void MainTask_10ms(void) {
@@ -72,6 +92,10 @@ static void Init(void) {
 
   Dcm_Init(NULL);
   BL_Init();
+
+#ifdef USE_SHELL
+  Shell_Init();
+#endif
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 #ifdef USE_CAN
@@ -128,8 +152,50 @@ void BL_MainTask_500ms(void) {
   BL_AliveIndicate();
 }
 
-#if defined(_WIN32) || defined(linux)
-void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
+void Task_MainLoop(void) {
+#ifdef USE_LATE_MCU_INIT
+  Mcu_Init(NULL);
+#endif
+  Init();
+  Std_TimerStart(&timer10ms);
+  Std_TimerStart(&timer500ms);
+  for (;;) {
+    if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
+      MainTask_10ms();
+      Std_TimerStart(&timer10ms);
+    }
+    if (Std_GetTimerElapsedTime(&timer500ms) >= 500000) {
+      BL_MainTask_500ms();
+      Std_TimerStart(&timer500ms);
+    }
+
+    Dcm_MainFunction_Request();
+#ifdef USE_CAN
+    Can_MainFunction_Write();
+    Can_MainFunction_Read();
+#endif
+#ifdef USE_LINIF
+    Lin_MainFunction();
+    Lin_MainFunction_Read();
+    LinIf_MainFunction();
+#endif
+#ifdef USE_SHELL
+    Shell_MainFunction();
+#endif
+#ifdef USE_STDIO_CAN
+    stdio_main_function();
+#endif
+  }
+}
+
+#ifdef USE_OSAL
+void TaskMainTaskIdle(void) {
+  while (1)
+    ;
+}
+void StartupHook(void) {
+  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
+}
 #endif
 
 int main(int argc, char *argv[]) {
@@ -162,37 +228,16 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
+#ifndef USE_LATE_MCU_INIT
   Mcu_Init(NULL);
+#endif
 
   BL_CheckAndJump();
 
-  Init();
-  Std_TimerStart(&timer10ms);
-  Std_TimerStart(&timer500ms);
-  for (;;) {
-    if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
-      MainTask_10ms();
-      Std_TimerStart(&timer10ms);
-    }
-    if (Std_GetTimerElapsedTime(&timer500ms) >= 500000) {
-      BL_MainTask_500ms();
-      Std_TimerStart(&timer500ms);
-    }
-
-    Dcm_MainFunction_Request();
-#ifdef USE_CAN
-    Can_MainFunction_Write();
-    Can_MainFunction_Read();
+#ifdef USE_OSAL
+  osal_start();
+#else
+  Task_MainLoop();
 #endif
-
-#ifdef USE_LINIF
-    Lin_MainFunction();
-    Lin_MainFunction_Read();
-    LinIf_MainFunction();
-#endif
-#if defined(_WIN32) || defined(linux)
-    Std_Sleep(1000);
-#endif
-  }
   return 0;
 }

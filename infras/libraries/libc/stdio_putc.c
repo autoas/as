@@ -59,11 +59,11 @@ static void stdio_can_main(void) {
 }
 #endif
 
-#if defined(_WIN32) || defined(linux)
 void __attribute__((weak)) __putchar(char chr) {
+#if defined(_WIN32) || defined(linux)
   fputc(chr, stdout);
-}
 #endif
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 void stdio_putc(char chr) {
   __putchar(chr);

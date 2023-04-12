@@ -804,28 +804,31 @@ def Gen_SD(cfg, dir):
                 service['name'], egroup['name']))
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
-    C.write('static Sd_ServerTimerType Sd_ServerTimerDefault = {\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(100),  /* InitialOfferDelayMax */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(10),   /* InitialOfferDelayMin */\n')
-    C.write(
-        '  SD_CONVERT_MS_TO_MAIN_CYCLES(200),  /* InitialOfferRepetitionBaseDelay */\n')
-    C.write('  3,                                  /* InitialOfferRepetitionsMax */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(3000), /* OfferCyclicDelay */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
-    C.write('  5, /* TTL seconds */\n')
-    C.write('};\n\n')
+    if len(cfg.get('servers', [])) > 0:
+        C.write('static Sd_ServerTimerType Sd_ServerTimerDefault = {\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(100),  /* InitialOfferDelayMax */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(10),   /* InitialOfferDelayMin */\n')
+        C.write(
+            '  SD_CONVERT_MS_TO_MAIN_CYCLES(200),  /* InitialOfferRepetitionBaseDelay */\n')
+        C.write('  3,                                  /* InitialOfferRepetitionsMax */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(3000), /* OfferCyclicDelay */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
+        C.write('  5, /* TTL seconds */\n')
+        C.write('};\n\n')
 
-    C.write('static Sd_ClientTimerType Sd_ClientTimerDefault = {\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(100),  /* InitialFindDelayMax */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(10),   /* InitialFindDelayMin */\n')
-    C.write(
-        '  SD_CONVERT_MS_TO_MAIN_CYCLES(200),  /* InitialFindRepetitionsBaseDelay */\n')
-    C.write('  3,                                  /* InitialFindRepetitionsMax */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
-    C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
-    C.write('  5, /* TTL seconds */\n')
-    C.write('};\n\n')
+    if len(cfg.get('clients', [])) > 0:
+        C.write('static Sd_ClientTimerType Sd_ClientTimerDefault = {\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(100),  /* InitialFindDelayMax */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(10),   /* InitialFindDelayMin */\n')
+        C.write(
+            '  SD_CONVERT_MS_TO_MAIN_CYCLES(200),  /* InitialFindRepetitionsBaseDelay */\n')
+        C.write('  3,                                  /* InitialFindRepetitionsMax */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(1500), /* RequestResponseMaxDelay */\n')
+        C.write('  SD_CONVERT_MS_TO_MAIN_CYCLES(0),    /* RequestResponseMinDelay */\n')
+        C.write('  5, /* TTL seconds */\n')
+        C.write('};\n\n')
+
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
@@ -988,7 +991,7 @@ def Gen_SD(cfg, dir):
     else:
         C.write('    NULL,                          /* ClientServices */\n')
         C.write('    0,                             /* numOfClientServices */\n')
-    C.write('    sd_buffer,                     /*buffer */\n')
+    C.write('    sd_buffer,                     /* buffer */\n')
     C.write('    sizeof(sd_buffer),\n')
     C.write('    &sd_context,\n')
     C.write('  },\n')

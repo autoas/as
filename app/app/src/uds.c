@@ -8,6 +8,7 @@
 #include "Dem.h"
 #include "Std_Timer.h"
 #include "Std_Debug.h"
+#include <string.h>
 #if defined(_WIN32)
 #include <time.h>
 #endif
@@ -151,6 +152,11 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
   if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
     App_EnterProgramSession();
   }
+}
+
+Std_ReturnType App_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
+                                        Dcm_NegativeResponseCodeType *ErrorCode) {
+  return E_OK;
 }
 
 #endif /* USE_DCM */

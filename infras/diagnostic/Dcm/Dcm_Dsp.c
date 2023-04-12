@@ -11,8 +11,10 @@
 #include "Std_Debug.h"
 #include "Dem.h"
 #include "NvM.h"
+#include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 1
+#define AS_LOG_DCME 3
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -74,6 +76,9 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
     Dcm_DslInit();
     Dcm_SessionChangeIndication(context->currentSession, sesCtrl, FALSE);
     context->currentSession = sesCtrl;
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+    Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01111 */
+#endif
     u16V = config->timing->S3Server * DCM_MAIN_FUNCTION_PERIOD;
     msgContext->resData[0] = sesCtrl;
     msgContext->resData[1] = (u16V >> 8) & 0xFF;
@@ -491,6 +496,13 @@ Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
     }
   }
 
+  if (E_OK == r) {
+    r = rstConfig->GetEcuResetPermissionFnc(context->opStatus, nrc);
+    if ((E_OK == r) && (DCM_E_RESPONSE_PENDING == *nrc)) {
+      context->timer2Reset = 0;
+    }
+  }
+
   return r;
 }
 #endif
@@ -510,7 +522,7 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
 
   if ((msgContext->reqDataLen >= 2) && ((msgContext->reqDataLen & 0x01) == 0)) {
     numOfDids = msgContext->reqDataLen >> 1;
-    for (i = 0; (i < numOfDids) && (E_OK == r); i++) {
+    for (i = 0; (i < numOfDids) && (E_OK == r) && (DCM_INITIAL == context->opStatus); i++) {
       rDid = NULL;
       id = ((uint16_t)msgContext->reqData[i * 2] << 8) + msgContext->reqData[i * 2 + 1];
       for (j = 0; j < rDidConfig->numOfDIDs; j++) {
@@ -553,7 +565,18 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
       if (NULL != rDid) {
         msgContext->resData[totalResLength] = (id >> 8) & 0xFF;
         msgContext->resData[totalResLength + 1] = id & 0xFF;
-        r = rDid->readDIdFnc(&msgContext->resData[totalResLength + 2], rDid->length, nrc);
+        if ((DCM_INITIAL == context->opStatus) || (DCM_CANCEL == context->opStatus) ||
+            (DCM_PENDING == rDid->context->opStatus)) {
+          rDid->context->opStatus = DCM_CANCEL; /* set to invalid */
+          r = rDid->readDIdFnc(context->opStatus, &msgContext->resData[totalResLength + 2],
+                               rDid->length, nrc);
+          if (E_OK == r) {
+            if (DCM_E_RESPONSE_PENDING == *nrc) {
+              /* only in this case, schedule the call of readDIdFnc again in the next cycle */
+              rDid->context->opStatus = DCM_PENDING;
+            }
+          }
+        }
         totalResLength += rDid->length + 2;
       } else {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
@@ -1049,3 +1072,229 @@ Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
   return r;
 }
 #endif
+
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+const Dcm_ReadPeriodicDIDConfigType *Dcm_GetReadPeriodicDIDConifg() {
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ConfigType *config = Dcm_GetConfig();
+  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = NULL;
+  const Dcm_ServiceTableType *servieTable = Dcm_GetActiveServiceTable(context, config);
+  int i;
+
+  for (i = 0; i < servieTable->numOfServices; i++) {
+    if (servieTable->services[i].SID == 0x2A) {
+      pDIDConfig = (const Dcm_ReadPeriodicDIDConfigType *)servieTable->services[i].config;
+      break;
+    }
+  }
+
+  return pDIDConfig;
+}
+
+void Dcm_ReadPeriodicDID_Init(void) {
+  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = Dcm_GetReadPeriodicDIDConifg();
+  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  int i;
+  if (NULL != pDIDConfig) {
+    for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
+      rDid = &pDIDConfig->DIDs[i];
+      memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
+      rDid->context->opStatus = DCM_CANCEL;
+    }
+  }
+}
+
+void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void) {
+  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = Dcm_GetReadPeriodicDIDConifg();
+  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  Dcm_ContextType *context = Dcm_GetContext();
+  Dcm_NegativeResponseCodeType nrc;
+  bool stopIt;
+  int i;
+  Std_ReturnType r;
+
+  if (NULL != pDIDConfig) {
+    for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
+      rDid = &pDIDConfig->DIDs[i];
+      stopIt = FALSE;
+      if (DCM_DEFAULT_SESSION == context->currentSession) { /* @SWS_Dcm_01107*/
+        stopIt = TRUE;
+      } else {
+        /*  @SWS_Dcm_01108, @SWS_Dcm_01109 */
+        nrc = DCM_POS_RESP;
+        r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->SesSecAccess, &nrc);
+        if ((E_OK != r) && (DCM_E_SERVICE_NOT_SUPPORTED != nrc)) {
+          stopIt = TRUE;
+        }
+      }
+      if (TRUE == stopIt) {
+        memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
+        rDid->context->opStatus = DCM_CANCEL;
+      }
+    }
+  }
+}
+
+void Dcm_MainFunction_ReadPeriodicDID(void) {
+  Std_ReturnType r = E_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ConfigType *config = Dcm_GetConfig();
+  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = Dcm_GetReadPeriodicDIDConifg();
+  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  int i;
+  Dcm_MsgType resData = config->txBuffer;
+  Dcm_MsgLenType totalResLength;
+  Dcm_NegativeResponseCodeType nrc;
+
+  if (NULL != pDIDConfig) {
+    for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
+      rDid = &pDIDConfig->DIDs[i];
+      if (rDid->context->reload > 0) {
+        if (rDid->context->timer > 0) {
+          rDid->context->timer--;
+          if (0 == rDid->context->timer) {
+            rDid->context->opStatus = DCM_INITIAL;
+            rDid->context->timer = rDid->context->reload;
+          }
+        } else {
+          ASLOG(DCME, ("read periodic timer stopt\n"));
+          rDid->context->timer = rDid->context->reload;
+        }
+      }
+    }
+  }
+
+  if ((NULL != pDIDConfig) && (DCM_BUFFER_IDLE == context->txBufferState)) {
+    resData[0] = 0x6A;
+    totalResLength = 1;
+    for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
+      rDid = &pDIDConfig->DIDs[i];
+      if (rDid->context->opStatus != DCM_CANCEL) {
+        if ((totalResLength + 1 + rDid->length) > config->txBufferSize) {
+          break;
+        }
+        nrc = DCM_POS_RESP;
+        r = rDid->readDIdFnc(rDid->context->opStatus, &resData[totalResLength + 1], rDid->length,
+                             &nrc);
+        if (r != E_OK) {
+          ASLOG(DCME, ("read periodic DID FAILED\n"));
+          rDid->context->opStatus = DCM_CANCEL;
+        } else if (DCM_POS_RESP == nrc) { /* reading is done */
+          resData[totalResLength] = rDid->id;
+          totalResLength += 1 + rDid->length;
+          rDid->context->opStatus = DCM_CANCEL;
+        } else if (DCM_E_RESPONSE_PENDING == nrc) {
+          rDid->context->opStatus = DCM_PENDING;
+        } else {
+          ASLOG(DCME, ("read periodic DID meet invalid NRC\n"));
+          rDid->context->opStatus = DCM_CANCEL;
+        }
+      }
+    }
+    if (totalResLength > 1) {
+      context->TxTpSduLength = totalResLength;
+      context->txBufferState = DCM_BUFFER_FULL;
+    }
+  }
+}
+
+Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContext,
+                                                   Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ReadPeriodicDIDConfigType *config =
+    (const Dcm_ReadPeriodicDIDConfigType *)context->curService->config;
+  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  uint8_t id;
+  uint8_t transmissionMode;
+  uint16_t numOfDids = 0;
+  Dcm_MsgLenType totalResLength = 0;
+  uint16_t reload = 0;
+  int i, j;
+
+  if (msgContext->reqDataLen >= 2) {
+    transmissionMode = msgContext->reqData[0];
+    numOfDids = msgContext->reqDataLen - 1;
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+    r = E_NOT_OK;
+  }
+
+  if (E_OK == r) {
+    switch (transmissionMode) {
+    case DCM_TM_SEND_AT_SLOW_RATE:
+      reload = (uint16_t)DCM_CONVERT_MS_TO_MAIN_CYCLES(DCM_TM_SLOW_TIME_MS);
+      break;
+    case DCM_TM_SEND_AT_MEDIUM_RATE:
+      reload = (uint16_t)DCM_CONVERT_MS_TO_MAIN_CYCLES(DCM_TM_MEDIUM_TIME_MS);
+      break;
+    case DCM_TM_SEND_AT_FAST_RATE:
+      reload = (uint16_t)DCM_CONVERT_MS_TO_MAIN_CYCLES(DCM_TM_FAST_TIME_MS);
+      break;
+    case DCM_TM_STOP_SENDING:
+      reload = 0;
+      break;
+      break;
+    default:
+      *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
+      r = E_NOT_OK;
+      break;
+    }
+  }
+
+  if (E_OK == r) {
+    for (i = 0; (i < numOfDids) && (E_OK == r); i++) {
+      rDid = NULL;
+      id = msgContext->reqData[i + 1];
+      for (j = 0; j < config->numOfDIDs; j++) {
+        if (config->DIDs[j].id == id) {
+          rDid = &config->DIDs[j];
+          break;
+        }
+      }
+      if (NULL != rDid) {
+        totalResLength += rDid->length + 1;
+        r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->SesSecAccess, nrc);
+      } else {
+        *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+        r = E_NOT_OK;
+      }
+    }
+  }
+
+  if (E_OK == r) {
+    if (totalResLength > msgContext->resMaxDataLen) {
+      *nrc = DCM_E_RESPONSE_TOO_LONG;
+      r = E_NOT_OK;
+    }
+  }
+
+  if (E_OK == r) {
+    for (i = 0; i < numOfDids; i++) {
+      rDid = NULL;
+      id = msgContext->reqData[i + 1];
+      for (j = 0; j < config->numOfDIDs; j++) {
+        if (config->DIDs[j].id == id) {
+          rDid = &config->DIDs[j];
+          if (0 == rDid->context->reload) {
+            rDid->context->opStatus = DCM_CANCEL;
+          }
+          rDid->context->reload = reload;
+          if (DCM_CANCEL == rDid->context->opStatus) {
+            rDid->context->timer = 1;
+          }
+        }
+      }
+    }
+    /* don't give response here for this service */
+    context->msgContext.msgAddInfo.suppressPosResponse = DCM_SUPRESS_POSITIVE_RESPONCE;
+  }
+  return r;
+}
+#endif
+
+void Dcm_DspInit(void) {
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+  Dcm_ReadPeriodicDID_Init();
+#endif
+}

@@ -28,7 +28,7 @@ class dcmbits():
 
     def append(self, d, num=1):
         for i in range(num):
-            if((d & (1 << (num-1-i))) != 0):
+            if ((d & (1 << (num-1-i))) != 0):
                 self.bits.append(True)
             else:
                 self.bits.append(False)
@@ -72,12 +72,12 @@ class wDataUS(QComboBox):
         si = 0
         svalue = None
         for select in self.Data['Select']:
-            if(index == si):
+            if (index == si):
                 svalue = select['value']
                 break
             else:
                 si = si + 1
-        assert(svalue)
+        assert (svalue)
 
         d = eval(svalue)
         a = dcmbits()
@@ -96,7 +96,7 @@ class wDataUS(QComboBox):
             return
         index = 0
         for select in self.Data['Select']:
-            if(eval(select['value']) == value):
+            if (eval(select['value']) == value):
                 break
             else:
                 index += 1
@@ -118,22 +118,22 @@ class wDataU(QLineEdit):
 
     def setValue(self, data, start):
         try:
-            if(self.Data['type'][-5:] == 'Array'):
+            if (self.Data['type'][-5:] == 'Array'):
                 num = eval(self.Data['type'][1:-5])
                 value = '[ '
-                if(self.Data['display'] == 'asc'):
+                if (self.Data['display'] == 'asc'):
                     value = 'text='
                 size = self.Data['size']
                 for i in range(0, size):
                     v = data.toint(start, num)
-                    if(self.Data['display'] == 'hex'):
+                    if (self.Data['display'] == 'hex'):
                         value += '0x%X,' % (v)
-                    elif(self.Data['display'] == 'asc'):
+                    elif (self.Data['display'] == 'asc'):
                         value += '%c' % (v)
                     else:
                         value += '%d,' % (v)
                     start += num
-                if(self.Data['display'] != 'asc'):
+                if (self.Data['display'] != 'asc'):
                     value = value[:-1] + ' ]'
 
             else:
@@ -144,10 +144,10 @@ class wDataU(QLineEdit):
             QMessageBox(QMessageBox.Critical, 'Error', 'Data record witn Invalid Length  %s.' % (
                 self.dcm.get_response())).exec_()
             return
-        if(self.Data['type'][-5:] == 'Array'):
+        if (self.Data['type'][-5:] == 'Array'):
             self.setText(value)
         else:
-            if(self.Data['display'] == 'hex'):
+            if (self.Data['display'] == 'hex'):
                 self.setText('0x%X' % (value))
             else:
                 self.setText('%d' % (value))
@@ -155,12 +155,12 @@ class wDataU(QLineEdit):
 
     def getValue(self, data):
         stype = self.Data['type']
-        if(stype[-5:] == 'Array'):
+        if (stype[-5:] == 'Array'):
             num = eval(stype[1:-5])
-            assert(num <= 32)
+            assert (num <= 32)
             size = self.Data['size']
             string = str(self.text())
-            if(string[:5] == 'text='):
+            if (string[:5] == 'text='):
                 va = []
                 for c in string[5:]:
                     va.append(ord(c))
@@ -179,7 +179,7 @@ class wDataU(QLineEdit):
         else:
             d = eval(str(self.text()))
             num = eval(stype[1:])
-            assert(num <= 32)
+            assert (num <= 32)
             data.append(d, num)
 
 
@@ -207,9 +207,9 @@ class UISessionControl(QGroupBox):
         id = self.service[session]
         data.append(id, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x50):
+        if (res.toarray()[0] != 0x50):
             QMessageBox(QMessageBox.Critical, 'Error', 'SessionControl Failed!  %s.' % (
                 self.dcm.get_last_error())).exec_()
         else:
@@ -237,7 +237,7 @@ class UISecurityAccess(QGroupBox):
         alg = Level['algorithm']
         if (type(alg) == list):
             alg = '\n'.join(alg)
-        if(alg.startswith('def')):
+        if (alg.startswith('def')):
             alg = alg.replace('\\n', '\n')
             alg = alg.replace('$LSL', '>>')
             alg = alg.replace('$LSR', '<<')
@@ -248,7 +248,7 @@ class UISecurityAccess(QGroupBox):
             import SeedToKey
             return SeedToKey.CalculateKey(res.toarray())
         else:
-            assert(0)
+            assert (0)
 
     def on_btnUnlock_clicked(self):
         data = dcmbits()
@@ -258,17 +258,17 @@ class UISecurityAccess(QGroupBox):
         levelV = Level['level']
         data.append(levelV, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x67):
+        if (res.toarray()[0] != 0x67):
             QMessageBox(QMessageBox.Critical, 'Error', 'SecurityAccess request seed Failed!  %s.' % (
                 self.dcm.get_last_error())).exec_()
             return
         unlocked = True
         for v in res.toarray()[2:]:
-            if(v != 0):
+            if (v != 0):
                 unlocked = False
-        if(unlocked):
+        if (unlocked):
             QMessageBox(QMessageBox.Information, 'Info',
                         'SecurityAccess okay with 0 seed, already unlocked!').exec_()
             return
@@ -279,9 +279,9 @@ class UISecurityAccess(QGroupBox):
         for v in key:
             data.append(v, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x67):
+        if (res.toarray()[0] != 0x67):
             QMessageBox(QMessageBox.Critical, 'Error', 'SecurityAccess send key Failed!  %s.' % (
                 self.dcm.get_last_error())).exec_()
         else:
@@ -300,7 +300,7 @@ class UIDataIdentifier(QGroupBox):
         row = 0
         col = 0
         for data in self.DID['data']:
-            if(data['type'][-6:] == 'Select'):
+            if (data['type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
@@ -309,7 +309,7 @@ class UIDataIdentifier(QGroupBox):
             grid.addWidget(leData, row, col+1)
             col += 2
 
-            if(col >= 8):
+            if (col >= 8):
                 row += 1
                 col = 0
         row += 1
@@ -320,10 +320,10 @@ class UIDataIdentifier(QGroupBox):
         self.btnRead.clicked.connect(self.on_btnRead_clicked)
         self.btnWrite.clicked.connect(self.on_btnWrite_clicked)
 
-        if(self.DID['attribute'] == 'r'):  # read-only
+        if (self.DID['attribute'] == 'r'):  # read-only
             self.btnWrite.setDisabled(True)
 
-        if(self.DID['attribute'] == 'w'):  # write-only
+        if (self.DID['attribute'] == 'w'):  # write-only
             self.btnRead.setDisabled(True)
 
         self.setLayout(grid)
@@ -335,10 +335,10 @@ class UIDataIdentifier(QGroupBox):
         data.append(did, 16)
 
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
         start = 24
-        if(res.toarray()[0] != 0x62):
+        if (res.toarray()[0] != 0x62):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'DID Start Failed!  %s.' % (self.dcm.get_last_error())).exec_()
         else:
@@ -353,9 +353,9 @@ class UIDataIdentifier(QGroupBox):
         for leData in self.leDatas:
             leData.getValue(data)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x6E):
+        if (res.toarray()[0] != 0x6E):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'DID Write Failed!  %s.' % (self.dcm.get_last_error())).exec_()
 
@@ -371,7 +371,7 @@ class UIRoutineControl(QGroupBox):
         row = 0
         col = 0
         for data in self.SRI['data']:
-            if(data['type'][-6:] == 'Select'):
+            if (data['type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
@@ -380,7 +380,7 @@ class UIRoutineControl(QGroupBox):
             grid.addWidget(leData, row, col+1)
             col += 2
 
-            if(col >= 8):
+            if (col >= 8):
                 row += 1
                 col = 0
         row += 1
@@ -429,9 +429,9 @@ class UIRoutineControl(QGroupBox):
             leData.getValue(data)
 
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x71):
+        if (res.toarray()[0] != 0x71):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'SRI Start Failed!  %s.' % (self.dcm.get_last_error())).exec_()
         else:
@@ -444,9 +444,9 @@ class UIRoutineControl(QGroupBox):
         did = eval(self.SRI['ID'])
         data.append(did, 16)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x71):
+        if (res.toarray()[0] != 0x71):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'SRI Stop Failed!  %s.' % (self.dcm.get_last_error())).exec_()
 
@@ -456,9 +456,9 @@ class UIRoutineControl(QGroupBox):
         did = eval(self.SRI['ID'])
         data.append(did, 16)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x71):
+        if (res.toarray()[0] != 0x71):
             QMessageBox(QMessageBox.Critical, 'Error', 'SRI Request Result Failed!  %s.' % (
                 self.dcm.get_last_error())).exec_()
         else:
@@ -477,7 +477,7 @@ class UIInputOutputControl(QGroupBox):
         row = 0
         col = 0
         for data in self.IOC['data']:
-            if(data['type'][-6:] == 'Select'):
+            if (data['type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
@@ -486,7 +486,7 @@ class UIInputOutputControl(QGroupBox):
             grid.addWidget(leData, row, col+1)
             col += 2
 
-            if(col >= 8):
+            if (col >= 8):
                 row += 1
                 col = 0
         row += 1
@@ -511,9 +511,9 @@ class UIInputOutputControl(QGroupBox):
             leData.getValue(data)
 
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x6F):
+        if (res.toarray()[0] != 0x6F):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'IOC Start Failed!  %s.' % (self.dcm.get_last_error())).exec_()
 
@@ -524,9 +524,9 @@ class UIInputOutputControl(QGroupBox):
         data.append(did, 16)
         data.append(0x00, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x6F):
+        if (res.toarray()[0] != 0x6F):
             QMessageBox(QMessageBox.Critical, 'Error', 'IOC Return Control to ECU Failed!  %s.' % (
                 self.dcm.get_last_error())).exec_()
 
@@ -606,9 +606,9 @@ class UIDTC(QGroupBox):
         for v in req:
             data.append(v, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return None
-        if(res.toarray()[0] != 0x59):
+        if (res.toarray()[0] != 0x59):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'Read DTC Failed! %s.' % (self.dcm.get_last_error())).exec_()
             return None
@@ -624,12 +624,12 @@ class UIDTC(QGroupBox):
     def reportNumberOfDTCByStatusMask(self, fnid=0x01):
         statusMask = eval(str(self.leParam.text()))
         res = self.reportDTCCommon([fnid, statusMask])
-        if(res == None):
+        if (res == None):
             return
         self.showNumberOfDTCCommon(res)
 
     def decodeData(self, data, record):
-        assert(data['type'] in ['uint8', 'uint16', 'uint32', 'uint64'])
+        assert (data['type'] in ['uint8', 'uint16', 'uint32', 'uint64'])
         length = int(eval(data['type'][4:])/8)
         value = 0
         for j in range(length):
@@ -644,7 +644,7 @@ class UIDTC(QGroupBox):
         id = eval(dtc['number'])
         res = self.reportDTCCommon(
             [fnid, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF, recordNum])
-        if(res == None):
+        if (res == None):
             return
         res = res.toarray()
         status = res[5]
@@ -652,7 +652,7 @@ class UIDTC(QGroupBox):
         self.addInfo('\tStatusMask = 0x%02X%s' %
                      (status, self.strStatusMask(status)))
         record = res[6:]
-        while(len(record) > 0):
+        while (len(record) > 0):
             self.addInfo('\tRecordNumber = %d' % (record[0]))
             self.addInfo('\tNumber Of Datas = %d' % (record[1]))
             num = record[1]
@@ -673,7 +673,7 @@ class UIDTC(QGroupBox):
         id = eval(dtc['number'])
         res = self.reportDTCCommon(
             [fnid, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF, recordNum])
-        if(res == None):
+        if (res == None):
             return
         res = res.toarray()
         status = res[5]
@@ -681,7 +681,7 @@ class UIDTC(QGroupBox):
         self.addInfo('\tStatusMask = 0x%02X%s' %
                      (status, self.strStatusMask(status)))
         record = res[6:]
-        while(len(record) > 0):
+        while (len(record) > 0):
             self.addInfo('\tRecordNumber = %d' % (record[0]))
             num = len(self.ExtendedData)
             record = record[1:]
@@ -691,27 +691,27 @@ class UIDTC(QGroupBox):
 
     def strStatusMask(self, mask):
         ss = ''
-        if(mask & 0x01):
+        if (mask & 0x01):
             ss += '\n\t\tTEST_FAILED'
-        if(mask & 0x02):
+        if (mask & 0x02):
             ss += '\n\t\tTEST_FAILED_THIS_OPERATION_CYCLE'
-        if(mask & 0x04):
+        if (mask & 0x04):
             ss += '\n\t\tPENDING_DTC'
-        if(mask & 0x08):
+        if (mask & 0x08):
             ss += '\n\t\tCONFIRMED_DTC'
-        if(mask & 0x10):
+        if (mask & 0x10):
             ss += '\n\t\tTEST_NOT_COMPLETED_SINCE_LAST_CLEAR'
-        if(mask & 0x20):
+        if (mask & 0x20):
             ss += '\n\t\tTEST_FAILED_SINCE_LAST_CLEAR'
-        if(mask & 0x40):
+        if (mask & 0x40):
             ss += '\n\t\tTEST_NOT_COMPLETED_THIS_OPERATION_CYCLE'
-        if(mask & 0x80):
+        if (mask & 0x80):
             ss += '\n\t\tWARNING_INDICATOR_REQUESTED'
         return ss
 
     def strDtcName(self, id):
         for _, dtc in self.DTCs.items():
-            if(eval(dtc['number']) == id):
+            if (eval(dtc['number']) == id):
                 return dtc['name']
         return 'unknown'
 
@@ -729,14 +729,14 @@ class UIDTC(QGroupBox):
     def reportDTCByStatusMask(self):
         statusMask = eval(str(self.leParam.text()))
         res = self.reportDTCCommon([0x02, statusMask])
-        if(res == None):
+        if (res == None):
             return
         self.showDTCCommon(res)
 
     def on_btnRead_clicked(self):
         fn = str(self.cmbxSubfn.currentText())
         for f in self.subfn:
-            if(f.__name__ == fn):
+            if (f.__name__ == fn):
                 self.addInfo('%s:' % (fn))
                 f()
                 break
@@ -746,9 +746,9 @@ class UIDTC(QGroupBox):
         data.append(0x14, 8)
         data.append(0xFFFFFF, 24)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x54):
+        if (res.toarray()[0] != 0x54):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'Clear DTC Failed! %s.' % (self.dcm.get_last_error())).exec_()
         else:
@@ -762,14 +762,14 @@ class UIDTC(QGroupBox):
         id = eval(dtc['number'])
         data.append(id, 24)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0x54):
+        if (res.toarray()[0] != 0x54):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'Clear DTC Failed! %s.' % (self.dcm.get_last_error())).exec_()
         else:
             QMessageBox(QMessageBox.Information, 'Info',
-                        'Clear DTC %s 0x%x done!'%(dtc['name'], id)).exec_()
+                        'Clear DTC %s 0x%x done!' % (dtc['name'], id)).exec_()
 
     def on_btnCtrlDTCSetting_clicked(self):
         data = dcmbits()
@@ -780,9 +780,9 @@ class UIDTC(QGroupBox):
         else:
             data.append(0x02, 8)
         res = self.dcm.transmit(data.toarray())
-        if(res == None):
+        if (res == None):
             return
-        if(res.toarray()[0] != 0xC5):
+        if (res.toarray()[0] != 0xC5):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'Control DTC setting Failed! %s.' % (self.dcm.get_last_error())).exec_()
         else:
@@ -853,7 +853,7 @@ class UIDcm(QWidget):
             self.loadJson(default_json)
 
     def on_cbxTesterPresent_stateChanged(self, state):
-        if(state):
+        if (state):
             self.TPtimer = self.startTimer(3000)
         else:
             self.killTimer(self.TPtimer)
@@ -867,7 +867,11 @@ class UIDcm(QWidget):
             self.djs['target']['rxid'] = eval(self.djs['target']['rxid'])
         if 'txid' in self.djs['target']:
             self.djs['target']['txid'] = eval(self.djs['target']['txid'])
-        self.dcm = dcm(**self.djs['target'])
+        try:
+            self.dcm = dcm(**self.djs['target'])
+        except Exception as e:
+            QMessageBox(QMessageBox.Critical, 'Error', '%s' % (e)).exec_()
+            return
         self.tabWidget.clear()
         for name, group in self.djs['groups'].items():
             self.tabWidget.addTab(UIGroup(group, self), name)
@@ -884,13 +888,13 @@ class UIDcm(QWidget):
     def on_btnOpenJson_clicked(self):
         rv = QFileDialog.getOpenFileName(
             None, 'diagnostic description file', '', 'diagnostic description file (*.json)')
-        if(rv[0] != ''):
+        if (rv[0] != ''):
             self.leJson.setText(rv[0])
             self.loadJson(rv[0])
 
     def transmit(self, req):
         ercd, res = self.dcm.transmit(req)
-        if((ercd == True) or (res is not None)):
+        if ((ercd == True) or (res is not None)):
             res2 = dcmbits()
             for d in res:
                 res2.append(d, 8)

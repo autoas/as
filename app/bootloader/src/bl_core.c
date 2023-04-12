@@ -89,7 +89,7 @@
 #endif
 
 #if !defined(BL_USE_CRC_32) && !defined(BL_USE_CRC_16)
-#define BL_USE_CRC_32
+#define BL_USE_CRC_16
 #endif
 
 #define BL_CRC_LENGTH sizeof(bl_crc_t)
@@ -266,6 +266,10 @@ static Dcm_ReturnEraseMemoryType eraseFlash(Dcm_OpStatusType OpStatus, uint32_t 
              (uint32_t)blFlashParam.address, (uint32_t)blFlashParam.length));
       rv = DCM_ERASE_FAILED;
     }
+    break;
+  case DCM_CANCEL:
+    ASLOG(BLE,
+          ("erase canceled: addr %X size %X offset %X\n", MemoryAddress, MemorySize, blOffset));
     break;
   default:
     rv = DCM_ERASE_FAILED;
@@ -816,7 +820,7 @@ void BL_Init(void) {
   BL_SessionReset();
 }
 
-Std_ReturnType BL_ReadFingerPrint(uint8_t *data, uint16_t length,
+Std_ReturnType BL_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
                                   Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ret = E_OK;
 #if defined(_WIN32) || defined(__linux__)

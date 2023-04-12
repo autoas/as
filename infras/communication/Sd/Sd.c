@@ -885,8 +885,8 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
       sub->port = RemoteAddr->port;
       numOfSubscribers = Sd_NumberOfSubscribes(EventHandler);
       /* @ECUC_SD_00097 */
-      if ((0 == EventHandler->MulticastThreshold) &&
-          ((numOfSubscribers + 1) >= EventHandler->MulticastThreshold)) {
+      if ((0 == EventHandler->MulticastThreshold) ||
+          ((numOfSubscribers + 1) < EventHandler->MulticastThreshold)) {
         ret = SomeIp_ResolveSubscriber(config->SomeIpServiceId, sub);
         if (E_OK != ret) {
           ASLOG(SDE, ("can't resolve subscriber %d.%d.%d.%d:%d\n", sub->RemoteAddr.addr[0],
@@ -916,7 +916,6 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
         if (sub->TxPduId == EventHandler->MulticastTxPduId) {
           sub->flags |= SD_FLG_EVENT_GROUP_MULTICAST;
           SQP_CPREPEND(EventHandlerSubscriber, sub);
-
         } else {
           SQP_CAPPEND(EventHandlerSubscriber, sub);
         }
@@ -1121,12 +1120,17 @@ static void Sd_InitClientServiceConsumedEventGroups(const Sd_ClientServiceType *
   uint16_t i;
   uint8_t flags;
   const Sd_ConsumedEventGroupType *ConsumedEventGroup;
+  Sd_ConsumedEventGroupContextType *context;
   for (i = 0; i < config->numOfConsumedEventGroups; i++) {
     ConsumedEventGroup = &config->ConsumedEventGroups[i];
+    context = ConsumedEventGroup->context;
     flags = ConsumedEventGroup->context->flags;
-    memset(ConsumedEventGroup->context, 0, sizeof(Sd_ConsumedEventGroupContextType));
+    if (soft && context->isSubscribed && (ConsumedEventGroup->MulticastThreshold > 0)) {
+      SoAd_CloseSoCon(ConsumedEventGroup->MulticastEventSoConRef, TRUE);
+    }
+    memset(context, 0, sizeof(Sd_ConsumedEventGroupContextType));
     if ((ConsumedEventGroup->AutoRequire) || (soft && (flags & SD_FLG_STATE_REQUEST_ONLINE))) {
-      SD_SET(ConsumedEventGroup->context->flags, SD_FLG_STATE_REQUEST_ONLINE);
+      SD_SET(context->flags, SD_FLG_STATE_REQUEST_ONLINE);
     }
   }
 }
@@ -1544,24 +1548,33 @@ static void Sd_ClientServiceFindBuild(const Sd_InstanceType *Instance, uint32_t 
 
 static void Sd_ServerServiceMain_TTL(const Sd_ServerServiceType *config) {
   uint16_t i;
-  const Sd_EventHandlerType *EventHandlers;
+  uint16_t numOfSubscribers;
+  const Sd_EventHandlerType *EventHandler;
   Sd_EventHandlerContextType *context;
   DEC_SQP(EventHandlerSubscriber);
   for (i = 0; i < config->numOfEventHandlers; i++) {
-    EventHandlers = &config->EventHandlers[i];
-    context = EventHandlers->context;
+    EventHandler = &config->EventHandlers[i];
+    context = EventHandler->context;
     SQP_WHILE(EventHandlerSubscriber) {
       if (SD_FLG_EVENT_GROUP_UNSUBSCRIBED != var->flags) {
         if (var->TTL > 0) {
           var->TTL--;
           if (0 == var->TTL) {
-            EventHandlers->onSubscribe(FALSE, &var->RemoteAddr);
+            EventHandler->onSubscribe(FALSE, &var->RemoteAddr);
             SQP_CRM_AND_FREE(EventHandlerSubscriber, var);
           }
         }
       }
     }
     SQP_WHILE_END()
+
+    numOfSubscribers = Sd_NumberOfSubscribes(EventHandler);
+    if (0 == numOfSubscribers) {
+      if (context->isMulticastOpened) {
+        context->isMulticastOpened = FALSE;
+        (void)SoAd_CloseSoCon(EventHandler->MulticastEventSoConRef, TRUE);
+      }
+    }
   }
 }
 
@@ -1805,10 +1818,99 @@ void Sd_Init(const Sd_ConfigType *ConfigPtr) {
   }
 }
 
-void Sd_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
-  ASLOG(SD, ("SoConId %d Mode %d\n", SoConId, Mode));
+Std_ReturnType Sd_ServerSoConModeChg(const Sd_InstanceType *Instance, SoAd_SoConIdType SoConId,
+                                     SoAd_SoConModeType Mode) {
+  Std_ReturnType ret = E_NOT_OK;
+  uint16_t i, j;
+  const Sd_ServerServiceType *config;
+  const Sd_EventHandlerType *EventHandler;
+  for (i = 0; i < Instance->numOfServerServices; i++) {
+    config = &Instance->ServerServices[i];
+    for (j = 0; j < config->numOfEventHandlers; j++) {
+      EventHandler = &config->EventHandlers[j];
+      if ((EventHandler->MulticastThreshold > 0) &&
+          (EventHandler->MulticastEventSoConRef == SoConId)) {
+        if (SOAD_SOCON_OFFLINE == Mode) {
+          if (EventHandler->context->isMulticastOpened) {
+            EventHandler->context->isMulticastOpened = FALSE;
+            ASLOG(SDE, ("Server Event Group %x multicast offline\n", EventHandler->EventGroupId));
+          }
+        } else {
+          if (FALSE == EventHandler->context->isMulticastOpened) {
+            EventHandler->context->isMulticastOpened = TRUE;
+            ASLOG(SDE, ("Server Event Group %x multicast online\n", EventHandler->EventGroupId));
+          }
+        }
+        ret = E_OK;
+      }
+    }
+  }
+
+  return ret;
 }
 
+Std_ReturnType Sd_ClientSoConModeChg(const Sd_InstanceType *Instance, SoAd_SoConIdType SoConId,
+                                     SoAd_SoConModeType Mode) {
+  Std_ReturnType ret = E_NOT_OK;
+  uint16_t i, j;
+  const Sd_ClientServiceType *config;
+  const Sd_ConsumedEventGroupType *ConsumedEventGroup;
+  for (i = 0; i < Instance->numOfClientServices; i++) {
+    config = &Instance->ClientServices[i];
+    for (j = 0; j < config->numOfConsumedEventGroups; j++) {
+      ConsumedEventGroup = &config->ConsumedEventGroups[j];
+      if ((ConsumedEventGroup->MulticastThreshold > 0) &&
+          (ConsumedEventGroup->MulticastEventSoConRef == SoConId)) {
+        if (SOAD_SOCON_OFFLINE == Mode) {
+          if (ConsumedEventGroup->context->isSubscribed) {
+            ASLOG(SDE,
+                  ("Client Event Group %x multicast offline\n", ConsumedEventGroup->EventGroupId));
+          }
+        } else {
+          if (FALSE == ConsumedEventGroup->context->isSubscribed) {
+            ASLOG(SDE,
+                  ("Client Event Group %x multicast online\n", ConsumedEventGroup->EventGroupId));
+          }
+        }
+        ret = E_OK;
+      }
+    }
+  }
+  return ret;
+}
+
+void Sd_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
+  Std_ReturnType ret = E_NOT_OK;
+  uint16_t i;
+  const Sd_InstanceType *Instance;
+  for (i = 0; i < SD_CONFIG->numOfInstances; i++) {
+    Instance = &SD_CONFIG->Instances[i];
+    if (SoConId == Instance->MulticastRxPdu.SoConId) {
+      if (SOAD_SOCON_OFFLINE == Mode) {
+        ASLOG(WARN, ("SD multicast socket offline\n"));
+      } else {
+        ret = E_OK;
+      }
+    } else if (SoConId == Instance->UnicastRxPdu.SoConId) {
+      if (SOAD_SOCON_OFFLINE == Mode) {
+        ASLOG(WARN, ("SD unicast socket offline\n"));
+      } else {
+        ret = E_OK;
+      }
+    } else {
+      /* multicast event socket */
+      ret = Sd_ServerSoConModeChg(Instance, SoConId, Mode);
+      if (E_OK != ret) {
+        ret = Sd_ClientSoConModeChg(Instance, SoConId, Mode);
+      }
+    }
+  }
+  if (E_OK != ret) {
+    ASLOG(SDE, ("SoConId %d Mode %d\n", SoConId, Mode));
+  }
+}
+
+/* This code logic looks weird, just check to ensure things in correct status */
 void Sd_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   uint16_t i;
   boolean isMulticast = TRUE;

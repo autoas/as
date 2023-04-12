@@ -20,7 +20,7 @@
       "API": "BL_GetSessionChangePermission"
     },
     {
-      "name": "ecu_reset", "id": "0x11",
+      "name": "ecu_reset", "id": "0x11", "API": "BL_GetEcuResetPermission",
       "sessions":["Program", "Extended"],
       "securities": ["Program", "Extended"],
       "access": ["physical", "functional"]

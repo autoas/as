@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2023 Parai Wang <parai@foxmail.com>
  */
 #ifndef ISOTP_H
 #define ISOTP_H
@@ -11,13 +11,14 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
-#define ISOTP_OTCTL_SET_TX_ID  0
+#define ISOTP_OTCTL_SET_TX_ID 0
 
 /* ================================ [ TYPES     ] ============================================== */
 typedef enum
 {
   ISOTP_OVER_CAN,
-  ISOTP_OVER_LIN
+  ISOTP_OVER_LIN,
+  ISOTP_OVER_DOIP
 } isotp_protocol_t;
 
 typedef struct {
@@ -34,6 +35,12 @@ typedef struct {
 } isotp_lin_param_t;
 
 typedef struct {
+  uint16_t sourceAddress;
+  uint16_t targetAddress;
+  uint8_t activationType;
+} isotp_doip_param_t;
+
+typedef struct {
   char device[64];
   int port;
   uint32_t baudrate;
@@ -42,6 +49,7 @@ typedef struct {
   union {
     isotp_can_param_t CAN;
     isotp_lin_param_t LIN;
+    isotp_doip_param_t DoIP;
   } U;
 } isotp_parameter_t;
 

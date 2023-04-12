@@ -49,6 +49,13 @@ extern "C" {
     }                                                                                              \
   } while (0)
 
+#define ASPRINT(level, msg)                                                                        \
+  do {                                                                                             \
+    if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
+      PRINTF msg;                                                                                  \
+    }                                                                                              \
+  } while (0)
+
 #define ASHEXDUMP(level, msg, data, size)                                                          \
   do {                                                                                             \
     if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
@@ -62,9 +69,7 @@ extern "C" {
         }                                                                                          \
         PRINTF("%02X ", pData[__index]);                                                           \
       }                                                                                            \
-      if (0 != (__index & 0x1F)) {                                                                 \
-        PRINTF("\n");                                                                              \
-      }                                                                                            \
+      PRINTF("\n");                                                                                \
     }                                                                                              \
   } while (0)
 
@@ -79,6 +84,7 @@ extern "C" {
   } while (0)
 #else
 #define ASLOG(level, msg)
+#define ASPRINT(level, msg)
 #define ASHEXDUMP(level, msg, data, size)
 #define asAssert(e)
 #endif

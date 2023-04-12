@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define DOIP_E_OK 0
 #define DOIP_E_NOT_OK -1
@@ -44,4 +47,7 @@ int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_
                   size_t rxSize);
 int doip_receive(doip_node_t *node, uint8_t *rxBuffer, size_t rxSize);
 void doip_destory_client(doip_client_t *client);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _DOIP_CLIENT_H */

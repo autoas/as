@@ -127,26 +127,27 @@ void Os_PortRequestSchedule(uint8 cpu) {
     Ipc_KickTo((int)cpu, (int)cpu);
   }
 }
-
-void Os_PortStartFirstDispatch(void) {
-  ASLOG(SMP, ("!!!CPU%d is up!!!\n", smp_processor_id()));
-  smp_boot_secondary(1, secondary_start);
-  Os_PortStartSysTick();
-  Os_PortStartDispatch();
-}
 #endif
 
+void Os_PortStartFirstDispatch(void) {
+#ifdef USE_SMP
+  ASLOG(SMP, ("!!!CPU%d is up!!!\n", smp_processor_id()));
+  smp_boot_secondary(1, secondary_start);
+#endif
+#ifndef USE_LATE_MCU_INIT
+  Os_PortStartSysTick();
+#endif
+  Os_PortStartDispatch();
+}
+
 void Os_PortException(long exception, void *sp, long esr) {
-  ASLOG(OSE, ("Exception %d happened!\n", exception));
+  ASLOG(OSE, ("Exception %d happened!\n", (int)exception));
   asAssert(0);
 }
 
-void EnterISR(void) {
-  /* do nothing */
-}
-
-void LeaveISR(void) {
-  /* do nothing */
+TASK(TaskIdle1) {
+  while (1)
+    ;
 }
 
 #ifdef USE_PTHREAD_SIGNAL

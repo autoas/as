@@ -37,6 +37,7 @@
 #define SID_READ_DATA_BY_IDENTIFIER 0x22
 #define SID_SECURITY_ACCESS 0x27
 #define SID_COMMUNICATION_CONTROL 0x28
+#define SID_READ_DATA_BY_PERIODIC_IDENTIFIER 0x2A
 #define SID_WRITE_DATA_BY_IDENTIFIER 0x2E
 #define SID_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER 0x2F
 #define SID_ROUTINE_CONTROL 0x31
@@ -91,6 +92,27 @@
 #define DCM_ENABLE_RX_DISABLE_TX_NORM_NM ((Dcm_CommunicationModeType)0x09)
 #define DCM_DISABLE_RX_ENABLE_TX_NORM_NM ((Dcm_CommunicationModeType)0x0A)
 #define DCM_DISABLE_RX_TX_NORM_NM ((Dcm_CommunicationModeType)0x0B)
+
+#define DCM_PERIODIC_SLOT_IDLE (Dcm_ReadPeriodicDIDSlotStatusType)0x00
+#define DCM_PERIODIC_SLOT_ACTIVATE (Dcm_ReadPeriodicDIDSlotStatusType)0x01
+#define DCM_PERIODIC_SLOT_RESP_PENDING (Dcm_ReadPeriodicDIDSlotStatusType)0x02
+
+#define DCM_TM_SEND_AT_SLOW_RATE 0x01
+#define DCM_TM_SEND_AT_MEDIUM_RATE 0x02
+#define DCM_TM_SEND_AT_FAST_RATE 0x03
+#define DCM_TM_STOP_SENDING 0x04
+
+#ifndef DCM_TM_SLOW_TIME_MS
+#define DCM_TM_SLOW_TIME_MS 3000
+#endif
+
+#ifndef DCM_TM_MEDIUM_TIME_MS
+#define DCM_TM_MEDIUM_TIME_MS 1500
+#endif
+
+#ifndef DCM_TM_FAST_TIME_MS
+#define DCM_TM_FAST_TIME_MS 500
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 enum
 {
@@ -128,6 +150,7 @@ typedef struct {
   PduLengthType TxIndex;
   uint16_t timerS3Server;
   uint16_t timerP2Server;
+  uint8_t respPendCnt;
   uint8_t currentSID;
   Dcm_SesCtrlType currentSession;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
@@ -293,17 +316,27 @@ typedef struct {
   Dcm_ProcessRequestTransferExitFncType TransferExitFnc;
 } Dcm_TransferExitConfigType;
 
+typedef Std_ReturnType (*Dcm_GetEcuResetPermissionFncType)(Dcm_OpStatusType OpStatus,
+                                                           Dcm_NegativeResponseCodeType *ErrorCode);
+
 typedef struct {
+  Dcm_GetEcuResetPermissionFncType GetEcuResetPermissionFnc;
   uint16_t delay;
 } Dcm_EcuResetConfigType;
 
-typedef Std_ReturnType (*Dcm_CallbackReadDidFncType)(uint8_t *data, uint16_t length,
+typedef Std_ReturnType (*Dcm_CallbackReadDidFncType)(Dcm_OpStatusType opStatus, uint8_t *data,
+                                                     uint16_t length,
                                                      Dcm_NegativeResponseCodeType *errorCode);
 typedef Std_ReturnType (*Dcm_CallbackWriteDidFncType)(Dcm_OpStatusType opStatus, uint8_t *data,
                                                       uint16_t length,
                                                       Dcm_NegativeResponseCodeType *errorCode);
 
 typedef struct {
+  Dcm_OpStatusType opStatus;
+} Dcm_ReadDIDContextType;
+
+typedef struct {
+  Dcm_ReadDIDContextType *context;
   uint16_t id;
   uint16_t length;
   Dcm_CallbackReadDidFncType readDIdFnc;
@@ -321,6 +354,25 @@ typedef struct {
   const Dcm_ReadDIDType *DIDs;
   uint8_t numOfDIDs;
 } Dcm_ReadDIDConfigType;
+
+typedef struct {
+  Dcm_OpStatusType opStatus;
+  uint16_t reload; /* timer reload value */
+  uint16_t timer;
+} Dcm_ReadPeriodicDIDContextType;
+
+typedef struct {
+  Dcm_ReadPeriodicDIDContextType *context;
+  uint8_t id; /* @SWS_Dcm_01094: high byte is 0xF2 */
+  uint16_t length;
+  Dcm_CallbackReadDidFncType readDIdFnc;
+  Dcm_SesSecAccessType SesSecAccess;
+} Dcm_ReadPeriodicDIDType;
+
+typedef struct {
+  const Dcm_ReadPeriodicDIDType *DIDs;
+  uint8_t numOfDIDs;
+} Dcm_ReadPeriodicDIDConfigType;
 
 typedef struct {
   const Dcm_WriteDIDType *DIDs;
@@ -355,6 +407,10 @@ typedef struct {
   uint16_t P2ServerMax;
 } Dcm_TimingConfigType;
 
+typedef struct {
+  uint8_t MaxNumRespPend; /* @ECUC_Dcm_00693 */
+} Dcm_DslDiagRespConfigType;
+
 struct Dcm_Config_s {
   uint8_t *rxBuffer;
   uint8_t *txBuffer;
@@ -363,6 +419,7 @@ struct Dcm_Config_s {
   const Dcm_ServiceTableType **serviceTables;
   uint8_t numOfServiceTables;
   const Dcm_TimingConfigType *timing;
+  const Dcm_DslDiagRespConfigType *dslDisgResp;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -415,6 +472,7 @@ Std_ReturnType Dem_DspReportDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType 
 Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc);
 void Dcm_DslInit(void);
+void Dcm_DspInit(void);
 void Dcm_DslMainFunction(void);
 Std_ReturnType Dcm_DslIsSessionSupported(Dcm_SesCtrlType sesCtrl, uint8_t sesMask);
 Std_ReturnType Dcm_DslServiceSesSecPhyFuncCheck(Dcm_ContextType *context,
@@ -436,4 +494,9 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
 Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
                                                const Dcm_SecLevelConfigType *secLevelConfig,
                                                Dcm_NegativeResponseCodeType *nrc);
+void Dcm_ReadPeriodicDID_Init(void);
+void Dcm_MainFunction_ReadPeriodicDID(void);
+void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void);
+Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContext,
+                                                   Dcm_NegativeResponseCodeType *nrc);
 #endif /* DCM_INTERNAL_H */

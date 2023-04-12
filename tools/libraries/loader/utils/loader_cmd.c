@@ -201,6 +201,7 @@ int main(int argc, char *argv[]) {
     args.appSRec = appSRec;
     args.flsSRec = flsSRec;
     args.choice = choice;
+    args.signType = signType;
     args.funcAddr = (uint32_t)funcAddr;
     loader = loader_create(&args);
     if (NULL == loader) {

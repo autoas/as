@@ -112,8 +112,18 @@ Window::~Window() {
 }
 
 int main(int argc, char *argv[]) {
-  /* https://doc.qt.io/archives/qt-5.6/highdpi.html */
-  //qputenv("QT_SCALE_FACTOR", "0.75");
+  int ch;
+  opterr = 0;
+  while ((ch = getopt(argc, argv, "s")) != -1) {
+    switch (ch) {
+    case 's':
+      /* https://doc.qt.io/archives/qt-5.6/highdpi.html */
+      qputenv("QT_SCALE_FACTOR", "0.75");
+      break;
+    default:
+      break;
+    }
+  }
   QApplication a(argc, argv);
   Log::setLogFile(".asone.log");
   Window w;

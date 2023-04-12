@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 #include "Log.hpp"
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
@@ -81,6 +82,48 @@ void Log::print(int level, const char *fmt, ...) {
     va_start(args, fmt);
     (void)vfprintf(s_File, fmt, args);
     va_end(args);
+  }
+}
+
+void Log::hexdump(int level, const char *prefix, const void *data, size_t size, size_t len) {
+  size_t i, j;
+  uint8_t *src = (uint8_t *)data;
+  uint32_t offset = 0;
+
+  std::unique_lock<std::mutex> lck(s_Lock);
+
+  if (size <= len) {
+    len = size;
+    fprintf(s_File, "%s:", prefix);
+  } else {
+    fprintf(s_File, "%8s:", prefix);
+    for (i = 0; i < len; i++) {
+      fprintf(s_File, " %02X", (uint32_t)i);
+    }
+    fprintf(s_File, "\n");
+  }
+
+  for (i = 0; i < (size + len - 1) / len; i++) {
+    if (size > len) {
+      fprintf(s_File, "%08X:", (uint32_t)offset);
+    }
+    for (j = 0; j < len; j++) {
+      if ((i * len + j) < size) {
+        fprintf(s_File, " %02X", (uint32_t)src[i * len + j]);
+      } else {
+        fprintf(s_File, "   ");
+      }
+    }
+    fprintf(s_File, "\t");
+    for (j = 0; j < len; j++) {
+      if (((i * len + j) < size) && isprint(src[i * len + j])) {
+        fprintf(s_File, "%c", src[i * len + j]);
+      } else {
+        fprintf(s_File, ".");
+      }
+    }
+    fprintf(s_File, "\n");
+    offset += len;
   }
 }
 

@@ -189,6 +189,8 @@ def Gen_SoAd(cfg, dir):
                 IsTP = 'TRUE'
         else:
             raise
+        if 'ModeChg' in sock:
+            SoConModeChgNotification = '%s_SoConModeChg' % (sock['ModeChg'])
         if 'server' in sock:
             IpAddress, Port = sock['server'].split(':')
         else:

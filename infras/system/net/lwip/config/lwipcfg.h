@@ -6,10 +6,22 @@
 #define _LWIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef LWIP_IPADDR_CFG_NR
+#define LWIP_IPADDR_CFG_NR 0
+#endif
+
+#if LWIP_IPADDR_CFG_NR == 0
 #define LWIP_MAC_ADDR_BASE                                                                         \
   { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed }
-
 #define LWIP_AS_LOCAL_IP_ADDR "172.18.0.200"
+#elif LWIP_IPADDR_CFG_NR == 1
+#define LWIP_MAC_ADDR_BASE                                                                         \
+  { 0xfe, 0xed, 0xde, 0xad, 0xbe, 0xef }
+#define LWIP_AS_LOCAL_IP_ADDR "172.18.0.201"
+#else
+#error invalid LWIP_IPADDR_CFG_NR
+#endif
+
 #define LWIP_AS_LOCAL_IP_NETMASK "255.255.255.0"
 #define LWIP_AS_LOCAL_IP_GATEWAY "172.18.0.1"
 

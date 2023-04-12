@@ -144,7 +144,6 @@ StatusType ClearEvent(EventMaskType Mask) {
 /* |------------------+--------------------------------------------------------------| */
 StatusType GetEvent(TaskType TaskID, EventMaskRefType Mask) {
   StatusType ercd = E_OK;
-  DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
   if (TaskID >= TASK_NUM) {

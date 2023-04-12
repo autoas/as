@@ -45,14 +45,6 @@
 
 #define DOIP_ALIVE_TIMEOUT 5000000
 #define DOIP_ALIVE_CHECK_TIME 3000000
-
-#ifndef __offsetof
-#ifdef __compiler_offsetof
-#define __offsetof(TYPE, MEMBER) __compiler_offsetof(TYPE, MEMBER)
-#else
-#define __offsetof(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
-#endif
-#endif
 /* ================================ [ TYPES     ] ============================================== */
 struct doip_node_s {
   doip_node_t node;

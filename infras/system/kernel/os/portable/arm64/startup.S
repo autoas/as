@@ -9,6 +9,8 @@
 .extern stack_top
 .extern stack2_top
 .extern secondary_main
+.extern InitBssSection
+.extern InitDataSection
 
   .section .init
 
@@ -29,6 +31,17 @@ _start:
   ldr x4, =vector_table_el1
   msr vbar_el1, x4
   isb
+
+  ldr x0, =__bss_start
+  ldr x1, =__bss_end
+  bl  InitBssSection
+
+  bl  DisableInterrupt
+
+  ldr x0, =__etext
+  ldr x1, =__data_start__
+  ldr x2, =__data_end__
+  bl  InitDataSection
 
   b main
   b .

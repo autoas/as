@@ -136,6 +136,9 @@ typedef struct {
   tFlashFct Erase;
   tFlashFct Write;
   tFlashFct Read; /* add by parai, extended API */
+#ifdef FLASH_HEADER_EXTENED_TYPE
+  FLASH_HEADER_EXTENED_TYPE extend;
+#endif
 } tFlashHeader;
 /* ================================ [ DECLARES  ] ============================================== */
 extern const tFlashHeader FlashHeader;

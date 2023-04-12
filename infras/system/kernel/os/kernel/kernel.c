@@ -173,8 +173,6 @@ void StartOS(AppModeType Mode) {
 }
 
 void ShutdownOS(StatusType Error) {
-  DECLARE_SMP_PROCESSOR_ID();
-
   OSShutdownHook(Error);
   DisableInterrupt();
   while (1)
@@ -232,7 +230,12 @@ void Os_RestoreKernelLock(void) {
 
   if (RunningVar != NULL) {
     if (0 == RunningVar->lock) {
-      asAssert((NULL == RunningVars[cpuid ? 0 : 1]) || (0 == RunningVars[cpuid ? 0 : 1]->lock));
+      // asAssert((NULL == RunningVars[cpuid ? 0 : 1]) || (0 == RunningVars[cpuid ? 0 : 1]->lock));
+
+      if (!(((NULL == RunningVars[cpuid ? 0 : 1]) || (0 == RunningVars[cpuid ? 0 : 1]->lock)))) {
+        while (1)
+          ;
+      }
       Os_PortSpinUnLock();
     }
   }

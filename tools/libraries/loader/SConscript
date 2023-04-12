@@ -30,8 +30,7 @@ objsCmd = Glob('utils/loader_cmd.c')
 @register_application
 class ApplicationLoader(Application):
     def config(self):
-        self.LIBS = ['Loader', 'Utils']
+        self.LIBS = ['LoaderApp', 'Utils']
         self.CPPPATH = ['$INFRAS']
-        self.Append(CPPDEFINES=["LOADER_USE_APP_BUILT_IN"])
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
-        self.source = objsCmd + objsApp
+        self.source = objsCmd

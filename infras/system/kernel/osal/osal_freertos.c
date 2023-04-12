@@ -14,6 +14,8 @@
 void StartupHook(void);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
+__attribute__((weak)) void StartupHook(void) {
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 osal_thread_t osal_thread_create(osal_thread_entry_t entry, void *args) {
   osal_thread_t thread = NULL;

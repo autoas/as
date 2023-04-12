@@ -11,6 +11,7 @@
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 1
+#define AS_LOG_DCME 3
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -71,6 +72,12 @@ static void Dsd_HandleRequest(Dcm_ContextType *context, const Dcm_ConfigType *co
 
   if (E_OK == r) {
     r = context->curService->dspServiceFnc(&context->msgContext, &nrc);
+    if (r != E_OK) {
+      if (DCM_POS_RESP == nrc) {
+        ASLOG(DCME, ("Fatal service %X forgot to set NRC\n", SID));
+        nrc = DCM_E_CONDITIONS_NOT_CORRECT;
+      }
+    }
   }
 
   if (DCM_E_RESPONSE_PENDING == nrc) {
@@ -79,6 +86,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context, const Dcm_ConfigType *co
     } else {
       if (DCM_INITIAL == context->opStatus) {
         ASLOG(DCM, ("start p2server\n"));
+        context->respPendCnt = 0;
         context->timerP2Server = config->timing->P2ServerMin;
       }
       context->opStatus = DCM_PENDING;
@@ -87,8 +95,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context, const Dcm_ConfigType *co
     Dcm_DslProcessingDone(context, config, nrc);
   }
 }
-/* ================================ [ FUNCTIONS ] ==============================================
- */
+/* ================================ [ FUNCTIONS ] ============================================== */
 const Dcm_ServiceTableType *Dcm_GetActiveServiceTable(Dcm_ContextType *context,
                                                       const Dcm_ConfigType *config) {
   return config->serviceTables[0];
@@ -97,7 +104,7 @@ const Dcm_ServiceTableType *Dcm_GetActiveServiceTable(Dcm_ContextType *context,
 void Dcm_MainFunction_Request(void) {
   Dcm_ContextType *context = Dcm_GetContext();
   const Dcm_ConfigType *config = Dcm_GetConfig();
-  if (DCM_BUFFER_FULL == context->rxBufferState) {
+  if ((DCM_BUFFER_FULL == context->rxBufferState) && (DCM_BUFFER_IDLE == context->txBufferState)) {
     Dsd_HandleRequest(context, config);
   }
 }

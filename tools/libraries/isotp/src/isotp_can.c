@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
 #include "../config/CanTp_Cfg.h"
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -299,7 +300,7 @@ BufReq_ReturnType IsoTp_CanCopyRxData(PduIdType id, const PduInfoType *info,
       isotp->RX.index += info->SduLength;
       ret = BUFREQ_OK;
     } else {
-      ASLOG(ISOTPE, ("[%d] listen buffer overflow\n"));
+      ASLOG(ISOTPE, ("[%d] listen buffer overflow\n", id));
       isotp->result = -__LINE__;
       sem_post(&isotp->sem);
     }
@@ -323,7 +324,7 @@ BufReq_ReturnType IsoTp_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
         isotp->TX.index += info->SduLength;
         ret = BUFREQ_OK;
       } else {
-        ASLOG(ISOTPE, ("[%d] transmit buffer overflow\n"));
+        ASLOG(ISOTPE, ("[%d] transmit buffer overflow\n", id));
         isotp->result = -__LINE__;
         sem_post(&isotp->sem);
       }

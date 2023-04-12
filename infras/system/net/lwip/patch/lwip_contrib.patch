@@ -87,10 +87,29 @@ index cb7d500..4e9c7d4 100644
  
  /* Define platform endianness (might already be defined) */
 diff --git a/ports/win32/pcapif.c b/ports/win32/pcapif.c
-index e5e1ec9..d2c935b 100644
+index e5e1ec9..cd2e3e2 100644
 --- a/ports/win32/pcapif.c
 +++ b/ports/win32/pcapif.c
-@@ -784,7 +784,7 @@ pcapif_low_level_init(struct netif *netif)
+@@ -705,6 +705,7 @@ pcapif_low_level_init(struct netif *netif)
+ {
+   u8_t my_mac_addr[ETH_HWADDR_LEN] = LWIP_MAC_ADDR_BASE;
+   int adapter_num = PACKET_LIB_ADAPTER_NR;
++  const char* ENV_PACKET_LIB_ADAPTER_NR = getenv("PACKET_LIB_ADAPTER_NR");
+   struct pcapif_private *pa;
+ #ifdef PACKET_LIB_GET_ADAPTER_NETADDRESS
+   ip4_addr_t netaddr;
+@@ -712,6 +713,10 @@ pcapif_low_level_init(struct netif *netif)
+   char guid[GUID_LEN + 1];
+ #endif /* PACKET_LIB_GET_ADAPTER_NETADDRESS */
+ 
++  if (NULL != ENV_PACKET_LIB_ADAPTER_NR) {
++      adapter_num = atoi(ENV_PACKET_LIB_ADAPTER_NR);
++  }
++
+   /* If 'state' is != NULL at this point, we assume it is an 'int' giving
+      the index of the adapter to use (+ 1 because 0==NULL is invalid).
+      This can be used to instantiate multiple PCAP drivers. */
+@@ -784,7 +789,7 @@ pcapif_low_level_init(struct netif *netif)
  #if PCAPIF_RX_USE_THREAD
    pa->rx_run = 1;
    pa->rx_running = 1;
@@ -99,15 +118,15 @@ index e5e1ec9..d2c935b 100644
  #endif
  
    LWIP_DEBUGF(NETIF_DEBUG, ("pcapif: eth_addr %02X%02X%02X%02X%02X%02X\n",netif->hwaddr[0],netif->hwaddr[1],netif->hwaddr[2],netif->hwaddr[3],netif->hwaddr[4],netif->hwaddr[5]));
-@@ -987,6 +987,7 @@ pcapif_rx_ref(struct pbuf* p)
+@@ -987,6 +992,7 @@ pcapif_rx_ref(struct pbuf* p)
  }
  #endif /* PCAPIF_RX_REF */
  
-+void PCap_Packet(const void *packet, uint32_t length);
++void __attribute__((weak)) PCap_Packet(const void *packet, uint32_t length) {}
  /** pcapif_input: This function is called when a packet is ready to be read
   * from the interface. It uses the function low_level_input() that should
   * handle the actual reception of bytes from the network interface.
-@@ -1000,7 +1001,7 @@ pcapif_input(u_char *user, const struct pcap_pkthdr *pkt_header, const u_char *p
+@@ -1000,7 +1006,7 @@ pcapif_input(u_char *user, const struct pcap_pkthdr *pkt_header, const u_char *p
    struct pbuf *p;
  
    PCAPIF_RX_LOCK_LWIP();

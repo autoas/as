@@ -16,6 +16,7 @@
 #define DEVICE_CTRL_GET_BLOCK_SIZE 1
 #define DEVICE_CTRL_GET_SECTOR_COUNT 2
 #define DEVICE_CTRL_GET_DISK_SIZE 3
+#define DEVICE_CTRL_GET_MAC_ADDR 4
 
 #if defined(_WIN32) || defined(linux)
 #define DEVICE_REGISTER(name, type, api, priv)                                                     \
@@ -31,6 +32,7 @@
 #define DEVICE_REGISTER(name, type, api, priv)                                                     \
   const device_t __attribute__((section("DeviceTab"))) dev_##name = {                              \
     #name,                                                                                         \
+    DEVICE_TYPE_##type,                                                                            \
     {dev_##api##_open, dev_##api##_close, dev_##api##_read, dev_##api##_write, dev_##api##_ctrl},  \
     priv};
 #endif
@@ -48,6 +50,7 @@ typedef struct {
 typedef enum
 {
   DEVICE_TYPE_BLOCK,
+  DEVICE_TYPE_NET,
   DEVICE_TYPE_CHAR
 } device_type_t;
 

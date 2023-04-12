@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2023 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "isotp.h"
@@ -10,23 +10,19 @@
 #define AS_LOG_ISOTP 0
 #define AS_LOG_ISOTPI 2
 #define AS_LOG_ISOTPE 3
+
+#define ISOTP_DECLARE_API(x)                                                                       \
+  extern isotp_t *isotp_##x##_create(isotp_parameter_t *params);                                   \
+  extern int isotp_##x##_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,          \
+                                  uint8_t *rxBuffer, size_t rxSize);                               \
+  extern int isotp_##x##_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);                \
+  extern int isotp_##x##_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);            \
+  extern void isotp_##x##_destory(isotp_t *isotp)
 /* ================================ [ TYPES     ] ============================================== */
-
 /* ================================ [ DECLARES  ] ============================================== */
-extern isotp_t *isotp_can_create(isotp_parameter_t *params);
-extern int isotp_can_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,
-                              uint8_t *rxBuffer, size_t rxSize);
-extern int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
-extern int isotp_can_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
-extern void isotp_can_destory(isotp_t *isotp);
-
-extern isotp_t *isotp_lin_create(isotp_parameter_t *params);
-extern int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,
-                              uint8_t *rxBuffer, size_t rxSize);
-extern int isotp_lin_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
-extern int isotp_lin_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
-extern void isotp_lin_destory(isotp_t *isotp);
-
+ISOTP_DECLARE_API(can);
+ISOTP_DECLARE_API(lin);
+ISOTP_DECLARE_API(doip);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -42,6 +38,9 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
     isotp = isotp_lin_create(params);
     break;
 #endif
+  case ISOTP_OVER_DOIP:
+    isotp = isotp_doip_create(params);
+    break;
   default:
     break;
   }
@@ -61,6 +60,9 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
     r = isotp_lin_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
 #endif
+  case ISOTP_OVER_DOIP:
+    r = isotp_doip_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    break;
   default:
     break;
   }
@@ -78,6 +80,9 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
     r = isotp_lin_receive(isotp, rxBuffer, rxSize);
     break;
 #endif
+  case ISOTP_OVER_DOIP:
+    r = isotp_doip_receive(isotp, rxBuffer, rxSize);
+    break;
   default:
     break;
   }
@@ -95,6 +100,9 @@ int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
     r = isotp_lin_ioctl(isotp, cmd, data, size);
     break;
 #endif
+  case ISOTP_OVER_DOIP:
+    r = isotp_doip_ioctl(isotp, cmd, data, size);
+    break;
   default:
     break;
   }

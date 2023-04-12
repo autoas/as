@@ -46,7 +46,7 @@ const device_t *device_find(const char *name) {
 
 #ifdef USE_SHELL
 int lsdevFunc(int argc, const char *argv[]) {
-  static const char deviceTypeMap[] = {'b', 'c'};
+  static const char deviceTypeMap[] = {'b', 'n', 'c'};
   const device_t *devIt;
   size_t sz = 0;
   for (devIt = __devtab_start; devIt < __devtab_end; devIt++) {

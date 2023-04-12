@@ -545,7 +545,6 @@ void statOsTask(void) {
   TaskVarType *pTaskVar;
   uint32_t pused;
   uint32_t used;
-  DECLARE_SMP_PROCESSOR_ID();
   printf("Name             State      Prio IPrio RPrio  StackBase  StackSize"
          "   Used       Event(set/wait)   Act/ActSum parent\n");
 #if (OS_PTHREAD_NUM > 0)

@@ -4,6 +4,7 @@ CWD = GetCurrentDir()
 objs = Glob('*.c')
 objscpp = Glob('cpp/src/*.cpp')
 
+
 @register_library
 class LibrarySomeIp(Library):
     def config(self):
@@ -12,8 +13,10 @@ class LibrarySomeIp(Library):
         self.LIBS = ['SoAd', 'MemPool', 'OSAL']
         self.source = objs
         if IsBuildForHost():
-            self.LIBS += ['PCap']
-            self.CPPDEFINES += ['USE_PCAP']
+            USE_PCAP = os.getenv('USE_PCAP')
+            if USE_PCAP == 'YES':
+                self.LIBS += ['PCap']
+                self.CPPDEFINES += ['USE_PCAP']
             self.include += ['%s/cpp/include'%(CWD)]
             self.LIBS += ['Utils', 'Plugin']
             self.source += objscpp

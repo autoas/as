@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2023 Parai Wang <parai@foxmail.com>
  */
 #ifndef ISOTP_TYPES_H
 #define ISOTP_TYPES_H
@@ -36,6 +36,7 @@ struct isotp_s {
   volatile int result;
 
   isotp_parameter_t params;
+  void *priv;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

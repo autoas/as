@@ -62,22 +62,31 @@ def gen_session_control_config(C, service, cfg):
     C.write('};\n\n')
 
 
+def gen_ecu_reset_api(C, service, cfg):
+    C.write('Std_ReturnType %s(Dcm_OpStatusType opStatus, Dcm_NegativeResponseCodeType *errorCode);\n\n' %
+            (service['API']))
+
+
 def gen_ecu_reset_config(C, service, cfg):
     C.write('static const Dcm_EcuResetConfigType Dcm_EcuResetConfig = {\n')
+    C.write('  %s,\n' % (service['API']))
     C.write('  DCM_CONVERT_MS_TO_MAIN_CYCLES(100),\n')
     C.write('};\n\n')
 
 
 def gen_read_did_api(C, service, cfg):
     for did in service['DIDs']:
-        C.write('Std_ReturnType %s(uint8_t *data, uint16_t length,\n' % (did['API']))
+        C.write(
+            'Std_ReturnType %s(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,\n' % (did['API']))
         C.write('                   Dcm_NegativeResponseCodeType *errorCode);\n\n')
 
 
 def gen_read_did_config(C, service, cfg):
+    C.write('static Dcm_ReadDIDContextType Dcm_ReadDIDContexts[%d];\n' % (len(service['DIDs'])))
     C.write('static const Dcm_ReadDIDType Dcm_ReadDIDs[] = {\n')
-    for did in service['DIDs']:
+    for i, did in enumerate(service['DIDs']):
         C.write('  {\n')
+        C.write('    &Dcm_ReadDIDContexts[%s],\n' % (i))
         C.write('    %s,\n' % (did['id']))
         C.write('    %s,\n' % (did['size']))
         C.write('    %s,\n' % (did['API']))
@@ -94,6 +103,40 @@ def gen_read_did_config(C, service, cfg):
     C.write('static const Dcm_ReadDIDConfigType Dcm_ReadDataByIdentifierConfig = {\n')
     C.write('  Dcm_ReadDIDs,\n')
     C.write('  ARRAY_SIZE(Dcm_ReadDIDs),\n')
+    C.write('};\n\n')
+
+
+def gen_read_periodic_did_api(C, service, cfg):
+    for did in service['DIDs']:
+        C.write(
+            'Std_ReturnType %s(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,\n' % (did['API']))
+        C.write('                   Dcm_NegativeResponseCodeType *errorCode);\n\n')
+
+
+def gen_read_periodic_did_config(C, service, cfg):
+    C.write('static Dcm_ReadPeriodicDIDContextType Dcm_ReadPeriodicDIDContexts[%d];\n' % (
+        len(service['DIDs'])))
+    C.write('static const Dcm_ReadPeriodicDIDType Dcm_ReadPeriodicDIDs[] = {\n')
+    for i, did in enumerate(service['DIDs']):
+        C.write('  {\n')
+        C.write('    &Dcm_ReadPeriodicDIDContexts[%s],\n' % (i))
+        C.write('    %s,\n' % (did['id']))
+        C.write('    %s,\n' % (did['size']))
+        C.write('    %s,\n' % (did['API']))
+        C.write('    {\n')
+        C.write('      %s,\n' % (get_session(did)))
+        C.write('#ifdef DCM_USE_SERVICE_SECURITY_ACCESS\n')
+        C.write('      %s,\n' % (get_security(did, cfg)))
+        C.write('#endif\n')
+        C.write('      %s,\n' % (get_misc(did, False)))
+        C.write('    },\n')
+        C.write('  },\n')
+    C.write('};\n\n')
+
+    C.write(
+        'static const Dcm_ReadPeriodicDIDConfigType Dcm_ReadDataByPeriodicIdentifierConfig = {\n')
+    C.write('  Dcm_ReadPeriodicDIDs,\n')
+    C.write('  ARRAY_SIZE(Dcm_ReadPeriodicDIDs),\n')
     C.write('};\n\n')
 
 
@@ -245,6 +288,7 @@ def gen_request_transfer_exit_config(C, service, cfg):
 
 
 def gen_read_dtc_config(C, service, cfg):
+    C.write('#ifdef USE_DEM\n')
     C.write('static const Dcm_ReadDTCSubFunctionConfigType Dcm_ReadDTCSubFunctions[] = {\n')
     C.write('  {Dem_DspReportNumberOfDTCByStatusMask, 0x01},\n')
     C.write('  {Dem_DspReportDTCByStatusMask, 0x02},\n')
@@ -255,7 +299,8 @@ def gen_read_dtc_config(C, service, cfg):
     C.write('static const Dcm_ReadDTCInfoConfigType Dcm_ReadDTCInformationConfig = {\n')
     C.write('  Dcm_ReadDTCSubFunctions,\n')
     C.write('  ARRAY_SIZE(Dcm_ReadDTCSubFunctions),\n')
-    C.write('};\n\n')
+    C.write('};\n')
+    C.write('#endif\n\n')
 
 
 def gen_ioctl_api(C, service, cfg):
@@ -316,7 +361,7 @@ ServiceMap = {
     0x10: {"name": "DIAGNOSTIC_SESSION_CONTROL", "subfunc": True, "API": "SessionControl",
            "config": gen_session_control_config, "api": gen_session_control_api},
     0x11: {"name": "ECU_RESET", "subfunc": True, "API": "EcuReset",
-           "config": gen_ecu_reset_config, "api": gen_dummy_api},
+           "config": gen_ecu_reset_config, "api": gen_ecu_reset_api},
     0x14: {"name": "CLEAR_DIAGNOSTIC_INFORMATION", "subfunc": False, "API": "ClearDTC",
            "config": gen_dummy_config, "api": gen_dummy_api},
     0x19: {"name": "READ_DTC_INFORMATION", "subfunc": True, "API": "ReadDTCInformation",
@@ -327,6 +372,8 @@ ServiceMap = {
            "config": gen_security_access_config, "api": gen_security_access_api},
     0x28: {"name": "COMMUNICATION_CONTROL", "subfunc": True, "API": "CommunicationControl",
            "config": gen_communication_control_config, "api": gen_communication_control_api},
+    0x2A: {"name": "READ_DATA_BY_PERIODIC_IDENTIFIER", "subfunc": False, "API": "ReadDataByPeriodicIdentifier",
+           "config": gen_read_periodic_did_config, "api": gen_read_periodic_did_api},
     0x2E: {"name": "WRITE_DATA_BY_IDENTIFIER", "subfunc": False, "API": "WriteDataByIdentifier",
            "config": gen_write_did_config, "api": gen_write_did_api},
     0x2F: {"name": "INPUT_OUTPUT_CONTROL_BY_IDENTIFIER", "subfunc": True, "API": "IOControlByIdentifier",
@@ -393,7 +440,12 @@ def Gen_Dcm(cfg, dir):
     H.write('\n\n')
 
     for service in cfg['services']:
+        isDtcRelated = ServiceMap[service['id']]['name'] in ['CLEAR_DIAGNOSTIC_INFORMATION', 'READ_DTC_INFORMATION', 'CONTROL_DTC_SETTING']
+        if isDtcRelated:
+            H.write('#ifdef USE_DEM\n')
         H.write('#define DCM_USE_SERVICE_%s\n' % (ServiceMap[service['id']]['name']))
+        if isDtcRelated:
+            H.write('#endif\n')
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
     H.write(
@@ -431,6 +483,9 @@ def Gen_Dcm(cfg, dir):
         ServiceMap[service['id']]['config'](C, service, cfg)
     C.write('static const Dcm_ServiceType Dcm_UdsServices[] = {\n')
     for service in cfg['services']:
+        isDtcRelated = ServiceMap[service['id']]['name'] in ['CLEAR_DIAGNOSTIC_INFORMATION', 'READ_DTC_INFORMATION', 'CONTROL_DTC_SETTING']
+        if isDtcRelated:
+            C.write('#ifdef USE_DEM\n')
         C.write('  {\n')
         C.write('    SID_%s,\n' % (ServiceMap[service['id']]['name']))
         C.write('    {\n')
@@ -446,6 +501,8 @@ def Gen_Dcm(cfg, dir):
         else:
             C.write('    (const void *)&Dcm_%sConfig,\n' % (ServiceMap[service['id']]['API']))
         C.write('  },\n')
+        if isDtcRelated:
+            C.write('#endif\n')
     C.write('};\n\n')
 
     C.write('static const Dcm_ServiceTableType Dcm_UdsServiceTable = {\n')
@@ -463,10 +520,19 @@ def Gen_Dcm(cfg, dir):
     C.write('  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n' % (cfg['timings']['P2ServerMax']))
     C.write('};\n\n')
 
+    C.write('static const Dcm_DslDiagRespConfigType Dcm_DslDiagRespConfig = {\n')
+    C.write('  %s,\n' % (cfg.get('MaxNumRespPend', 8)))
+    C.write('};\n\n')
+
     C.write('const Dcm_ConfigType Dcm_Config = {\n')
-    C.write('  rxBuffer,          txBuffer,          sizeof(rxBuffer),\n')
-    C.write('  sizeof(txBuffer),  Dcm_ServiceTables, ARRAY_SIZE(Dcm_ServiceTables),\n')
+    C.write('  rxBuffer,\n')
+    C.write('  txBuffer,\n')
+    C.write('  sizeof(rxBuffer),\n')
+    C.write('  sizeof(txBuffer),\n')
+    C.write('  Dcm_ServiceTables,\n')
+    C.write('  ARRAY_SIZE(Dcm_ServiceTables),\n')
     C.write('  &Dcm_TimingConfig,\n')
+    C.write('  &Dcm_DslDiagRespConfig\n')
     C.write('};\n\n')
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')

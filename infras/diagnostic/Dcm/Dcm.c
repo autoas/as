@@ -38,12 +38,16 @@ void Dcm_Init(const Dcm_ConfigType *ConfigPtr) {
   context->txBufferState = DCM_BUFFER_IDLE;
   context->curPduId = DCM_INVALID_PDU_ID;
   Dcm_DslInit();
+  Dcm_DspInit();
 }
 
 void Dcm_MainFunction(void) {
   Dcm_MainFunction_Request();
   Dcm_DslMainFunction();
   Dcm_MainFunction_Response();
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+  Dcm_MainFunction_ReadPeriodicDID();
+#endif
 }
 
 void Dcm_MainFunction_Response(void) {
@@ -219,7 +223,8 @@ void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
     } else {
       ASLOG(DCME, ("Error when do TxConfirmation, reset to Idle\n"));
     }
-    context->curPduId = DCM_INVALID_PDU_ID;
+    /* comment out for Periodic DID */
+    /* context->curPduId = DCM_INVALID_PDU_ID; */
     context->txBufferState = DCM_BUFFER_IDLE;
   }
 }

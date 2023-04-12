@@ -2,6 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
+#ifdef USE_FLS
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Fls.h"
 #include "Std_Debug.h"
@@ -126,7 +127,7 @@ static void *_fls_engine(void *arg) {
 
   return NULL;
 }
-#ifdef USE_FLS
+
 static void __attribute__((constructor)) _fls_start(void) {
 #ifndef FLS_AC_RAM_ONLY
   size_t sz;
@@ -159,7 +160,6 @@ static void __attribute__((constructor)) _fls_start(void) {
 #endif
   atexit(_fls_stop);
 }
-#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Fls_AcInit(void) {
   lJobType = FLS_AC_JOB_NONE;
@@ -324,3 +324,4 @@ Std_ReturnType Fls_AcBlankCheck(Fls_AddressType address, Fls_LengthType length) 
 
   return r;
 }
+#endif

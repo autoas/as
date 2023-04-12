@@ -119,3 +119,8 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
   } else {
   }
 }
+
+Std_ReturnType BL_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
+                                        Dcm_NegativeResponseCodeType *ErrorCode) {
+  return E_OK;
+}

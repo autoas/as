@@ -4,15 +4,10 @@
  */
 #ifdef _WIN32
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <windows.h>
 #include <string.h>
 #include <assert.h>
-
+#include <minwindef.h>
 #include "vxlapi.h"
-#ifdef SLIST_ENTRY
-#undef SLIST_ENTRY
-#endif
-
 #include <sys/queue.h>
 #include <pthread.h>
 #include "Std_Debug.h"
@@ -154,7 +149,9 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
     XLstatus status = xlOpenDriver();
 
     if (XL_SUCCESS != status) {
-      ASLOG(WARN, ("CAN VXL open error<%d>: %s\n", status, xlGetErrorString(status)));
+      if (xlGetErrorString != NULL) {
+        ASLOG(WARN, ("CAN VXL open error<%d>: %s\n", status, xlGetErrorString(status)));
+      }
       pthread_mutex_unlock(&vxlH.mutex);
       return false;
     }

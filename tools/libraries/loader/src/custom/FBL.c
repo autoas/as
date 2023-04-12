@@ -111,8 +111,8 @@ static int routine_check_integrity(loader_t *loader) {
 
 static const loader_service_t lStdServices[] = {
   {"enter extended session", " okay\n", enter_extend_session},
-  {"control dtc setting off", " okay\n", control_dtc_setting_off},
-  {"communication disable", " okay\n", communicaiton_disable},
+  // {"control dtc setting off", " okay\n", control_dtc_setting_off},
+  // {"communication disable", " okay\n", communicaiton_disable},
   {"level 1 security access", " okay\n", security_extds_access},
   {"enter program session", " okay\n", enter_program_session},
   {"level 2 security access", " okay\n", security_prgs_access},
@@ -123,8 +123,8 @@ static const loader_service_t lStdServices[] = {
   {"download application", " okay\n", download_application},
   {"check integrity", " okay\n", routine_check_integrity},
   {"ecu reset", " okay\n", ecu_reset},
-  {"communication enable", " okay\n", communicaiton_enable},
-  {"control dtc setting on", " okay\n", control_dtc_setting_on},
+  // {"communication enable", " okay\n", communicaiton_enable},
+  // {"control dtc setting on", " okay\n", control_dtc_setting_on},
 };
 
 static const loader_app_t lStdApp = {

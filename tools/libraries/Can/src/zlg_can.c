@@ -1,14 +1,9 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021-2023 Parai Wang <parai@foxmail.com>
  */
 #ifdef _WIN32
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <windows.h>
-
-#ifdef SLIST_ENTRY
-#undef SLIST_ENTRY
-#endif
 #include <sys/queue.h>
 #include <pthread.h>
 #include <assert.h>

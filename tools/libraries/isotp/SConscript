@@ -1,7 +1,7 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c')
+objs = Glob('src/*.c') + Glob('src/*.cpp')
 
 libsForIsoTp = {}
 for libName in ['CanTp', 'LinTp', 'CanIf', 'PduR', 'LinIf']:
@@ -12,7 +12,7 @@ class LibraryIsoTp(Library):
     def config(self):
         self.CPPDEFINES = []
         self.include = '%s/include' % (CWD)
-        self.LIBS = ['StdTimer', 'Simulator', 'CanLib', 'LinLib', 'DevLib']
+        self.LIBS = ['StdTimer', 'Simulator', 'CanLib', 'LinLib', 'DevLib', 'DoIPClient']
         for libName, source in libsForIsoTp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)

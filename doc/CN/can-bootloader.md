@@ -53,6 +53,8 @@ D:\repository\ssas-public\app\platform>git clone https://github.com/autoas/qemu.
 D:\repository\ssas-public\app\platform>cd ../..
 # 开始编译
 D:\repository\ssas-public>scons --app=Loader
+D:\repository\ssas-public>scons --app=CanBridge
+D:\repository\ssas-public>scons --app=CanDump
 
 # 设置CANFD模式，数据最大长度为64字节
 D:\repository\ssas-public>set LL_DL=64
@@ -68,10 +70,14 @@ D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBL
 D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp
 
 # 切换回 app 页，启动qemu虚拟机
-# 如果qemu没有安装，使用命令 “pacman -S mingw-w64-x86_64-qemu”进行安装
 D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBLRun
 scons: Reading SConscript files ...
 qemu-system-arm.exe: -serial tcp:127.0.0.1:9000,server: info: QEMU waiting for connection on: disconnected:tcp:127.0.0.1:9000,server=on
+# 在sim页启动 CanBridge
+D:\repository\ssas-public>build\nt\GCC\CanBridge\CanBridge.exe -d qemu -d simulator_v2
+# 在tool页启动 CanDump
+D:\repository\ssas-public>build\nt\GCC\CanDump\CanDump.exe
+# 切回app页
 INFO    :bootloader build @ Dec 15 2021 19:26:46
 INFO    :application is valid
 INFO    :application build @ Dec 14 2021 22:55:11
@@ -79,7 +85,7 @@ INFO    :application build @ Dec 14 2021 22:55:11
 
 # 等虚拟机启动完成，切换到 boot 页，如下命令开始升级
 # 加入参数 "-v"可以看到更详细的日志
-D:\repository\ssas-public>build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -d CAN.qemu -l 64
+D:\repository\ssas-public>build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -l 64
 
 # 因为是模拟，升级过程可能比较漫长，可能我的笔记本性能太差了，一帧CAN报文需要100ms左右的通信时间（bug待查）！
 # 你可以在app和boot页来回切换，观察输出日志。
@@ -137,7 +143,7 @@ INFO    :application v2 build @ Dec 15 2021 21:47:05
 上面的步骤很多，花费时间也很长，请耐心一点，如果你选择加入的参数"-v"，可看到如下类容，从此内容，即可知升级过程即一系列UDS服务的组合来共同实现升级APP的目的。
 
 ```sh
-build\nt\GCC\Loader\Loader.exe -v -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -d CAN.qemu -l 64
+build\nt\GCC\Loader\Loader.exe -v -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -l 64
 
 loader started:
 enter extended session
@@ -260,9 +266,6 @@ const tFlashHeader FlashHeader = {.Info.W.MCU = 1,
 # build the CanBL
 set LL_DL=64
 scons --app=CanBL
-
-# sign the flash with 2K
-build\nt\GCC\Loader\Loader.exe -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19 -s 2048
 
 # Run the CanBL
 build\nt\GCC\CanBL\CanBL.exe

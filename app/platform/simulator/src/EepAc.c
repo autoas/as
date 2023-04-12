@@ -2,6 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
+#ifdef USE_EEP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Eep.h"
 #include "Std_Debug.h"
@@ -102,7 +103,7 @@ static void *_eep_engine(void *arg) {
 
   return NULL;
 }
-#ifdef USE_EEP
+
 static void __attribute__((constructor)) _eep_start(void) {
   size_t sz;
   uint8_t EraseMask = 0xFF;
@@ -128,7 +129,6 @@ static void __attribute__((constructor)) _eep_start(void) {
   }
   atexit(_eep_stop);
 }
-#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Eep_AcInit(void) {
 }
@@ -264,3 +264,4 @@ Std_ReturnType Eep_AcBlankCheck(Eep_AddressType address, Eep_LengthType length) 
 
   return r;
 }
+#endif

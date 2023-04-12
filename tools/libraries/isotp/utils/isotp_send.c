@@ -15,7 +15,7 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
-  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF..\n"
+  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w\n"
          "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"CANFD.simulator\".\n",
          prog);
 }
@@ -31,13 +31,14 @@ int main(int argc, char *argv[]) {
   char bytes[3] = {0, 0, 0};
   int i;
   int r = 0;
+  int wait = 0;
   isotp_t *isotp;
   int baudrate = 500000;
   uint32_t timeout = 100; /* ms */
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "b:d:l:p:r:t:v:T:")) != -1) {
+  while ((ch = getopt(argc, argv, "b:d:l:p:r:t:v:T:w")) != -1) {
     switch (ch) {
     case 'b':
       baudrate = atoi(optarg);
@@ -67,6 +68,9 @@ int main(int argc, char *argv[]) {
         bytes[1] = optarg[2 * i + 1];
         data[i] = strtoul(bytes, NULL, 16);
       }
+      break;
+    case 'w':
+      wait = 1;
       break;
     default:
       break;
@@ -120,15 +124,21 @@ int main(int argc, char *argv[]) {
   printf("\n");
   r = isotp_transmit(isotp, data, length, data, sizeof(data));
 
-  if (r > 0) {
-    printf("RX: ");
-    for (i = 0; i < r; i++) {
-      printf("%02X ", data[i]);
+  do {
+    if (r > 0) {
+      printf("RX: ");
+      for (i = 0; i < r; i++) {
+        printf("%02X ", data[i]);
+      }
+      printf("\n");
+    } else {
+      printf("failed with error %d\n", r);
+      break;
     }
-    printf("\n");
-  } else {
-    printf("failed with error %d\n", r);
-  }
+    if (wait) {
+      r = isotp_receive(isotp, data, sizeof(data));
+    }
+  } while (wait);
 
   if (NULL != isotp) {
     isotp_destory(isotp);

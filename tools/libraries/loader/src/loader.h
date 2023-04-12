@@ -52,6 +52,7 @@ typedef struct {
   srec_t *appSRec;
   srec_t *flsSRec;
   const char *choice;
+  srec_sign_type_t signType;
   uint32_t funcAddr;
 } loader_args_t;
 
@@ -72,6 +73,11 @@ typedef loader_app_t *(*loader_get_app_func_t)(void);
 typedef uint32_t loader_crc_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* common APIs for loader application */
+loader_crc_t loader_crc_init(loader_t *loader);
+loader_crc_t loader_calulate_crc(loader_t *loader, const uint8_t *DataPtr, uint32_t Length,
+                                 loader_crc_t StartValue, boolean IsFirstCall);
+uint32_t loader_set_crc(loader_t *loader, uint8_t *DataPtr, loader_crc_t Crc);
+
 int uds_request_service(loader_t *loader, const uint8_t *data, size_t length, const int *expected,
                         size_t eLen);
 int uds_broadcast_service(loader_t *loader, const uint8_t *data, size_t length, const int *expected,
