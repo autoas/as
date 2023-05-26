@@ -8,7 +8,9 @@ from .helper import *
 __all__ = ['Gen']
 
 def GetName(node):
-    return node['name'].replace('{', '').replace('}', '')
+    if node['name'][-2:] == '{}':
+        return node['name'][:-2]
+    return node['name']
 
 
 def GetBlockSize(block):
@@ -36,7 +38,7 @@ def GenTypes(H, cfg):
         for data in block['data']:
             dinfo = TypeInfoMap[data['type']]
             cstr = '  %s %s' % (dinfo['ctype'], GetName(data))
-            if 'repeat' in data:
+            if data['name'][-2:] == '{}':
                 cstr += '[%s]' % (data['repeat'])
             if dinfo['IsArray']:
                 cstr += '[%s]' % (data['size'])

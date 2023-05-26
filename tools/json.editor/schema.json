@@ -1,0 +1,695 @@
+[
+  {
+    "title" : "Dcm", "type": "object",
+    "properties": {
+      "timings": { "title": "timings", "type": "object",
+        "properties": {
+          "S3Server": { "type": "integer", "default": 5000, "minimum": 0,"maximum": 100000 },
+          "P2ServerMin": { "type": "integer", "default": 450, "minimum": 0,"maximum": 100000 },
+          "P2ServerMax": { "type": "integer", "default": 500, "minimum": 0,"maximum": 100000 }
+        }
+      },
+      "security": {
+        "title": "security", "type": "object",
+        "properties": {
+          "NumAtt": { "type": "integer", "default": 3, "minimum": 1,"maximum": 255 },
+          "DelayTime": { "type": "integer", "default": 3000, "minimum": 0,"maximum": 100000 }
+        }
+      },
+      "buffer": {
+        "title": "buffer", "type": "object",
+        "properties": {
+          "rx": { "type": "integer", "default": 512, "minimum": 64,"maximum": 4095 },
+          "tx": { "type": "integer", "default": 512, "minimum": 64,"maximum": 4095 }
+        }
+      },
+      "sessions": {
+        "type": "array", "items": {
+          "type": "object", "title": "session",
+          "properties": {
+            "name": { "type": "string" },
+            "id": { "type": "integer", "format": "hex", "minimum": 1,"maximum": 255, "description": "diagnostic session identifier" }
+          }
+        }
+      },
+      "securities": {
+        "type": "array", "items": {
+          "type": "object", "title": "security",
+          "properties": {
+            "name": { "type": "string" },
+            "level": { "type": "integer", "default": 1, "minimum": 1,"maximum": 254 },
+            "size": { "type": "integer", "default": 4, "minimum": 1,"maximum": 255 },
+            "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+            "API": {
+              "type": "object", "title": "API",
+              "properties": {
+                "seed": { "type": "string", "default": "Xxx_Get${../name}SessionSeed" },
+                "key": { "type": "string", "default": "Xxx_Compare${../name}SessionKey" }
+              }
+            }
+          }
+        }
+      },
+      "memories": {
+        "type": "array", "items": {
+          "type": "object", "title": "memory",
+          "properties": {
+            "name": { "type": "string" },
+            "low": { "type": "integer", "format": "hex", "default": 0, "minimum": 0,"maximum": 4294967295 },
+            "high": { "type": "integer", "format": "hex", "default": 1048576, "minimum": 0,"maximum": 4294967295 },
+            "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+            "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+            "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+          }
+        }
+      },
+      "memory.format": {
+        "type": "array",
+        "items": { "type": "integer", "title": "memory.format", "format":"hex", "default": "0x44", "minimum": 1,"maximum": 255 }
+      },
+      "services": {
+        "type": "array", "items": {
+          "type": "object", "title": "service", "orders": ["name"], "display_with_list": false,
+          "properties": {
+            "name": { "type": "string", "map": { 
+                "session control": { "id": "0x10", "extend": true },
+                "ecu reset": { "id": "0x11", "extend": true },
+                "clear dtc": { "id": "0x14" },
+                "read dtc": { "id": "0x19" },
+                "read did": { "id": "0x22", "extend": true },
+                "read memory by address": { "id": "0x23" },
+                "security access": { "id": "0x27" },
+                "communication control": { "id": "0x28", "extend": true },
+                "read periodic did": { "id": "0x2A", "extend": true },
+                "dynamic defined did": { "id": "0x2C" },
+                "write did": { "id": "0x2E", "extend": true },
+                "IO Control": { "id": "0x2F", "extend": true },
+                "routine control": { "id": "0x31", "extend": true },
+                "request download": { "id": "0x34", "extend": true },
+                "request upload": { "id": "0x35", "extend": true },
+                "transfer data": { "id": "0x36", "extend": true },
+                "transfer exit": { "id": "0x37", "extend": true },
+                "write memory by address": { "id": "0x3D" },
+                "tester present": { "id": "0x3E" },
+                "control dtc setting": { "id": "0x85" }
+              },
+              "friends": ["id"] },
+            "id": { "type": "hide" },
+            "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+            "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+            "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+          },
+          "extends": {
+            "session control": {
+              "API": { "type": "string", "default": "Xxx_GetSessionChangePermission" }
+            },
+            "ecu reset": {
+              "API": { "type": "string", "default": "Xxx_GetEcuResetPermission" }
+            },
+            "read did" : {
+              "DIDs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "DID",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
+                    "API": { "type": "string", "default": "Xxx_ReadDID${name}" },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+                  }
+                }
+              }
+            },
+            "communication control" : {
+              "functions": {
+                "type": "array", "items": {
+                  "type": "object", "title": "function",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "minimum": 0,"maximum": 255 },
+                    "API": { "type": "string", "default": "Xxx_CommCtrl_${id}" }
+                  }
+                }
+              }
+            },
+            "read periodic did": {
+              "DIDs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "DID",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFF", "minimum": 0,"maximum": 255 },
+                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
+                    "API": { "type": "string", "default": "Xxx_ReadDID${name}" },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+                  }
+                }
+              }
+            },
+            "write did" : {
+              "DIDs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "DID",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
+                    "API": { "type": "string", "default": "Xxx_WriteDID${name}" },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+                  }
+                }
+              }
+            },
+            "IO Control" : {
+              "IOCTLs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "IOCTL",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "actions": {
+                      "type": "array", "items": {
+                        "type": "object", "title": "action",
+                        "properties": {
+                          "name": { "type": "string", "map": { 
+                            "ReturnControlToEcu": { "id": 0 },
+                            "ResetToDefault": { "id": 1 },
+                            "FreezeCurrentState": { "id": 2 },
+                            "ShortTermAdjustment": { "id": 3 }
+                          },
+                          "friends": ["id"] },
+                          "id": { "type": "hide" },
+                          "API": { "type": "string", "default": "Xxx_IOCtl_${../../name}_${name}" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "routine control": {
+              "routines": {
+                "type": "array", "items": {
+                  "type": "object", "title": "routine",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "API": {
+                      "type": "object", "title": "API",
+                      "properties": {
+                        "start": { "type": "string", "default": "Xxx_Start${../name}", "description": "can be NULL if not used" },
+                        "stop": { "type": "string", "default": "NULL", "description": "can be NULL if not used" },
+                        "result": { "type": "string", "default": "NULL", "description": "can be NULL if not used" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "request download": {
+              "API": { "type": "string", "default": "Xxx_ProcessRequestDownload" }
+            },
+            "request upload": {
+              "API": { "type": "string", "default": "Xxx_ProcessRequestUpload" }
+            },
+            "transfer data": {
+              "API": { 
+                "type": "object", "title": "API",
+                "properties": {
+                  "write": { "type": "string", "default": "Xxx_ProcessTransferDataWrite", "description": "can be NULL if not used" },
+                  "read": { "type": "string", "default": "Xxx_ProcessTransferDataRead", "description": "can be NULL if not used" }
+                }
+              }
+            },
+            "transfer exit": {
+              "API": { "type": "string", "default": "Xxx_ProcessRequestTransferExit" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title" : "OS", "type": "object",
+    "properties": {
+      "CPU_CORE_NUMBER": { "type": "integer", "default": 1, "minimum": 1,"maximum": 255 },
+      "PTHREAD": { "type": "integer", "default": 32, "minimum": 1,"maximum": 255 },
+      "PTHREAD_PRIORITY": { "type": "integer", "default": 32, "minimum": 1,"maximum": 255 },
+      "StartupHook": { "type": "bool", "default": true },
+      "TaskList": {
+        "type": "array", "items": {
+          "type": "object", "title": "Task",
+          "properties": {
+            "name": { "type": "string" },
+            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 },
+            "StackSize": { "type": "integer", "default": 512, "minimum": 128,"maximum": 65535 },
+            "AutoStart": { "type": "bool", "default": true },
+            "Cpu": { "type": "integer", "default": 0, "minimum": 0,"maximum": 31 },
+            "EventList": {
+              "type": "array", "items": {
+                "type": "object", "title": "Event",
+                "properties": {
+                  "name": { "type": "string" },
+                  "Mask": { "type": "integer", "format": "hex", "default": "0x01", "minimum": 1,"maximum": 4294967295 }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalResource": {
+        "type": "array", "items": {
+          "type": "object", "title": "InternalResource",
+          "properties": {
+            "name": { "type": "string" },
+            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 }
+          }
+        }
+      },
+      "ResourceList": {
+        "type": "array", "items": {
+          "type": "object", "title": "Resource",
+          "properties": {
+            "name": { "type": "string" },
+            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 }
+          }
+        }
+      },
+      "CounterList": {
+        "type": "array", "items": {
+          "type": "object", "title": "Counter",
+          "properties": {
+            "name": { "type": "string" },
+            "MaxAllowed": { "type": "integer", "default": 65535, "minimum": 1,"maximum": 2147483647 },
+            "MinCycle": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535 },
+            "TicksPerBase": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535 }
+          }
+        }
+      },
+      "AlarmList": {
+        "type": "array", "items": {
+          "type": "object", "title": "Alarm", "orders": ["name", "Driver", "Action", "Task", "Event", "Counter"],
+          "properties": {
+            "name": { "type": "string" },
+            "Driver": { "type": "string", "enumref": "/OS/CounterList:name", "description": "Counter used to drive this Alarm" },
+            "Action": { "type": "string", "default": "ACTIVATETASK",  "enum": ["ACTIVATETASK", "SETEVENT", "CALLBACK", "SIGNALCOUNTER"] },
+            "Task": { "type": "string", "enumref": "/OS/TaskList:name", "enabled": "'${Action}' == 'ACTIVATETASK' or '${Action}' == 'SETEVENT'"  },
+            "Event": { "type": "string", "enumref": "/OS/TaskList/${Task}/EventList:name", "enabled": "'${Action}' == 'SETEVENT'" },
+            "Counter": { "type": "string", "enumref": "/OS/CounterList:name", "enabled": "'${Action}' == 'SIGNALCOUNTER'" }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title" : "Dem", "type": "object",
+    "properties": {
+      "conditions": {
+        "type": "array", "items": {
+          "type": "object", "title": "condition",
+          "properties": {
+            "name": { "type": "string" }
+          }
+        }
+      },
+      "DTCs": {
+        "type": "array", "items": {
+          "type": "object", "title": "DTC",
+          "properties": {
+            "name": { "type": "string" },
+            "number": { "type": "string" },
+            "priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 },
+            "conditions": {
+              "type": "array", "items": { "title": "condition", "type": "string", "enumref": "/Dem/conditions:name" }
+            }
+          }
+        }
+      },
+      "Environments": {
+        "type": "array", "items": {
+          "type": "object", "title": "Environment",
+          "properties": {
+            "name": { "type": "string" },
+            "id": {  "type": "integer", "format": "hex", "default": "0x1001", "minimum": 1,"maximum": 65535 },
+            "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32", "struct"] },
+            "unit": { "type": "string" },
+            "data": {
+              "type": "array", "enabled": "'${../type}' == 'struct'",
+              "items": {
+                "type": "object", "title": "data",
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32"] }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ExtendedDatas": {
+        "type": "array", "items": {
+          "type": "object", "title": "ExtendedData",
+          "properties": {
+            "name": { "type": "string" },
+            "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32"] }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title" : "NvM", "type": "object",
+    "properties": {
+      "target": { "type": "string", "default": "Fee", "enum": ["Fee", "Ea"] },
+      "blocks": {
+        "type": "array", "items": {
+          "type": "object", "title": "block",
+          "properties": {
+            "name": { "type": "string", "description": "name end with '{}' means repeatable array" },
+            "repeat": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535, "enabled": "'${name}'[-2:] == '{}'" },
+            "data": {
+              "type": "array", "items": {
+                "type": "object", "title": "data",
+                "properties": {
+                  "name": { "type": "string", "description": "name end with '{}' means repeatable array" },
+                  "repeat": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535, "enabled": "'${name}'[-2:] == '{}'" },
+                  "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32", "uint8_n", "uint16_n", "uint32_n"] },
+                  "size": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535, "enabled": "'${type}'[-2:] == '_n'" },
+                  "default": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+       }
+    }
+  },
+  {
+    "title" : "EcuC", "type": "object",
+    "properties": {
+      "Pdus": {
+        "type": "array", "items": {
+          "type": "object", "title": "Pdu",
+          "properties": {
+            "name": { "type": "string" },
+            "size": { "type": "integer", "default": 64, "minimum": 1, "maximum": 65535, "description": "bit size" }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "CanIf", "type": "object",
+    "properties": {
+      "networks": {
+        "type": "array", "items": {
+          "type": "object", "title": "network", "display_with_list": false,
+          "properties": {
+            "name": { "type": "string", "default": "CAN?" },
+            "me": { "type": "string", "default": "AS", "description": "self node name" },
+            "RxPdus": {
+              "type": "array", "items": {
+                "type": "object", "title": "RxPdu",
+                "properties": {
+                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
+                  "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+                  "use_mask": { "type": "bool", "default": false },
+                  "mask": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295, "enabled": "'${use_mask}' == 'True'" },
+                  "up": { "type": "string", "enum": ["CanTp", "OsekNm", "CanNm", "PduR"] }
+                }
+              }
+            },
+            "TxPdus": {
+              "type": "array", "items": {
+                "type": "object", "title": "TxPdu",
+                "properties": {
+                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
+                  "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+                  "dynamic": { "type": "bool", "default": false },
+                  "up": { "type": "string", "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Com"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "PduR", "type": "object",
+    "properties": {
+      "routines": {
+        "type": "array", "items": {
+          "type": "object", "title": "routine",
+          "properties": {
+            "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+            "from": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP"] },
+            "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP"] }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "CanTp", "type": "object",
+    "properties": {
+      "channels": {
+        "type": "array", "items": {
+          "type": "object", "title": "channel",
+          "properties": {
+            "name": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "Com", "type": "object",
+    "properties": {
+      "nodes": { "type": "array", "items": { "type": "string", "title": "node" } },
+      "group_signals": { "type": "array", "items": { "type": "string", "title": "group_signal" } },
+      "networks": {
+        "type": "array", "items": {
+          "type": "object", "title": "network", "display_with_list": false,
+          "properties": {
+            "name": { "type": "string", "default": "CAN?" },
+            "network": { "type": "string", "default": "CAN", "enum": ["CAN", "CANFD", "LIN"] },
+            "device": { "type": "string", "default": "simulator_v2", "enum": ["simulator_v2", "peak", "zlg", "vxl"] },
+            "port": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+            "baudrate": { "type": "integer", "default": 500000, "minimum": 0, "maximum": 4294967295 },
+            "me": { "type": "string", "default": "AS", "enumref": "/Com/nodes", "description": "self node name" },
+            "messages": {
+              "type": "array", "items": {
+                "type": "object", "title": "message", "display_with_list": false,
+                "properties": {
+                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
+                  "dlc": { "type": "integer", "default": 8, "minimum": 0, "maximum": 255 },
+                  "node": { "type": "string", "default": "AS", "enumref": "/Com/nodes", "description": "node that transmit this message" },
+                  "signals": {
+                    "type": "array", "items": {
+                      "type": "object", "title": "signal",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "start": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+                        "size": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+                        "endian": { "type": "string", "default": "big", "enum": ["big", "little"] },
+                        "sign": { "type": "string", "default": "+", "enum": ["+", "-"] },
+                        "is_group": { "type": "bool", "default": false },
+                        "group": { "type": "string", "enumref": "/Com/group_signals", "enabled": "'${is_group}' == 'True'" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "Net", "type": "object",
+    "properties": {
+      "Modules": {
+        "type": "array", "items": {
+          "type": "object", "title": "Module", "orders": ["name"], "display_with_list": false,
+          "properties": {
+            "name": { 
+              "type": "string", "map": { 
+                "DoIp": { "class": "DoIp", "extend": true },
+                "SomeIp": { "class": "SomeIp", "extend": true },
+                "SoAd": { "class": "SoAd", "extend": true }
+              },
+              "friends": ["class"]
+            },
+            "class": { "type": "hide" }
+          },
+          "extends": {
+            "DoIp":{
+              "discovery": { "type": "string", "default": "224.244.224.245:13400" },
+              "max_connections": { "type": "integer", "default": 3, "minimum": 1, "maximum": 65535 },
+              "targets": {
+                "type": "array", "items": {
+                  "type": "object", "title": "target",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "address": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 }
+                  }
+                }
+              },
+              "routines": {
+                "type": "array", "items": {
+                  "type": "object", "title": "routine",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "number": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 },
+                    "targets": {
+                      "type": "array", "items": { "type": "string", "title": "target", "enumref": "/Net/Modules/DoIp/targets:name" }
+                    }
+                  }
+                }
+              },
+              "testers": {
+                "type": "array", "items": {
+                  "type": "object", "title": "routine",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "address": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "routines": {
+                      "type": "array", "items": { "type": "string", "title": "routine", "enumref": "/Net/Modules/DoIp/routines:name" }
+                    }
+                  }
+                }
+              }
+            },
+            "SomeIp": {
+              "SD": {
+                "type": "object", "title": "SD",
+                "properties": {
+                  "hostname": { "type": "string", "default": "ssas" },
+                  "multicast": { "type": "string", "default": "224.244.224.245" }
+                }
+              },
+              "servers": {
+                "type": "array", "items": {
+                  "type": "object", "title": "server",  "display_with_list": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "service": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "instance": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "clientId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "protocol": { "type": "string", "enum": ["UDP", "TCP"], "default": "UDP" },
+                    "unreliable": { "type": "integer", "minimum": 0, "maximum": 65535, "enabled": "'${protocol}' == 'UDP'" },
+                    "reliable": { "type": "integer", "minimum": 0, "maximum": 65535, "enabled": "'${protocol}' == 'TCP'" },
+                    "methods": { 
+                      "type": "array", "items": {
+                        "type": "object", "title": "method",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                          "tp": { "type": "bool", "default": true },
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                        }
+                      }
+                    },
+                    "event-groups": { 
+                      "type": "array", "items": {
+                        "type": "object", "title": "event-group", "display_with_list": false,
+                          "properties": {
+                            "name": { "type": "string" },
+                            "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                            "events":  {
+                              "type": "array", "items": {
+                                "type": "object", "title": "event",
+                                "properties": {
+                                  "name": { "type": "string" },
+                                  "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                                  "tp": { "type": "bool", "default": true },
+                                  "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+              },
+              "clients": {
+                "type": "array", "items": {
+                  "type": "object", "title": "client", "display_with_list": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "service": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "instance": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "clientId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "protocol": { "type": "string", "enum": ["UDP", "TCP"], "default": "UDP" },
+                    "unreliable": { "type": "integer", "minimum": 0, "maximum": 65535, "enabled": "'${protocol}' == 'UDP'" },
+                    "reliable": { "type": "integer", "minimum": 0, "maximum": 65535, "enabled": "'${protocol}' == 'TCP'" },
+                    "methods": {
+                      "type": "array", "items": {
+                        "type": "object", "title": "method",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                          "tp": { "type": "bool", "default": true },
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                        }
+                      }
+                    },
+                    "event-groups": {
+                      "type": "array", "items": {
+                        "type": "object", "title": "event-group", "display_with_list": false,
+                          "properties": {
+                            "name": { "type": "string" },
+                            "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                            "events":  { "type": "array", "items": {
+                              "type": "object", "title": "event",
+                              "properties": {
+                                "name": { "type": "string" },
+                                "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                                "tp": { "type": "bool", "default": true },
+                                "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                }
+              }
+              }
+            },
+            "SoAd": {
+              "sockets": {
+                "type": "array", "items": {
+                  "type": "object", "title": "socket",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "type": { "type": "string", "enum": ["server", "client"], "default": "server" },
+                    "server": { "type": "string", "default": "ip:port", "enabled": "'${type}' == 'server'" },
+                    "client": { "type": "string", "default": "ip:port", "enabled": "'${type}' == 'client'" },
+                    "protocol": { "type": "string", "enum": ["UDP", "TCP"], "default": "UDP" },
+                    "multicast": { "type": "bool", "default": false, "enabled": "'${protocol}' == 'UDP'" },
+                    "listen": { "type": "integer", "default": 3, "enabled": "'${protocol}' == 'TCP' and '${type}' == 'server'" },
+                    "up": { "type": "string", "enum": ["DoIP", "SD", "SOMEIP", "User"] },
+                    "RxPduId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]

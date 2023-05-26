@@ -81,7 +81,7 @@ def ProcSoAd(netCfg, dir):
     cfg = None
     for mod in netCfg['Modules']:
         if mod['class'] == 'SoAd':
-            cfg = mod['class']
+            cfg = mod
     if cfg == None:
         cfg = {'class': 'SoAd', 'sockets': []}
         netCfg['Modules'].append(cfg)
