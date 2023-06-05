@@ -50,7 +50,7 @@ static void Os_MiscInit(void) {
   CallLevel = TCL_NULL;
 #endif
 
-  OsTickCounter = 1;
+  OsTickCounter = 0;
 
 #if (OS_PTHREAD_NUM > 0)
   Os_MemInit();

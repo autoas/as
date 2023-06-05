@@ -104,6 +104,8 @@
 #endif
 
 #include "app.h"
+
+#include "../config/GEN/TraceTest_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -311,11 +313,14 @@ void Task_MainLoop(void) {
   for (;;) {
     if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
       Std_TimerStart(&timer10ms);
+      STD_TRACE_TEST(MAIN_TASK_10MS_B);
       MainTask_10ms();
+      STD_TRACE_TEST(MAIN_TASK_10MS_E);
     }
 
     if (Std_GetTimerElapsedTime(&timer100ms) >= 100000) {
       Std_TimerStart(&timer100ms);
+      STD_TRACE_TEST(APP_ALIVE);
       App_AliveIndicate();
     }
 #ifdef USE_DCM
@@ -341,6 +346,7 @@ void Task_MainLoop(void) {
     Shell_MainFunction();
 #endif
     App_MainFunction();
+    STD_TRACE_TEST_MAIN();
 #ifdef USE_OSAL
     osal_usleep(1000);
 #endif

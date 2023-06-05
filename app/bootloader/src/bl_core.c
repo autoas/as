@@ -231,7 +231,7 @@ static uint32_t blWWBAddr;
 /* ================================ [ LOCALS    ] ============================================== */
 static Dcm_ReturnEraseMemoryType eraseFlash(Dcm_OpStatusType OpStatus, uint32_t MemoryAddress,
                                             uint32_t MemorySize) {
-  Dcm_ReturnEraseMemoryType rv;
+  Dcm_ReturnEraseMemoryType rv = DCM_ERASE_FAILED;
 
   uint32_t length;
   switch (OpStatus) {
@@ -281,7 +281,7 @@ static Dcm_ReturnEraseMemoryType eraseFlash(Dcm_OpStatusType OpStatus, uint32_t 
 #ifdef FL_USE_WRITE_WINDOW_BUFFER
 static Dcm_ReturnWriteMemoryType writeFlash(Dcm_OpStatusType OpStatus, uint32_t MemoryAddress,
                                             uint32_t MemorySize, uint8_t *MemoryData) {
-  Dcm_ReturnWriteMemoryType rv;
+  Dcm_ReturnWriteMemoryType rv = DCM_WRITE_FAILED;
   uint32_t length;
 
   switch (OpStatus) {
@@ -351,7 +351,7 @@ static Dcm_ReturnWriteMemoryType flushFlash(void) {
 #else
 static Dcm_ReturnWriteMemoryType writeFlash(Dcm_OpStatusType OpStatus, uint32_t MemoryAddress,
                                             uint32_t MemorySize, uint8_t *MemoryData) {
-  Dcm_ReturnWriteMemoryType rv;
+  Dcm_ReturnWriteMemoryType rv = DCM_WRITE_FAILED;
   uint32_t length;
 
   switch (OpStatus) {
@@ -388,7 +388,7 @@ static Dcm_ReturnWriteMemoryType writeFlash(Dcm_OpStatusType OpStatus, uint32_t 
 #endif /* FL_USE_WRITE_WINDOW_BUFFER */
 static Dcm_ReturnReadMemoryType readFlash(Dcm_OpStatusType OpStatus, uint32_t MemoryAddress,
                                           uint32_t MemorySize, uint8_t *MemoryData) {
-  Dcm_ReturnReadMemoryType rv;
+  Dcm_ReturnReadMemoryType rv = DCM_READ_FAILED;
   uint32_t length;
   switch (OpStatus) {
   case DCM_INITIAL:
@@ -436,6 +436,7 @@ static Dcm_ReturnWriteMemoryType writeFlashDriver(Dcm_OpStatusType OpStatus, uin
 
     if (flsCrc == calcCrc) {
       bl_flashDriverReady = TRUE;
+      ASLOG(BLI, ("Flash Driver is ready\n"));
     } else {
       ASLOG(BLE, ("Flash Driver invalid, C %X != R %X\n", calcCrc, flsCrc));
     }
@@ -796,9 +797,16 @@ Std_ReturnType BL_ProcessRequestTransferExit(Dcm_OpStatusType OpStatus,
   return r;
 }
 
+Std_ReturnType __weak BL_IsAppValid(void) {
+  return E_NOT_OK;
+}
+
 void BL_CheckAndJump(void) {
   if (FALSE == BL_IsUpdateRequested()) {
     if (E_OK == BL_CheckAppIntegrity()) {
+      ASLOG(INFO, ("application integrity is OK\n"));
+      BL_JumpToApp();
+    } else if (E_OK == BL_IsAppValid()) {
       ASLOG(INFO, ("application is valid\n"));
       BL_JumpToApp();
     }

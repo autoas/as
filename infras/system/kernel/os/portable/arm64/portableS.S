@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2017 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2017 - 2023 Parai Wang <parai@foxmail.com>
  */
 
 /* https://static.docs.arm.com/100933/0100/aarch64_exception_and_interrupt_handling_100933_0100_en.pdf
@@ -89,6 +89,7 @@
 /* ============================ [ TYPES     ] ====================================================== */
 /* ============================ [ DECLARES  ] ====================================================== */
   .extern Os_PortIsrHandler
+  .extern Os_PortSyncException
   .extern Sched_Preempt
   .extern Sched_GetReady
   .extern PreTaskHook
@@ -132,6 +133,14 @@ Os_PortStartDispatchImpl:
   str     x0, [x1]
   #endif
 Os_PortDispatchFormISR:
+  #if CPU_CORE_NUMBER > 1
+  stp     x0,x1, [sp, #-16]!
+  stp     x29,x30, [sp, #-16]!
+  bl      Os_RestoreKernelLock
+  ldp     x29,x30, [sp], #16
+  ldp     x0,x1, [sp], #16
+  #endif
+
   #ifdef OS_USE_PRETASK_HOOK
   ldr     x1, = CallLevel
   #if CPU_CORE_NUMBER > 1
@@ -160,14 +169,6 @@ Os_PortDispatchFormISR:
   #else
   str     w3,[x1]  /* restore CallLevel */
   #endif
-  #endif
-
-  #if CPU_CORE_NUMBER > 1
-  stp     x0,x1, [sp, #-16]!
-  stp     x29,x30, [sp, #-16]!
-  bl      Os_RestoreKernelLock
-  ldp     x29,x30, [sp], #16
-  ldp     x0,x1, [sp], #16
   #endif
 
   ldr     x1, [x0, #0x0 ]
@@ -414,6 +415,38 @@ l_nodispatch:
   eret
 
 
+l_sync:
+  stp     x0,x1, [sp, #-16]!
+  mrs     x0, esr_el1
+  mov     x1, x0, lsr #26
+  and     x0, x1, #0x3f
+  cmp     x0, #0x15  /* SVC is 0x15 */
+  bne      l_sync_exception
+  ldr     x0, = RunningVar
+  #if CPU_CORE_NUMBER > 1
+  mrs     x1, mpidr_el1
+  and     x1, x1, #3
+  ldr     x0, [x0, x1, lsl #3]
+  #else
+  ldr     x0, [x0]
+  #endif
+  cmp     x0, #0
+  beq     l_svc_start_disatch
+  ldp     x0,x1, [sp], #16
+  b       Os_PortDispatchImpl
+l_svc_start_disatch:
+  ldp     x0,x1, [sp], #16
+  b     Os_PortStartDispatchImpl
+l_sync_exception:
+  ldp     x0,x1, [sp], #16
+  SaveContext
+  mov x0, sp
+  mrs x1, esr_el1
+  bl Os_PortSyncException
+
+
+
+
 vector_stub el1t_sync,     0
 vector_stub el1t_irq,      1
 vector_stub el1t_fiq,      2
@@ -439,21 +472,7 @@ vector_stub el0_error_32, 15
 .global vector_table_el1
 vector_table_el1:
 curr_el_sp0_sync:
-  stp     x0,x1, [sp, #-16]!
-  #if CPU_CORE_NUMBER > 1
-  mrs     x1, mpidr_el1
-  and     x1, x1, #3
-  ldr     x0, [x0, x1, lsl #3]
-  #else
-  ldr     x0, [x0]
-  #endif
-  cmp     x0, #0
-  beq     l_svc_start_disatch0
-  ldp     x0,x1, [sp], #16
-  b       Os_PortDispatchImpl
-l_svc_start_disatch0:
-  ldp     x0,x1, [sp], #16
-  b     Os_PortStartDispatchImpl
+  b l_sync
 
 .balign 0x80
 curr_el_sp0_irq:
@@ -469,22 +488,7 @@ curr_el_sp0_serror:
 
 .balign 0x80
 curr_el_spx_sync:
-  stp     x0,x1, [sp, #-16]!
-  ldr     x0, = RunningVar
-  #if CPU_CORE_NUMBER > 1
-  mrs     x1, mpidr_el1
-  and     x1, x1, #3
-  ldr     x0, [x0, x1, lsl #3]
-  #else
-  ldr     x0, [x0]
-  #endif
-  cmp     x0, #0
-  beq     l_svc_start_disatch
-  ldp     x0,x1, [sp], #16
-  b       Os_PortDispatchImpl
-l_svc_start_disatch:
-  ldp     x0,x1, [sp], #16
-  b     Os_PortStartDispatchImpl
+  b l_sync
 
 .balign 0x80
 curr_el_spx_irq:

@@ -57,6 +57,7 @@ def Gen_Os(cfg, dir):
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     H.write('#ifndef MACROS_ONLY\n')
     H.write('#include "kernel.h"\n')
+    H.write('#include "./GEN/TraceOS_Cfg.h"\n')
     H.write('#endif\n')
     H.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
@@ -210,6 +211,9 @@ def Gen_Os(cfg, dir):
     C.write('#ifndef OS_STK_SIZE_SCALER\n#define OS_STK_SIZE_SCALER 1\n#endif\n')
     C.write('#ifndef ISR_ATTR\n#define ISR_ATTR\n#endif\n')
     C.write('#ifndef ISR_ADDR\n#define ISR_ADDR(isr) isr\n#endif\n')
+    C.write('#ifdef USE_TRACE\n')
+    C.write('#define STD_TRACE_OS2(ev) STD_TRACE_EVENT( &Std_TraceArea_OS, ( ev << TRE_OS_TS_BITS ) | ( TRE_OS_TIMER & TRE_OS_TS_MASK ) )\n')
+    C.write('#endif\n')
     C.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
     C.write(
@@ -299,7 +303,7 @@ def Gen_Os(cfg, dir):
         C.write('    #endif\n')
         C.write('    /*.name =*/ "%s",\n' % (task['name']))
         # for IDLE task, priority is 0.
-        if (task['name'] == 'TaskIdle'):
+        if (task['name'][:8] == 'TaskIdle'):
             C.write('    /*.initPriority =*/ 0,\n')
             C.write('    /*.runPriority =*/ 0,\n')
         else:
@@ -487,10 +491,50 @@ def Gen_Os(cfg, dir):
             C.write('  ISR_ADDR(%s), /* %s */\n' % (iname, iid))
         C.write('};\n\n')
         C.write('#ifdef __HIWARE__\n#pragma DATA_SEG DEFAULT\n#endif\n')
+    C.write('#ifdef USE_TRACE\n')
+    C.write('static const Std_TraceEventType lOsTraceTask_B[] = {\n')
+    idles = []
+    for task in task_list:
+        if (task['name'][:8] == 'TaskIdle'):
+            idles.append(task['name'])
+        C.write('  TRE_OS_%s_B,\n' % (toMacro(task['name'])))
+    for i in range(cfg.get('PTHREAD', 0)):
+        C.write('  TRE_OS_%s_B,\n' % (toMacro('pthread%s' % (i))))
+    C.write('};\n')
+    C.write('static const Std_TraceEventType lOsTraceTask_E[] = {\n')
+    for task in task_list:
+        C.write('  TRE_OS_%s_E,\n' % (toMacro(task['name'])))
+    for i in range(cfg.get('PTHREAD', 0)):
+        C.write('  TRE_OS_%s_E,\n' % (toMacro('pthread%s' % (i))))
+    C.write('};\n')
+    C.write('#endif\n\n')
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     C.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.write('#ifdef USE_TRACE\n')
+    C.write('void PreTaskHook(void) {\n')
+    C.write('  TaskType tid = 0;\n')
+    C.write('  Std_TraceEventType ev;\n')
+    C.write('  GetTaskID(&tid);\n')
+    if len(idles) > 0:
+        C.write('  if ( %s ) { return; }\n' %
+                (' || '.join(['(TASK_ID_%s == tid)' % (task) for task in idles])))
+    C.write('  ev = lOsTraceTask_B[tid];\n')
+    C.write('  STD_TRACE_OS2(ev);\n')
+    C.write('}\n')
+
+    C.write('void PostTaskHook(void) {\n')
+    C.write('  TaskType tid = 0;\n')
+    C.write('  Std_TraceEventType ev;\n')
+    C.write('  GetTaskID(&tid);\n')
+    if len(idles) > 0:
+        C.write('  if ( %s ) { return; }\n' %
+                (' || '.join(['(TASK_ID_%s == tid)' % (task) for task in idles])))
+    C.write('  ev = lOsTraceTask_E[tid];\n')
+    C.write('  STD_TRACE_OS2(ev);\n')
+    C.write('}\n')
+    C.write('#endif\n\n')
     C.close()
 
 
@@ -521,6 +565,22 @@ def fromOIL(pdir, cfg):
     return cfg
 
 
+def extract_trace(cfg, dir):
+    from .Trace import Gen as TraceGen
+    cfg_ = {'class': 'Trace', 'area': 'OS', 'size': cfg.get(
+        'trace_size', 1024), 'durations': [], 'events': []}
+    for tsk in cfg.get('TaskList', []):
+        cfg_['durations'].append(tsk['name'])
+        for ev in tsk.get('EventList', []):
+            if ev not in cfg_['events']:
+                cfg_['events'].append(ev['name'])
+    for i in range(cfg.get('PTHREAD', 0)):
+        cfg_['durations'].append('pthread%s' % (i))
+    with open('%s/Trace.json' % (dir), 'w') as f:
+        json.dump(cfg_, f, indent=2)
+    TraceGen('%s/Trace.json' % (dir))
+
+
 def Gen(cfg):
     pdir = os.path.dirname(cfg)
     dir = os.path.join(os.path.dirname(cfg), 'GEN')
@@ -529,4 +589,5 @@ def Gen(cfg):
         cfg = json.load(f)
     if 'OIL' in cfg:
         cfg = fromOIL(pdir, cfg)
+    extract_trace(cfg, dir)
     Gen_Os(cfg, dir)

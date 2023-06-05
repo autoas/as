@@ -202,7 +202,7 @@ void *heap_malloc(size_t size) {
     SLIST_INSERT_HEAD(&lHeap.used, pMagic, entry);
 #endif
   } else {
-    ASLOG(HEAPE, ("  OoM\n"));
+    ASLOG(HEAPE, ("  malloc OoM for %u\n", size));
   }
   HEAP_UNLOCK();
 
@@ -380,7 +380,7 @@ void *heap_memalign(size_t alignment, size_t size) {
     SLIST_INSERT_HEAD(&lHeap.used, pMagic, entry);
 #endif
   } else {
-    ASLOG(HEAPE, ("  OoM\n"));
+    ASLOG(HEAPE, ("  memalign OoM for %u\n", size));
   }
   HEAP_UNLOCK();
 

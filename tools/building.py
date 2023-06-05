@@ -1515,6 +1515,17 @@ class BuildBase():
             CPPPATH += lib.get_includes(searched_libs)
         return CPPPATH
 
+    def ProcessCPPPATH(self, CPPPATH):
+        CPPPATH2 = []
+        for p in CPPPATH:
+            if p.startswith('$'):
+                CPPPATH2.append(self.RequireCPPPATH(p))
+            elif p.startswith('#'):
+                CPPPATH2.append(self.GetInclude(p[1:]))
+            else:
+                CPPPATH2.append(p)
+        return CPPPATH2
+
     def sortL(self, L):
         newL = []
         for x in L:
@@ -1585,8 +1596,7 @@ class Library(BuildBase):
         CFLAGS = env.get('CFLAGS', [])
         ASFLAGS = env.get('ASFLAGS', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
-        CPPPATH = [self.RequireCPPPATH(p) if p.startswith('$') else p
-                   for p in CPPPATH] + env.get('CPPPATH', [])
+        CPPPATH = self.ProcessCPPPATH(CPPPATH) + env.get('CPPPATH', [])
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
         try:
@@ -1695,8 +1705,7 @@ class Application(BuildBase):
             env.get('CPPDEFINES', [])
         CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
         LINKFLAGS = getattr(self, 'LINKFLAGS', []) + env.get('LINKFLAGS', [])
-        CPPPATH = [self.RequireCPPPATH(p) if p.startswith('$') else p
-                   for p in getattr(self, 'CPPPATH', [])]
+        CPPPATH = self.ProcessCPPPATH(getattr(self, 'CPPPATH', []))
         CPPPATH += env.get('CPPPATH', [])
         objs = self.source
         LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])

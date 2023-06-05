@@ -1,6 +1,6 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2021 - 2023 Parai Wang <parai@foxmail.com>
  */
 #ifndef STD_CRITICAL_H
 #define STD_CRITICAL_H
@@ -9,6 +9,7 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* spin lock need to be used for MCU with 2 or more CPUs */
 #ifndef DISABLE_STD_CRITICAL_DEF
 #define EnterCritical() do { imask_t imask = Std_EnterCritical()
 #define InterLeaveCritical() Std_ExitCritical(imask)

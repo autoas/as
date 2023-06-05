@@ -1,0 +1,14 @@
+from building import *
+
+
+objs = Glob('*.c')
+
+@register_library
+class LibraryStdTrace(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '#VFS']
+        self.source = objs
+        self.LIBS = ['RingBuffer']
+
+
+    

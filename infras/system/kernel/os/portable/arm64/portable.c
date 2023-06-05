@@ -84,6 +84,22 @@ void Os_PortDispatch(void) {
   __asm("svc 0");
 }
 
+void Os_PortSyncException(void *sp, uint32_t esr) {
+  uint8_t ec;
+  uint64_t *stk = (uint64_t *)sp;
+
+  ec = (uint8_t)((esr >> 26) & 0x3fU);
+  if (ec != 0x15) { /* only valid sync exception is SVC call for os task dispatch */
+    printf("!!!Invalid Sync Exception 0x%x, sp=0x%x!!!\n", ec, (uint32_t)(uint64_t)sp);
+    printf("elr = 0x%x\n", (uint32_t)stk[0]);
+    printf("spsr = 0x%x\n", (uint32_t)stk[1]);
+    printf("lr = 0x%x\n", (uint32_t)stk[2]);
+    printf("bsp = 0x%x\n", (uint32_t)stk[3]);
+    while (1)
+      DisableInterrupt();
+  }
+}
+
 void Os_PortStartDispatch(void) {
   DECLARE_SMP_PROCESSOR_ID();
 
@@ -146,8 +162,9 @@ void Os_PortException(long exception, void *sp, long esr) {
 }
 
 TASK(TaskIdle1) {
-  while (1)
-    ;
+  while (1) {
+    STD_TRACE_OS_MAIN();
+  }
 }
 
 #ifdef USE_PTHREAD_SIGNAL

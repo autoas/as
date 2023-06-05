@@ -19,6 +19,7 @@ from .Rte import Gen as RteGen
 from .protoc import Gen as ProtocGen
 from .Os import Gen as OsGen
 from .Dcm import Gen as DcmGen
+from .Trace import Gen as TraceGen
 
 def DummyGen(cfg):
     pass
@@ -37,6 +38,7 @@ __GEN__ = {
     'protoc': ProtocGen,
     'OS': OsGen,
     'Dcm': DcmGen,
+    'Trace': TraceGen,
     'EcuC': DummyGen,
 }
 
