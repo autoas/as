@@ -22,7 +22,7 @@ set PACKET_LIB_ADAPTER_NR=0
 scons --app=NetApp --net=LWIP --os=FreeRTOS
 
 # The NetAppT is built with host windows sockets
-scons --app=NetAppT
+scons --app=NetAppT --os=OSAL
 
 # in 2 different pannel, launch below commands to start the apps
 build\nt\GCC\NetApp\NetApp.exe

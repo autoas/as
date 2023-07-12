@@ -26,7 +26,7 @@ But if want to test CAN related things, better to disable the vbox adapter and n
 
 ```sh
 # below command that rebuild NetApp not using LWIP over vbox adapter
-scons --app=NetApp
+scons --app=NetApp --os=OSAL
 
 # build the DoIP tester
 scons --app=DoIPSend
