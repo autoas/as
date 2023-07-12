@@ -4,51 +4,68 @@
     "blocks": [
         {
             "name": "Dem_NvmEventStatusRecord{}",
-            "repeat": 5,
+            "repeat": 8,
             "data": [
-                {
-                    "name": "status",
-                    "type": "uint8",
-                    "default": "0x50"
-                },
-                {
-                    "name": "testFailedCounter",
-                    "type": "uint8",
-                    "default": 0
-                },
-                {
-                    "name": "faultOccuranceCounter",
-                    "type": "uint8",
-                    "default": 0
-                },
-                {
-                    "name": "agingCounter",
-                    "type": "uint8",
-                    "default": 0
-                },
-                {
-                    "name": "agedCounter",
-                    "type": "uint8",
-                    "default": 0
-                }
+                { "name": "status", "type": "uint8", "default": "0x50" },
+                { "name": "testFailedCounter", "type": "uint8", "default": 0 }
             ]
         },
         {
-            "name": "Dem_NvmFreezeFrameRecord{}",
-            "repeat": 5,
+            "name": "Dem_NvmPrimaryDtcStatusRecord{}",
+            "repeat": 6,
             "data": [
-                {
-                    "name": "EventId",
-                    "type": "uint16",
-                    "default": "0xFFFF"
-                },
-                {
-                    "name": "record{}",
-                    "repeat": 2,
-                    "type": "uint8_n",
-                    "size": 13,
-                    "default": "[[0xFF]*13, [0xFF]*13]"
-                }
+                { "name": "status", "type": "uint8", "default": "0x50" },
+                { "name": "faultOccuranceCounter", "type": "uint8", "default": 0 },
+                { "name": "agingCounter", "type": "uint8", "default": 0 },
+                { "name": "agedCounter", "type": "uint8", "default": 0 }
+            ]
+        },
+        {
+            "name": "Dem_NvmPrimaryFreezeFrameRecord{}",
+            "repeat": 6,
+            "data": [
+                { "name": "DtcId", "type": "uint16", "default": "0xFFFF" },
+                { "name": "record{}", "repeat": 2, "type": "uint8_n", "size": 13, "default": "[[0xFF]*13, [0xFF]*13]" }
+            ]
+        },
+        {
+            "name": "Dem_NvmPrimaryExtendedDataRecord{}",
+            "repeat": 6,
+            "data": [
+                { "name": "DtcId", "type": "uint16", "default": "0xFFFF" },
+                { "name": "record",  "type": "uint8_n", "size": 4, "default": "[0xFF]*4" }
+            ]
+        },
+        {
+            "name": "Dem_NvmMirrorDtcStatusRecord{}",
+            "repeat": 6,
+            "data": [
+                { "name": "status", "type": "uint8", "default": "0x50" },
+                { "name": "faultOccuranceCounter", "type": "uint8", "default": 0 },
+                { "name": "agingCounter", "type": "uint8", "default": 0 },
+                { "name": "agedCounter", "type": "uint8", "default": 0 }
+            ]
+        },
+        {
+            "name": "Dem_NvmMirrorFreezeFrameRecord{}",
+            "repeat": 6,
+            "data": [
+                { "name": "DtcId", "type": "uint16", "default": "0xFFFF" },
+                { "name": "record{}", "repeat": 2, "type": "uint8_n", "size": 13, "default": "[[0xFF]*13, [0xFF]*13]" }
+            ]
+        },
+        {
+            "name": "Dem_NvmMirrorExtendedDataRecord{}",
+            "repeat": 6,
+            "data": [
+                { "name": "DtcId", "type": "uint16", "default": "0xFFFF" },
+                { "name": "record", "type": "uint8_n", "size": 4, "default": "[0xFF]*4" }
+            ]
+        },
+        {
+            "name": "Dcm_NvmSecurityAccess",
+            "data": [
+                { "name": "AttemptCounter", "type": "uint8", "default": "0" }
             ]
         }
     ]

@@ -1,31 +1,52 @@
 {
   "class": "Dem",
+  "Memorys": [
+    { "name": "Primary", "origin": "0x0001" },
+    { "name": "Mirror", "origin": "0x0002" }
+  ],
   "DTCs": [
     {
       "name": "DTC0",
       "number": "0x112200",
       "conditions" : ["BatteryNormal"],
+      "destination": ["Primary", "Mirror"],
       "priority": 0
     },
     {
       "name": "DTC1",
       "number": "0x112201",
+      "destination": ["Primary", "Mirror"],
       "priority": 1
     },
     {
       "name": "DTC2",
       "number": "0x112202",
+      "destination": ["Primary", "Mirror"],
       "priority": 2
     },
     {
       "name": "DTC3",
       "number": "0x112203",
+      "destination": ["Primary", "Mirror"],
       "priority": 3
     },
     {
       "name": "DTC4",
       "number": "0x112204",
+      "destination": ["Primary", "Mirror"],
       "priority": 4
+    },
+    {
+      "name": "DTC_COMB0",
+      "number": "0x112205",
+      "destination": ["Primary", "Mirror"],
+      "priority": 5,
+      "comments": "this is an example that multiply event share one DTC",
+      "events": [
+        { "name": "DTC_COMB0_EVENT0" },
+        { "name": "DTC_COMB0_EVENT1" },
+        { "name": "DTC_COMB0_EVENT2" }
+        ]
     }
   ],
   "Environments": [

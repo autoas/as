@@ -10,24 +10,38 @@ __all__ = ['Gen', 'get_messages']
 
 
 def gen_rx_sig_cfg(sig, C):
-    C.write('static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n' % (
-        sig['name']))
+    if 'group' in sig:
+        return
+    C.write('static Com_SignalRxContextType Com_SignalRxContext_%s;\n' % (sig['name']))
+    C.write('static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n' % (sig['name']))
     InvalidNotification = sig.get('InvalidNotification', 'NULL')
     RxNotification = sig.get('RxNotification', 'NULL')
+    RxTOut = sig.get('RxTOut', 'NULL')
     FirstTimeout = sig.get('FirstTimeout', 0)
+    Timeout = sig.get('Timeout', 0)
     DataInvalidAction = sig.get('DataInvalidAction', 'NOTIFY')
-    RxDataTimeoutAction = sig.get('RxDataTimeoutAction', 'NOTIFY')
+    RxDataTimeoutAction = sig.get('RxDataTimeoutAction', 'NONE')
+    C.write('  &Com_SignalRxContext_%s,\n' % (sig['name']))
     C.write('  %s, /* InvalidNotification */\n' % (InvalidNotification))
     C.write('  %s, /* RxNotification */\n' % (RxNotification))
+    C.write('  %s, /* RxTOut */\n' % (RxTOut))
+    if 'SUBSTITUTE' == RxDataTimeoutAction:
+        t0, t1, nBytes = get_signal_info(sig)
+        C.write('  %s%s_TimeoutSubstitutionValue,\n' %
+                ('' if t0 in ['UINT8N', 'SINT8N'] else '&', sig['name']))
+    else:
+        C.write('  NULL, /* TimeoutSubstitutionValue */\n')
     C.write('  %s, /* FirstTimeout */\n' % (FirstTimeout))
-    C.write('  %s, /* DataInvalidAction */\n' % (DataInvalidAction))
-    C.write('  %s, /* RxDataTimeoutAction */\n' % (RxDataTimeoutAction))
+    C.write('  %s, /* Timeout */\n' % (Timeout))
+    C.write('  COM_ACTION_%s, /* DataInvalidAction */\n' % (DataInvalidAction))
+    C.write('  COM_ACTION_%s, /* RxDataTimeoutAction */\n' % (RxDataTimeoutAction))
     C.write('};\n\n')
 
 
 def gen_tx_sig_cfg(sig, C):
-    C.write('static const Com_SignalTxConfigType Com_SignalTxConfig_%s = {\n' % (
-        sig['name']))
+    if 'group' in sig:
+        return
+    C.write('static const Com_SignalTxConfigType Com_SignalTxConfig_%s = {\n' % (sig['name']))
     ErrorNotification = sig.get('ErrorNotification', 'NULL')
     TxNotification = sig.get('TxNotification', 'NULL')
     C.write('  %s, /* ErrorNotification */\n' % (ErrorNotification))
@@ -69,7 +83,6 @@ def gen_signal_init_value(sig, C):
     if sig.get('isGroup', False):
         return
     t0, t1, nBytes = get_signal_info(sig)
-
     if t0 in ['UINT8N', 'SINT8N']:
         InitialValue = sig.get('InitialValue', '[0]')
         cstr = ''
@@ -81,6 +94,24 @@ def gen_signal_init_value(sig, C):
         InitialValue = sig.get('InitialValue', 0)
         C.write('static const %s %s_InitialValue = %s;\n' %
                 (t1, sig['name'], InitialValue))
+
+
+def gen_signal_timeout_value(sig, C):
+    if 'SUBSTITUTE' != sig.get('RxDataTimeoutAction', 'NONE'):
+        return
+    if 'group' not in sig:
+        t0, t1, nBytes = get_signal_info(sig)
+        if t0 in ['UINT8N', 'SINT8N']:
+            TimeoutSubstitutionValue = sig.get('TimeoutSubstitutionValue', '[0]')
+            cstr = ''
+            for x in eval(TimeoutSubstitutionValue):
+                cstr += '%x, ' % (x)
+            C.write('static const %s %s_TimeoutSubstitutionValue[%s] = { %s };\n' % (
+                t1, sig['name'], nBytes, cstr))
+        else:
+            TimeoutSubstitutionValue = sig.get('TimeoutSubstitutionValue', 0)
+            C.write('static const %s %s_TimeoutSubstitutionValue = %s;\n' %
+                    (t1, sig['name'], TimeoutSubstitutionValue))
 
 
 def gen_sig(sig, msg, C, isTx):
@@ -108,13 +139,16 @@ def gen_sig(sig, msg, C, isTx):
     C.write('#ifdef COM_USE_SIGNAL_UPDATE_BIT\n')
     UpdateBit = sig.get('UpdateBit', 'COM_UPDATE_BIT_NOT_USED')
     if type(UpdateBit) is int:
-        assert(UpdateBit > sig['start'])
+        assert (UpdateBit > sig['start'])
         UpdateBit = UpdateBit - int(sig['start']/8)*8
     C.write('    %s, /* UpdateBit */\n' % (UpdateBit))
     C.write('#endif\n')
     C.write('    %s, /* Endianness */\n' % (sig['endian'].upper()))
     C.write('#ifdef COM_USE_SIGNAL_CONFIG\n')
-    if isTx:
+    if 'group' in sig:
+        C.write('    NULL, /* rxConfig */\n')
+        C.write('    NULL, /* txConfig */\n')
+    elif isTx:
         C.write('    NULL, /* rxConfig */\n')
         C.write('    &Com_SignalTxConfig_%s, /* txConfig */\n' % (sig['name']))
     else:
@@ -212,7 +246,7 @@ def Gen_Com(cfg, dir):
             NTs.append(network['network'])
     for nt in NTs:
         H.write('#define COM_USE_%s\n' % (nt))
-    H.write('//#define COM_USE_SIGNAL_CONFIG\n')
+    H.write('#define COM_USE_SIGNAL_CONFIG\n')
     H.write('#define COM_USE_SIGNAL_UPDATE_BIT\n')
     H.write('\n')
     for network in cfg['networks']:
@@ -353,6 +387,8 @@ def Gen_Com(cfg, dir):
         for msg in network['messages']:
             for sig in msg['signals']:
                 gen_signal_init_value(sig, C)
+                if (msg['node'] != network['me']):  # isRx
+                    gen_signal_timeout_value(sig, C)
     C.write('\n')
     for network in cfg['networks']:
         for msg in network['messages']:

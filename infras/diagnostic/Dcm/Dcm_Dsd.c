@@ -74,14 +74,18 @@ static void Dsd_HandleRequest(Dcm_ContextType *context, const Dcm_ConfigType *co
     r = context->curService->dspServiceFnc(&context->msgContext, &nrc);
     if (r != E_OK) {
       if (DCM_POS_RESP == nrc) {
-        ASLOG(DCME, ("Fatal service %X forgot to set NRC\n", SID));
-        nrc = DCM_E_CONDITIONS_NOT_CORRECT;
+        if ((DCM_E_PENDING == r) || (DCM_E_FORCE_RCRRP == r)) {
+          nrc = DCM_E_RESPONSE_PENDING;
+        } else {
+          ASLOG(DCME, ("Fatal service %X forgot to set NRC\n", SID));
+          nrc = DCM_E_CONDITIONS_NOT_CORRECT;
+        }
       }
     }
   }
 
   if (DCM_E_RESPONSE_PENDING == nrc) {
-    if (DCM_FORCE_RCRRP_OK == r) {
+    if (DCM_E_FORCE_RCRRP == r) {
       Dcm_DslProcessingDone(context, config, DCM_E_RESPONSE_PENDING);
     } else {
       if (DCM_INITIAL == context->opStatus) {

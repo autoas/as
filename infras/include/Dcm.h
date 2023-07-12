@@ -37,17 +37,17 @@
 #define DCM_NEG_RESPONSE_SENT 0x06
 #define DCM_NEG_RESPONSE_FAILED 0x07
 
-#define DCM_READ_OK (Dcm_ReturnReadMemoryType)E_OK
+#define DCM_READ_OK (Dcm_ReturnReadMemoryType) E_OK
 #define DCM_READ_PENDING (Dcm_ReturnReadMemoryType)0x01
 #define DCM_READ_FAILED (Dcm_ReturnReadMemoryType)0x02
 #define DCM_READ_FORCE_RCRRP (Dcm_ReturnReadMemoryType)0x03
 
-#define DCM_WRITE_OK (Dcm_ReturnWriteMemoryType)E_OK
+#define DCM_WRITE_OK (Dcm_ReturnWriteMemoryType) E_OK
 #define DCM_WRITE_PENDING (Dcm_ReturnWriteMemoryType)0x01
 #define DCM_WRITE_FAILED (Dcm_ReturnWriteMemoryType)0x02
 #define DCM_WRITE_FORCE_RCRRP (Dcm_ReturnWriteMemoryType)0x03
 
-#define DCM_ERASE_OK (Dcm_ReturnEraseMemoryType)E_OK
+#define DCM_ERASE_OK (Dcm_ReturnEraseMemoryType) E_OK
 #define DCM_ERASE_PENDING (Dcm_ReturnEraseMemoryType)0x01
 #define DCM_ERASE_FAILED (Dcm_ReturnEraseMemoryType)0x02
 #define DCM_ERASE_FORCE_RCRRP (Dcm_ReturnEraseMemoryType)0x03
@@ -91,6 +91,7 @@
 #define DCM_E_SECUTITY_ACCESS_DENIED ((Dcm_NegativeResponseCodeType)0x33)
 #define DCM_E_INVALID_KEY ((Dcm_NegativeResponseCodeType)0x35)
 #define DCM_E_EXCEED_NUMBER_OF_ATTEMPTS ((Dcm_NegativeResponseCodeType)0x36)
+#define DCM_E_REQUIRED_TIME_DELAY_NOT_EXPIRED ((Dcm_NegativeResponseCodeType)0x37)
 #define DCM_E_UPLOAD_DOWNLOAD_NOT_ACCEPTED ((Dcm_NegativeResponseCodeType)0x70)
 #define DCM_E_TRANSFER_DATA_SUSPENDED ((Dcm_NegativeResponseCodeType)0x71)
 #define DCM_E_GENERAL_PROGRAMMING_FAILURE ((Dcm_NegativeResponseCodeType)0x72)
@@ -98,8 +99,7 @@
 #define DCM_E_RESPONSE_PENDING ((Dcm_NegativeResponseCodeType)0x78)
 #define DCM_E_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION ((Dcm_NegativeResponseCodeType)0x7E)
 #define DCM_E_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION ((Dcm_NegativeResponseCodeType)0x7F)
-/* ================================ [ TYPES     ] ==============================================
- */
+/* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Dcm_00976 */
 typedef uint8_t Dcm_StatusType;
 
@@ -173,8 +173,14 @@ typedef struct {
 
 /* @SWS_Dcm_00982 */
 typedef struct Dcm_Config_s Dcm_ConfigType;
+
+typedef struct {
+  uint8_t AttemptCounter;
+} Dcm_Nvm_SecurityAccessType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern Std_ReturnType Dcm_Transmit(const uint8_t *buffer, PduLengthType length, int functional);
+
+extern Dcm_Nvm_SecurityAccessType Dcm_NvmSecurityAccess_Ram;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -217,4 +223,16 @@ void Dcm_PerformReset(uint8_t resetType);
 
 /* @SWS_Dcm_00950 */
 Std_ReturnType Dcm_GetVin(uint8_t *Data);
+
+/* @SWS_Dcm_00539 */
+Dcm_ReturnReadMemoryType Dcm_ReadMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
+                                        uint32_t MemoryAddress, uint32_t MemorySize,
+                                        uint8_t *MemoryData,
+                                        Dcm_NegativeResponseCodeType *ErrorCode);
+
+/* @SWS_Dcm_00540 */
+Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
+                                          uint32_t MemoryAddress, uint32_t MemorySize,
+                                          const uint8_t *MemoryData,
+                                          Dcm_NegativeResponseCodeType *ErrorCode);
 #endif /* DCM_H */

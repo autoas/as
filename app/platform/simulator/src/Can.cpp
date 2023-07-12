@@ -33,6 +33,14 @@
 #define STDIO_TX_CAN_HANDLE 0xFFFE
 #endif
 
+#ifndef TRACE_TX_CANID
+#define TRACE_TX_CANID 0x7FD
+#endif
+
+#ifndef TRACE_TX_CAN_HANDLE
+#define TRACE_TX_CAN_HANDLE STDIO_TX_CAN_HANDLE
+#endif
+
 #ifndef USE_CAN_FILE_LOG
 #define logCan(isRx, Controller, canid, dlc, data)
 #endif
@@ -312,6 +320,19 @@ extern "C" int stdio_can_put(uint8_t *data, uint8_t dlc) {
   PduInfo.length = dlc;
   PduInfo.sdu = data;
   PduInfo.swPduHandle = STDIO_TX_CAN_HANDLE;
+
+  ret = Can_Write(0, &PduInfo);
+
+  return (int)ret;
+}
+
+extern "C" int trace_can_put(uint8_t *data, uint8_t dlc) {
+  Std_ReturnType ret;
+  Can_PduType PduInfo;
+  PduInfo.id = TRACE_TX_CANID;
+  PduInfo.length = dlc;
+  PduInfo.sdu = data;
+  PduInfo.swPduHandle = TRACE_TX_CAN_HANDLE;
 
   ret = Can_Write(0, &PduInfo);
 

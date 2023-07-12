@@ -6,6 +6,7 @@ import os
 import sys
 from .AsPy import isotp
 
+
 class dcm():
     __service__ = {0x10: "diagnostic session control", 0x11: "ecu reset", 0x14: "clear diagnostic information",
                    0x19: "read dtc information", 0x22: "read data by identifier", 0x23: "read memory by address",
@@ -20,7 +21,7 @@ class dcm():
 
     __nrc__ = {0x10: "general reject", 0x21: "busy repeat request", 0x22: "conditions not correct",
                0x24: "request sequence error", 0x31: "request out of range", 0x33: "secutity access denied",
-               0x35: "invalid key", 0x72: "general programming failure", 0x73: "wrong block sequence counter",
+               0x35: "invalid key", 0x36: "exceed number of attempts", 0x37: "required time delay not expired", 0x72: "general programming failure", 0x73: "wrong block sequence counter",
                0x7E: "sub function not supported in active session", 0x81: "rpm too high", 0x82: "rpm to low",
                0x83: "engine is running", 0x84: "engine is not running", 0x85: "engine run time too low",
                0x86: "temperature too high", 0x87: "temperature too low", 0x88: "vehicle speed too high",
@@ -55,7 +56,7 @@ class dcm():
         return name
 
     def __show_negative_response__(self, res):
-        if((res[0] == 0x7f) and (len(res) == 3)):
+        if ((res[0] == 0x7f) and (len(res) == 3)):
             service = self.__get_service_name__(res[1])
             nrc = self.__get_nrc_name__(res[2])
             self.last_error = "  >> service '%s' negative response '%s' " % (
@@ -89,12 +90,12 @@ class dcm():
         response = None
         self.__show_request__(req)
         ercd = self.tp.transmit(bytes(req))
-        if((len(req) >= 2) and (req[0] in self.__sbr__) and ((req[1] & 0x80) != 0)):
+        if ((len(req) >= 2) and (req[0] in self.__sbr__) and ((req[1] & 0x80) != 0)):
             # suppress positive response
             return True, [req[0] | 0x40]
-        while(ercd == True):
+        while (ercd == True):
             res = self.tp.receive()
-            if(res != None):
+            if (res != None):
                 self.__show_response__(res)
                 if (req[0] | 0x40 == res[0]):
                     # positive response

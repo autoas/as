@@ -23,10 +23,6 @@
 #define DEM_UDS_STATUS_TNCTOC ((Dem_UdsStatusByteType)0x40)
 #define DEM_UDS_STATUS_WIR ((Dem_UdsStatusByteType)0x80)
 
-#define DEM_DEM_STORE_CARED_BITS                                                                   \
-  (DEM_UDS_STATUS_PDTC | DEM_UDS_STATUS_CDTC | DEM_UDS_STATUS_TNCSLC | DEM_UDS_STATUS_TFSLC |      \
-   DEM_UDS_STATUS_WIR)
-
 #define DEM_EVENT_STATUS_PASSED ((Dem_EventStatusType)0x00)
 #define DEM_EVENT_STATUS_FAILED ((Dem_EventStatusType)0x01)
 #define DEM_EVENT_STATUS_PREPASSED ((Dem_EventStatusType)0x02)
@@ -98,6 +94,8 @@
 /* @SWS_Dem_00925 */
 typedef uint16_t Dem_EventIdType;
 
+typedef uint16_t Dem_DtcIdType;
+
 /* @SWS_Dem_00926 */
 typedef uint8_t Dem_EventStatusType;
 
@@ -142,7 +140,7 @@ typedef struct Dem_Config_s Dem_ConfigType;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-/* @SWS_Dem_00179] */
+/* @SWS_Dem_00179 */
 void Dem_PreInit(void);
 /* @SWS_Dem_00181 */
 void Dem_Init(const Dem_ConfigType *ConfigPtr);
@@ -262,4 +260,7 @@ Std_ReturnType Dem_GetFaultDetectionCounter(Dem_EventIdType EventId,
                                             sint8_t *FaultDetectionCounter);
 /* @SWS_Dem_00266 */
 void Dem_MainFunction(void);
+
+/* @SWS_Dem_91008 */
+Std_ReturnType Dem_GetEventUdsStatus(Dem_EventIdType EventId, Dem_UdsStatusByteType *UDSStatusByte);
 #endif /* DEM_H */

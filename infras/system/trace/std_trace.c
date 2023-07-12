@@ -19,10 +19,6 @@
 int trace_can_put(uint8_t *data, uint8_t dlc);
 #endif
 /* ================================ [ DATAS     ] ============================================== */
-#ifdef USE_VFS
-static VFS_FILE *lFp = NULL;
-static uint32_t lFlushCounter = 0;
-#endif
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Std_TraceEvent(const Std_TraceAreaType *area, Std_TraceEventType event) {

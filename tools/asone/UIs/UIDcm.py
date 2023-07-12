@@ -549,9 +549,13 @@ class UIDTC(QGroupBox):
             self.Snapshot[eval(one['id'])] = one
 
         self.subfn = [self.reportNumberOfDTCByStatusMask,
+                      self.reportNumberOfMirrorMemoryDTCByStatusMask,
+                      self.reportDTCSnapshotIdentification,
                       self.reportDTCByStatusMask,
+                      self.reportMirrorMemoryDTCByStatusMask,
                       self.reportDTCSnapshotRecordByDTCNumber,
                       self.reportDTCExtendedDataRecordByDTCNumber,
+                      self.reportMirrorMemoryDTCExtendedDataRecordByDTCNumber,
                       ]
         self.cmbxSubfn = QComboBox()
         for fn in self.subfn:
@@ -621,12 +625,31 @@ class UIDTC(QGroupBox):
         self.addInfo('\tFormatIdentifier       = 0x%02X' % (res[3]))
         self.addInfo('\tNumber                 = %s' % ((res[4] << 8)+res[5]))
 
+    def reportNumberOfMirrorMemoryDTCByStatusMask(self, fnid=0x11):
+        statusMask = eval(str(self.leParam.text()))
+        res = self.reportDTCCommon([fnid, statusMask])
+        if (res == None):
+            return
+        self.showNumberOfDTCCommon(res)
+
     def reportNumberOfDTCByStatusMask(self, fnid=0x01):
         statusMask = eval(str(self.leParam.text()))
         res = self.reportDTCCommon([fnid, statusMask])
         if (res == None):
             return
         self.showNumberOfDTCCommon(res)
+
+    def reportDTCSnapshotIdentification(self, fnid=0x03):
+        res = self.reportDTCCommon([fnid])
+        if (res == None):
+            return
+        record = res.toarray()[2:]
+        while (len(record) > 0):
+            idx = (record[0] << 16) + (record[1] << 8)+(record[2] << 0)
+            number = record[3]
+            self.addInfo('\tDTC ID=0x%06X (%s)' % (idx, self.strDtcName(idx)))
+            self.addInfo('\tRecordNumber=0x%02X' % (number))
+            record = record[4:]
 
     def decodeData(self, data, record):
         assert (data['type'] in ['uint8', 'uint16', 'uint32', 'uint64'])
@@ -689,6 +712,9 @@ class UIDTC(QGroupBox):
                 data = self.ExtendedData[i]
                 record = self.decodeData(data, record)
 
+    def reportMirrorMemoryDTCExtendedDataRecordByDTCNumber(self, fnid=0x10):
+        self.reportDTCExtendedDataRecordByDTCNumber(fnid)
+
     def strStatusMask(self, mask):
         ss = ''
         if (mask & 0x01):
@@ -729,6 +755,13 @@ class UIDTC(QGroupBox):
     def reportDTCByStatusMask(self):
         statusMask = eval(str(self.leParam.text()))
         res = self.reportDTCCommon([0x02, statusMask])
+        if (res == None):
+            return
+        self.showDTCCommon(res)
+
+    def reportMirrorMemoryDTCByStatusMask(self):
+        statusMask = eval(str(self.leParam.text()))
+        res = self.reportDTCCommon([0x0F, statusMask])
         if (res == None):
             return
         self.showDTCCommon(res)

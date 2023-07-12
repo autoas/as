@@ -504,7 +504,18 @@
                         "endian": { "type": "string", "default": "big", "enum": ["big", "little"] },
                         "sign": { "type": "string", "default": "+", "enum": ["+", "-"] },
                         "is_group": { "type": "bool", "default": false },
-                        "group": { "type": "string", "enumref": "/Com/group_signals", "enabled": "'${is_group}' == 'True'" }
+                        "group": { "type": "string", "enumref": "/Com/group_signals", "enabled": "'${is_group}' == 'True'"},
+                        "InitialValue": { "type": "string", "default":"0", "description": "example: '0' for basic type, '[0, 1, 2]' for array" },
+                        "RxNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "RxTOut": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "FirstTimeout": { "type": "integer", "default": 0, "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "Timeout": { "type": "integer", "default": 0, "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "DataInvalidAction": { "type": "string", "default": "NOTIFY", "enum": ["NOTIFY", "REPLACE"], "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "InvalidNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}' and '${DataInvalidAction}' == 'NOTIFY'"},
+                        "RxDataTimeoutAction": { "type": "string", "default": "NONE", "enum": ["NONE", "REPLACE", "SUBSTITUTE"], "enabled": "'${../../node}' != '${../../../../me}'"},
+                        "TimeoutSubstitutionValue": { "type": "string", "default":"0", "description": "example: '0' for basic type, '[0, 1, 2]' for array", "enabled": "'${../../node}' != '${../../../../me}' and '${RxDataTimeoutAction}' == 'SUBSTITUTE'" },
+                        "ErrorNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' == '${../../../../me}'"},
+                        "TxNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' == '${../../../../me}'"}
                       }
                     }
                   }

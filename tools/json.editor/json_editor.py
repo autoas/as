@@ -37,11 +37,6 @@ class JsonString(QLineEdit):
         desc = obj.get_desc(title)
         if desc != None:
             self.setToolTip(desc)
-        self.setEnabled(self.obj.is_enabled(self.title))
-        self.timerId = self.startTimer(1000)
-
-    def timerEvent(self, event):
-        self.setEnabled(self.obj.is_enabled(self.title))
 
     def onTextChanged(self):
         text = str(self.text())
@@ -61,11 +56,8 @@ class JsonNumber(JsonString):
         self.fresh()
 
     def timerEvent(self, event):
-        if event.timerId() == self.timerId:
-            self.setEnabled(self.obj.is_enabled(self.title))
-        else:
-            self.fresh()
-            self.killTimer(event.timerId())
+        self.fresh()
+        self.killTimer(event.timerId())
 
     def fresh(self):
         vs = self.obj.get(self.title)
@@ -137,11 +129,9 @@ class JsonEnumRefString(QComboBox):
         desc = obj.get_desc(title)
         if desc != None:
             self.setToolTip(desc)
-        self.setEnabled(self.obj.is_enabled(self.title))
         self.startTimer(1000)
 
     def timerEvent(self, event):
-        self.setEnabled(self.obj.is_enabled(self.title))
         items = self.obj.find(self.enumref)
         if None != items:
             vs = str(self.obj.get(self.title))
@@ -188,11 +178,6 @@ class JsonEnumString(QComboBox):
         desc = obj.get_desc(title)
         if desc != None:
             self.setToolTip(desc)
-        self.setEnabled(self.obj.is_enabled(self.title))
-        self.startTimer(1000)
-
-    def timerEvent(self, event):
-        self.setEnabled(self.obj.is_enabled(self.title))
 
     def initItems(self):
         self.addItems([str(i) for i in self.items])
@@ -229,11 +214,6 @@ class JsonBool(QComboBox):
         desc = obj.get_desc(title)
         if desc != None:
             self.setToolTip(desc)
-        self.setEnabled(self.obj.is_enabled(self.title))
-        self.startTimer(1000)
-
-    def timerEvent(self, event):
-        self.setEnabled(self.obj.is_enabled(self.title))
 
     def initItems(self):
         self.addItems(['True', 'False'])
@@ -262,11 +242,6 @@ class JsonMapString(QComboBox):
         super(QComboBox, self).__init__()
         self.initItems()
         self.currentTextChanged.connect(self.onTextChanged)
-        self.setEnabled(self.obj.is_enabled(self.title))
-        self.startTimer(1000)
-
-    def timerEvent(self, event):
-        self.setEnabled(self.obj.is_enabled(self.title))
 
     def initItems(self):
         items = self.map.keys()
@@ -328,6 +303,19 @@ class UIGroup(QScrollArea):
     def __init__(self, wd, parent=None):
         super(QScrollArea, self).__init__(parent)
         self.setWidget(wd)
+        self.timerEvent(0)
+        self.startTimer(1000)
+
+    def timerEvent(self, event):
+        frame = self.widget()
+        grid = frame.layout()
+        for row in range(grid.rowCount()):
+            K = grid.itemAtPosition(row, 0).widget()
+            V = grid.itemAtPosition(row, 1).widget()
+            enabled = V.obj.is_enabled(V.title)
+            K.setVisible(enabled)
+            V.setVisible(enabled)
+            V.setEnabled(enabled)
 
 
 class JsonBase(QTreeWidgetItem):
@@ -350,7 +338,7 @@ class JsonBase(QTreeWidgetItem):
                 url = url.replace('${%s}' % (field), str(v))
         return url
 
-    def is_enabled(self, attr = None):
+    def is_enabled(self, attr=None):
         prop = self.get_prop(attr)
         es = prop.get('enabled', 'True')
         es = self.preproc(es)
@@ -711,12 +699,16 @@ class JsonArray(JsonBase):
             obj1 = self.child(i)
             if not obj1.isList():
                 uis = obj1.createUI()
-                for K, V in uis:
+                uis_ = []
+                for pos, (K, V) in enumerate(uis):
+                    if not V.obj.is_enabled(V.title):
+                        continue
+                    uis_.append([K, V])
                     title = str(K.text())
                     if title not in headers:
-                        headers.append(title)
-                        widths.append(len(title)*cCharWidth)
-                UIs.append(uis)
+                        headers.insert(pos, title)
+                        widths.insert(pos, len(title)*cCharWidth)
+                UIs.append(uis_)
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
         for uis in UIs:

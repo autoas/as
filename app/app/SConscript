@@ -63,13 +63,15 @@ class ApplicationCanApp(ApplicationApp):
         self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
         self.LIBS.append('Simulator')
         self.LIBS.append('Plugin')
-        self.Append(CPPDEFINES=['USE_SHELL'])
-        self.LIBS.append('Shell')
-        self.LIBS.append('VFS')
-        self.Append(CPPDEFINES=['USE_VFS'])
-        self.LIBS.append('StdTrace')
-        self.Append(CPPDEFINES=['USE_TRACE', 'USE_TRACE_TEST'])
-        self.source += objsTraceTestCfg
+        # self.Append(CPPDEFINES=['USE_SHELL'])
+        # self.LIBS.append('Shell')
+        # self.LIBS.append('VFS')
+        # self.Append(CPPDEFINES=['USE_VFS'])
+        # self.LIBS.append('StdTrace')
+        # self.Append(CPPDEFINES=['USE_TRACE', 'USE_TRACE_TEST'])
+        # self.source += objsTraceTestCfg
+        #self.LIBS += ['LibC']
+        #self.Append(CPPDEFINES=['USE_STDIO_CAN', 'USE_STD_PRINTF'])
 
     def config(self):
         if LL_DL != None:

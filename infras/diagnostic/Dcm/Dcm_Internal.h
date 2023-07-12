@@ -6,6 +6,7 @@
 #define DCM_INTERNAL_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Dcm.h"
+#include "NvM.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define DCM_INVALID_PDU_ID ((PduIdType)-1)
 
@@ -35,9 +36,11 @@
 #define SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14
 #define SID_READ_DTC_INFORMATION 0x19
 #define SID_READ_DATA_BY_IDENTIFIER 0x22
+#define SID_READ_MEMORY_BY_ADDRESS 0x23
 #define SID_SECURITY_ACCESS 0x27
 #define SID_COMMUNICATION_CONTROL 0x28
 #define SID_READ_DATA_BY_PERIODIC_IDENTIFIER 0x2A
+#define SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2C
 #define SID_WRITE_DATA_BY_IDENTIFIER 0x2E
 #define SID_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER 0x2F
 #define SID_ROUTINE_CONTROL 0x31
@@ -45,6 +48,7 @@
 #define SID_REQUEST_UPLOAD 0x35
 #define SID_TRANSFER_DATA 0x36
 #define SID_REQUEST_TRANSFER_EXIT 0x37
+#define SID_WRITE_MEMORY_BY_ADDRESS 0x3D
 #define SID_TESTER_PRESENT 0x3E
 #define SID_CONTROL_DTC_SETTING 0x85
 
@@ -113,6 +117,14 @@
 #ifndef DCM_TM_FAST_TIME_MS
 #define DCM_TM_FAST_TIME_MS 500
 #endif
+
+#ifndef DCM_DDDID_MAX_ENTRY
+#define DCM_DDDID_MAX_ENTRY 32
+#endif
+
+#define DCM_MEM_ATTR_READ ((uint8_t)0x01)
+#define DCM_MEM_ATTR_WRITE ((uint8_t)0x02)
+#define DCM_MEM_ATTR_EXECUTE ((uint8_t)0x04)
 /* ================================ [ TYPES     ] ============================================== */
 enum
 {
@@ -156,6 +168,7 @@ typedef struct {
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
   Dcm_SecLevelType currentLevel;
   Dcm_SecLevelType requestLevel;
+  uint16_t securityDelayTimer;
 #endif
   uint8_t rxBufferState;
   uint8_t txBufferState;
@@ -217,9 +230,24 @@ typedef Std_ReturnType (*Dcm_StartRoutineFncType)(const uint8_t *dataIn, Dcm_OpS
                                                   uint8_t *dataOut,
                                                   uint16_t *currentDataLength /*InOut*/,
                                                   Dcm_NegativeResponseCodeType *ErrorCode);
+
+/* @SWS_Dcm_01204 */
+typedef Std_ReturnType (*Dcm_StopRoutineFncType)(const uint8_t *dataIn, Dcm_OpStatusType OpStatus,
+                                                 uint8_t *dataOut,
+                                                 uint16_t *currentDataLength /*InOut*/,
+                                                 Dcm_NegativeResponseCodeType *ErrorCode);
+
+/* @SWS_Dcm_91013 */
+typedef Std_ReturnType (*Dcm_RequestResultRoutineFncType)(const uint8_t *dataIn,
+                                                          Dcm_OpStatusType OpStatus,
+                                                          uint8_t *dataOut,
+                                                          uint16_t *currentDataLength /*InOut*/,
+                                                          Dcm_NegativeResponseCodeType *ErrorCode);
 typedef struct {
   uint16_t id;
   Dcm_StartRoutineFncType StartRoutineFnc;
+  Dcm_StopRoutineFncType StopRoutineFnc;
+  Dcm_RequestResultRoutineFncType RequestResultRoutineFnc;
   Dcm_SesSecAccessType SesSecAccess;
 } Dcm_RoutineControlType;
 
@@ -244,7 +272,13 @@ typedef Dcm_IOCtrlExecuteFncType Dcm_IOCtrlResetToDefaultFncType;
 typedef Dcm_IOCtrlExecuteFncType Dcm_IOCtrlFreezeCurrentStateFncType;
 /* @ECUC_Dcm_00675 */
 typedef Dcm_IOCtrlExecuteFncType Dcm_IOCtrlShortTermAdjustmentFncType;
+
 typedef struct {
+  uint8_t requestMask;
+} Dcm_IOControlContextType;
+
+typedef struct {
+  Dcm_IOControlContextType *context;
   uint16_t id;
   Dcm_IOCtrlReturnControlToEcuFncType ReturnControlToEcuFnc;
   Dcm_IOCtrlResetToDefaultFncType ResetToDefaultFnc;
@@ -336,11 +370,15 @@ typedef struct {
 } Dcm_ReadDIDContextType;
 
 typedef struct {
-  Dcm_ReadDIDContextType *context;
   uint16_t id;
   uint16_t length;
   Dcm_CallbackReadDidFncType readDIdFnc;
   Dcm_SesSecAccessType SesSecAccess;
+} Dcm_rDIDConfigType;
+
+typedef struct {
+  Dcm_ReadDIDContextType *context;
+  const Dcm_rDIDConfigType *rDID;
 } Dcm_ReadDIDType;
 
 typedef struct {
@@ -363,10 +401,7 @@ typedef struct {
 
 typedef struct {
   Dcm_ReadPeriodicDIDContextType *context;
-  uint8_t id; /* @SWS_Dcm_01094: high byte is 0xF2 */
-  uint16_t length;
-  Dcm_CallbackReadDidFncType readDIdFnc;
-  Dcm_SesSecAccessType SesSecAccess;
+  const Dcm_rDIDConfigType *DID;
 } Dcm_ReadPeriodicDIDType;
 
 typedef struct {
@@ -411,6 +446,38 @@ typedef struct {
   uint8_t MaxNumRespPend; /* @ECUC_Dcm_00693 */
 } Dcm_DslDiagRespConfigType;
 
+typedef struct {
+  Dcm_OpStatusType opStatus;
+  uint8_t index;
+  uint8_t position;
+  uint8_t size;
+} Dcm_DDDIDEntryType;
+
+typedef struct {
+  Dcm_DDDIDEntryType entry[DCM_DDDID_MAX_ENTRY];
+  uint8_t numOfEntry;
+} Dcm_DDDIDContextType;
+
+typedef struct {
+  Dcm_rDIDConfigType *rDID;
+  Dcm_DDDIDContextType *context;
+  Dcm_CallbackReadDidFncType readDIdFnc;
+} Dcm_DDDIDConfigType;
+
+typedef struct {
+  uint32_t low;
+  uint32_t high;
+  uint8_t attr;
+  Dcm_SesSecAccessType SesSecAccess;
+} Dcm_DspMemoryRangeInfoType;
+
+typedef struct {
+  const uint8_t *AddressAndLengthFormatIdentifiers; /* @ECUC_Dcm_00964 */
+  uint8_t numOfAALFIs;
+  const Dcm_DspMemoryRangeInfoType *Mems;
+  uint8_t numOfMems;
+} Dcm_DspMemoryConfigType;
+
 struct Dcm_Config_s {
   uint8_t *rxBuffer;
   uint8_t *txBuffer;
@@ -420,6 +487,29 @@ struct Dcm_Config_s {
   uint8_t numOfServiceTables;
   const Dcm_TimingConfigType *timing;
   const Dcm_DslDiagRespConfigType *dslDisgResp;
+#ifdef DCM_USE_SERVICE_DYNAMICALLY_DEFINE_DATA_IDENTIFIER
+  const Dcm_DDDIDConfigType *DDDIDs;
+  uint8_t numOfDDDIDs;
+  const Dcm_rDIDConfigType *rDIDs;
+  uint8_t numOfrDIDs;
+#endif
+#ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
+  const Dcm_ReadPeriodicDIDConfigType *rPDIDConfig;
+#endif
+#ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+  const Dcm_IOControlConfigType *IOCtlConfig;
+#endif
+#if defined(DCM_USE_SERVICE_READ_MEMORY_BY_ADDRESS) ||                                             \
+  defined(DCM_USE_SERVICE_WRITE_MEMORY_BY_ADDRESS)
+  const Dcm_DspMemoryConfigType *MemoryConfig;
+#endif
+#ifdef DCM_USE_SERVICE_SECURITY_ACCESS
+  uint8_t SecurityNumAttDelay; /* @ECUC_Dcm_00762 */
+  uint16_t SecurityDelayTime;  /* @ECUC_Dcm_00757 */
+#ifdef USE_NVM
+  NvM_BlockIdType SecurityNvMBlkId;
+#endif
+#endif
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -461,13 +551,19 @@ Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
                                          Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportNumberOfDTCByStatusMask(Dcm_MsgContextType *msgContext,
                                                     Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dem_DspReportNumberOfMirrorMemoryDTCByStatusMask(Dcm_MsgContextType *msgContext,
+                                                                Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportDTCByStatusMask(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dem_DspReportMirrorMemoryDTCByStatusMask(Dcm_MsgContextType *msgContext,
+                                                        Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportDTCSnapshotIdentification(Dcm_MsgContextType *msgContext,
                                                       Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportDTCSnapshotRecordByDTCNumber(Dcm_MsgContextType *msgContext,
                                                          Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *msgContext,
+                                                             Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dem_DspReportMirrorMemoryDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *msgContext,
                                                              Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc);
@@ -499,4 +595,15 @@ void Dcm_MainFunction_ReadPeriodicDID(void);
 void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void);
 Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContext,
                                                    Dcm_NegativeResponseCodeType *nrc);
+
+Std_ReturnType Dcm_DspReadMemoryByAddress(Dcm_MsgContextType *msgContext,
+                                          Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType Dcm_DspWriteMemoryByAddress(Dcm_MsgContextType *msgContext,
+                                           Dcm_NegativeResponseCodeType *nrc);
+
+Std_ReturnType Dcm_DspDynamicallyDefineDataIdentifier(Dcm_MsgContextType *msgContext,
+                                                      Dcm_NegativeResponseCodeType *nrc);
+
+Std_ReturnType Dcm_DspReadDDDID(const Dcm_DDDIDConfigType *DDConfig, Dcm_OpStatusType opStatus,
+                                uint8_t *data, uint16_t length, Dcm_NegativeResponseCodeType *nrc);
 #endif /* DCM_INTERNAL_H */

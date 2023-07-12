@@ -40,7 +40,7 @@ class JsonEditor(QMainWindow):
 
         self.schemaFile = args.schema
         self.jsonFile = args.input
-    
+
         self.creStatusBar()
         self.load_schema()
         self.creMenu()
@@ -76,6 +76,12 @@ class JsonEditor(QMainWindow):
         sItem.setShortcut('Ctrl+O')
         sItem.setStatusTip('Open a JSON configure file.')
         sItem.triggered.connect(self.mOpen)
+        tMenu.addAction(sItem)
+        # Load Ctrl+L
+        sItem = QAction(self.tr('Load'), self)
+        sItem.setShortcut('Ctrl+L')
+        sItem.setStatusTip('Load a JSON configure file.')
+        sItem.triggered.connect(self.mLoad)
         tMenu.addAction(sItem)
         # Save Ctrl+S
         sItem = QAction(self.tr('Save'), self)
@@ -143,6 +149,8 @@ class JsonEditor(QMainWindow):
 
         with open(jsonFile) as f:
             cfg = json.load(f)
+            if type(cfg) == dict:
+                cfg = [cfg]
             for m in cfg:
                 for schema in self.schema:
                     if m['class'] == schema['title']:
@@ -155,6 +163,24 @@ class JsonEditor(QMainWindow):
         for schema in self.schema:
             if '__init__' in schema:
                 self.onAction(schema['title'])
+
+    def mLoad(self):
+        jsonFile, _ = QFileDialog.getOpenFileName(None, 'Load JSON',
+                                                  'jse.json', '*.json', '*.json',
+                                                  QFileDialog.DontResolveSymlinks)
+        if (jsonFile == ''):
+            return
+        if os.path.exists(jsonFile) == False:
+            return
+
+        with open(jsonFile) as f:
+            cfg = json.load(f)
+            if type(cfg) == dict:
+                cfg = [cfg]
+            for m in cfg:
+                for schema in self.schema:
+                    if m['class'] == schema['title']:
+                        self.reload(m['class'], m)
 
     def toJSON(self):
         cfgs = []
@@ -234,7 +260,7 @@ def main():
     parser = argparse.ArgumentParser(description='json editer')
     parser.add_argument('-s', '--schema', type=str, default='%s/schema.json' % (PKGDIR),
                         help='input json schema file')
-    parser.add_argument('-i', '--input', type=str, default=None,
+    parser.add_argument('-i', '--input', type=str, default='jse.json',
                         help='input json configuration file')
     args = parser.parse_args()
 

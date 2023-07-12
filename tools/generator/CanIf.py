@@ -10,6 +10,7 @@ from .Com import get_messages
 
 __all__ = ['Gen']
 
+
 def Gen_CanIf(cfg, dir):
     modules = []
     for network in cfg['networks']:
@@ -27,15 +28,15 @@ def Gen_CanIf(cfg, dir):
     ID = 0
     for network in cfg['networks']:
         for pdu in network['RxPdus']:
-            H.write('#define CANIF_%s %s /* %s id=%s */\n' %
-                    (pdu['name'], ID, network['name'], pdu['id']))
+            H.write('#define CANIF_%s %s /* %s id=0x%x */\n' %
+                    (pdu['name'], ID, network['name'], toNum(pdu['id'])))
             ID += 1
     H.write('\n')
     ID = 0
     for network in cfg['networks']:
         for pdu in network['TxPdus']:
-            H.write('#define CANIF_%s %s /* %s id=%s */\n' %
-                    (pdu['name'], ID, network['name'], pdu['id']))
+            H.write('#define CANIF_%s %s /* %s id=0x%x */\n' %
+                    (pdu['name'], ID, network['name'], toNum(pdu['id'])))
             ID += 1
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
@@ -83,8 +84,8 @@ def Gen_CanIf(cfg, dir):
                 C.write('    %s, /* NetId */\n' % (netId))
             else:
                 C.write('    %s_%s,\n' % (pdu['up'].upper(), pdu['name']))
-            C.write('    %s, /* canid */\n' % (pdu['id']))
-            C.write('    %s, /* mask */\n' % (pdu.get('mask', '0xFFFFFFFF')))
+            C.write('    0x%x, /* canid */\n' % (toNum(pdu['id'])))
+            C.write('    0x%x, /* mask */\n' % (toNum(pdu.get('mask', '0xFFFFFFFF'))))
             C.write('    %s, /* hoh */\n' % (pdu.get('hoh', 0)))
             C.write('  },\n')
     C.write('};\n\n')
@@ -105,7 +106,7 @@ def Gen_CanIf(cfg, dir):
                 C.write('    %s, /* NetId */\n' % (netId))
             else:
                 C.write('    %s_%s,\n' % (pdu['up'].upper(), pdu['name']))
-            C.write('    %s, /* canid */\n' % (pdu['id']))
+            C.write('    0x%x, /* canid */\n' % (toNum(pdu['id'])))
             if pdu.get('dynamic', False):
                 C.write('    &canidOf%s, /* p_canid */\n' % (pdu['name']))
             else:

@@ -15,8 +15,8 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
-  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w\n"
-         "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"CANFD.simulator\".\n",
+  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL\n"
+         "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"LIN.simulator\".\n",
          prog);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
   int baudrate = 500000;
   uint32_t timeout = 100; /* ms */
   isotp_parameter_t params;
+  static const uint8_t testerKeep[2] = {0x3E, 0x00 | 0x80};
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:l:p:r:t:v:T:w")) != -1) {
@@ -131,6 +132,7 @@ int main(int argc, char *argv[]) {
         printf("%02X ", data[i]);
       }
       printf("\n");
+      isotp_transmit(isotp, testerKeep, 2, NULL, 0);
     } else {
       printf("failed with error %d\n", r);
       break;

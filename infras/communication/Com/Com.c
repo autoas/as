@@ -317,8 +317,7 @@ SHELL_REGISTER(wrsg,
                "  write signal, if sid is group signals, need the gid\n",
                cmdComWrSgFunc);
 #endif
-/* ================================ [ FUNCTIONS ] ==============================================
- */
+/* ================================ [ FUNCTIONS ] ============================================== */
 void Com_Init(const Com_ConfigType *config) {
   COM_CONFIG->context->GroupStatus = 0;
 }
@@ -326,6 +325,10 @@ void Com_Init(const Com_ConfigType *config) {
 void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
   const Com_IPduConfigType *IPduConfig;
   int i;
+#ifdef COM_USE_SIGNAL_CONFIG
+  const Com_SignalConfigType *signal;
+  int j;
+#endif
   if (IpduGroupId < COM_CONFIG->numOfGroups) {
     COM_CONFIG->context->GroupStatus |= (1 << IpduGroupId);
     for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
@@ -340,6 +343,19 @@ void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
           } else {
             IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->Timeout;
           }
+
+#ifdef COM_USE_SIGNAL_CONFIG
+          for (j = 0; j < IPduConfig->numOfSignals; j++) {
+            signal = IPduConfig->signals[j];
+            if (NULL != signal->rxConfig) {
+              if (signal->rxConfig->FirstTimeout > 0) {
+                signal->rxConfig->context->timer = signal->rxConfig->FirstTimeout;
+              } else {
+                signal->rxConfig->context->timer = signal->rxConfig->Timeout;
+              }
+            }
+          }
+#endif
         } else if (IPduConfig->txConfig) {
           if (IPduConfig->txConfig->FirstTime > 0) {
             IPduConfig->txConfig->context->timer = IPduConfig->txConfig->FirstTime;
@@ -442,6 +458,10 @@ Std_ReturnType Com_TriggerIPDUSend(PduIdType PduId) {
 
 void Com_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   const Com_IPduConfigType *IPduConfig;
+#ifdef COM_USE_SIGNAL_CONFIG
+  const Com_SignalConfigType *signal;
+  int i;
+#endif
   if (RxPduId < COM_CONFIG->numOfIPdus) {
     IPduConfig = &COM_CONFIG->IPduConfigs[RxPduId];
     if (IPduConfig->rxConfig && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
@@ -451,6 +471,17 @@ void Com_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
         if (IPduConfig->rxConfig->RxNotification) {
           IPduConfig->rxConfig->RxNotification();
         }
+#ifdef COM_USE_SIGNAL_CONFIG
+        for (i = 0; i < IPduConfig->numOfSignals; i++) {
+          signal = IPduConfig->signals[i];
+          if (NULL != signal->rxConfig) {
+            signal->rxConfig->context->timer = signal->rxConfig->Timeout;
+            if (NULL != signal->rxConfig->RxNotification) {
+              signal->rxConfig->RxNotification();
+            }
+          }
+        }
+#endif
       }
     }
   }
@@ -473,6 +504,10 @@ Std_ReturnType Com_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr) {
 
 void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
   const Com_IPduConfigType *IPduConfig;
+#ifdef COM_USE_SIGNAL_CONFIG
+  const Com_SignalConfigType *signal;
+  int i;
+#endif
   if (TxPduId < COM_CONFIG->numOfIPdus) {
     IPduConfig = &COM_CONFIG->IPduConfigs[TxPduId];
     if (IPduConfig->txConfig && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
@@ -480,10 +515,26 @@ void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
         if (IPduConfig->txConfig->TxNotification) {
           IPduConfig->txConfig->TxNotification();
         }
+#ifdef COM_USE_SIGNAL_CONFIG
+        for (i = 0; i < IPduConfig->numOfSignals; i++) {
+          signal = IPduConfig->signals[i];
+          if ((NULL != signal->txConfig) && (NULL != signal->txConfig->TxNotification)) {
+            signal->txConfig->TxNotification();
+          }
+        }
+#endif
       } else {
         if (IPduConfig->txConfig->ErrorNotification) {
           IPduConfig->txConfig->ErrorNotification();
         }
+#ifdef COM_USE_SIGNAL_CONFIG
+        for (i = 0; i < IPduConfig->numOfSignals; i++) {
+          signal = IPduConfig->signals[i];
+          if ((NULL != signal->txConfig) && (NULL != signal->txConfig->ErrorNotification)) {
+            signal->txConfig->ErrorNotification();
+          }
+        }
+#endif
       }
     }
   }
@@ -492,6 +543,10 @@ void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
 void Com_MainFunctionRx(void) {
   const Com_IPduConfigType *IPduConfig;
   int i;
+#ifdef COM_USE_SIGNAL_CONFIG
+  const Com_SignalConfigType *signal;
+  int j;
+#endif
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
@@ -504,6 +559,31 @@ void Com_MainFunctionRx(void) {
           }
         }
       }
+#ifdef COM_USE_SIGNAL_CONFIG
+      for (j = 0; j < IPduConfig->numOfSignals; j++) {
+        signal = IPduConfig->signals[j];
+        if (NULL != signal->rxConfig) {
+          if (signal->rxConfig->context->timer > 0) {
+            signal->rxConfig->context->timer--;
+            if (0 == signal->rxConfig->context->timer) {
+              switch (signal->rxConfig->RxDataTimeoutAction) {
+              case COM_ACTION_REPLACE:
+                comSendSignal(signal, signal->initPtr);
+                break;
+              case COM_ACTION_SUBSTITUTE:
+                comSendSignal(signal, signal->rxConfig->TimeoutSubstitutionValue);
+                break;
+              default:
+                break;
+              }
+            }
+            if (NULL != signal->rxConfig->RxTOut) {
+              signal->rxConfig->RxTOut();
+            }
+          }
+        }
+      }
+#endif
     }
   }
 }

@@ -33,12 +33,19 @@ const Dcm_ConfigType *Dcm_GetConfig(void) {
 void Dcm_Init(const Dcm_ConfigType *ConfigPtr) {
   (void)ConfigPtr;
   Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ConfigType *config = Dcm_GetConfig();
+
   memset(context, 0, sizeof(Dcm_ContextType));
   context->rxBufferState = DCM_BUFFER_IDLE;
   context->txBufferState = DCM_BUFFER_IDLE;
   context->curPduId = DCM_INVALID_PDU_ID;
   Dcm_DslInit();
   Dcm_DspInit();
+#ifdef DCM_USE_SERVICE_SECURITY_ACCESS
+  if (Dcm_NvmSecurityAccess_Ram.AttemptCounter >= config->SecurityNumAttDelay) {
+    context->securityDelayTimer = config->SecurityDelayTime;
+  }
+#endif
 }
 
 void Dcm_MainFunction(void) {

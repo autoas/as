@@ -9,9 +9,11 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define NOTIFY ((Com_DataActionType)0x00)
-#define REPLACE ((Com_DataActionType)0x01)
-#define SUBSTITUTE ((Com_DataActionType)0x02)
+#define COM_ACTION_NONE ((Com_DataActionType)0x00)
+#define COM_ACTION_NOTIFY ((Com_DataActionType)0x01)
+#define COM_ACTION_REPLACE ((Com_DataActionType)0x02)
+#define COM_ACTION_SUBSTITUTE ((Com_DataActionType)0x03)
+
 
 #define BIG ((Com_SignalEndiannessType)0x00)
 #define LITTLE ((Com_SignalEndiannessType)0x01)
@@ -56,11 +58,19 @@ typedef uint8_t Com_DataActionType;
 typedef uint8_t Com_SignalEndiannessType;
 
 typedef struct {
+  uint16_t timer;
+} Com_SignalRxContextType;
+
+typedef struct {
+  Com_SignalRxContextType *context;
   Com_CbkInvFncType InvalidNotification;
   Com_CbkRxAckFncType RxNotification;
+  Com_CbkRxTOutFncType RxTOut;
+  const uint8_t* TimeoutSubstitutionValue;
   uint16_t FirstTimeout;
+  uint16_t Timeout;
   Com_DataActionType DataInvalidAction;   /* NOTIFY / REPLACE */
-  Com_DataActionType RxDataTimeoutAction; /* NONE / NOTIFY / REPLACE */
+  Com_DataActionType RxDataTimeoutAction; /* NONE / REPLACE / SUBSTITUTE */
 } Com_SignalRxConfigType;
 
 typedef struct {
@@ -97,7 +107,7 @@ typedef struct {
   const Com_SignalTxConfigType *txConfig;
 #endif
 #ifdef USE_SHELL
-  char* name;
+  char *name;
   bool isGroupSignal;
 #endif
 } Com_SignalConfigType;
@@ -136,7 +146,7 @@ typedef struct {
   uint8_t length;
   uint8_t numOfSignals;
 #ifdef USE_SHELL
-  char* name;
+  char *name;
 #endif
 } Com_IPduConfigType;
 

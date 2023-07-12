@@ -7,6 +7,7 @@ from .helper import *
 
 __all__ = ['Gen']
 
+
 def Gen_CanTp(cfg, dir):
     H = open('%s/CanTp_Cfg.h' % (dir), 'w')
     GenHeader(H)
@@ -28,8 +29,7 @@ def Gen_CanTp(cfg, dir):
         H.write('#endif\n')
     H.write('\n')
     if 'zero_cost' in cfg:
-        H.write('#define PDUR_%s_CANTP_ZERO_COST\n\n' %
-                (cfg['zero_cost'].upper()))
+        H.write('#define PDUR_%s_CANTP_ZERO_COST\n\n' % (cfg['zero_cost'].upper()))
     H.write('#define CANTP_MAIN_FUNCTION_PERIOD 10\n')
     H.write('#define CANTP_CONVERT_MS_TO_MAIN_CYCLES(x)  \\\n')
     H.write('  ((x + CANTP_MAIN_FUNCTION_PERIOD - 1) / CANTP_MAIN_FUNCTION_PERIOD)\n')

@@ -10,6 +10,7 @@
 #include "Dcm_Internal.h"
 #include "Std_Debug.h"
 #include <string.h>
+#include "NvM.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 1
 #define AS_LOG_DCME 3
@@ -20,6 +21,11 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
+#ifdef DCM_USE_SERVICE_SECURITY_ACCESS
+#ifndef USE_NVM
+Dcm_Nvm_SecurityAccessType Dcm_NvmSecurityAccess_Ram;
+#endif
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static uint8_t Dcm_DslSession2Mask(Dcm_SesCtrlType sesCtrl) {
   uint8_t mask = 0;
@@ -157,6 +163,8 @@ Std_ReturnType Dcm_DslServiceDIDSesSecPhyFuncCheck(Dcm_ContextType *context,
   if (E_OK != r) {
     if (DCM_E_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION == *nrc) {
       *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+    } else if (DCM_E_SERVICE_NOT_SUPPORTED == *nrc) {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
     }
   }
 
@@ -226,6 +234,15 @@ void Dcm_DslMainFunction(void) {
     }
   }
 #endif
+
+#ifdef DCM_USE_SERVICE_SECURITY_ACCESS
+  if (context->securityDelayTimer > 0) {
+    context->securityDelayTimer--;
+    if (0 == context->securityDelayTimer) {
+      ASLOG(INFO, ("DCM security timer timeout!\n"));
+    }
+  }
+#endif
 }
 
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
@@ -235,7 +252,7 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
   if (secLevelConfig->secLevel == context->currentLevel) {
-    /* already unlocked send 0 seed */
+    /* @SWS_Dcm_00323: already unlocked send 0 seed */
     r = E_OK;
     memset(&msgContext->resData[1], 0, secLevelConfig->seedSize);
   } else {
@@ -256,6 +273,7 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
                                                Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_ConfigType *config = Dcm_GetConfig();
 
   if (context->requestLevel != secLevelConfig->secLevel) {
     *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
@@ -271,9 +289,29 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
     Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01112 */
 #endif
+    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter != 0) {
+      Dcm_NvmSecurityAccess_Ram.AttemptCounter = 0;
+#ifdef USE_NVM
+      NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
+#endif
+    }
   } else {
     if (*nrc == DCM_POS_RESP) {
       *nrc = DCM_E_INVALID_KEY;
+    }
+
+    if (DCM_E_INVALID_KEY == *nrc) {
+      /* @SWS_Dcm_01349 */
+      if (Dcm_NvmSecurityAccess_Ram.AttemptCounter < config->SecurityNumAttDelay) {
+        Dcm_NvmSecurityAccess_Ram.AttemptCounter++;
+#ifdef USE_NVM
+        NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
+#endif
+      }
+      if (Dcm_NvmSecurityAccess_Ram.AttemptCounter >= config->SecurityNumAttDelay) {
+        context->securityDelayTimer = config->SecurityDelayTime;
+        *nrc = DCM_E_EXCEED_NUMBER_OF_ATTEMPTS;
+      }
     }
   }
 

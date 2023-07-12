@@ -121,19 +121,23 @@ Std_ReturnType App_CompareExtendedSessionKey(uint8_t *key,
   return ercd;
 }
 #ifdef USE_DEM
-Std_ReturnType Dem_FFD_GetBattery(Dem_EventIdType EventId, uint8_t *data) {
+Std_ReturnType Dem_FFD_GetBattery(Dem_EventIdType EventId, uint8_t *data,
+                                  Dem_DTCOriginType DTCOrigin) {
   return E_OK;
 }
 
-Std_ReturnType Dem_FFD_GetVehileSpeed(Dem_EventIdType EventId, uint8_t *data) {
+Std_ReturnType Dem_FFD_GetVehileSpeed(Dem_EventIdType EventId, uint8_t *data,
+                                      Dem_DTCOriginType DTCOrigin) {
   return E_OK;
 }
 
-Std_ReturnType Dem_FFD_GetEngineSpeed(Dem_EventIdType EventId, uint8_t *data) {
+Std_ReturnType Dem_FFD_GetEngineSpeed(Dem_EventIdType EventId, uint8_t *data,
+                                      Dem_DTCOriginType DTCOrigin) {
   return E_OK;
 }
 
-Std_ReturnType Dem_FFD_GetTime(Dem_EventIdType EventId, uint8_t *data) {
+Std_ReturnType Dem_FFD_GetTime(Dem_EventIdType EventId, uint8_t *data,
+                               Dem_DTCOriginType DTCOrigin) {
 #if defined(_WIN32)
   time_t t = time(0);
   struct tm *lt = localtime(&t);
@@ -154,9 +158,80 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
   }
 }
 
+Std_ReturnType App_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                                   Dcm_NegativeResponseCodeType *errorCode) {
+  memset(data, 0xA5, length);
+  return E_OK;
+}
+
+Std_ReturnType App_ReadAB01(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                            Dcm_NegativeResponseCodeType *errorCode) {
+  int i;
+  for (i = 0; i < length; i++) {
+    data[i] = 0x10 + i;
+  }
+  return E_OK;
+}
+
+Std_ReturnType App_ReadAB02(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                            Dcm_NegativeResponseCodeType *errorCode) {
+  int i;
+  for (i = 0; i < length; i++) {
+    data[i] = 0x20 + i;
+  }
+  return E_OK;
+}
+
+Std_ReturnType App_GetPeriodicDID01(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                                    Dcm_NegativeResponseCodeType *errorCode) {
+  int i;
+  for (i = 0; i < length; i++) {
+    data[i] = 0xA0 + i;
+  }
+  return E_OK;
+}
+
+Std_ReturnType App_GetPeriodicDID02(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                                    Dcm_NegativeResponseCodeType *errorCode) {
+  int i;
+  for (i = 0; i < length; i++) {
+    data[i] = 0xB0 + i;
+  }
+  return E_OK;
+}
+
 Std_ReturnType App_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
+                                         Dcm_NegativeResponseCodeType *ErrorCode) {
+  return E_OK;
+}
+
+Dcm_ReturnReadMemoryType Dcm_ReadMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
+                                        uint32_t MemoryAddress, uint32_t MemorySize,
+                                        uint8_t *MemoryData,
                                         Dcm_NegativeResponseCodeType *ErrorCode) {
   return E_OK;
 }
 
+Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
+                                          uint32_t MemoryAddress, uint32_t MemorySize,
+                                          const uint8_t *MemoryData,
+                                          Dcm_NegativeResponseCodeType *ErrorCode) {
+  return E_OK;
+}
+
+Std_ReturnType App_IOCtl_FC01_ShortTermAdjustment(uint8_t *ControlRecord, uint16_t length,
+                                                  uint8_t *resData, uint16_t *resDataLen,
+                                                  uint8_t *nrc) {
+  *resDataLen = 3;
+  memset(resData, 0xA5, 3);
+  return E_OK;
+}
+
+Std_ReturnType App_IOCtl_FC01_ReturnControlToEcuFnc(uint8_t *ControlRecord, uint16_t length,
+                                                    uint8_t *resData, uint16_t *resDataLen,
+                                                    uint8_t *nrc) {
+  *resDataLen = 8;
+  memset(resData, 0x88, 8);
+  return E_OK;
+}
 #endif /* USE_DCM */

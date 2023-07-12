@@ -9,24 +9,24 @@
   ],
   "securities": [
     { "name": "Extended", "level": 1, "size": 4, "sessions": ["Extended"],
-      "API": ["BL_GetExtendedSessionSeed", "BL_CompareExtendedSessionKey"] },
+      "API": { "seed": "BL_GetExtendedSessionSeed", "key": "BL_CompareExtendedSessionKey"} },
     { "name": "Program", "level": 2, "size": 4, "sessions": ["Program"], 
-      "API": ["BL_GetProgramSessionSeed", "BL_CompareProgramSessionKey"] }
+      "API": { "seed": "BL_GetProgramSessionSeed", "key": "BL_CompareProgramSessionKey"} }
   ],
   "services": [
     {
-      "name": "session_control", "id": "0x10",
+      "name": "session control", "id": "0x10",
       "access": ["physical", "functional"],
       "API": "BL_GetSessionChangePermission"
     },
     {
-      "name": "ecu_reset", "id": "0x11", "API": "BL_GetEcuResetPermission",
+      "name": "ecu reset", "id": "0x11", "API": "BL_GetEcuResetPermission",
       "sessions":["Program", "Extended"],
       "securities": ["Program", "Extended"],
       "access": ["physical", "functional"]
     },
     {
-      "name": "read_did", "id": "0x22",
+      "name": "read did", "id": "0x22",
       "sessions":["Program", "Extended"],
       "securities": ["Program", "Extended"],
       "DIDs":[
@@ -39,18 +39,18 @@
       ]
     },
     {
-      "name": "security_access", "id": "0x27",
+      "name": "security access", "id": "0x27",
       "sessions":["Default", "Program", "Extended"]
     },
     {
-      "name": "communication_control", "id": "0x28",
+      "name": "communication control", "id": "0x28",
       "functions": [ { "id": 0, "API": "BL_ComCtrlEnableRxAndTx" },
                      { "id": 3, "API": "BL_ComCtrlDisableRxAndTx" }
                    ],
       "access": ["physical", "functional"]
     },
     {
-      "name": "write_did", "id": "0x2E",
+      "name": "write did", "id": "0x2E",
       "sessions":["Program", "Extended"],
       "securities": ["Program", "Extended"],
       "DIDs":[
@@ -63,34 +63,34 @@
       ]
     },
     {
-      "name": "routine", "id": "0x31", "sessions":["Program"], "securities": ["Program"],
+      "name": "routine control", "id": "0x31", "sessions":["Program"], "securities": ["Program"],
       "routines":[
         {
-          "name": "EraseFlash", "id":"0xFF01", "API": "BL_StartEraseFlash",
+          "name": "EraseFlash", "id":"0xFF01", "API": { "start": "BL_StartEraseFlash" },
           "sessions":["Program"], "securities": ["Program"]
         },
         {
-          "name": "CheckIntegrity", "id":"0xFF02", "API": "BL_CheckIntegrity",
+          "name": "CheckIntegrity", "id":"0xFF02", "API": { "start": "BL_CheckIntegrity" },
           "sessions":["Program"], "securities": ["Program"]
         }
       ]
     },
     {
-      "name": "request_download", "id": "0x34",
+      "name": "request download", "id": "0x34",
       "sessions":["Program"], "securities": ["Program"],
       "API": "BL_ProcessRequestDownload"
     },
     {
-      "name": "transfer_data", "id": "0x36",
+      "name": "transfer data", "id": "0x36",
       "sessions":["Program"], "securities": ["Program"],
-      "API": ["BL_ProcessTransferDataWrite", "BL_ProcessTransferDataRead"]
+      "API": { "write": "BL_ProcessTransferDataWrite", "read": "BL_ProcessTransferDataRead" }
     },
     {
-      "name": "transfer_exit", "id": "0x37",
+      "name": "transfer exit", "id": "0x37",
       "sessions":["Program"], "securities": ["Program"],
       "API": "BL_ProcessRequestTransferExit"
     },
-    { "name": "tester_present", "id": "0x3E" },
-    { "name": "control_dtc_setting", "id": "0x85", "access": ["physical", "functional"] }
+    { "name": "tester present", "id": "0x3E" },
+    { "name": "control dtc setting", "id": "0x85", "access": ["physical", "functional"] }
   ]
 }
