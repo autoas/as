@@ -19,6 +19,8 @@ An example to play with:
 # on my PC, it's zero, but on your PC, it's maybe not
 # and please staticly configured its ipv4 address to 172.18.0.1
 set PACKET_LIB_ADAPTER_NR=0
+# enable PCAP dump for wireshak
+set USE_PCAP=YES
 scons --app=NetApp --net=LWIP --os=FreeRTOS
 
 # The NetAppT is built with host windows sockets

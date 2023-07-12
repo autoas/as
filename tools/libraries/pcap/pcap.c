@@ -3,7 +3,6 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  * ref https://wiki.wireshark.org/Development/LibpcapFileFormat
  */
-#ifdef USE_PCAP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "pcap.h"
 #include <sys/time.h>
@@ -415,4 +414,3 @@ void PCap_Packet(const void *packet, uint32_t length) {
   fwrite(pcaprec_hdr, sizeof(pcaprec_hdr), 1, lWPCap);
   fwrite(packet, length, 1, lWPCap);
 }
-#endif /* USE_PCAP */
