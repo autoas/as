@@ -8,13 +8,16 @@
 extern "C" {
 #include "SS_VIC.h"
 #include "SomeIp_Cfg.h"
+#include "SomeIpXf_Cfg.h"
 #include "Sd_Cfg.h"
 #include "Dio.h"
 }
 #include "plugin.h"
 #include "Std_Timer.h"
 
+#ifdef USE_SOMEIPXF
 #include "display.msg.pb.h"
+#endif
 using namespace as;
 using namespace as::usomeip;
 /* ================================ [ MACROS    ] ============================================== */
@@ -101,11 +104,47 @@ public:
 
   void run() {
     if (Std_GetTimerElapsedTime(&m_Timer) > 10000) {
+#ifdef USE_SOMEIPXF
+      Display_Type display;
+      display.gaugesLen = ARRAY_SIZE(lGaugeStatus);
+      for (size_t i = 0; i < ARRAY_SIZE(lGaugeStatus); i++) {
+        strcpy((char *)display.gauges[i].name, lGaugeStatus[i].name.c_str());
+        display.gauges[i].nameLen = lGaugeStatus[i].name.size() + 1;
+        display.gauges[i].degree = lGaugeStatus[i].degree;
+        if (lGaugeStatus[i].prev != lGaugeStatus[i].degree) {
+          lGaugeStatus[i].prev = lGaugeStatus[i].degree;
+          lUpdated = true;
+        }
+      }
+      display.telltalesLen = ARRAY_SIZE(lTelltales);
+      for (size_t i = 0; i < ARRAY_SIZE(lTelltales); i++) {
+        strcpy((char *)display.telltales[i].name, lTelltales[i].name.c_str());
+        display.telltales[i].nameLen = lTelltales[i].name.size() + 1;
+        Dio_LevelType level = Dio_ReadChannel(lTelltales[i].ChannelId);
+        if (STD_HIGH == level) {
+          display.telltales[i].on = true;
+        } else {
+          display.telltales[i].on = false;
+        }
+        if (lTelltales[i].level != level) {
+          lTelltales[i].level = level;
+          lUpdated = true;
+        }
+      }
+      if (lUpdated) {
+        notify(display);
+        lUpdated = false;
+      }
+#else
       vic::display display;
       for (size_t i = 0; i < ARRAY_SIZE(lGaugeStatus); i++) {
         auto gauge = display.add_gauges();
         gauge->set_name(lGaugeStatus[i].name);
         gauge->set_degree(lGaugeStatus[i].degree);
+        if (lGaugeStatus[i].prev != lGaugeStatus[i].degree) {
+          lGaugeStatus[i].prev = lGaugeStatus[i].degree;
+          lUpdated = true;
+        }
       }
       for (size_t i = 0; i < ARRAY_SIZE(lTelltales); i++) {
         auto tt = display.add_telltales();
@@ -125,10 +164,26 @@ public:
         notify(display);
         lUpdated = false;
       }
+#endif
       Std_TimerStart(&m_Timer);
     }
   }
-
+#ifdef USE_SOMEIPXF
+  void notify(Display_Type &display) {
+    if (m_Subscribed) {
+      auto buffer = m_BufferPool.get();
+      if (nullptr != buffer) {
+        uint32_t requestId = ((uint32_t)SOMEIP_TX_EVT_VIC_CLUSTER_STATUS << 16) + (++m_SessionId);
+        auto r = SomeIpXf_EncodeStruct((uint8_t *)buffer->data, buffer->size, &display,
+                                       &SomeIpXf_StructDisplayDef);
+        if (r > 0) {
+          buffer->size = r;
+          server::Server::notify(requestId, buffer);
+        }
+      }
+    }
+  }
+#else
   void notify(vic::display &display) {
     if (m_Subscribed) {
       auto buffer = m_BufferPool.get();
@@ -142,6 +197,7 @@ public:
       }
     }
   }
+#endif
 
 private:
   Std_TimerType m_Timer;
@@ -162,9 +218,13 @@ void SS_ExVIC_main(void) {
 void SS_ExVIC_deinit(void) {
   SS_Instance->stop();
 }
-
+#ifdef USE_SOMEIPXF
+void SS_ExVIC_notify(Display_Type &display) {
+  SS_Instance->notify(display);
+}
+#else
 void SS_ExVIC_notify(vic::display &display) {
   SS_Instance->notify(display);
 }
-
+#endif
 REGISTER_PLUGIN(SS_ExVIC);

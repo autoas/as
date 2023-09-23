@@ -46,3 +46,11 @@ void CanIf_CanTpReconfig(uint8_t Channel, CanTp_ParamType *params) {
 void CanIf_CanTpSetTxCanId(uint8_t Channel, uint32_t TxCanId) {
   CanIf_TxPdus[Channel].canid = TxCanId;
 }
+
+uint32_t CanIf_CanTpGetTxCanId(uint8_t Channel) {
+  return CanIf_TxPdus[Channel].canid;
+}
+
+uint32_t CanIf_CanTpGetRxCanId(uint8_t Channel) {
+  return CanIf_RxPdus[Channel].canid;
+}

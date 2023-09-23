@@ -8,6 +8,7 @@
 #include "PduR.h"
 #include "PduR_DoIP.h"
 #include "PduR_Priv.h"
+#if defined(PDUR_USE_MEMPOOL)
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -45,3 +46,4 @@ void PduR_MemFree(uint8_t *buffer) {
     mc_free(config->mc, buffer);
   }
 }
+#endif

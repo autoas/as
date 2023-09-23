@@ -69,8 +69,13 @@ const LinTp_ConfigType LinTp_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl) {
+void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl, uint16_t N_TA) {
   if (Channel < ARRAY_SIZE(LinTpChannelConfigs)) {
     LinTpChannelConfigs[Channel].LL_DL = ll_dl;
+    if (N_TA != 0xFFFF) {
+      LinTpChannelConfigs[Channel].N_TA = (uint8_t)N_TA & 0xFF;
+    } else {
+      LinTpChannelConfigs[Channel].AddressingFormat = CANTP_STANDARD;
+    }
   }
 }

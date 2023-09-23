@@ -148,6 +148,7 @@ libsForNetApp = {
     'PduR': Glob('config/Net/GEN/PduR_Cfg.c'),
     'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
     'CanIf': Glob('config/Net/GEN/CanIf_Cfg.c'),
+    'UdpNm': Glob('config/Net/UdpNm_Cfg.c'),
 }
 libsForNetApp.update(libsCommon)
 

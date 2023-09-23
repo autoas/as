@@ -86,6 +86,10 @@
 #include "SomeIp.h"
 #endif
 
+#ifdef USE_UDPNM
+#include "UdpNm.h"
+#endif
+
 #ifdef USE_PLUGIN
 #include "plugin.h"
 #endif
@@ -110,6 +114,9 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void App_AliveIndicate(void);
+#ifdef USE_STDIO_CAN
+extern void stdio_main_function(void);
+#endif
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
 static Std_TimerType timer100ms;
@@ -156,6 +163,10 @@ static void MainTask_10ms(void) {
   Dcm_MainFunction();
 #endif
 
+#ifdef USE_DEM
+  Dem_MainFunction();
+#endif
+
 #ifdef USE_DOIP
   DoIP_MainFunction();
 #endif
@@ -164,6 +175,10 @@ static void MainTask_10ms(void) {
 #endif
 #ifdef USE_SOMEIP
   SomeIp_MainFunction();
+#endif
+
+#ifdef USE_UDPNM
+  UdpNm_MainFunction();
 #endif
 
 #ifdef USE_PLUGIN
@@ -189,6 +204,10 @@ static void Net_Init(void) {
 #endif
 #ifdef USE_SOMEIP
   SomeIp_Init(NULL);
+#endif
+
+#ifdef USE_UDPNM
+  UdpNm_Init(NULL);
 #endif
 
 #ifdef USE_PLUGIN
@@ -346,6 +365,9 @@ void Task_MainLoop(void) {
     Shell_MainFunction();
 #endif
     App_MainFunction();
+#if defined(USE_STDIO_CAN) || defined(USE_STDIO_OUT)
+    stdio_main_function();
+#endif
     STD_TRACE_TEST_MAIN();
 #ifdef USE_OSAL
     osal_usleep(1000);
@@ -374,13 +396,16 @@ int main(int argc, char *argv[]) {
   {
     int ch;
     opterr = 0;
-    while ((ch = getopt(argc, argv, "d:")) != -1) {
+    while ((ch = getopt(argc, argv, "d:v:")) != -1) {
       switch (ch) {
       case 'd':
         Can_ReConfig(0, optarg, 0, 500000);
         break;
+      case 'v':
+        std_set_log_level(atoi(optarg));
+        break;
       default:
-        printf("Usage: %s -d can0_device\n", argv[0]);
+        printf("Usage: %s -d can0_device -v level\n", argv[0]);
         return 0;
         break;
       }

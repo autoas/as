@@ -12,13 +12,13 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-void std_set_log_file(const char *path);
+void std_set_log_name(const char *path);
 void std_set_log_level(int level);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
-         "[-S crc16|crc32] [-c choice] [-F funcAddr]"
+         "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA]"
          "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate]\n",
          prog);
 }
@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
   int port = 0;
   int baudrate = 500000;
   int rxid = 0x732, txid = 0x731;
+  uint16_t N_TA = 0xFFFF;
   int funcAddr = 0x7DF;
   int ll_dl = 8;
   char *appSRecPath = NULL;
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:c:d:f:l:p:r:s:S:t:T:v")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:c:d:f:l:n:p:r:s:S:t:T:v")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -75,6 +76,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'l':
       ll_dl = atoi(optarg);
+      break;
+    case 'n':
+      N_TA = strtoul(optarg, NULL, 16);
       break;
     case 'p':
       port = atoi(optarg);
@@ -159,6 +163,7 @@ int main(int argc, char *argv[]) {
   params.baudrate = (uint32_t)baudrate;
   params.port = port;
   params.ll_dl = ll_dl;
+  params.N_TA = N_TA;
   if (0 == strncmp("CAN", device, 3)) {
     strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_CAN;
@@ -186,7 +191,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (0 == r) {
-    std_set_log_file(".loader.log");
+    std_set_log_name("Loader");
   }
 
   if (0 == r) {

@@ -8,10 +8,10 @@ follow below command to build and run, please note better to disable any vbox re
 
 ```sh
 # build
-scons --app=CanIC
+scons --app=CanIC --os=OSAL
 scons --lib=AsOne
 scons --app=asone --prebuilt
-scons --lib=UIVIC --prebuilt
+scons --lib=UIVIC --prebuilt --os=OSAL
 
 # run
 build\nt\GCC\CanIC\CanIC.exe

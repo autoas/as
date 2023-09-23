@@ -127,6 +127,7 @@ typedef struct {
   SoAd_SocketStateType state;
   TcpIp_SockAddrType RemoteAddr;
   TcpIp_SockAddrType LocalAddr;
+  uint8_t flag;
 #if SOAD_ERROR_COUNTER_LIMIT > 0
   uint8_t errorCounter;
 #endif

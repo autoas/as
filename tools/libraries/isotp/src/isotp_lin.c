@@ -29,7 +29,7 @@
 #define UDS_TIMEOUT 5000000
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl);
+void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl, uint16_t N_TA);
 #ifdef USE_LINIF
 void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint8_t rxid, uint8_t txid);
 void Lin_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
@@ -81,6 +81,13 @@ static void lin_sched(int busId, isotp_t *isotp) {
   } else {
   }
 }
+uint8_t LinIf_CanTpGetTxId(uint8_t Channel) {
+  return lIsoTp.params.U.LIN.TxId;
+}
+
+uint8_t LinIf_CanTpGetRxId(uint8_t Channel) {
+  return lIsoTp.params.U.LIN.RxId;
+}
 #endif
 static void *lin_server_main(void *args) {
   isotp_t *isotp = (isotp_t *)args;
@@ -90,7 +97,7 @@ static void *lin_server_main(void *args) {
   uint32_t timeout = isotp->params.U.LIN.timeout * 1000;
 #endif
 
-  LinTp_ReConfig(0, (uint8_t)isotp->params.ll_dl);
+  LinTp_ReConfig(0, (uint8_t)isotp->params.ll_dl, (uint16_t)isotp->params.N_TA);
 #ifdef USE_LINIF
   LinIf_ReConfig(0, (uint8_t)isotp->params.ll_dl, isotp->params.U.LIN.RxId,
                  isotp->params.U.LIN.TxId);

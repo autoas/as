@@ -8,7 +8,9 @@
 #define _PDUR_PRIV_H_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#if defined(PDUR_USE_MEMPOOL)
 #include "mempool.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define PDUR_CONFIG (&PduR_Config)
 /* ================================ [ TYPES     ] ============================================== */
@@ -40,7 +42,7 @@ typedef struct {
   BufReq_ReturnType (*CopyRxData)(PduIdType id, const PduInfoType *info,
                                   PduLengthType *bufferSizePtr);
   union {
-    void *ptr;
+    void_ptr_t ptr;
     void (*TpRxIndication)(PduIdType id, Std_ReturnType result);
     void (*RxIndication)(PduIdType id, const PduInfoType *PduInfoPtr);
   } Ind;
@@ -71,7 +73,9 @@ typedef struct {
 } PduR_RoutingPathType;
 
 struct PduR_Config_s {
+#if defined(PDUR_USE_MEMPOOL)
   const mem_cluster_t *mc;
+#endif
   const PduR_RoutingPathType *RoutingPaths;
   uint16_t numOfRoutingPaths;
   const PduIdType DCM_TX_BASE_ID;

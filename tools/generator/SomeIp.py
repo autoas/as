@@ -389,6 +389,120 @@ def Gen_ServerService(service, dir):
     C.close()
 
 
+def GetTypeInfo(data, structs={}):
+    typ = data['type']
+    if typ in TypeInfoMap:
+        return TypeInfoMap[typ]
+    if typ in structs:
+        return {'IsArray': 'size' in data, 'IsStruct': True, 'ctype': '%s_Type' % (typ)}
+    else:
+        raise Exception('unknown data type: %s' % (data))
+
+
+def GetStructDataSize(data, structs={}):
+    size = 0
+    typ = data['type']
+    if typ in TypeInfoMap:
+        dinfo = TypeInfoMap[data['type']]
+        sz = TypeInfoMap[data['type']]['size']*data.get('size', 1)
+        size += sz
+    elif typ in structs:
+        sz = GetStructSize(structs[typ], structs)
+        sz = sz*data.get('size', 1)
+        size += sz
+    else:
+        raise
+    return size
+
+
+def GetStructSize(struct, structs={}):
+    size = 0
+    for data in struct['data']:
+        dinfo = GetTypeInfo(data, structs)
+        sz = GetStructDataSize(data, structs)
+        if data.get('variable_array', False) or dinfo.get('variable_array', False):
+            if sz < 256:
+                sz += 1
+            elif sz < 65536:
+                sz += 2
+            else:
+                sz += 4
+        if struct.get('with_tag', False):
+            sz += 2
+        size += sz
+    return size
+
+
+def Gen_XfApi(H, api, args, cfg):
+    if args == None:
+        return
+    cstr = ''
+    for data in args:
+        dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+        if False == dinfo['IsArray'] and True == dinfo.get('IsStruct', False):
+            cstr += '%s* %s' % (dinfo['ctype'], data['name'])
+        else:
+            cstr += '%s %s' % (dinfo['ctype'], data['name'])
+        if dinfo['IsArray']:
+            cstr += '[%s]' % (data['size'])
+        cstr += ', '
+    cstr = cstr[:-2]
+    H.write('Std_ReturnType %s( %s );\n' % (api, cstr))
+
+
+def Gen_ServerServiceXf(service, cfg, dir):
+    H = open('%s/SS_%s_Xf.h' % (dir, service['name']), 'w')
+    GenHeader(H)
+    H.write('#ifndef _SS_%s_XF_H\n' % (service['name'].upper()))
+    H.write('#define _SS_%s_XF_H\n' % (service['name'].upper()))
+    H.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    H.write('#include "SomeIp.h"\n')
+    H.write('#include "SomeIpXf_Cfg.h"\n')
+    H.write('#include "SS_%s.h"\n' % (service['name']))
+    H.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    for method in service.get('methods', []):
+        args = cfg.get('args', {}).get(method.get('args', None), None)
+        api = '%s_%s_request' % (service['name'], method['name'])
+        Gen_XfApi(H, api, args, cfg)
+    for egroup in service['event-groups']:
+        for event in egroup['events']:
+            args = cfg.get('args', {}).get(event.get('args', None), None)
+            api = '%s_%s_%s_notify' % (service['name'], egroup['name'], event['name'])
+            Gen_XfApi(H, api, args, cfg)
+    H.write('#endif /* _SS_%s_XF_H */\n' % (service['name'].upper()))
+    H.close()
+    C = open('%s/SS_%s_Xf.c' % (dir, service['name']), 'w')
+    GenHeader(C)
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('#include "SS_%s_Xf.h"\n' % (service['name']))
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.close()
+
+
 def Gen_ClientServiceExCpp(service, dir):
     C = open('%s/CS_Ex%s.cpp' % (dir, service['name']), 'w')
     GenHeader(C)
@@ -429,23 +543,17 @@ def Gen_ClientServiceExCpp(service, dir):
 
     C.write('  void start() {\n')
     C.write('    identity(SOMEIP_CSID_%s);\n' % (service['name'].upper()))
-    C.write('    require(SD_CLIENT_SERVICE_HANDLE_ID_%s);\n' %
-            (service['name'].upper()))
-    C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' %
-            (service['name']))
+    C.write('    require(SD_CLIENT_SERVICE_HANDLE_ID_%s);\n' % (service['name'].upper()))
+    C.write('    m_BufferPool.create("CS_%s", 5, 1024 * 1024);\n' % (service['name']))
     for method in service.get('methods', []):
         bName = '%s_%s' % (service['name'], method['name'])
-        C.write('    bind(SOMEIP_TX_METHOD_%s, &m_BufferPool);\n' %
-                (bName.upper()))
+        C.write('    bind(SOMEIP_TX_METHOD_%s, &m_BufferPool);\n' % (bName.upper()))
     for event_group in service['event-groups']:
         bName = '%s_%s' % (service['name'], event_group['name'])
-        C.write('    subscribe(SD_CONSUMED_EVENT_GROUP_%s);\n' %
-                (bName.upper()))
+        C.write('    subscribe(SD_CONSUMED_EVENT_GROUP_%s);\n' % (bName.upper()))
         for event in event_group['events']:
-            beName = '%s_%s_%s' % (
-                service['name'], event_group['name'], event['name'])
-            C.write('    listen(SOMEIP_RX_EVT_%s, &m_BufferPool);\n' %
-                    (beName.upper()))
+            beName = '%s_%s_%s' % (service['name'], event_group['name'], event['name'])
+            C.write('    listen(SOMEIP_RX_EVT_%s, &m_BufferPool);\n' % (beName.upper()))
     C.write('    Std_TimerStart(&m_Timer);\n')
     C.write('  }\n\n')
 
@@ -590,11 +698,10 @@ def Gen_ClientService(service, dir):
                 bName, method.get('tpTxSize', 1*1024*1024)))
     for egroup in service['event-groups']:
         for event in egroup['events']:
-            beName = '%s_%s_%s' % (
-                service['name'], egroup['name'], event['name'])
+            beName = '%s_%s_%s' % (service['name'], egroup['name'], event['name'])
             if event.get('tp', False):
-                C.write('static uint8_t %sTpRxBuf[%d];\n' % (
-                    beName, event.get('tpTxSize', 1*1024*1024)))
+                C.write('static uint8_t %sTpRxBuf[%d];\n' %
+                        (beName, event.get('tpTxSize', 1*1024*1024)))
     C.write(
         '/* ================================ [ LOCALS    ] ============================================== */\n')
     C.write(
@@ -1069,6 +1176,147 @@ def Gen_SD(cfg, dir):
     C.close()
 
 
+def Gen_SOMEIPXF(cfg, dir):
+    for service in cfg.get('servers', []):
+        Gen_ServerServiceXf(service, cfg, dir)
+    H = open('%s/SomeIpXf_Cfg.h' % (dir), 'w')
+    GenHeader(H)
+    H.write('#ifndef _SOMEIP_XF_CFG_H\n')
+    H.write('#define _SOMEIP_XF_CFG_H\n')
+    H.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    H.write('#include "SomeIpXf.h"\n')
+    H.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    for name, struct in cfg.get('structs', {}).items():
+        H.write('typedef struct %s_s %s_Type;\n\n' % (name, name))
+    for name, struct in cfg.get('structs', {}).items():
+        H.write('struct %s_s {\n' % (name))
+        for data in struct['data']:
+            dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+            cstr = '%s %s' % (dinfo['ctype'], data['name'])
+            if dinfo['IsArray']:
+                cstr += '[%s]' % (data['size'])
+            H.write('  %s;\n' % (cstr))
+            if dinfo['IsArray'] and (data.get('variable_array', False) or dinfo.get('variable_array', False)):
+                if data['size'] < 256:
+                    dtype = 'uint8_t'
+                elif data['size'] < 65536:
+                    dtype = 'uint16_t'
+                else:
+                    dtype = 'uint32_t'
+                H.write('  %s %sLen;\n' % (dtype, data['name']))
+                # mark data and its container struct both has length field
+                data['with_length'] = True
+                struct['with_length'] = True
+            if data.get('optional', False):
+                H.write('  boolean has_%s;\n' % (data['name']))
+                struct['with_tag'] = True
+                struct['with_length'] = True
+        H.write('};\n\n')
+    H.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    for name, struct in cfg.get('structs', {}).items():
+        H.write('extern const SomeIpXf_StructDefinitionType SomeIpXf_Struct%sDef;\n' % (name))
+    H.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    H.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    H.write('#endif /* _SOMEIP_XF_CFG_H */\n')
+    H.close()
+    C = open('%s/SomeIpXf_Cfg.c' % (dir), 'w')
+    GenHeader(C)
+    C.write(
+        '/* ================================ [ INCLUDES  ] ============================================== */\n')
+    C.write('#include "SomeIpXf_Priv.h"\n')
+    C.write('#include "SomeIpXf_Cfg.h"\n')
+    C.write(
+        '/* ================================ [ MACROS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ TYPES     ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DECLARES  ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ DATAS     ] ============================================== */\n')
+    for name, struct in cfg.get('structs', {}).items():
+        C.write('static const SomeIpXf_DataElementType Struct%sDataElements[] = {\n' % (name))
+        for idx, data in enumerate(struct['data']):
+            dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+            if dinfo['ctype'] in ['boolean', 'uint8_t', 'int8_t']:
+                dtype = 'Byte'
+            elif dinfo['ctype'] in ['uint16_t', 'int16_t']:
+                dtype = 'Short'
+            elif dinfo['ctype'] in ['uint32_t', 'int32_t', 'float']:
+                dtype = 'Long'
+            elif dinfo['ctype'] in ['uint64_t', 'int64_t', 'double']:
+                dtype = 'LongLong'
+            else:
+                dtype = 'Struct'
+            if dinfo['IsArray']:
+                dtype += 'Array'
+            C.write('  {\n')
+            C.write('    "%s",\n' % (data['name']))
+            if 'Struct' in dtype:
+                C.write('    &SomeIpXf_Struct%sDef,\n' % (data['type']))
+            else:
+                C.write('    NULL,\n')
+            C.write('    sizeof(((%s_Type*)0)->%s),\n' % (name, data['name']))
+            C.write('    __offsetof(%s_Type, %s),\n' % (name, data['name']))
+            if dinfo['IsArray'] and (data.get('variable_array', False) or dinfo.get('variable_array', False)):
+                C.write('    __offsetof(%s_Type, %sLen),\n' % (name, data['name']))
+            else:
+                C.write('    0,\n')
+            if data.get('optional', False):
+                C.write('    __offsetof(%s_Type, has_%s),\n' % (name, data['name']))
+            else:
+                C.write('    0,\n')
+            if struct.get('with_tag', False):
+                C.write('    %s, /* tag */\n' % (idx))
+            else:
+                C.write('    SOMEIPXF_TAG_NOT_USED, /* tag */\n')
+            C.write('    SOMEIPXF_DATA_ELEMENT_TYPE_%s,\n' % (toMacro(dtype)))
+            sz = GetStructDataSize(data, cfg.get('structs', {}))
+            if data.get('with_length', False):
+                if sz < 256:
+                    sizeOfDataLengthField = 1
+                elif sz < 65536:
+                    sizeOfDataLengthField = 2
+                else:
+                    sizeOfDataLengthField = 4
+            else:
+                sizeOfDataLengthField = 0
+            C.write('    %s, /* sizeOfDataLengthField for %s */\n' % (sizeOfDataLengthField, sz))
+            C.write('  },\n')
+        C.write('};\n\n')
+    for name, struct in cfg.get('structs', {}).items():
+        C.write('const SomeIpXf_StructDefinitionType SomeIpXf_Struct%sDef = {\n' % (name))
+        C.write('  "%s",\n' % (name))
+        C.write('  Struct%sDataElements,\n' % (name))
+        C.write('  sizeof(%s_Type),\n' % (name))
+        C.write('  ARRAY_SIZE(Struct%sDataElements),\n' % (name))
+        sz = GetStructSize(struct, cfg.get('structs', {}))
+        if struct.get('with_length', False) or struct.get('with_tag', False):
+            if sz < 256:
+                sizeOfStructLengthField = 1
+            elif sz < 65536:
+                sizeOfStructLengthField = 2
+            else:
+                sizeOfStructLengthField = 4
+        else:
+            sizeOfStructLengthField = 0
+        C.write('  %s /* sizeOfStructLengthField for %s */,\n' % (sizeOfStructLengthField, sz))
+        C.write('};\n\n')
+    C.write(
+        '/* ================================ [ LOCALS    ] ============================================== */\n')
+    C.write(
+        '/* ================================ [ FUNCTIONS ] ============================================== */\n')
+    C.close()
+
+
 def Gen_SOMEIP(cfg, dir):
     H = open('%s/SomeIp_Cfg.h' % (dir), 'w')
     GenHeader(H)
@@ -1471,4 +1719,5 @@ def Gen_SOMEIP(cfg, dir):
 
 def Gen_SomeIp(cfg, dir):
     Gen_SD(cfg, dir)
+    Gen_SOMEIPXF(cfg, dir)
     Gen_SOMEIP(cfg, dir)

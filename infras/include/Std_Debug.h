@@ -96,7 +96,7 @@ extern int std_printf(const char *fmt, ...);
 #if defined(linux) || defined(_WIN32)
 extern int std_get_log_level(void);
 extern void std_set_log_level(int level);
-extern void std_set_log_file(const char *path);
+extern void std_set_log_name(const char *name);
 #endif
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

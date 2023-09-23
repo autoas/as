@@ -3,12 +3,13 @@
 
 import os
 import time
+import datetime
+
 
 def toNum(v):
     if type(v) is str:
         return eval(v)
     return v
-
 
 def toMacro(s):
     words = []
@@ -39,11 +40,15 @@ def toMacro(s):
 def toPduSymbol(names):
     return '_'.join([toMacro(n) for n in names])
 
+
 def GenHeader(f):
+    currentDateTime = datetime.datetime.now()
+    date = currentDateTime.date()
+    year = date.strftime("%Y")
     GenTime = time.asctime(time.localtime(time.time()))
     f.write('/**\n')
     f.write(' * SSAS - Simple Smart Automotive Software\n')
-    f.write(' * Copyright (C) 2021 Parai Wang <parai@foxmail.com>\n')
+    f.write(' * Copyright (C) 2021-%s Parai Wang <parai@foxmail.com>\n' % (year))
     f.write(' *\n')
     f.write(' * Generated at %s\n' % (GenTime))
     f.write(' */\n')
@@ -51,6 +56,8 @@ def GenHeader(f):
 
 
 TypeInfoMap = {
+    'bool': {'size': 1, 'IsArray': False, 'ctype': 'boolean'},
+    'string': {'size': 1, 'IsArray': True, 'variable_array': True, 'ctype': 'uint8_t'},
     'uint8': {'size': 1, 'IsArray': False, 'ctype': 'uint8_t'},
     'int8': {'size': 1, 'IsArray': False, 'ctype': 'int8_t'},
     'uint16': {'size': 2, 'IsArray': False, 'ctype': 'uint16_t'},
@@ -70,7 +77,6 @@ TypeInfoMap = {
     'uint64_n': {'size': 8, 'IsArray': True, 'ctype': 'uint64_t'},
     'int64_n': {'size': 8, 'IsArray': True, 'ctype': 'int64_t'},
 }
-
 
 def GetDataSize(data):
     if data['type'] == 'struct':

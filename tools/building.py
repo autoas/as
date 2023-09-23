@@ -305,6 +305,24 @@ def PkgGlob(pkg, objs):
     return SConscript(sc, variant_dir='%s/%s' % (BUILD_DIR, os.path.basename(pkg)), duplicate=0)
 
 
+def SrcRemove(src, remove):
+    if not src:
+        return
+
+    for item in src:
+        if type(item) == type('str'):
+            if (os.path.basename(item) in remove):
+                src.remove(str(item))
+        else:
+            if (type(item) == list):
+                for itt in item:
+                    if (os.path.basename(itt.rstr()) in remove):
+                        item.remove(itt)
+                continue
+            if (os.path.basename(item.rstr()) in remove):
+                src.remove(item)
+
+
 def Package(url, ** parameters):
     if (type(url) == dict):
         parameters = url
@@ -432,6 +450,18 @@ class CustomEnv(dict):
 
     def Append(self, **kwargs):
         self.env.Append(**kwargs)
+
+    def Remove(self, **kwargs):
+        env = self.env
+        for key, v in kwargs.items():
+            if key in env:
+                if type(v) is str:
+                    if v in env[key]:
+                        env[key].remove(v)
+                else:
+                    for vv in v:
+                        if vv in env[key]:
+                            env[key].remove(vv)
 
     def AddPostAction(self, target, action):
         if not hasattr(self, '__post_actions__'):
@@ -1144,7 +1174,7 @@ class QMakeEnv(CustomEnv):
         qpro = open('%s/%s.pro' % (BUILD_DIR, appName), 'w')
         if getattr(self, 'shared', False):
             qpro.write('TEMPLATE = lib\n')
-        qpro.write('QT += core gui widgets\n')
+        qpro.write('QT += core gui widgets charts\n')
         qpro.write('CONFIG += c++11\n')
         qpro.write('CONFIG += console\n')
         qpro.write('CONFIG += object_parallel_to_source\n')
@@ -1200,6 +1230,120 @@ def CompilerQMake(**kwargs):
     return QMakeEnv()
 
 
+def GetCWS12DIR():
+    CWS12DIR = os.getenv('CWS12DIR')
+    if CWS12DIR is None:
+        for D in ['c', 'd', 'e', 'f']:
+            ds = Glob('%s:Program*/Freescale/CWS12*' % (D))
+            if len(ds) > 0:
+                CWS12DIR = ds[0].rstr()
+                break
+    if not os.path.isdir(CWS12DIR):
+        raise Exception('CWS12 Compiler not found, set CWS12DIR=/path/to/Freescale/CWS12v5.1')
+    return CWS12DIR
+
+
+class CWS12MakeEnv(CustomEnv):
+    def __init__(self):
+        super().__init__()
+        CWS12DIR = GetCWS12DIR()
+        self.CWS12DIR = CWS12DIR
+        self.target = None
+
+    def IsNeedBuild(self, obj, target):
+        robj = '%s/%s.o' % (BUILD_DIR, os.path.basename(obj)[:-2])
+        if (os.path.exists(robj)):
+            rtm = os.path.getmtime(robj)
+            stm = os.path.getmtime(obj)
+            if (stm < rtm):
+                return False
+        return True
+
+    def AddPostAction(self, target, action):
+        RunCommand(action)
+
+    def Program(self, appName, objs, **kwargs):
+        if (GetOption('clean')):
+            RunCommand('rm -frv %s/*' % (BUILD_DIR))
+            return []
+        super().Program(appName, objs, **kwargs)
+        target = appName
+        CPPPATH = []
+        LIBPATH = []
+        CPPDEFINES = []
+        LIBS = []
+        LINKFLAGS = []
+        self.getKL(kwargs, 'CPPPATH', CPPPATH)
+        self.getKL(kwargs, 'LIBPATH', LIBPATH)
+        self.getKL(kwargs, 'LIBS', LIBS)
+        self.getKL(kwargs, 'CPPDEFINES', CPPDEFINES)
+        self.getKL(kwargs, 'LINKFLAGS', LINKFLAGS)
+        link_script = None
+        for i, flg in enumerate(LINKFLAGS):
+            if flg == '-T':
+                link_script = LINKFLAGS[i+1]
+                break
+        for _, kwargs in self.objs.items():
+            self.getKL(kwargs, 'CPPPATH', CPPPATH)
+            self.getKL(kwargs, 'LIBPATH', LIBPATH)
+            self.getKL(kwargs, 'CPPDEFINES', CPPDEFINES)
+        CC = self.CWS12DIR + '/Prog/chc12.exe'
+        AS = self.CWS12DIR + '/Prog/ahc12.exe'
+        LINK = self.CWS12DIR + '/Prog/linker.exe'
+        S19 = self.CWS12DIR + '/Prog/burner.exe'
+        MAKE = '"{0}/Prog/piper.exe" "{0}/Prog/maker.exe"'.format(self.CWS12DIR)
+        with open('%s/makefile-%s.9s12' % (BUILD_DIR, target), 'w') as fp:
+            fp.write('CC = "%s"\n' % (CC))
+            fp.write('AS = "%s"\n' % (AS))
+            fp.write('LD = "%s"\n' % (LINK))
+            fp.write('COMMON_FLAGS = -WErrFileOff -WOutFileOff -EnvOBJPATH=%s\n' % (BUILD_DIR))
+            fp.write('C_FLAGS   = -I"%s/lib/hc12c/include" -Mb -CpuHCS12X\n' % (self.CWS12DIR))
+            fp.write('ASM_FLAGS = -I"%s/lib/hc12c/include" -Mb -CpuHCS12X\n' % (self.CWS12DIR))
+            fp.write('LD_FLAGS  = -M -WmsgNu=abcet\n')
+            fp.write('LIBS = "%s/lib/hc12c/lib/ansixbi.lib"\n' % (self.CWS12DIR))
+            fp.write('INC = ')
+            for p in CPPPATH:
+                fp.write('-I%s ' % (p))
+            fp.write('\nC_FLAGS += ')
+            for d in CPPDEFINES:
+                fp.write('-D%s ' % (d))
+            fp.write('\n\nOBJS = ')
+            for obj in objs:
+                obj = str(obj)
+                if (obj.endswith('.c') or obj.endswith('.C')):
+                    if (self.IsNeedBuild(obj, target)):
+                        fp.write(obj[:-2]+'.o ')
+            fp.write('\n\nOBJS_LINK = ')
+            for obj in objs:
+                obj = str(obj)
+                if (obj.endswith('.c') or obj.endswith('.C')):
+                    fp.write('%s/%s.o ' % (BUILD_DIR, os.path.basename(obj)[:-2]))
+            fp.write('''\n
+.asm.o:
+    $(ASM) $*.asm $(COMMON_FLAGS) $(ASM_FLAGS)
+
+.c.o:
+    $(CC) $*.c $(INC) $(COMMON_FLAGS) $(C_FLAGS)
+
+all:$(OBJS) {0}.abs
+    {2} OPENFILE "{0}.s19" format=motorola busWidth=1 origin=0 len=0x80000000 destination=0 SRECORD=Sx SENDBYTE 1 "{0}.abs" CLOSE
+
+{0}.abs :
+    $(LD) {1} $(COMMON_FLAGS) $(LD_FLAGS) -Add($(OBJS_LINK)) -Add($(LIBS)) -M -O$*.abs'''.format(
+                '%s/%s' % (BUILD_DIR, target), link_script, S19)
+            )
+        cmd = '%s %s/makefile-%s.9s12' % (MAKE, BUILD_DIR, target)
+        with open('%s/%s.bat' % (BUILD_DIR, target), 'w') as fp:
+            fp.write('@echo off\n%s\n' % (cmd))
+        RunCommand('%s/%s.bat' % (BUILD_DIR, target))
+        return []
+
+
+@ register_compiler
+def CompilerCWS12(**kwargs):
+    return CWS12MakeEnv()
+
+
 def CreateCompiler(name, **kwargs):
     if name in __compilers__:
         return __compilers__[name](**kwargs)
@@ -1221,7 +1365,8 @@ def RegisterCPPPATH(name, path, force=False):
     if name not in __cpppath__ or force == True:
         __cpppath__[name] = path
     else:
-        raise KeyError('CPPPATH %s already registered' % (name))
+        if __cpppath__[name] != path:
+            raise KeyError('CPPPATH %s already registered' % (name))
 
 
 def RequireCPPPATH(name):
@@ -1241,7 +1386,11 @@ def RegisterConfig(name, source, force=False):
         path = os.path.dirname(str(source[0]))
         __cfgs__[name] = (path, source)
     else:
-        raise KeyError('CFG %s already registered' % (name))
+        if (len(source) == 0):
+            raise Exception('No config provided for %s' % (name))
+        path = os.path.dirname(str(source[0]))
+        if __cfgs__[name] != (path, source):
+            raise KeyError('CFG %s already registered' % (name))
 
 
 def RequireConfig(name):
@@ -1328,6 +1477,9 @@ class BuildBase():
 
     def Remove(self, **kwargs):
         env = self.ensure_env()
+        if isinstance(env, CustomEnv):
+            env.Remove(**kwargs)
+            return
         for key, v in kwargs.items():
             if key in env:
                 if type(v) is str:
@@ -1592,11 +1744,11 @@ class Library(BuildBase):
         env = self.ensure_env()
         CPPPATH = getattr(self, 'CPPPATH', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
-            env.get('CPPDEFINES', [])
-        CFLAGS = env.get('CFLAGS', [])
-        ASFLAGS = env.get('ASFLAGS', [])
-        CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
-        CPPPATH = self.ProcessCPPPATH(CPPPATH) + env.get('CPPPATH', [])
+            list(env.get('CPPDEFINES', []))
+        CFLAGS = list(env.get('CFLAGS', []))
+        ASFLAGS = list(env.get('ASFLAGS', []))
+        CPPFLAGS = getattr(self, 'CPPFLAGS', []) + list(env.get('CPPFLAGS', []))
+        CPPPATH = self.ProcessCPPPATH(CPPPATH) + list(env.get('CPPPATH', []))
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
         try:
@@ -1643,14 +1795,14 @@ class Library(BuildBase):
             libName = libName.split(':')[0]
         env = self.ensure_env()
         objs = self.objs()
-        LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
+        LIBPATH = list(env.get('LIBPATH', [])) + getattr(self, 'LIBPATH', [])
         for libName_, lib in self.__libs__.items():
             objs += lib.objs()
             LIBPATH += getattr(lib, 'LIBPATH', [])
         if self.is_shared_library():
             LIBS = []
             LINKFLAGS = getattr(self, 'LINKFLAGS', []) + \
-                env.get('LINKFLAGS', [])
+                list(env.get('LINKFLAGS', []))
             objs2 = []
             for obj in objs:
                 if str(obj).endswith('.a'):
@@ -1659,7 +1811,7 @@ class Library(BuildBase):
                     LIBS.append(name)
                 else:
                     objs2.append(obj)
-            LIBS += env.get('LIBS', []) + self.__extra_libs__
+            LIBS += list(env.get('LIBS', [])) + self.__extra_libs__
             target = env.SharedLibrary(
                 libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         else:
@@ -1702,13 +1854,13 @@ class Application(BuildBase):
         aslog('build application %s' % (appName))
         LIBS = env.get('LIBS', [])
         CPPDEFINES = getattr(self, 'CPPDEFINES', []) + \
-            env.get('CPPDEFINES', [])
-        CPPFLAGS = getattr(self, 'CPPFLAGS', []) + env.get('CPPFLAGS', [])
-        LINKFLAGS = getattr(self, 'LINKFLAGS', []) + env.get('LINKFLAGS', [])
+            list(env.get('CPPDEFINES', []))
+        CPPFLAGS = getattr(self, 'CPPFLAGS', []) + list(env.get('CPPFLAGS', []))
+        LINKFLAGS = getattr(self, 'LINKFLAGS', []) + list(env.get('LINKFLAGS', []))
         CPPPATH = self.ProcessCPPPATH(getattr(self, 'CPPPATH', []))
-        CPPPATH += env.get('CPPPATH', [])
+        CPPPATH += list(env.get('CPPPATH', []))
         objs = self.source
-        LIBPATH = env.get('LIBPATH', []) + getattr(self, 'LIBPATH', [])
+        LIBPATH = list(env.get('LIBPATH', [])) + getattr(self, 'LIBPATH', [])
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
         for name in self.__libs_order__:

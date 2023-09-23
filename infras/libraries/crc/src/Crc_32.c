@@ -7,6 +7,7 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Crc.h"
+#ifndef DISABLE_CRC32
 /* ================================ [ MACROS    ] ============================================== */
 #define crc_update crc32_update
 /* ================================ [ TYPES     ] ============================================== */
@@ -28,3 +29,4 @@ uint32_t Crc_CalculateCRC32(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
 
   return u32Crc;
 }
+#endif /* DISABLE_CRC32 */

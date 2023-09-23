@@ -71,7 +71,7 @@
 
 /* @SWS_CanNm_00045 */
 #define CANNM_CBV_REPEAT_MESSAGE_REQUEST 0x01
-#define CANNM_CBV_NM_COORDINATOR_SLEEP 0x80
+#define CANNM_CBV_NM_COORDINATOR_SLEEP 0x08
 #define CANNM_CBV_ACTIVE_WAKEUP 0x10
 #define CANNM_CBV_PARTIAL_NETWORK_INFORMATION 0x40
 /* ================================ [ TYPES     ] ============================================== */
@@ -427,8 +427,8 @@ void CanNm_Init(const CanNm_ConfigType *cannmConfigPtr) {
   (void)cannmConfigPtr;
 
   for (i = 0; i < CANNM_CONFIG->numOfChannels; i++) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[i];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[i];
+    context = &CANNM_CONFIG->ChannelContexts[i];
+    config = &CANNM_CONFIG->ChannelConfigs[i];
     context->state = NM_STATE_BUS_SLEEP; /* @SWS_CanNm_00141 */
     context->flags = 0;                  /* @SWS_CanNm_00403 */
     memset(context->rxPdu, 0xFF, sizeof(context->rxPdu));
@@ -452,7 +452,7 @@ Std_ReturnType CanNm_PassiveStartUp(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     switch ((context->state)) {
     case NM_STATE_BUS_SLEEP:
     case NM_STATE_PREPARE_BUS_SLEEP:
@@ -478,8 +478,8 @@ Std_ReturnType CanNm_NetworkRequest(NetworkHandleType nmChannelHandle) {
   const CanNm_ChannelConfigType *config;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     nmEnterCritical();
     context->flags |= CANNM_REQUEST_MASK;
     if ((config->ActiveWakeupBitEnabled) && (config->PduCbvPosition < CANNM_PDU_OFF)) {
@@ -498,7 +498,7 @@ Std_ReturnType CanNm_NetworkRelease(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     nmEnterCritical();
     context->flags &= ~CANNM_REQUEST_MASK;
     nmExitCritical();
@@ -515,8 +515,8 @@ Std_ReturnType CanNm_RepeatMessageRequest(NetworkHandleType nmChannelHandle) {
   const CanNm_ChannelConfigType *config;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     switch (context->state) {
     case NM_STATE_READY_SLEEP:
     case NM_STATE_NORMAL_OPERATION:
@@ -547,7 +547,7 @@ Std_ReturnType CanNm_DisableCommunication(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     /* @SWS_CanNm_00170 */
     nmEnterCritical();
     context->flags |= CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
@@ -574,8 +574,8 @@ Std_ReturnType CanNm_EnableCommunication(NetworkHandleType nmChannelHandle) {
   const CanNm_ChannelConfigType *config;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     nmEnterCritical();
     context->flags &= ~CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
     nmEnterCritical();
@@ -595,8 +595,8 @@ void CanNm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
   CanNm_ChannelContextType *context;
   const CanNm_ChannelConfigType *config;
   if (TxPduId < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[TxPduId];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[TxPduId];
+    context = &CANNM_CONFIG->ChannelContexts[TxPduId];
+    config = &CANNM_CONFIG->ChannelConfigs[TxPduId];
     if (E_OK == result) {
       if (context->TxCounter < 0xFF) {
         context->TxCounter++;
@@ -607,6 +607,9 @@ void CanNm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
           (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
         nmSetAlarm(NMTimeout, config->NmTimeoutTime);
       }
+    } else {
+      /* @SWS_CanNm_00066 */
+      Nm_TxTimeoutException(config->nmNetworkHandle);
     }
   } else {
     ASLOG(ERROR, ("CanNm_TxConfirmation with invalid TxPduId %d\n", TxPduId));
@@ -619,8 +622,8 @@ void CanNm_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   uint8_t flags = CANNM_RX_INDICATION_REQUEST_MASK | CANNM_NM_PDU_RECEIVED_MASK;
   Std_ReturnType ret = E_NOT_OK;
   if (RxPduId < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[RxPduId];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[RxPduId];
+    context = &CANNM_CONFIG->ChannelContexts[RxPduId];
+    config = &CANNM_CONFIG->ChannelConfigs[RxPduId];
 #ifdef CANNM_GLOBAL_PN_SUPPORT
     ret = nmRxFilter(context, config, PduInfoPtr);
 #else
@@ -681,7 +684,7 @@ Std_ReturnType CanNm_GetLocalNodeIdentifier(NetworkHandleType nmChannelHandle,
   const CanNm_ChannelConfigType *config;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmNodeIdPtr)) {
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     *nmNodeIdPtr = config->NodeId;
   } else {
     ret = E_NOT_OK;
@@ -697,8 +700,8 @@ Std_ReturnType CanNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_
   uint8_t nodeId = CANNM_INVALID_NODE_ID;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmNodeIdPtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     /* @SWS_CanNm_00132 */
     if (config->PduNidPosition < CANNM_PDU_OFF) {
       nodeId = context->rxPdu[config->PduNidPosition];
@@ -724,8 +727,8 @@ Std_ReturnType CanNm_SetUserData(NetworkHandleType nmChannelHandle, const uint8_
   int i, j = 0;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmUserDataPtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PduNidPosition != CANNM_PDU_OFF) {
       notUserDataMask |= (1 << config->PduNidPosition);
       userDataLength--;
@@ -764,8 +767,8 @@ Std_ReturnType CanNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmU
   int i, j = 0;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmUserDataPtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PduNidPosition != CANNM_PDU_OFF) {
       notUserDataMask |= (1 << config->PduNidPosition);
       userDataLength--;
@@ -800,7 +803,7 @@ Std_ReturnType CanNm_GetPduData(NetworkHandleType nmChannelHandle, uint8_t *nmPd
   CanNm_ChannelContextType *context;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmPduDataPtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     if (context->flags & CANNM_NM_PDU_RECEIVED_MASK) {
       memcpy(nmPduDataPtr, &context->rxPdu, 8);
     } else {
@@ -820,7 +823,7 @@ Std_ReturnType CanNm_GetState(NetworkHandleType nmChannelHandle, Nm_StateType *n
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (NULL != nmStatePtr) &&
       (NULL != nmModePtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     *nmStatePtr = context->state;
     switch (context->state) {
     case NM_STATE_BUS_SLEEP:
@@ -845,8 +848,8 @@ void CanNm_ConfirmPnAvailability(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
   const CanNm_ChannelConfigType *config;
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PnEnabled) {
       ASLOG(CANNM, ("%d: confirm PN, flags %X\n", nmChannelHandle, context->flags));
       /* @SWS_CanNm_00404 */
@@ -865,8 +868,8 @@ Std_ReturnType CanNm_SetSleepReadyBit(NetworkHandleType nmChannelHandle, boolean
   const CanNm_ChannelConfigType *config;
 
   if (nmChannelHandle < CANNM_CONFIG->numOfChannels) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
+    config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
     nmEnterCritical();
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
       /* @SWS_CanNm_00342 */
@@ -897,7 +900,7 @@ Std_ReturnType CanNm_CheckRemoteSleepIndication(NetworkHandleType nmChannelHandl
   CanNm_ChannelContextType *context;
 
   if ((nmChannelHandle < CANNM_CONFIG->numOfChannels) && (nmRemoteSleepIndPtr)) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[nmChannelHandle];
+    context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
     switch (context->state) {
     case NM_STATE_NORMAL_OPERATION:
       if (context->flags & CANNM_REMOTE_SLEEP_IND_MASK) {
@@ -925,8 +928,8 @@ void CanNm_MainFunction(void) {
   const CanNm_ChannelConfigType *config;
 
   for (i = 0; i < CANNM_CONFIG->numOfChannels; i++) {
-    context = &CANNM_CONFIG->CanNm_ChannelContexts[i];
-    config = &CANNM_CONFIG->CanNm_ChannelConfigs[i];
+    context = &CANNM_CONFIG->ChannelContexts[i];
+    config = &CANNM_CONFIG->ChannelConfigs[i];
     switch (context->state) {
     case NM_STATE_BUS_SLEEP:
       nmBusSleepMain(context, config);

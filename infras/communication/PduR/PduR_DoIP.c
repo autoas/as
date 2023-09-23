@@ -14,6 +14,7 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+#if defined(PDUR_USE_MEMPOOL)
 BufReq_ReturnType PduR_DoIPGwCopyTxData(PduIdType id, const PduInfoType *info,
                                         const RetryInfoType *retry,
                                         PduLengthType *availableDataPtr) {
@@ -38,6 +39,7 @@ BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
 void PduR_DoIPGwRxIndication(PduIdType id, Std_ReturnType result) {
   PduR_GwRxIndication(id, result);
 }
+#endif
 
 BufReq_ReturnType PduR_DoIPCopyTxData(PduIdType id, const PduInfoType *info,
                                       const RetryInfoType *retry, PduLengthType *availableDataPtr) {

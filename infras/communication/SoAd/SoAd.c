@@ -17,6 +17,8 @@
 
 #define IS_CON_TYPE_OF(con, mask) (0 != ((con)->SoConType & (mask)))
 
+#define SOAD_TX_ON_GOING 0x01
+
 #define SOAD_CONFIG (&SoAd_Config)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -266,7 +268,23 @@ static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
 static void soAdSocketReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
+  const SoAd_TpInterfaceType *tpIF = (const SoAd_TpInterfaceType *)conG->Interface;
+  const SoAd_IfInterfaceType *ifIF = (const SoAd_IfInterfaceType *)conG->Interface;
+  SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret = E_OK;
+
+  if (context->flag & SOAD_TX_ON_GOING) {
+    if (conG->IsTP) {
+      if (tpIF->TpTxConfirmation) {
+        tpIF->TpTxConfirmation(connection->RxPduId, E_OK);
+      }
+    } else {
+      if (ifIF->IfTxConfirmation) {
+        ifIF->IfTxConfirmation(connection->RxPduId, E_OK);
+      }
+    }
+    context->flag &= ~SOAD_TX_ON_GOING;
+  }
 
   while (E_OK == ret) {
     if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
@@ -287,6 +305,7 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
   for (i = 0; i < SOAD_CONFIG->numOfConnections; i++) {
     connection = &SOAD_CONFIG->Connections[i];
     context = &SOAD_CONFIG->Contexts[i];
+    memset(context, 0, sizeof(SoAd_SocketContextType));
     context->state = SOAD_SOCKET_CLOSED;
 #if SOAD_ERROR_COUNTER_LIMIT > 0
     context->errorCounter = 0;
@@ -340,27 +359,37 @@ Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     context = &SOAD_CONFIG->Contexts[SoConId];
     if (SOAD_SOCKET_READY <= context->state) {
-      if (TCPIP_IPPROTO_UDP == conG->ProtocolType) {
-        if (PduInfoPtr->MetaDataPtr != NULL) {
-          addr = *(const TcpIp_SockAddrType *)PduInfoPtr->MetaDataPtr;
-          ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
-        } else {
-          TcpIp_SetupAddrFrom(&addr, conG->Remote, conG->Port);
-          ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
-        }
-      } else {
-        ret = TcpIp_Send(context->sock, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+      if (0 == (context->flag & SOAD_TX_ON_GOING)) {
+        ret = E_OK;
       }
+    }
+  }
+
+  if (E_OK == ret) {
+    if (TCPIP_IPPROTO_UDP == conG->ProtocolType) {
+      if (PduInfoPtr->MetaDataPtr != NULL) {
+        addr = *(const TcpIp_SockAddrType *)PduInfoPtr->MetaDataPtr;
+        ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+      } else {
+        TcpIp_SetupAddrFrom(&addr, conG->Remote, conG->Port);
+        ret = TcpIp_SendTo(context->sock, &addr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+      }
+    } else {
+      ret = TcpIp_Send(context->sock, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+    }
+
+    if (E_OK == ret) {
+      context->flag |= SOAD_TX_ON_GOING;
+    }
 
 #if SOAD_ERROR_COUNTER_LIMIT > 0
-      if (E_OK != ret) {
-        context->errorCounter++;
-        if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
-          SoAd_CloseSoCon(SoConId, TRUE);
-        }
+    if (E_OK != ret) {
+      context->errorCounter++;
+      if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+        SoAd_CloseSoCon(SoConId, TRUE);
       }
-#endif
     }
+#endif
   }
 
   return ret;
@@ -476,6 +505,7 @@ Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId) {
   if (SoConId < SOAD_CONFIG->numOfConnections) {
     context = &SOAD_CONFIG->Contexts[SoConId];
     if (SOAD_SOCKET_CLOSED == context->state) {
+      context->flag = 0;
 #if SOAD_ERROR_COUNTER_LIMIT > 0
       context->errorCounter = 0;
 #endif

@@ -86,6 +86,9 @@ def Gen_SoAd(cfg, dir):
     if any(sock['up'] == 'SOMEIP' for sock in cfg['sockets']):
         C.write('#include "SomeIp.h"\n')
         C.write('#include "SomeIp_Cfg.h"\n')
+    if any(sock['up'] == 'UdpNm' for sock in cfg['sockets']):
+        C.write('#include "UdpNm.h"\n')
+        C.write('#include "../UdpNm_Cfg.h"\n')
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
     C.write(
@@ -114,6 +117,13 @@ def Gen_SoAd(cfg, dir):
         C.write('  Sd_RxIndication,\n')
         C.write('  NULL,\n')
         C.write('  NULL,\n')
+        C.write('};\n\n')
+
+    if any(sock['up'] == 'UdpNm' for sock in cfg['sockets']):
+        C.write('static const SoAd_IfInterfaceType SoAd_UdpNm_IF = {\n')
+        C.write('  UdpNm_SoAdIfRxIndication,\n')
+        C.write('  NULL,\n')
+        C.write('  UdpNm_SoAdIfTxConfirmation,\n')
         C.write('};\n\n')
 
     if any(sock['up'] == 'SOMEIP' and sock['protocol'] == 'UDP' for sock in cfg['sockets']):
@@ -187,6 +197,9 @@ def Gen_SoAd(cfg, dir):
             else:
                 IF = 'SoAd_SOMEIP_TP_IF'
                 IsTP = 'TRUE'
+        elif sock['up'] == 'UdpNm':
+            SoConModeChgNotification = 'NULL'
+            IF = 'SoAd_UdpNm_IF'
         else:
             raise
         if 'ModeChg' in sock:
@@ -205,6 +218,7 @@ def Gen_SoAd(cfg, dir):
         else:
             multicast = 'FALSE'
             LocalAddrId = 'TCPIP_LOCALADDRID_ANY'
+        AutomaticSoConSetup = str(sock.get('AutomaticSoConSetup', False)).upper()
         C.write('  {\n')
         C.write('    /* %s: %s */\n' % (GID, sock['name']))
         C.write('    &%s, /* Interface */\n' % (IF))
@@ -217,7 +231,7 @@ def Gen_SoAd(cfg, dir):
         C.write('    %s, /* Port */\n' % (Port))
         C.write('    %s, /* LocalAddrId */\n' % (LocalAddrId))
         C.write('    %s, /* numOfConnections */\n' % (numOfConnections))
-        C.write('    FALSE, /* AutomaticSoConSetup */\n')
+        C.write('    %s, /* AutomaticSoConSetup */\n'%(AutomaticSoConSetup))
         C.write('    %s, /* IsTP */\n' % (IsTP))
         C.write('    %s, /* IsMulitcast */\n' % (multicast))
         C.write('  },\n')

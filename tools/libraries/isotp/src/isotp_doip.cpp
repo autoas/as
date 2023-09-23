@@ -62,9 +62,9 @@ extern "C" isotp_t *isotp_doip_create(isotp_parameter_t *params) {
 
   if (0 == r) {
     ASLOG(DOIP, ("Found Vehicle:\n"));
-    Log::hexdump(Log::INFO, "  VIN: ", doip->node->VIN, 17, 17);
-    Log::hexdump(Log::INFO, "  EID: ", doip->node->EID, 6);
-    Log::hexdump(Log::INFO, "  GID: ", doip->node->GID, 6);
+    Log::hexdump(Logger::INFO, "  VIN: ", doip->node->VIN, 17, 17);
+    Log::hexdump(Logger::INFO, "  EID: ", doip->node->EID, 6);
+    Log::hexdump(Logger::INFO, "  GID: ", doip->node->GID, 6);
     ASLOG(DOIP, ("  LA: %X\n", doip->node->LA));
     r = doip_connect(doip->node);
     if (0 != r) {

@@ -10,16 +10,15 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <sys/stat.h>
+
 #include "Log.hpp"
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-int Log::s_Level = Log::INFO;
-FILE *Log::s_File = stdout;
-int Log::s_Ended = true;
-std::mutex Log::s_Lock;
+std::shared_ptr<Logger> Log::s_Logger = std::make_shared<Logger>();
 /* ================================ [ LOCALS    ] ============================================== */
 static float get_rel_time(void) {
   static struct timeval m0 = {-1, -1};
@@ -41,113 +40,253 @@ static float get_rel_time(void) {
 }
 
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Log::setLogLevel(int level) {
-  s_Level = level;
-  LOG(INFO, "setting log level: %d\n", level);
+Logger::Logger() {
+  m_File = stdout;
 }
 
-int Log::getLogLevel() {
-  return s_Level;
+Logger::Logger(std::string name, std::string format) {
+  m_Name = name;
+  m_Format = format;
+  m_FileIndex = getFileIndex();
+  open();
 }
 
-void Log::setLogFile(const char *path) {
-  FILE *fp = fopen(path, "wb");
+void Logger::setMaxSize(int sz) {
+  m_FileMaxSize = sz;
+}
+void Logger::setMaxNum(int num) {
+  m_FileMaxNum = num;
+}
+
+void Logger::setLogLevel(int level) {
+  m_Level = level;
+}
+int Logger::getLogLevel() {
+  return m_Level;
+}
+
+void Logger::open(void) {
+  FILE *fp;
+  std::string np;
+
+#ifdef _WIN32
+  mkdir("log");
+#else
+  mkdir("log", 0777);
+#endif
+  np = "log/" + std::string(m_Name) + "." + std::to_string(m_FileIndex) + "." + m_Format;
+  fp = fopen(np.c_str(), "wb");
   if (nullptr != fp) {
-    if (s_File != stdout) {
-      fclose(s_File);
-    } else {
-      atexit(Log::close);
+    if (m_File != stdout) {
+      fclose(m_File);
     }
-    s_File = fp;
+    m_File = fp;
+    setFileIndex(m_FileIndex);
+    m_FileIndex++;
+    if (m_FileIndex >= m_FileMaxNum) {
+      m_FileIndex = 0;
+    }
+  } else {
+    printf("FATAL: can't create log file <%s>\n", np.c_str());
+    m_File = stdout;
   }
 }
 
-void Log::setLogFile(FILE *fp) {
-  s_File = fp;
+int Logger::getFileIndex(void) {
+  int index = 0;
+  FILE *fp;
+  std::string np;
+  np = "log/" + std::string(m_Name) + "." + "index";
+  fp = fopen(np.c_str(), "rb");
+  if (nullptr != fp) {
+    fscanf(fp, "%d", &index);
+    fclose(fp);
+    index++;
+    if (index >= m_FileMaxNum) {
+      index = 0;
+    }
+  }
+
+  return index;
 }
 
-extern "C" void std_set_log_file(const char *path) {
-  Log::setLogFile(path);
+void Logger::setFileIndex(int index) {
+  FILE *fp;
+  std::string np;
+  np = "log/" + std::string(m_Name) + "." + "index";
+  fp = fopen(np.c_str(), "wb");
+  if (nullptr != fp) {
+    fprintf(fp, "%d", index);
+    fclose(fp);
+  } else {
+    printf("FATAL: can't create log index file <%s>\n", np.c_str());
+  }
 }
 
-void Log::print(int level, const char *fmt, ...) {
+void Logger::check(void) {
+  int size;
+
+  if (m_File != stdout) {
+    size = ftell(m_File);
+    if (size >= m_FileMaxSize) {
+      open();
+    }
+  }
+}
+
+void Logger::write(const char *fmt, ...) {
   va_list args;
-  std::unique_lock<std::mutex> lck(s_Lock);
-  if (level >= s_Level) {
+  std::unique_lock<std::mutex> lck(m_Lock);
+
+  va_start(args, fmt);
+  (void)vfprintf(m_File, fmt, args);
+  va_end(args);
+}
+
+void Logger::print(int level, const char *fmt, ...) {
+  va_list args;
+  std::unique_lock<std::mutex> lck(m_Lock);
+  if (level >= m_Level) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
       float rtime = get_rel_time();
-      fprintf(s_File, "%.4f ", rtime);
+      fprintf(m_File, "%.4f ", rtime);
     }
     va_start(args, fmt);
-    (void)vfprintf(s_File, fmt, args);
+    (void)vfprintf(m_File, fmt, args);
     va_end(args);
+
+    check();
   }
 }
 
-void Log::hexdump(int level, const char *prefix, const void *data, size_t size, size_t len) {
+void Logger::print(int level, const char *fmt, va_list args) {
+  std::unique_lock<std::mutex> lck(m_Lock);
+  if (level >= m_Level) {
+    if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
+        (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
+      float rtime = get_rel_time();
+      fprintf(m_File, "%.4f ", rtime);
+    }
+    (void)vfprintf(m_File, fmt, args);
+
+    check();
+  }
+}
+
+void Logger::hexdump(int level, const char *prefix, const void *data, size_t size, size_t len) {
   size_t i, j;
   uint8_t *src = (uint8_t *)data;
   uint32_t offset = 0;
 
-  std::unique_lock<std::mutex> lck(s_Lock);
+  std::unique_lock<std::mutex> lck(m_Lock);
 
   if (size <= len) {
     len = size;
-    fprintf(s_File, "%s:", prefix);
+    fprintf(m_File, "%s:", prefix);
   } else {
-    fprintf(s_File, "%8s:", prefix);
+    fprintf(m_File, "%8s:", prefix);
     for (i = 0; i < len; i++) {
-      fprintf(s_File, " %02X", (uint32_t)i);
+      fprintf(m_File, " %02X", (uint32_t)i);
     }
-    fprintf(s_File, "\n");
+    fprintf(m_File, "\n");
   }
 
   for (i = 0; i < (size + len - 1) / len; i++) {
     if (size > len) {
-      fprintf(s_File, "%08X:", (uint32_t)offset);
+      fprintf(m_File, "%08X:", (uint32_t)offset);
     }
     for (j = 0; j < len; j++) {
       if ((i * len + j) < size) {
-        fprintf(s_File, " %02X", (uint32_t)src[i * len + j]);
+        fprintf(m_File, " %02X", (uint32_t)src[i * len + j]);
       } else {
-        fprintf(s_File, "   ");
+        fprintf(m_File, "   ");
       }
     }
-    fprintf(s_File, "\t");
+    fprintf(m_File, "\t");
     for (j = 0; j < len; j++) {
       if (((i * len + j) < size) && isprint(src[i * len + j])) {
-        fprintf(s_File, "%c", src[i * len + j]);
+        fprintf(m_File, "%c", src[i * len + j]);
       } else {
-        fprintf(s_File, ".");
+        fprintf(m_File, ".");
       }
     }
-    fprintf(s_File, "\n");
+    fprintf(m_File, "\n");
     offset += len;
   }
+
+  check();
+}
+
+void Logger::vprint(const char *fmt, va_list args) {
+  std::unique_lock<std::mutex> lck(m_Lock);
+  if (m_Ended) {
+    float rtime = get_rel_time();
+    fprintf(m_File, "%.4f ", rtime);
+    m_Ended = false;
+  }
+  auto len = strlen(fmt);
+  (void)vfprintf(m_File, fmt, args);
+  if (fmt[len - 1] == '\n') {
+    m_Ended = true;
+    check();
+  }
+}
+
+void Logger::putc(char chr) {
+  if (m_Ended) {
+    float rtime = get_rel_time();
+    fprintf(m_File, "%.4f ", rtime);
+    m_Ended = false;
+  }
+  fputc(chr, m_File);
+  if (chr == '\n') {
+    m_Ended = true;
+  }
+}
+
+Logger::~Logger() {
+  if (nullptr != m_File) {
+    if (m_File != stdout) {
+      fclose(m_File);
+    }
+  }
+}
+
+void Log::setLogLevel(int level) {
+  s_Logger->setLogLevel(level);
+}
+
+int Log::getLogLevel() {
+  return s_Logger->getLogLevel();
+}
+
+void Log::setName(std::string name) {
+  s_Logger = std::make_shared<Logger>(name);
+}
+
+void Log::print(int level, const char *fmt, ...) {
+  va_list args;
+
+  va_start(args, fmt);
+  s_Logger->print(level, fmt, args);
+  va_end(args);
+}
+
+void Log::hexdump(int level, const char *prefix, const void *data, size_t size, size_t len) {
+  s_Logger->hexdump(level, prefix, data, size, len);
 }
 
 void Log::vprint(const char *fmt, va_list args) {
-  std::unique_lock<std::mutex> lck(s_Lock);
-  (void)vfprintf(s_File, fmt, args);
+  s_Logger->vprint(fmt, args);
 }
 
 void Log::putc(char chr) {
-  if (s_Ended) {
-    float rtime = get_rel_time();
-    fprintf(s_File, "%.4f ", rtime);
-    s_Ended = false;
-  }
-  fputc(chr, s_File);
-  if (chr == '\n') {
-    s_Ended = true;
-  }
+  s_Logger->putc(chr);
 }
 
-void Log::close(void) {
-  if (nullptr != s_File) {
-    fclose(s_File);
-  }
+extern "C" void std_set_log_name(const char *name) {
+  Log::setName(std::string(name));
 }
 
 extern "C" int std_get_log_level(void) {

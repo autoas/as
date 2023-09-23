@@ -90,21 +90,27 @@ void App_MainFunction(void) {
   }
 }
 
-#if !defined(USE_NM) && defined(USE_CANNM)
+#if !defined(USE_NM) && (defined(USE_CANNM) || defined(USE_UDPNM))
 void Nm_NetworkStartIndication(NetworkHandleType nmNetworkHandle) {
+#ifdef USE_CANNM
   CanNm_PassiveStartUp(nmNetworkHandle);
+#endif
 }
 void Nm_NetworkMode(NetworkHandleType nmNetworkHandle) {
+#ifdef USE_CANNM
   CanNm_ConfirmPnAvailability(0);
 #ifdef USE_COM
   Com_IpduGroupStart(0, TRUE);
+#endif
 #endif
 }
 void Nm_BusSleepMode(NetworkHandleType nmNetworkHandle) {
 }
 void Nm_PrepareBusSleepMode(NetworkHandleType nmNetworkHandle) {
+#ifdef USE_CANNM
 #ifdef USE_COM
   Com_IpduGroupStop(0);
+#endif
 #endif
 }
 void Nm_TxTimeoutException(NetworkHandleType nmNetworkHandle) {

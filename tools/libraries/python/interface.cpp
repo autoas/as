@@ -110,14 +110,17 @@ public:
 
   py::object read(int id, int dlc) {
     uint8_t data[64];
-    bool r = lin_read(busid, (uint8_t)id, (uint8_t)dlc, data, enhanced, timeout);
-    py::object obj;
+    bool r = lin_read(busid, (uint32_t)id, (uint8_t)dlc, data, enhanced, timeout);
+    py::list L;
+    L.append(py::bool_(r));
     if (true == r) {
-      obj = py::bytes((char *)data, dlc);
+      L.append(py::int_(id));
+      L.append(py::bytes((char *)data, dlc));
     } else {
-      obj = py::none();
+      L.append(py::none());
+      L.append(py::none());
     }
-    return obj;
+    return L;
   }
 
   bool write(int id, py::bytes b) {
@@ -136,20 +139,23 @@ class isotp {
 public:
   isotp(py::kwargs kwargs) {
     std::string protocol = get<std::string, py::str>(kwargs, "protocol", "CAN");
-    device = get<std::string, py::str>(kwargs, "device", "simulator");
+    auto device = get<std::string, py::str>(kwargs, "device", "simulator");
     uint32_t port = get<uint32_t, py::int_>(kwargs, "port", 0);
     uint32_t baudrate = get<uint32_t, py::int_>(kwargs, "baudrate", 500000);
     uint32_t rxid = 0x732, txid = 0x731;
+    uint16_t N_TA = get<uint16_t, py::int_>(kwargs, "N_TA", 0xFFFF);
+    uint32_t ll_dl;
     if (protocol == "LIN") {
       rxid = 0x3d;
       txid = 0x3c;
     }
     rxid = get<uint32_t, py::int_>(kwargs, "rxid", rxid);
     txid = get<uint32_t, py::int_>(kwargs, "txid", txid);
-    uint32_t ll_dl = get<uint32_t, py::int_>(kwargs, "LL_DL", 8);
+    ll_dl = get<uint32_t, py::int_>(kwargs, "LL_DL", 8);
     params.baudrate = (uint32_t)baudrate;
     params.port = port;
     params.ll_dl = ll_dl;
+    params.N_TA = N_TA;
     if (protocol == "CAN") {
       strcpy(params.device, device.c_str());
       params.protocol = ISOTP_OVER_CAN;
@@ -163,6 +169,15 @@ public:
       params.U.LIN.RxId = (uint8_t)rxid;
       params.U.LIN.TxId = (uint8_t)txid;
       params.U.LIN.timeout = get<uint32_t, py::int_>(kwargs, "STmin", 100);
+
+    } else if (protocol == "DoIP") {
+      auto ipStr = get<std::string, py::str>(kwargs, "ip", "224.244.224.245");
+      strcpy(params.device, ipStr.c_str());
+      params.protocol = ISOTP_OVER_DOIP;
+      params.port = get<int, py::int_>(kwargs, "port", 13400);
+      params.U.DoIP.sourceAddress = get<uint16_t, py::int_>(kwargs, "sa", 0xbeef);
+      params.U.DoIP.targetAddress = get<uint16_t, py::int_>(kwargs, "ta", 0xdead);
+      params.U.DoIP.activationType = get<uint8_t, py::int_>(kwargs, "at", 0xda);
     } else {
       throw std::runtime_error("invalid protocol " + protocol);
     }
@@ -247,6 +262,7 @@ public:
     m_Fls = py::str(kwargs["fls"]);
     m_LogLevel = get<int, py::int_>(kwargs, "logLevel", L_LOG_INFO);
     m_Choice = get<std::string, py::str>(kwargs, "choice", "FBL");
+    m_SignType = (srec_sign_type_t)get<int, py::int_>(kwargs, "signType", SREC_SIGN_CRC16);
     m_FuncAddr = (uint32_t)get<int, py::int_>(kwargs, "funcAddr", 0x7DF);
 
     m_AppSrec = srec_open(m_App.c_str());
@@ -284,6 +300,7 @@ public:
     args.appSRec = m_AppSrec;
     args.flsSRec = m_FlsSrec;
     args.choice = m_Choice.c_str();
+    args.signType = m_SignType;
     args.funcAddr = m_FuncAddr;
     m_Loader = loader_create(&args);
     if (nullptr == m_Loader) {
@@ -327,6 +344,7 @@ private:
   srec_t *m_FlsSrec = nullptr;
   loader_t *m_Loader = nullptr;
   std::string m_Choice = "FBL";
+  srec_sign_type_t m_SignType = SREC_SIGN_CRC16;
   int m_LogLevel = L_LOG_INFO;
   uint32_t m_FuncAddr = 0;
 };
@@ -334,7 +352,7 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void __attribute__((constructor)) AsPyInit(void) {
-  Log::setLogFile(".AsPy.log");
+  Log::setName("AsPy");
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 PYBIND11_MODULE(AsPy, m) {

@@ -4,10 +4,9 @@ CWD = GetCurrentDir()
 objs = Glob('*.c')
 
 @register_library
-class LibraryPduR(Library):
+class LibraryUdpNm(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS', CWD]
-        if self.GetCompiler() not in ['CWS12']:
-            self.LIBS = ['MemPool']
         self.source = objs
 
+    

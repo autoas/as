@@ -16,6 +16,8 @@ class LibraryAsOne(Library):
     shared = True
 
     def config(self):
+        pkg_json = Package('https://github.com/nlohmann/json.git')
+        self.include = ['%s/src/one/include' % (CWD), '%s/include' % (pkg_json)]
         self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils']
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
         self.CPPPATH = ['$INFRAS']
@@ -36,10 +38,10 @@ class Applicationasone(Application):
 
 objUIs = Glob('src/ui/*.cpp')
 
-pkg_json = Package('https://github.com/nlohmann/json.git')
+
 extraInfos = {
 
-    'UIVIC': {'LIBS': ['AsOne', 'VicClient'], 'CPPPATH':['%s/single_include/nlohmann' % (pkg_json)]},
+    'UIVIC': {'LIBS': ['AsOne', 'VicClient'], 'CPPPATH': ['$INFRAS']},
 }
 
 for ui in objUIs:

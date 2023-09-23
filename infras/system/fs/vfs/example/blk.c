@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_BLKDEV 1
+#define AS_LOG_BLKDEV 0
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -56,6 +56,7 @@ static int dev_asblk_read(const device_t *device, size_t pos, void *buffer, size
   uint32_t blkid = (uint32_t)(uint64_t)device->priv;
 
   snprintf(name, sizeof(name), "asblk%d.img", blkid);
+  ASLOG(BLKDEV, ("read %s pos=%u size=%u\n", name, (uint32_t)pos, (uint32_t)size));
   if (0 != access(name, F_OK)) {
     dev_asblk_open(device);
   }
@@ -78,6 +79,7 @@ static int dev_asblk_write(const device_t *device, size_t pos, const void *buffe
   uint32_t blkid = (uint32_t)(uint64_t)device->priv;
 
   snprintf(name, sizeof(name), "asblk%d.img", blkid);
+  ASLOG(BLKDEV, ("write %s pos=%u size=%u\n", name, (uint32_t)pos, (uint32_t)size));
   if (0 != access(name, F_OK)) {
     dev_asblk_open(device);
   }

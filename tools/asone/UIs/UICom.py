@@ -14,9 +14,9 @@ import os
 import sys
 
 CWD = os.path.dirname(__file__)
-if(CWD == ''):
+if (CWD == ''):
     CWD = os.path.abspath('.')
-if os.path.exists('%s/AniView'%(CWD)):
+if os.path.exists('%s/AniView' % (CWD)):
     sys.path.append(CWD)
     from AniView import ANI_VIEWS
 else:
@@ -48,7 +48,7 @@ class SignalGenerator():
         self.value = 0
 
     def on_cbxLabel_stateChanged(self, state):
-        if(state):
+        if (state):
             self.leData.setVisible(False)
             self.cmbxGenerator.setVisible(True)
         else:
@@ -60,7 +60,7 @@ class SignalGenerator():
 
     def sin(self):
         now = time.time()
-        if(now-self.preTime >= self.period):
+        if (now-self.preTime >= self.period):
             self.preTime = now
         v = math.sin((now-self.preTime)/self.period*math.pi) * \
             (self.max-self.min)+self.min
@@ -72,11 +72,11 @@ class SignalGenerator():
 
     def on_cmbxGenerator_currentIndexChanged(self, index):
         text = str(self.cmbxGenerator.currentText())
-        if(self.reGen.search(text)):
+        if (self.reGen.search(text)):
             grp = self.reGen.search(text).groups()
-            if(grp[0] == 'sin'):
+            if (grp[0] == 'sin'):
                 self.generator = self.sin
-            elif(grp[0] == 'rand'):
+            elif (grp[0] == 'rand'):
                 self.generator = self.rand
             else:
                 self.generator = self.nan
@@ -87,7 +87,7 @@ class SignalGenerator():
             self.preTime = time.time()
 
     def text(self):
-        if(self.cbxLabel.isChecked()):
+        if (self.cbxLabel.isChecked()):
             return str(self.generator())
         else:
             return self.leData.text()
@@ -102,7 +102,7 @@ class UIMsg(QScrollArea):
         self.leData = {}
         row = col = 0
         for sig in self.msg:
-            if(self.msg.IsTransmit()):
+            if (self.msg.IsTransmit()):
                 sigGen = SignalGenerator(sig)
                 grid.addWidget(sigGen.cbxLabel, row, col)
                 grid.addWidget(sigGen.leData, row, col+1)
@@ -113,27 +113,27 @@ class UIMsg(QScrollArea):
                 self.leData[sig['name']] = QLineEdit('0')
                 grid.addWidget(self.leData[sig['name']], row, col+1)
             col += 2
-            if(col > 3):
+            if (col > 3):
                 col = 0
                 row += 1
         row += 1
-        if(self.msg.IsTransmit()):
-            grid.addWidget(QLabel('period(ms):'), row, 0)
-            self.lePeriod = QLineEdit('%s' % (self.msg.get_period()))
-            grid.addWidget(self.lePeriod, row, 1)
-            self.btnUpdate = QPushButton('update')
-            self.btnUpdate.setToolTip('if period is 0, will update message and send it once\n'
-                                      'if period is not 0, will only update the period and message value')
-            grid.addWidget(self.btnUpdate, row, 2)
-            self.btnUpdate.clicked.connect(self.on_btnUpdate_clicked)
-        else:
+
+        grid.addWidget(QLabel('period(ms):'), row, 0)
+        self.lePeriod = QLineEdit('%s' % (self.msg.get_period()))
+        grid.addWidget(self.lePeriod, row, 1)
+        self.btnUpdate = QPushButton('update')
+        self.btnUpdate.setToolTip('if period is 0, will update message and send or read it once\n'
+                                  'if period is not 0, will only update the period and message value')
+        grid.addWidget(self.btnUpdate, row, 2)
+        self.btnUpdate.clicked.connect(self.on_btnUpdate_clicked)
+        if not self.msg.IsTransmit():
             for sig in self.msg:
                 self.leData[sig['name']].setReadOnly(True)
         wd.setLayout(grid)
         self.setWidget(wd)
 
     def toInteger(self, strnum):
-        if(strnum.find('0x') != -1 or strnum.find('0X') != -1):
+        if (strnum.find('0x') != -1 or strnum.find('0X') != -1):
             return int(strnum, 16)
         else:
             return int(strnum, 10)
@@ -150,11 +150,12 @@ class UIMsg(QScrollArea):
 
     def on_btnUpdate_clicked(self):
         self.updateMsg()
-        if(self.msg.get_period() == 0):
-            self.msg.transmit()
+        if (self.msg.get_period() == 0):
+            if self.msg.IsTransmit():
+                self.msg.transmit()
 
     def Period(self):
-        if(self.msg.IsTransmit()):
+        if (self.msg.IsTransmit()):
             self.updateMsg()
         else:
             for sig in self.msg:
@@ -173,6 +174,8 @@ class UICom(QWidget):
         hbox.addWidget(self.leComJs)
         self.btnOpenComJs = QPushButton('...')
         hbox.addWidget(self.btnOpenComJs)
+        self.btnStart = QPushButton('start')
+        hbox.addWidget(self.btnStart)
         self.vbox.addLayout(hbox)
 
         hbox = QHBoxLayout()
@@ -203,11 +206,11 @@ class UICom(QWidget):
 
         self.networks = []
         self.btnOpenComJs.clicked.connect(self.on_btnOpenComJs_clicked)
+        self.btnStart.clicked.connect(self.on_btnStart_clicked)
 
-        defJs = os.path.abspath(
-            '%s/../../../app/app/config/Com/GEN/Com.json' % (CWD))
+        defJs = os.path.abspath('%s/../../../app/app/config/Com/GEN/Com.json' % (CWD))
         if os.path.isfile(defJs):
-            self.loadComJs(defJs)
+            self.leComJs.setText(defJs)
         self.qviews = {}
 
     def __del__(self):
@@ -223,14 +226,14 @@ class UICom(QWidget):
         self.leOffset.setText('0')
 
     def on_btnView_clicked(self):
-        if(len(self.networks) == 0):
+        if (len(self.networks) == 0):
             return
         signal = str(self.cmbxSignals.currentText())
         scale = float(self.leScale.text())
         offset = float(self.leOffset.text())
         for network in self.networks:
             sig = network.lookup(signal)
-            if(sig != None):
+            if (sig != None):
                 print('view of signal:', signal)
                 self.qviews[sig.name] = QView(sig, scale, offset)
                 return
@@ -245,11 +248,22 @@ class UICom(QWidget):
     def on_btnOpenComJs_clicked(self):
         rv = QFileDialog.getOpenFileName(
             None, 'COM configuration', '', 'COM configuration (*.json)')
-        if(rv[0] != ''):
-            self.loadComJs(rv[0])
+        if (rv[0] != ''):
+            self.leComJs.setText(defJs)
 
-    def loadComJs(self, comjs):
-        self.leComJs.setText(comjs)
+    def on_btnStart_clicked(self):
+        if self.btnStart.text() == 'start':
+            self.loadComJs()
+            self.btnStart.setText('stop')
+        else:
+            self.tabWidget.clear()
+            for network in self.networks:
+                network.stop()
+            self.networks = []
+            self.btnStart.setText('start')
+
+    def loadComJs(self):
+        comjs = self.leComJs.text()
         self.tabWidget.clear()
         for network in self.networks:
             network.stop()

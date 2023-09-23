@@ -46,6 +46,7 @@ typedef struct {
   uint32_t baudrate;
   isotp_protocol_t protocol;
   uint32_t ll_dl;
+  uint16_t N_TA; /* if 0xFFFF, means no target address used */
   union {
     isotp_can_param_t CAN;
     isotp_lin_param_t LIN;

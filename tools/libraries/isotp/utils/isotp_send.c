@@ -15,7 +15,8 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
-  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL\n"
+  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL -b baudrate "
+         "-n N_TA\n"
          "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"LIN.simulator\".\n",
          prog);
 }
@@ -24,7 +25,9 @@ int main(int argc, char *argv[]) {
   int ch;
   char *device = "CAN.simulator_v2";
   int port = 0;
-  int rxid = 0x732, txid = 0x731;
+  uint32_t rxid = 0x732, txid = 0x731;
+  uint16_t N_TA = 0xFFFF;
+
   int ll_dl = 8;
   int length = 0;
   uint8_t data[4095];
@@ -38,8 +41,9 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
   static const uint8_t testerKeep[2] = {0x3E, 0x00 | 0x80};
 
+  memset(&params, 0, sizeof(isotp_parameter_t));
   opterr = 0;
-  while ((ch = getopt(argc, argv, "b:d:l:p:r:t:v:T:w")) != -1) {
+  while ((ch = getopt(argc, argv, "b:d:l:n:p:r:t:v:T:w")) != -1) {
     switch (ch) {
     case 'b':
       baudrate = atoi(optarg);
@@ -49,6 +53,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'l':
       ll_dl = atoi(optarg);
+      break;
+    case 'n':
+      N_TA = strtoul(optarg, NULL, 16);
       break;
     case 'p':
       port = atoi(optarg);
@@ -87,6 +94,7 @@ int main(int argc, char *argv[]) {
   params.baudrate = (uint32_t)baudrate;
   params.port = port;
   params.ll_dl = ll_dl;
+  params.N_TA = N_TA;
   if (0 == strncmp("CAN", device, 3)) {
     strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_CAN;

@@ -21,11 +21,12 @@ extern "C" {
 #define PERF_BEGIN()                                                                               \
   do {                                                                                             \
     Std_TimerType _perfTimer;                                                                      \
-    Std_TimerStart(&_perfTimer)
+  Std_TimerStart(&_perfTimer)
 
 #define PERF_END(desc)                                                                             \
-    printf("\n%s: cost %.2f ms\n", desc, (float)Std_GetTimerElapsedTime(&_perfTimer) / 1000.0);    \
-  } while (0)
+  printf("\n%s: cost %.2f ms\n", desc, (float)Std_GetTimerElapsedTime(&_perfTimer) / 1000.0);      \
+  }                                                                                                \
+  while (0)
 
 #define STD_TIMER_ONE_SECOND ((std_time_t)1000000000)
 #define STD_TIMER_ONE_MILISECOND ((std_time_t)1000000)
@@ -52,6 +53,8 @@ std_time_t Std_GetTimerElapsedTime(Std_TimerType *timer);
 
 void Std_TimerSet(Std_TimerType *timer, std_time_t timeout);
 bool Std_IsTimerTimeout(Std_TimerType *timer);
+/* for log purpose, return a time in string format: Year-Month-Day-Hour-Minute-Second-Milisecond */
+void Std_GetDateTime(char *ts, size_t sz);
 #ifdef __cplusplus
 }
 #endif

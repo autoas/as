@@ -12,7 +12,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <stdint.h>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <map>
 #include <chrono>
 #include "usomeip/usomeip.hpp"

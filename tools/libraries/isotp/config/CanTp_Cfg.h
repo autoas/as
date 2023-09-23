@@ -24,4 +24,6 @@ typedef struct {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType* params);
+uint32_t CanIf_CanTpGetTxCanId(uint8_t Channel);
+uint32_t CanIf_CanTpGetRxCanId(uint8_t Channel);
 #endif /* CANTP_CFG_H */

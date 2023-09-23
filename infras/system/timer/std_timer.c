@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 #define STD_TIMER_STARTED 1
@@ -57,6 +58,40 @@ std_time_t Std_GetTime(void) {
   return tm;
 }
 
+void Std_GetDateTime(char *ts, size_t sz) {
+  uint32_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint32_t miniseconds = 0;
+
+#if defined(_WIN32)
+  SYSTEMTIME st = {0};
+  GetLocalTime(&st);
+  year = st.wYear;
+  month = st.wMonth;
+  day = st.wDay;
+  hour = st.wHour;
+  minute = st.wMinute;
+  second = st.wSecond;
+  miniseconds = st.wMilliseconds;
+#else
+  time_t t = time(0);
+  struct tm *lt = localtime(&t);
+  year = (1900 + lt->tm_year);
+  month = lt->tm_mon + 1;
+  day = lt->tm_mday;
+  hour = lt->tm_hour;
+  minute = lt->tm_min;
+  second = lt->tm_sec;
+#endif
+
+  snprintf(ts, sz, "%d-%02d-%02d %02d:%02d:%02d:%d", year, month, day, hour, minute, second,
+           miniseconds);
+}
+
 void Std_Sleep(std_time_t time) {
 #if defined(_WIN32)
   Sleep(time / 1000);
@@ -73,7 +108,7 @@ void Std_TimerStart(Std_TimerType *timer) {
 
 void Std_TimerStop(Std_TimerType *timer) {
   timer->status = 0;
-  timer->time = 0;
+  /* timer->time = 0; */
 }
 
 bool Std_IsTimerStarted(Std_TimerType *timer) {

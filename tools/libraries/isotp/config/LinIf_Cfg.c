@@ -6,7 +6,7 @@
 #include "LinIf_Internal.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef _WIN32
-#define LINIF_DELAY_US 1000000
+#define LINIF_DELAY_US 100000
 #define LINIF_TIMEOUT_US 1000000
 #else
 #define LINIF_DELAY_US 5000
@@ -64,4 +64,12 @@ void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint8_t rxid, uint8_t txid) 
     entrysDiagResponse->id = rxid;
     entrysDiagResponse->dlc = ll_dl;
   }
+}
+
+uint8_t LinIf_CanTpGetTxId(uint8_t Channel) {
+  return entrysDiagRequest->id;
+}
+
+uint8_t LinIf_CanTpGetRxId(uint8_t Channel) {
+  return entrysDiagResponse->id;
 }

@@ -20,7 +20,9 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void PduR_Init(const PduR_ConfigType *ConfigPtr) {
+#if defined(PDUR_USE_MEMPOOL)
   PduR_MemInit();
+#endif
 }
 
 Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *PduInfoPtr) {
@@ -236,6 +238,7 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   return ret;
 }
 
+#if defined(PDUR_USE_MEMPOOL)
 void PduR_GwTxConfirmation(PduIdType pathId, Std_ReturnType result) {
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
@@ -331,3 +334,4 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
     }
   }
 }
+#endif /* defined(PDUR_USE_MEMPOOL) */

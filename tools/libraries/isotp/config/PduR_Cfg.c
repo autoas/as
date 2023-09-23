@@ -43,8 +43,16 @@ static PduR_PduType PduR_DstPdu[CANTP_MAX_CHANNELS * 2][1];
 static PduR_RoutingPathType PduR_RoutingPaths[CANTP_MAX_CHANNELS * 2];
 
 const PduR_ConfigType PduR_Config = {
-  NULL, PduR_RoutingPaths,     ARRAY_SIZE(PduR_RoutingPaths), PDUR_DCM_TX_BASE_ID, -1,
-  -1,   PDUR_CANTP_RX_BASE_ID, PDUR_CANTP_TX_BASE_ID,
+#if defined(PDUR_USE_MEMPOOL)
+  NULL,
+#endif
+  PduR_RoutingPaths,
+  ARRAY_SIZE(PduR_RoutingPaths),
+  PDUR_DCM_TX_BASE_ID,
+  -1,
+  -1,
+  PDUR_CANTP_RX_BASE_ID,
+  PDUR_CANTP_TX_BASE_ID,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */

@@ -31,9 +31,10 @@ const Dcm_ConfigType *Dcm_GetConfig(void) {
 }
 
 void Dcm_Init(const Dcm_ConfigType *ConfigPtr) {
-  (void)ConfigPtr;
   Dcm_ContextType *context = Dcm_GetContext();
   const Dcm_ConfigType *config = Dcm_GetConfig();
+
+  (void)ConfigPtr;
 
   memset(context, 0, sizeof(Dcm_ContextType));
   context->rxBufferState = DCM_BUFFER_IDLE;

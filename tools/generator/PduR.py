@@ -63,6 +63,8 @@ def Gen_PduR(cfg, dir):
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     H.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
+    if 'memory' in cfg:
+        H.write('#define PDUR_USE_MEMPOOL\n')
     if(hasGW):
         H.write('#define PDUR_USE_TP_GATEWAY\n')
     H.write('#define PDUR_DCM_TX_BASE_ID %s\n' %
@@ -123,7 +125,7 @@ def Gen_PduR(cfg, dir):
         C.write('const PduR_ApiType PduR_DcmApi = {\n')
         C.write('  Dcm_StartOfReception,\n')
         C.write('  Dcm_CopyRxData,\n')
-        C.write('  { (void*)Dcm_TpRxIndication },\n')
+        C.write('  { (void_ptr_t)Dcm_TpRxIndication },\n')
         C.write('  NULL,\n')
         C.write('  Dcm_CopyTxData,\n')
         C.write('  Dcm_TpTxConfirmation,\n')
@@ -223,10 +225,12 @@ def Gen_PduR(cfg, dir):
                     index += 1
     C.write('};\n\n')
     C.write('const PduR_ConfigType PduR_Config = {\n')
+    C.write('#if defined(PDUR_USE_MEMPOOL)\n')
     if 'memory' in cfg:
         C.write('  &MC_PduR,\n')
     else:
         C.write('  NULL,\n')
+    C.write('#endif\n')
     C.write('  PduR_RoutingPaths,\n')
     C.write('  ARRAY_SIZE(PduR_RoutingPaths),\n')
     C.write('  PDUR_DCM_TX_BASE_ID,\n')

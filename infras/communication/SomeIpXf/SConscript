@@ -3,11 +3,11 @@ from building import *
 CWD = GetCurrentDir()
 objs = Glob('*.c')
 
+
 @register_library
-class LibraryPduR(Library):
+class LibrarySomeIpXf(Library):
     def config(self):
+        self.CPPDEFINES = []
         self.CPPPATH = ['$INFRAS', CWD]
-        if self.GetCompiler() not in ['CWS12']:
-            self.LIBS = ['MemPool']
         self.source = objs
 

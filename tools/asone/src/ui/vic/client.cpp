@@ -8,6 +8,7 @@
 extern "C" {
 #include "CS_VIC.h"
 #include "SomeIp_Cfg.h"
+#include "SomeIpXf_Cfg.h"
 #include "Sd_Cfg.h"
 }
 #include "plugin.h"

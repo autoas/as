@@ -11,6 +11,8 @@
 #include <map>
 #include <condition_variable>
 #include <chrono>
+#include <string>
+#include <vector>
 #include "Log.hpp"
 
 namespace as {
@@ -56,6 +58,11 @@ public:
     return ret;
   }
 
+  size_t size(void) {
+    std::unique_lock<std::mutex> lck(m_Lock);
+    return m_Queue.size();
+  }
+
   void clear() {
     std::unique_lock<std::mutex> lck(m_Lock);
     while (false == m_Queue.empty()) {
@@ -65,6 +72,8 @@ public:
 
 public:
   static std::shared_ptr<MessageQueue<T>> add(std::string name);
+  static std::shared_ptr<MessageQueue<T>> find(std::string name);
+  static std::vector<std::string> topics(void);
 
 private:
   void pop(T &out, bool FIFO) {
@@ -109,6 +118,27 @@ template <typename T> std::shared_ptr<MessageQueue<T>> MessageQueue<T>::add(std:
   }
 
   return ptr;
+}
+
+template <typename T> std::shared_ptr<MessageQueue<T>> MessageQueue<T>::find(std::string name) {
+  std::shared_ptr<MessageQueue<T>> ptr = nullptr;
+  std::unique_lock<std::mutex> lck(s_MapLock);
+  auto it = s_MsgQueueMap.find(name);
+
+  if (it != s_MsgQueueMap.end()) {
+    ptr = it->second;
+  }
+
+  return ptr;
+}
+
+template <typename T> std::vector<std::string> MessageQueue<T>::topics() {
+  std::vector<std::string> ts;
+  std::unique_lock<std::mutex> lck(s_MapLock);
+  for (auto it : s_MsgQueueMap) {
+    ts.push_back(it.first);
+  }
+  return ts;
 }
 } /* namespace as */
 #endif /* _MESSAGE_QUEUE_HPP_ */

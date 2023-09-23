@@ -2,6 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
+#ifdef USE_SD
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Sd.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -16,3 +17,4 @@ boolean Sd_ServerService0_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID
                                const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray) {
   return TRUE;
 }
+#endif

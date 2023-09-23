@@ -15,7 +15,7 @@ __all__ = ['Network', 'QView']
 # big endian bits map
 _bebm = []
 
-#cstr = 'COM big endian bits map:\n'
+# cstr = 'COM big endian bits map:\n'
 for i in range(64):
     #    cstr += '\n\tB%2d '%(i)
     for j in range(8):
@@ -46,7 +46,7 @@ class Sdu():
             wBit = _bebm[nBit]
             wByte = int(wBit/8)
             wBit = wBit % 8
-            if(value & (1 << rBit) != 0):
+            if (value & (1 << rBit) != 0):
                 self.data[wByte] |= 1 << wBit
             else:
                 self.data[wByte] &= ~(1 << wBit)
@@ -62,7 +62,7 @@ class Sdu():
             wBit = nBit
             wByte = int(wBit/8)
             wBit = wBit % 8
-            if(value & (1 << rBit) != 0):
+            if (value & (1 << rBit) != 0):
                 self.data[wByte] |= 1 << wBit
             else:
                 self.data[wByte] &= ~(1 << wBit)
@@ -73,7 +73,7 @@ class Sdu():
         start = sig['start']
         size = sig['size']
         endian = sig['endian']
-        if(endian == 'big'):
+        if (endian == 'big'):
             self.beset(start, size, value)
         else:
             self.leset(start, size, value)
@@ -84,7 +84,7 @@ class Sdu():
         for i in range(size):
             rBit = _bebm[nBit]
             rByte = int(rBit/8)
-            if(self.data[rByte] & (1 << (rBit % 8)) != 0):
+            if (self.data[rByte] & (1 << (rBit % 8)) != 0):
                 value = (value << 1)+1
             else:
                 value = (value << 1)+0
@@ -97,7 +97,7 @@ class Sdu():
         for i in range(size):
             rBit = nBit
             rByte = int(rBit/8)
-            if(self.data[rByte] & (1 << (rBit % 8)) != 0):
+            if (self.data[rByte] & (1 << (rBit % 8)) != 0):
                 value = (value << 1)+1
             else:
                 value = (value << 1)+0
@@ -109,7 +109,7 @@ class Sdu():
         start = sig['start']
         size = sig['size']
         endian = sig['endian']
-        if(endian == 'big'):
+        if (endian == 'big'):
             return self.beget(start, size)
         else:
             return self.leget(start, size)
@@ -166,7 +166,7 @@ class Message():
         self.isTx = isTx
         self.sgs = {}
         self.sdu = Sdu(msg['dlc'])
-        if('period' in msg):
+        if ('period' in msg):
             self.period = msg['period']
         else:
             self.period = 1000
@@ -204,18 +204,17 @@ class Message():
         self.network.write(self.msg['id'], self.sdu)
 
     def ProcessTX(self):
-        if(self.period <= 0):
+        if (self.period <= 0):
             return
         elapsed = time.time() - self.timer
-        if(self.period <= elapsed*1000):
+        if (self.period <= elapsed*1000):
             self.timer = time.time()
             self.transmit()
             self.notify_mq()
 
     def ProcessRX(self):
-        result, canid, data = self.network.read(
-            self.msg['id'], self.msg['dlc'])
-        if(result):
+        result, idx, data = self.network.read(self.msg['id'], self.msg['dlc'])
+        if (result):
             self.sdu.data = [d for d in data]
             for sig in self:
                 sig.value = self.sdu.get(sig)
@@ -247,7 +246,7 @@ class Message():
         return self.__getitem__(key)
 
     def __setattr__(self, key, value):
-        if(key in ['msg', 'name', 'network', 'isTx', 'sgs', 'sdu', 'period', 'timer', 'notifyMQ']):
+        if (key in ['msg', 'name', 'network', 'isTx', 'sgs', 'sdu', 'period', 'timer', 'notifyMQ']):
             self.__dict__[key] = value
         else:
             self.__setitem__(key, value)
@@ -272,7 +271,7 @@ class Network(threading.Thread):
     def lookup(self, name):
         for msg in self:
             for sig in msg:
-                if(sig['name'] == name):
+                if (sig['name'] == name):
                     return sig
         return None
 
@@ -290,7 +289,7 @@ class Network(threading.Thread):
 
     def run(self):
         self.is_running = True
-        while(self.is_running):
+        while (self.is_running):
             for msg in self:
                 msg.Process()
             time.sleep(0.001)
@@ -366,7 +365,7 @@ def QView(sig, scale=1, offset=0):
 
         def render(self):
             empty = False
-            while(not empty):
+            while (not empty):
                 try:
                     v = self.mq.get_nowait()
                     self.lastValue = v
@@ -393,13 +392,13 @@ def QView(sig, scale=1, offset=0):
             return v*self.scale+self.offset
 
         def get_max(self):
-            if(self.scale > 0):
+            if (self.scale > 0):
                 return self.sig.get_max()*self.scale+self.offset
             else:
                 return self.sig.get_min()*self.scale+self.offset
 
         def get_min(self):
-            if(self.scale < 0):
+            if (self.scale < 0):
                 return self.sig.get_max()*self.scale+self.offset
             else:
                 return self.sig.get_min()*self.scale+self.offset

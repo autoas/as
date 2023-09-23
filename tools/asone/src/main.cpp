@@ -77,7 +77,8 @@ void Window::creGui(void) {
   wid->setLayout(grid);
   setCentralWidget(wid);
   creMenu();
-  setMinimumSize(1200, 600);
+  setMinimumSize(1000, 800);
+
   for (size_t i = 0; i < m_UINum; i++) {
     auto &uinfo = m_UIs[i];
     onAction(uinfo.name);
@@ -114,8 +115,12 @@ Window::~Window() {
 int main(int argc, char *argv[]) {
   int ch;
   opterr = 0;
-  while ((ch = getopt(argc, argv, "s")) != -1) {
+  int d = 1;
+  while ((ch = getopt(argc, argv, "ds")) != -1) {
     switch (ch) {
+    case 'd':
+      d = 0;
+      break;
     case 's':
       /* https://doc.qt.io/archives/qt-5.6/highdpi.html */
       qputenv("QT_SCALE_FACTOR", "0.75");
@@ -125,7 +130,9 @@ int main(int argc, char *argv[]) {
     }
   }
   QApplication a(argc, argv);
-  Log::setLogFile(".asone.log");
+  if (d) {
+    Log::setName("AsOne");
+  }
   Window w;
   w.show();
   return a.exec();

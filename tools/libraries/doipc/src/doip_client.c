@@ -157,6 +157,7 @@ static int doip_handle_VAN_VIN_response(doip_client_t *client, TcpIp_SockAddrTyp
       node->FA = payload[31];
       node->status = payload[32];
       node->RemoteAddr = *RemoteAddr;
+      node->RemoteAddr.port = client->port;
       doip_add_node(client, node);
     } else {
       ASLOG(DOIPE, ("OoM\n"));

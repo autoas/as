@@ -79,8 +79,8 @@ typedef struct {
 } CanNm_ChannelContextType;
 
 struct CanNm_Config_s {
-  const CanNm_ChannelConfigType *CanNm_ChannelConfigs;
-  CanNm_ChannelContextType *CanNm_ChannelContexts;
+  const CanNm_ChannelConfigType *ChannelConfigs;
+  CanNm_ChannelContextType *ChannelContexts;
   uint8_t numOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */

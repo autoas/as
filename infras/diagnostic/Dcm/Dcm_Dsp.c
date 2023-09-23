@@ -1035,7 +1035,7 @@ Std_ReturnType Dem_DspReportNumberOfDTCByStatusMask_Impl(Dcm_MsgContextType *msg
     }
 
     if (E_OK == r) {
-      msgContext->resData[0] = 0x01;
+      msgContext->resData[0] = msgContext->reqData[0];
       msgContext->resData[1] = statusMask;
       msgContext->resData[2] = DEM_DTC_FORMAT_UDS; /* DTCFormatIdentifier */
       msgContext->resData[3] = (uint8_t)((NumberOfFilteredDTC >> 8) & 0xFF);
@@ -1082,7 +1082,7 @@ Std_ReturnType Dem_DspReportDTCByStatusMask_Impl(Dcm_MsgContextType *msgContext,
 
     if (E_OK == r) {
       if ((NumberOfFilteredDTC * 4 + 2) <= msgContext->resMaxDataLen) {
-        msgContext->resData[0] = 0x02;
+        msgContext->resData[0] = msgContext->reqData[0];
         msgContext->resData[1] = statusMask;
         for (i = 0; (i < NumberOfFilteredDTC) && (E_OK == r); i++) {
           r = Dem_GetNextFilteredDTC(0, &DTCNumber, &udsStatus);
