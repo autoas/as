@@ -27,14 +27,15 @@ static int socket_open(Lin_DeviceType *dev, const char *option);
 static int socket_write(Lin_DeviceType *dev, Lin_FrameType *frame);
 static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame);
 static void socket_close(Lin_DeviceType *dev);
+static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
 const Lin_DeviceOpsType lin_simulator_ops = {
-  .name = "simulator",
+  .name = "simulator/",
   .open = socket_open,
   .close = socket_close,
   .write = socket_write,
   .read = socket_read,
-  .ioctl = NULL,
+  .ioctl = socket_ioctl,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static int socket_open(Lin_DeviceType *dev, const char *option) {
@@ -116,5 +117,18 @@ static void socket_close(Lin_DeviceType *dev) {
   Lin_SocketBusType *bus = dev->param;
   TcpIp_Close(bus->s, TRUE);
   free(bus);
+}
+
+static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size) {
+  int r = -__LINE__;
+
+  switch (type) {
+  case DEV_IOCTL_LIN_SET_TIMEOUT:
+    r = 0;
+    break;
+  default:
+    break;
+  }
+  return r;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

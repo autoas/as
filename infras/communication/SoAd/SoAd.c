@@ -379,7 +379,15 @@ Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     }
 
     if (E_OK == ret) {
-      context->flag |= SOAD_TX_ON_GOING;
+      if (conG->IsTP) {
+        if (((const SoAd_TpInterfaceType *)conG->Interface)->TpTxConfirmation) {
+          context->flag |= SOAD_TX_ON_GOING;
+        }
+      } else {
+        if (((const SoAd_IfInterfaceType *)conG->Interface)->IfTxConfirmation) {
+          context->flag |= SOAD_TX_ON_GOING;
+        }
+      }
     }
 
 #if SOAD_ERROR_COUNTER_LIMIT > 0

@@ -30,8 +30,9 @@ typedef struct {
 
 typedef struct {
   uint32_t timeout; /* ms */
-  uint8_t RxId;
-  uint8_t TxId;
+  uint32_t delayUs; /* delay time between request and response for LIN */
+  uint32_t RxId;
+  uint32_t TxId;
 } isotp_lin_param_t;
 
 typedef struct {

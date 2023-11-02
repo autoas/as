@@ -116,10 +116,13 @@ int main(int argc, char *argv[]) {
   int ch;
   opterr = 0;
   int d = 1;
-  while ((ch = getopt(argc, argv, "ds")) != -1) {
+  while ((ch = getopt(argc, argv, "dsv")) != -1) {
     switch (ch) {
     case 'd':
       d = 0;
+      break;
+    case 'v':
+      Log::setLogLevel(Logger::DEBUG);
       break;
     case 's':
       /* https://doc.qt.io/archives/qt-5.6/highdpi.html */

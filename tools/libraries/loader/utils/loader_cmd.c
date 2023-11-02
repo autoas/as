@@ -18,7 +18,7 @@ void std_set_log_level(int level);
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
-         "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA]"
+         "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA] [-s delayUs]\n"
          "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate]\n",
          prog);
 }
@@ -28,8 +28,9 @@ int main(int argc, char *argv[]) {
   char *device = "CAN.simulator_v2";
   int port = 0;
   int baudrate = 500000;
-  int rxid = 0x732, txid = 0x731;
+  uint32_t rxid = 0x732, txid = 0x731;
   uint16_t N_TA = 0xFFFF;
+  uint32_t delayUs = 0;
   int funcAddr = 0x7DF;
   int ll_dl = 8;
   char *appSRecPath = NULL;
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:c:d:f:l:n:p:r:s:S:t:T:v")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:c:d:D:f:l:n:p:r:s:S:t:T:v")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -67,6 +68,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'd':
       device = optarg;
+      break;
+    case 'D':
+      delayUs = (uint32_t)atoi(optarg);
       break;
     case 'f':
       flsSRecPath = optarg;
@@ -180,10 +184,11 @@ int main(int argc, char *argv[]) {
     }
     strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_LIN;
-    params.U.LIN.RxId = (uint8_t)rxid;
-    params.U.LIN.TxId = (uint8_t)txid;
+    params.U.LIN.RxId = (uint32_t)rxid;
+    params.U.LIN.TxId = (uint32_t)txid;
     params.U.LIN.timeout = timeout;
     funcAddr = 0; /* This is not avaiable for LIN */
+    params.U.LIN.delayUs = delayUs;
   } else {
     printf("%s not supported\n", device);
     usage(argv[0]);

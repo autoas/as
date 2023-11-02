@@ -12,21 +12,17 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define LINIF_NULL_SCHEDULE (LinIf_SchHandleType)0x00
 #define LINIF_INVALD_SCHEDULE_TABLE (LinIf_SchHandleType)0xFF
+
+#define LINIF_R_OK E_OK
+#define LINIF_R_NOT_OK E_NOT_OK
+#define LINIF_R_RECEIVED_OK ((Std_ReturnType)0x10)
+#define LINIF_R_TRIGGER_TRANSMIT ((Std_ReturnType)0x12)
+#define LINIF_R_TX_COMPLETED ((Std_ReturnType)0x13)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_LinIf_00197 */
 typedef uint8_t LinIf_SchHandleType;
 
-typedef enum
-{
-  LINIF_R_OK = 0,
-  LINIF_R_NOT_OK,
-  LINIF_R_RECEIVED_OK,
-  LINIF_R_TRIGGER_TRANSMIT,
-  LINIF_R_TX_COMPLETED,
-} LinIf_ResultType;
-
-typedef enum
-{
+typedef enum {
   LINIF_UNCONDITIONAL,
   LINIF_EVENT,
   LINIF_SPORADIC,
@@ -35,15 +31,14 @@ typedef enum
 } LinIf_FrameTypeType;
 
 /* @SWS_LinIf_00629 */
-typedef enum
-{
+typedef enum {
   LINTP_APPLICATIVE_SCHEDULE,
   LINTP_DIAG_REQUEST,
   LINTP_DIAG_RESPONSE
 } LinTp_Mode;
 
-typedef LinIf_ResultType (*LinIf_NotificationCallbackType)(uint8_t channel, Lin_PduType *frame,
-                                                           LinIf_ResultType notifyResult);
+typedef Std_ReturnType (*LinIf_NotificationCallbackType)(uint8_t channel, Lin_PduType *frame,
+                                                         Std_ReturnType notifyResult);
 
 typedef uint8_t LinIf_ChannelStatusType;
 

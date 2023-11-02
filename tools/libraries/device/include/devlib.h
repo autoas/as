@@ -11,7 +11,33 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#define DEV_I2C_WR 0x0000
+#define DEV_I2C_RD (1u << 0)
+#define DEV_I2C_ADDR_10BIT (1u << 2) /* this is a ten bit chip address */
+#define DEV_I2C_NO_START (1u << 4)
+#define DEV_I2C_IGNORE_NACK (1u << 5)
+#define DEV_I2C_NO_READ_ACK (1u << 6) /* when I2C reading, we do not ACK */
+#define DEV_I2C_NO_STOP (1u << 7)
+
+#define DEV_IOCTL_LIN_SET_TIMEOUT 0
+
+#define DEV_IOCTL_I2C_TRANSFER 1
+#define DEV_IOCTL_I2C_DELAY 2 /* set delay for each operation */
+
+#define DEV_IOCTL_SPI_TRANSFER 3
 /* ================================ [ TYPES     ] ============================================== */
+typedef struct {
+  uint8_t *data;
+  uint16_t len;
+  uint16_t addr;
+  uint16_t flags;
+} dev_i2c_msg_t;
+
+typedef struct {
+  uint8_t *src;
+  uint8_t *dst;
+  uint16_t len;
+} dev_spi_msg_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

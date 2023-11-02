@@ -16,7 +16,7 @@
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL -b baudrate "
-         "-n N_TA\n"
+         "-n N_TA -s delayUs\n"
          "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"LIN.simulator\".\n",
          prog);
 }
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   int port = 0;
   uint32_t rxid = 0x732, txid = 0x731;
   uint16_t N_TA = 0xFFFF;
-
+  uint32_t delayUs = 0;
   int ll_dl = 8;
   int length = 0;
   uint8_t data[4095];
@@ -43,13 +43,16 @@ int main(int argc, char *argv[]) {
 
   memset(&params, 0, sizeof(isotp_parameter_t));
   opterr = 0;
-  while ((ch = getopt(argc, argv, "b:d:l:n:p:r:t:v:T:w")) != -1) {
+  while ((ch = getopt(argc, argv, "b:d:D:l:n:p:r:t:v:T:w")) != -1) {
     switch (ch) {
     case 'b':
       baudrate = atoi(optarg);
       break;
     case 'd':
       device = optarg;
+      break;
+    case 'D':
+      delayUs = (uint32_t)atoi(optarg);
       break;
     case 'l':
       ll_dl = atoi(optarg);
@@ -111,9 +114,10 @@ int main(int argc, char *argv[]) {
     }
     strcpy(params.device, &device[4]);
     params.protocol = ISOTP_OVER_LIN;
-    params.U.LIN.RxId = (uint8_t)rxid;
-    params.U.LIN.TxId = (uint8_t)txid;
+    params.U.LIN.RxId = (uint32_t)rxid;
+    params.U.LIN.TxId = (uint32_t)txid;
     params.U.LIN.timeout = timeout;
+    params.U.LIN.delayUs = delayUs;
   } else {
     printf("%s not supported\n", device);
     usage(argv[0]);

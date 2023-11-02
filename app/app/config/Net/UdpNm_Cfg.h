@@ -2,27 +2,34 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef LINLIB_H
-#define LINLIB_H
+#ifndef _UDP_NM_CFG_H
+#define _UDP_NM_CFG_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <stdint.h>
-#include <stdbool.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef UDPNM_MAIN_FUNCTION_PERIOD
+#define UDPNM_MAIN_FUNCTION_PERIOD 10
+#endif
+#define UDPNM_CONVERT_MS_TO_MAIN_CYCLES(x)                                                         \
+  ((x + UDPNM_MAIN_FUNCTION_PERIOD - 1) / UDPNM_MAIN_FUNCTION_PERIOD)
+
+#define UDPNM_RX_PID_CHL0 0
+
+/* @ECUC_UdpNm_00005 */
+#define UDPNM_REMOTE_SLEEP_IND_ENABLED
+
+/* @ECUC_UdpNm_00010 */
+//#define UDPNM_PASSIVE_MODE_ENABLED
+
+/* @ECUC_UdpNm_00059 */
+#define UDPNM_COORDINATOR_SYNC_SUPPORT
+
+/* @ */
+#define UDPNM_GLOBAL_PN_SUPPORT
+
+#define UDPNM_PDU_LENGTH 8
 /* ================================ [ TYPES     ] ============================================== */
-typedef uint32_t lin_id_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int lin_open(const char *device_name, uint32_t port, uint32_t baudrate);
-bool lin_write(int busid, lin_id_t id, uint8_t dlc, const uint8_t *data, bool enhanced);
-bool lin_read(int busid, lin_id_t id, uint8_t dlc, uint8_t *data, bool enhanced,
-              int timeout /* ms */);
-bool lin_close(int busid);
-#ifdef __cplusplus
-}
-#endif
-#endif /* LINLIB_H */
+#endif /* _UDP_NM_CFG_H */

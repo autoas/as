@@ -13,10 +13,10 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult);
-LinIf_ResultType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult);
+Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult);
+Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult);
 /* ================================ [ DATAS     ] ============================================== */
 
 static LinIf_ScheduleTableEntryType entrysDiag[] = {
@@ -41,9 +41,9 @@ const LinIf_ConfigType LinIf_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult) {
-  LinIf_ResultType r = LINIF_R_NOT_OK;
+Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult) {
+  Std_ReturnType r = LINIF_R_NOT_OK;
   PduInfoType pduInfo;
 
   if (LINIF_R_RECEIVED_OK == notifyResult) {
@@ -56,9 +56,9 @@ LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
   return r;
 }
 
-LinIf_ResultType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult) {
-  LinIf_ResultType r = LINIF_R_NOT_OK;
+Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult) {
+  Std_ReturnType r = LINIF_R_NOT_OK;
   Std_ReturnType ret;
   PduInfoType pduInfo;
 

@@ -139,7 +139,7 @@ static int dev_lin_write(void *param, const uint8_t *data, size_t size) {
   memset(&frame, 0, LIN_MTU);
   if (((uint8_t)data[0] == LIN_TYPE_HEADER) && (size >= 2)) {
     frame.type = LIN_TYPE_HEADER;
-    frame.pid = (uint8_t)data[1];
+    frame.pid = (lin_id_t)data[1];
     if (size > 2) {
       frame.dlc = data[2];
     } else {
@@ -157,9 +157,31 @@ static int dev_lin_write(void *param, const uint8_t *data, size_t size) {
                 (uint32_t)Std_GetTime()));
   } else if (((uint8_t)data[0] == LIN_TYPE_HEADER_AND_DATA) && (size > 3)) {
     frame.type = LIN_TYPE_HEADER_AND_DATA;
-    frame.pid = (uint8_t)data[1];
+    frame.pid = (lin_id_t)data[1];
     frame.dlc = size - 3;
     memcpy(&frame.data, &data[2], frame.dlc);
+    frame.checksum = data[size - 1];
+    ASLOG(LIN,
+          ("TX Pid=%02X, DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] checksum=%02X @%u\n",
+           frame.pid, (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2], frame.data[3],
+           frame.data[4], frame.data[5], frame.data[6], frame.data[7], frame.checksum,
+           (uint32_t)Std_GetTime()));
+  } else if (((uint8_t)data[0] == LIN_TYPE_EXT_HEADER) && (size >= 5)) {
+    frame.type = LIN_TYPE_EXT_HEADER;
+    frame.pid =
+      ((uint32_t)data[1] << 24) + ((uint32_t)data[2] << 16) + ((uint32_t)data[3] << 8) + data[4];
+    if (size > 5) {
+      frame.dlc = data[5];
+    } else {
+      frame.dlc = 8;
+    }
+    ASLOG(LIN, ("TX Pid=%02X, DLC=%d @%u\n", frame.pid, (int)frame.dlc, (uint32_t)Std_GetTime()));
+  } else if (((uint8_t)data[0] == LIN_TYPE_EXT_HEADER_AND_DATA) && (size > 6)) {
+    frame.type = LIN_TYPE_EXT_HEADER_AND_DATA;
+    frame.pid =
+      ((uint32_t)data[1] << 24) + ((uint32_t)data[2] << 16) + ((uint32_t)data[3] << 8) + data[4];
+    frame.dlc = size - 6;
+    memcpy(&frame.data, &data[5], frame.dlc);
     frame.checksum = data[size - 1];
     ASLOG(LIN,
           ("TX Pid=%02X, DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] checksum=%02X @%u\n",
@@ -234,6 +256,28 @@ static void *rx_daemon(void *param) {
           memcpy(&pframe->data[2], frame.data, frame.dlc);
           pframe->data[2 + frame.dlc] = frame.checksum;
           pframe->size = 3 + frame.dlc;
+          ASLOG(LIN, ("RX Pid=%02X, DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] "
+                      "checksum=%02X @%u\n",
+                      frame.pid, (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2],
+                      frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7],
+                      frame.checksum, (uint32_t)Std_GetTime()));
+        } else if (frame.type == LIN_TYPE_EXT_HEADER) {
+          pframe->data[0] = LIN_TYPE_EXT_HEADER;
+          pframe->data[1] = (frame.pid >> 24) & 0xFF;
+          pframe->data[2] = (frame.pid >> 16) & 0xFF;
+          pframe->data[3] = (frame.pid >> 8) & 0xFF;
+          pframe->data[4] = frame.pid & 0xFF;
+          pframe->size = 5;
+          ASLOG(LIN, ("RX Pid=%02X @%u\n", frame.pid, (uint32_t)Std_GetTime()));
+        } else if (frame.type == LIN_TYPE_EXT_HEADER_AND_DATA) {
+          pframe->data[0] = LIN_TYPE_EXT_HEADER_AND_DATA;
+          pframe->data[1] = (frame.pid >> 24) & 0xFF;
+          pframe->data[2] = (frame.pid >> 16) & 0xFF;
+          pframe->data[3] = (frame.pid >> 8) & 0xFF;
+          pframe->data[4] = frame.pid & 0xFF;
+          memcpy(&pframe->data[5], frame.data, frame.dlc);
+          pframe->data[5 + frame.dlc] = frame.checksum;
+          pframe->size = 5 + frame.dlc;
           ASLOG(LIN, ("RX Pid=%02X, DLC=%d DATA=[%02X %02X %02X %02X %02X %02X %02X %02X] "
                       "checksum=%02X @%u\n",
                       frame.pid, (int)frame.dlc, frame.data[0], frame.data[1], frame.data[2],

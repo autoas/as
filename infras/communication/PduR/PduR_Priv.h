@@ -8,6 +8,7 @@
 #define _PDUR_PRIV_H_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#include "PduR_Cfg.h"
 #if defined(PDUR_USE_MEMPOOL)
 #include "mempool.h"
 #endif

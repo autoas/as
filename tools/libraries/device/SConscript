@@ -27,5 +27,5 @@ class ApplicationLinSimulator(Application):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         if IsBuildForWindows():
-            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32']
+            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32', 'Utils']
         self.source = objsLinSim

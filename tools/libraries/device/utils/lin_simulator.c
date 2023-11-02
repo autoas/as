@@ -34,10 +34,13 @@
 #define LIN_TYPE_HEADER ((uint8_t)'H')
 #define LIN_TYPE_DATA ((uint8_t)'D')
 #define LIN_TYPE_HEADER_AND_DATA ((uint8_t)'F')
+
+#define LIN_TYPE_EXT_HEADER ((uint8_t)'h')
+#define LIN_TYPE_EXT_HEADER_AND_DATA ((uint8_t)'f')
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t type;
-  uint8_t pid;
+  uint32_t pid;
   uint8_t dlc;
   uint8_t data[LIN_MAX_DATA_SIZE];
   uint8_t checksum;
@@ -188,7 +191,7 @@ static void try_recv_forward(void) {
     if ((E_OK == ercd) && (LIN_MTU == len)) {
       float rtim = (float)Std_GetTimerElapsedTime(&timer0) / STD_TIMER_ONE_SECOND;
 
-      if (frame.type == LIN_TYPE_HEADER) {
+      if ((frame.type == LIN_TYPE_HEADER) || (frame.type == LIN_TYPE_EXT_HEADER)) {
         printf("%c: ", (char)frame.type);
         if (socketH->frame.type != LIN_TYPE_INVALID) {
           printf("Lin Error: type %c pid=0x%02X\n", (char)socketH->frame.type, socketH->frame.pid);
@@ -197,14 +200,15 @@ static void try_recv_forward(void) {
         }
         Std_TimerStart(&socketH->timer);
       } else if (frame.type == LIN_TYPE_DATA) {
-        if (socketH->frame.type != LIN_TYPE_HEADER) {
+        if ((socketH->frame.type != LIN_TYPE_HEADER) || (frame.type != LIN_TYPE_EXT_HEADER)) {
           printf("Lin Error: type %c pid=0x%02X\n", (char)socketH->frame.type, socketH->frame.pid);
         } else {
           memcpy(&socketH->frame.dlc, &frame.dlc, LIN_MAX_DATA_SIZE + 2);
           log_msg(&socketH->frame, rtim);
         }
         socketH->frame.type = LIN_TYPE_INVALID;
-      } else if (frame.type == LIN_TYPE_HEADER_AND_DATA) {
+      } else if ((frame.type == LIN_TYPE_HEADER_AND_DATA) ||
+                 (frame.type == LIN_TYPE_EXT_HEADER_AND_DATA)) {
         printf("%c: ", (char)frame.type);
         log_msg(&frame, rtim);
         socketH->frame.type = LIN_TYPE_INVALID;

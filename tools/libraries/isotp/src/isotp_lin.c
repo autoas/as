@@ -31,14 +31,14 @@
 /* ================================ [ DECLARES  ] ============================================== */
 void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl, uint16_t N_TA);
 #ifdef USE_LINIF
-void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint8_t rxid, uint8_t txid);
+void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint32_t rxid, uint32_t txid);
 void Lin_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
 #endif
 
-LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult);
-LinIf_ResultType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult);
+Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult);
+Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult);
 /* ================================ [ DATAS     ] ============================================== */
 static isotp_t lIsoTp;
 static int lServerUp = FALSE;
@@ -56,7 +56,7 @@ Std_ReturnType LinIf_ScheduleRequest(NetworkHandleType Channel, LinIf_SchHandleT
 static void lin_sched(int busId, isotp_t *isotp) {
   uint8_t data[64];
   Lin_PduType frame;
-  LinIf_ResultType r;
+  Std_ReturnType r;
   bool ret;
   bool enahnced = true;
   int timeout = isotp->params.U.LIN.timeout; /* ms */
@@ -81,11 +81,12 @@ static void lin_sched(int busId, isotp_t *isotp) {
   } else {
   }
 }
-uint8_t LinIf_CanTpGetTxId(uint8_t Channel) {
+
+uint32_t LinIf_CanTpGetTxId(uint8_t Channel) {
   return lIsoTp.params.U.LIN.TxId;
 }
 
-uint8_t LinIf_CanTpGetRxId(uint8_t Channel) {
+uint32_t LinIf_CanTpGetRxId(uint8_t Channel) {
   return lIsoTp.params.U.LIN.RxId;
 }
 #endif
@@ -109,7 +110,7 @@ static void *lin_server_main(void *args) {
     sem_post(&isotp->sem);
     return NULL;
   }
-  dev_ioctl(busId, 0, &timeout, sizeof(timeout));
+  dev_ioctl(busId, DEV_IOCTL_LIN_SET_TIMEOUT, &timeout, sizeof(timeout));
 #endif
 #ifdef USE_LINIF
   Lin_Init(NULL);
@@ -157,15 +158,15 @@ static void *lin_server_main(void *args) {
   return NULL;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-LinIf_ResultType LinIf_ApplicativeCallback(uint8_t channel, Lin_PduType *frame,
-                                           LinIf_ResultType notifyResult) {
+Std_ReturnType LinIf_ApplicativeCallback(uint8_t channel, Lin_PduType *frame,
+                                         Std_ReturnType notifyResult) {
   assert(0);
   return E_NOT_OK;
 }
 
-LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult) {
-  LinIf_ResultType r = LINIF_R_NOT_OK;
+Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult) {
+  Std_ReturnType r = LINIF_R_NOT_OK;
   Std_ReturnType ret;
   PduInfoType pduInfo;
 
@@ -188,9 +189,9 @@ LinIf_ResultType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
   return r;
 }
 
-LinIf_ResultType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
-                                       LinIf_ResultType notifyResult) {
-  LinIf_ResultType r = LINIF_R_NOT_OK;
+Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
+                                     Std_ReturnType notifyResult) {
+  Std_ReturnType r = LINIF_R_NOT_OK;
   PduInfoType pduInfo;
 
   if (LINIF_R_RECEIVED_OK == notifyResult) {
@@ -311,6 +312,10 @@ isotp_t *isotp_lin_create(isotp_parameter_t *params) {
   if (0 == r) {
     sem_wait(&isotp->sem);
     r = isotp->result;
+    if (0 != r) {
+      isotp->running = FALSE;
+      isotp = NULL;
+    }
   }
 
   return isotp;
@@ -344,6 +349,10 @@ int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
 
     if (0 == r) {
       if (NULL != rxBuffer) {
+        if (isotp->params.U.LIN.delayUs > 0) {
+          /* give slave some time to process, generally wait response to be ready */
+          usleep(isotp->params.U.LIN.delayUs);
+        }
         pthread_mutex_lock(&lMutex);
         LinIf_ScheduleRequest(0, LINIF_SCH_TABLE_DIAG_RESPONSE);
         isotp->errorTimeout = UDS_TIMEOUT;
@@ -372,6 +381,13 @@ int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
   LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
   Std_TimerStop(&isotp->timerErrorNotify);
   pthread_mutex_unlock(&lMutex);
+
+  if (0 == r) {
+    if (isotp->params.U.LIN.delayUs > 0) {
+      /* give slave some time to process */
+      usleep(isotp->params.U.LIN.delayUs);
+    }
+  }
 
   return r;
 }

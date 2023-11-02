@@ -17,7 +17,7 @@
 #include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DEV 0
-#define AS_LOG_DEI 2
+#define AS_LOG_DEVI 0
 #define AS_LOG_DEVE 2
 #define DEVICE_OPTION_SIZE 128
 /* ================================ [ TYPES     ] ============================================== */
@@ -30,6 +30,7 @@ struct Dev_s {
   uint32_t size2;
   STAILQ_ENTRY(Dev_s) entry;
   pthread_mutex_t lock;
+  uint32_t ref;
 };
 
 struct DevList_s {
@@ -112,15 +113,18 @@ static void freeDev(struct DevList_s *h) {
 
 void devlib_close(void) {
   if (devListH.initialized) {
+    devListH.initialized = FALSE;
     freeDev(&devListH);
   }
-
-  devListH.initialized = FALSE;
 }
 
 static void __attribute__((constructor)) devlib_open(void) {
+  pthread_mutexattr_t attr;
   STAILQ_INIT(&devListH.head);
   devListH.initialized = TRUE;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&devListH.q_lock, &attr);
   atexit(devlib_close);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -128,11 +132,14 @@ int dev_open(const char *device_name, const char *option) {
   const Dev_DeviceOpsType *ops;
   struct Dev_s *d;
   int rv;
+
+  pthread_mutex_lock(&devListH.q_lock);
   d = getDev(device_name);
   if (NULL != d) {
     if (option != NULL) {
       if (0 == strcmp(option, d->option)) {
         rv = d->fd;
+        d->ref++;
       } else {
         ASLOG(DEVE, ("device(%s) reopen with different option %s != %s\n", device_name, option,
                      d->option));
@@ -161,9 +168,9 @@ int dev_open(const char *device_name, const char *option) {
       if (rv >= 0) {
         d->fd = _fd++;
         d->ops = ops;
-        pthread_mutex_lock(&devListH.q_lock);
+        d->ref = 1;
+        pthread_mutex_init(&d->lock, NULL);
         STAILQ_INSERT_TAIL(&devListH.head, d, entry);
-        pthread_mutex_unlock(&devListH.q_lock);
         rv = d->fd;
       } else {
         if (d) {
@@ -176,6 +183,12 @@ int dev_open(const char *device_name, const char *option) {
       rv = -__LINE__;
     }
   }
+
+  if (rv >= 0) {
+    ASLOG(DEVI,
+          ("device(%s) open with option %s as fd=%d ref=%d\n", device_name, option, d->fd, d->ref));
+  }
+  pthread_mutex_unlock(&devListH.q_lock);
 
   return rv;
 }
@@ -239,21 +252,28 @@ int dev_ioctl(int fd, int type, const void *data, size_t size) {
 int dev_close(int fd) {
   struct Dev_s *d;
   int rv;
+
   d = getDev2(fd);
   if (NULL == d) {
-    ASLOG(DEVE, ("fd(%d) is not existed '%s'\n", fd, __func__));
+    if (devListH.initialized) {
+      ASLOG(DEVE, ("fd(%d) is not existed '%s'\n", fd, __func__));
+    }
     rv = -__LINE__;
-  } else if (d->ops->close != NULL) {
-    d->ops->close(d->param);
-    pthread_mutex_lock(&devListH.q_lock);
-    STAILQ_REMOVE(&devListH.head, d, Dev_s, entry);
-    pthread_mutex_unlock(&devListH.q_lock);
-    free(d);
-    rv = 0;
   } else {
-    ASLOG(DEVE, ("%s for %s is not supported\n", __func__, d->name));
-    rv = -__LINE__;
+    pthread_mutex_lock(&devListH.q_lock);
+    d->ref--;
+    ASLOG(DEVI, ("device(%s) close with fd=%d ref=%d\n", d->name, d->fd, d->ref));
+    if (0 == d->ref) {
+      if (d->ops->close != NULL) {
+        d->ops->close(d->param);
+      }
+      STAILQ_REMOVE(&devListH.head, d, Dev_s, entry);
+      free(d);
+    }
+    pthread_mutex_unlock(&devListH.q_lock);
+    rv = 0;
   }
+
   return rv;
 }
 

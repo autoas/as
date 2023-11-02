@@ -2,7 +2,6 @@ from building import *
 CWD = GetCurrentDir()
 
 
-SConscript('test/SConscript')
 generate(Glob('Network.json'))
 # generate('msg.json')
 generate(Glob('Mempool.json'))

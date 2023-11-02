@@ -214,6 +214,8 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
     } else {
       push_to_queue(Hth, PduInfo);
     }
+  } else {
+    ret = E_NOT_OK;
   }
   ExitCritical();
 

@@ -6,6 +6,7 @@
 #include "Dem.h"
 #include "OsekNm.h"
 #include "CanNm.h"
+#include "UdpNm.h"
 #include "Std_Critical.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,6 +79,20 @@ static void handle_key(int ch) {
     } else {
       ASLOG(KEY, ("CanNm release\n"));
       CanNm_NetworkRelease(0);
+      requested = FALSE;
+    }
+  }
+#endif
+#ifdef USE_UDPNM
+  if (ch == 'x') {
+    static int requested = FALSE;
+    if (FALSE == requested) {
+      ASLOG(KEY, ("UdpNm request\n"));
+      UdpNm_NetworkRequest(0);
+      requested = TRUE;
+    } else {
+      ASLOG(KEY, ("UdpNm release\n"));
+      UdpNm_NetworkRelease(0);
       requested = FALSE;
     }
   }

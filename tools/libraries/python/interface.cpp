@@ -33,6 +33,13 @@ namespace py = pybind11;
   "\tblock_size: int, default 8\n"                                                                 \
   "\tSTmin: int, default 0 for CAN, 100 for LIN, unit ms\n"
 
+#define LIN_KWARGS                                                                                 \
+  "\tdevice: str, default 'simulator'\n"                                                           \
+  "\tport: int, default 0\n"                                                                       \
+  "\tbaudrate: int, default 500000\n"                                                              \
+  "\tenhanced: bool, default true\n"                                                               \
+  "\ttimeout: int, unit ms\n"
+
 template <typename To, typename Ti> To get(py::kwargs &kwargs, std::string key, To dft) {
   To r = dft;
   try {
@@ -89,15 +96,19 @@ private:
 
 class lin {
 public:
-  lin(std::string device, uint32_t port, uint32_t baudrate, bool enhanced, int timeout)
-    : enhanced(enhanced), timeout(timeout) {
+  lin(py::kwargs kwargs) {
+    auto device = get<std::string, py::str>(kwargs, "device", "simulator");
+    uint32_t port = get<uint32_t, py::int_>(kwargs, "port", 0);
+    uint32_t baudrate = get<uint32_t, py::int_>(kwargs, "baudrate", 0);
+    enhanced = get<bool, py::bool_>(kwargs, "enhanced", true);
+    timeout = get<uint32_t, py::int_>(kwargs, "timeout", 100);
     busid = lin_open(device.c_str(), port, baudrate);
     if (busid < 0) {
       throw std::runtime_error("failed to create lin " + device + " port " + std::to_string(port) +
                                " baudrate " + std::to_string(baudrate));
     }
     uint32_t _tmo = timeout * 1000;
-    dev_ioctl(busid, 0, &_tmo, sizeof(_tmo));
+    dev_ioctl(busid, DEV_IOCTL_LIN_SET_TIMEOUT, &_tmo, sizeof(_tmo));
   }
 
   ~lin() {
@@ -108,9 +119,9 @@ public:
     return (busid >= 0);
   }
 
-  py::object read(int id, int dlc) {
+  py::object read(lin_id_t id, int dlc) {
     uint8_t data[64];
-    bool r = lin_read(busid, (uint32_t)id, (uint8_t)dlc, data, enhanced, timeout);
+    bool r = lin_read(busid, id, (uint8_t)dlc, data, enhanced, timeout);
     py::list L;
     L.append(py::bool_(r));
     if (true == r) {
@@ -123,9 +134,9 @@ public:
     return L;
   }
 
-  bool write(int id, py::bytes b) {
+  bool write(lin_id_t id, py::bytes b) {
     std::string str = b;
-    bool r = lin_write(busid, (uint8_t)id, (uint8_t)str.size(), (uint8_t *)str.data(), enhanced);
+    bool r = lin_write(busid, id, (uint8_t)str.size(), (uint8_t *)str.data(), enhanced);
     return r;
   }
 
@@ -145,6 +156,7 @@ public:
     uint32_t rxid = 0x732, txid = 0x731;
     uint16_t N_TA = get<uint16_t, py::int_>(kwargs, "N_TA", 0xFFFF);
     uint32_t ll_dl;
+    uint32_t delayUs = get<uint32_t, py::int_>(kwargs, "delayUs", 0);
     if (protocol == "LIN") {
       rxid = 0x3d;
       txid = 0x3c;
@@ -166,10 +178,10 @@ public:
     } else if (protocol == "LIN") {
       strcpy(params.device, device.c_str());
       params.protocol = ISOTP_OVER_LIN;
-      params.U.LIN.RxId = (uint8_t)rxid;
-      params.U.LIN.TxId = (uint8_t)txid;
+      params.U.LIN.RxId = (uint32_t)rxid;
+      params.U.LIN.TxId = (uint32_t)txid;
       params.U.LIN.timeout = get<uint32_t, py::int_>(kwargs, "STmin", 100);
-
+      params.U.LIN.delayUs = delayUs;
     } else if (protocol == "DoIP") {
       auto ipStr = get<std::string, py::str>(kwargs, "ip", "224.244.224.245");
       strcpy(params.device, ipStr.c_str());
@@ -190,7 +202,7 @@ public:
 
   bool transmit(py::bytes b) {
     std::string str = b;
-    int r = isotp_transmit(tp, (uint8_t *)str.data(), (uint8_t)str.size(), nullptr, 0);
+    int r = isotp_transmit(tp, (uint8_t *)str.data(), str.size(), nullptr, 0);
     return (0 == r);
   }
 
@@ -364,9 +376,7 @@ PYBIND11_MODULE(AsPy, m) {
     .def("read", &can::read, py::arg("canid"))
     .def("write", &can::write, py::arg("canid"), py::arg("data"));
   py::class_<lin>(m, "lin")
-    .def(py::init<std::string, uint32_t, uint32_t, bool, int>(), py::arg("device") = "simulator",
-         py::arg("port") = 0, py::arg("baudrate") = 500000, py::arg("enhanced") = true,
-         py::arg("timeout") = 100)
+    .def(py::init<py::kwargs>(), LIN_KWARGS)
     .def("is_opened", &lin::is_opened)
     .def("read", &lin::read, py::arg("id"), py::arg("dlc") = 8)
     .def("write", &lin::write, py::arg("id"), py::arg("data"));

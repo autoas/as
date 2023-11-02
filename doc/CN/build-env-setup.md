@@ -45,7 +45,7 @@ pacman -S mingw-w64-x86_64-protobuf
 # For some anaconda installations, need to modify C:\Anaconda3\Lib\site.py to change the
 # value of "ENABLE_USER_SITE" from "None" to "False", and need to ensure the user has full
 # access rights to "C:\Anaconda3"
-pip install scons pyserial pybind11 pillow ply pyqt5 bitarray
+pip install scons==4.5.2 pyserial pybind11 pillow ply pyqt5 bitarray
 ```
 
 * 如上命令不一定全乎，可能漏了啥也说不定，因为在我写本文档之时，我的开发环境早已搭好。但没关系，当我们开始编译时，编译错误会告诉我们缺了某个头文件啦，或者缺了某个命令啥的，各位自行谷歌百度下，解决这种问题还是很容易的。

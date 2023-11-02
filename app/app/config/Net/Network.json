@@ -102,6 +102,20 @@
           ]
         }
       ]
+    },
+    {
+      "class": "SoAd",
+      "sockets": [
+        {
+          "name": "UDPNM_CHL0",
+          "server": "224.244.224.245:12345",
+          "protocol": "UDP",
+          "multicast": true,
+          "up": "UdpNm",
+          "RxPduId": "UDPNM_RX_PID_CHL0",
+          "AutomaticSoConSetup": true
+        }
+      ]
     }
   ]
 }

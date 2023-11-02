@@ -9,24 +9,25 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define LIN_CLASSIC_CS ((Lin_FrameCsModelType)0)
+#define LIN_ENHANCED_CS ((Lin_FrameCsModelType)1)
+#define LIN_DISABLE_CS ((Lin_FrameCsModelType)2)
+
+#define LIN_FRAMERESPONSE_TX ((Lin_FrameResponseType)0)
+#define LIN_FRAMERESPONSE_RX ((Lin_FrameResponseType)1)
+#define LIN_FRAMERESPONSE_IGNORE ((Lin_FrameResponseType)2)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Lin_00228 */
+#ifdef LIN_USE_EXT_ID
+typedef uint32_t Lin_FramePidType;
+#else
 typedef uint8_t Lin_FramePidType;
-
+#endif
 /* @SWS_Lin_00229 */
-typedef enum
-{
-  LIN_CLASSIC_CS = 0,
-  LIN_ENHANCED_CS = 1,
-} Lin_FrameCsModelType;
+typedef uint8_t Lin_FrameCsModelType;
 
 /* @SWS_Lin_00230 */
-typedef enum
-{
-  LIN_FRAMERESPONSE_TX,
-  LIN_FRAMERESPONSE_RX,
-  LIN_FRAMERESPONSE_IGNORE
-} Lin_FrameResponseType;
+typedef uint8_t Lin_FrameResponseType;
 
 /* @SWS_Lin_00231 */
 typedef uint8_t Lin_FrameDlType;

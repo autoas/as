@@ -2,6 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
+/* NOTE: this is a mess, just demo */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Lin.h"
 #include "LinIf.h"
@@ -31,9 +32,10 @@
 #define LIN_TYPE_HEADER ((uint8_t)'H')
 #define LIN_TYPE_DATA ((uint8_t)'D')
 #define LIN_TYPE_HEADER_AND_DATA ((uint8_t)'F')
+#define LIN_TYPE_EXT_HEADER ((uint8_t)'h')
+#define LIN_TYPE_EXT_HEADER_AND_DATA ((uint8_t)'f')
 /* ================================ [ TYPES     ] ============================================== */
-typedef enum
-{
+typedef enum {
   LIN_STATE_IDLE,
   LIN_STATE_ONLINE,
   LIN_STATE_ONLY_HEADER_TRANSMITTING,
@@ -51,7 +53,7 @@ typedef enum
 typedef struct {
   Lin_FrameCsModelType Cs;
   uint8_t type;
-  uint8_t pid;
+  Lin_FramePidType pid;
   uint8_t dlc;
   uint8_t data[LIN_MAX_DATA_SIZE];
   uint8_t checksum;
@@ -64,24 +66,41 @@ static int linChannelToFdMap[LIN_CHANNEL_NUM];
 static Lin_StateType linState[LIN_CHANNEL_NUM];
 static Lin_FrameType linFrame[LIN_CHANNEL_NUM];
 /* ================================ [ LOCALS    ] ============================================== */
-static uint8_t Lin_GetPid(const Lin_PduType *PduInfoPtr) {
-  uint8_t pid = PduInfoPtr->Pid & 0x3F;
-  uint8_t p0 = LIN_BIT(pid, 0) ^ LIN_BIT(pid, 1) ^ LIN_BIT(pid, 2) ^ LIN_BIT(pid, 4);
-  uint8_t p1 = ~(LIN_BIT(pid, 1) ^ LIN_BIT(pid, 3) ^ LIN_BIT(pid, 4) ^ LIN_BIT(pid, 5));
-  pid = pid | (p0 << 6) | (p1 << 7);
+static Lin_FramePidType Lin_GetPid(const Lin_PduType *PduInfoPtr) {
+  Lin_FramePidType id = PduInfoPtr->Pid;
+  uint8_t pid;
+  uint8_t p0;
+  uint8_t p1;
 
-  return pid;
+  if (id > 0x3F) {
+    /* extended id or already is pid */
+    pid = id;
+  } else {
+    /* calculate the pid for standard LIN id case */
+    pid = id & 0x3F;
+    p0 = LIN_BIT(pid, 0) ^ LIN_BIT(pid, 1) ^ LIN_BIT(pid, 2) ^ LIN_BIT(pid, 4);
+    p1 = ~(LIN_BIT(pid, 1) ^ LIN_BIT(pid, 3) ^ LIN_BIT(pid, 4) ^ LIN_BIT(pid, 5));
+    pid = pid | (p0 << 6) | (p1 << 7);
+  }
+
+  /* for the LIN_USE_EXT_ID. keep the high 3 bytes unchanged */
+  return (Lin_FramePidType)pid | (id & 0xFFFFFF00);
 }
 
-static Std_ReturnType Lin_CheckPid(uint8_t Pid_) {
+static Std_ReturnType Lin_CheckPid(Lin_FramePidType Pid_) {
   Std_ReturnType ret = E_OK;
   uint8_t pid = Pid_ & 0x3F;
   uint8_t p0 = LIN_BIT(pid, 0) ^ LIN_BIT(pid, 1) ^ LIN_BIT(pid, 2) ^ LIN_BIT(pid, 4);
   uint8_t p1 = ~(LIN_BIT(pid, 1) ^ LIN_BIT(pid, 3) ^ LIN_BIT(pid, 4) ^ LIN_BIT(pid, 5));
   pid = pid | (p0 << 6) | (p1 << 7);
 
-  if (pid != Pid_) {
+  if (pid != (uint8_t)(Pid_ & 0xFF)) {
     ret = E_NOT_OK;
+  }
+
+  /* TODO: what for ID between (0x3F, 0xFF) */
+  if (Pid_ > 0xFF) {
+    ret = E_OK;
   }
 
   return ret;
@@ -90,11 +109,14 @@ static Std_ReturnType Lin_CheckPid(uint8_t Pid_) {
 static void Lin_GetData(const Lin_PduType *PduInfoPtr, uint8_t *data, uint8_t *p_checksum) {
   int i;
   uint8_t checksum = 0;
-  uint8_t pid;
+  Lin_FramePidType pid;
 
   if (LIN_ENHANCED_CS == PduInfoPtr->Cs) {
     pid = Lin_GetPid(PduInfoPtr);
-    checksum += pid;
+    checksum += (pid >> 24) & 0xFF;
+    checksum += (pid >> 16) & 0xFF;
+    checksum += (pid >> 8) & 0xFF;
+    checksum += pid & 0xFF;
   }
 
   for (i = 0; i < PduInfoPtr->Dl; i++) {
@@ -113,7 +135,10 @@ Std_ReturnType Lin_IsFrameGood(const Lin_FrameType *frame) {
   ret = Lin_CheckPid(frame->pid);
   if (E_OK == ret) {
     if (LIN_ENHANCED_CS == frame->Cs) {
-      checksum += frame->pid;
+      checksum += (frame->pid >> 24) & 0xFF;
+      checksum += (frame->pid >> 16) & 0xFF;
+      checksum += (frame->pid >> 8) & 0xFF;
+      checksum += frame->pid & 0xFF;
     }
     for (i = 0; i < frame->dlc; i++) {
       checksum += frame->data[i];
@@ -193,26 +218,49 @@ Std_ReturnType Lin_SetControllerMode(uint8_t Channel, Lin_ControllerStateType Tr
 Std_ReturnType Lin_SendFrame(uint8_t Channel, const Lin_PduType *PduInfoPtr) {
   int r = -1, fd;
   Std_ReturnType ercd = E_OK;
-  uint8_t data[LIN_MAX_DATA_SIZE + 4];
+  uint8_t data[LIN_MAX_DATA_SIZE + 8];
   int len = 0;
   Lin_StateType state;
   fd = linChannelToFdMap[Channel];
   if (fd >= 0) {
     if (LIN_FRAMERESPONSE_TX == PduInfoPtr->Drc) {
-      data[0] = LIN_TYPE_HEADER_AND_DATA;
-      data[1] = Lin_GetPid(PduInfoPtr);
-      Lin_GetData(PduInfoPtr, &data[2], &data[2 + PduInfoPtr->Dl]);
-      len = 3 + PduInfoPtr->Dl;
+      if (PduInfoPtr->Pid > 0x3F) {
+        data[0] = LIN_TYPE_EXT_HEADER_AND_DATA;
+        data[1] = (PduInfoPtr->Pid >> 24) & 0xFF;
+        data[2] = (PduInfoPtr->Pid >> 16) & 0xFF;
+        data[3] = (PduInfoPtr->Pid >> 8) & 0xFF;
+        data[4] = PduInfoPtr->Pid & 0xFF;
+        Lin_GetData(PduInfoPtr, &data[5], &data[5 + PduInfoPtr->Dl]);
+        len = 6 + PduInfoPtr->Dl;
+      } else {
+        data[0] = LIN_TYPE_HEADER_AND_DATA;
+        data[1] = Lin_GetPid(PduInfoPtr);
+        Lin_GetData(PduInfoPtr, &data[2], &data[2 + PduInfoPtr->Dl]);
+        len = 3 + PduInfoPtr->Dl;
+      }
       state = LIN_STATE_FULL_TRANSMITTING;
     } else if ((LIN_FRAMERESPONSE_RX == PduInfoPtr->Drc) ||
                (LIN_FRAMERESPONSE_IGNORE == PduInfoPtr->Drc)) {
-      data[0] = LIN_TYPE_HEADER;
-      data[1] = Lin_GetPid(PduInfoPtr);
-      data[2] = PduInfoPtr->Dl;
-      linFrame[Channel].pid = data[1];
-      linFrame[Channel].dlc = PduInfoPtr->Dl;
-      linFrame[Channel].Cs = PduInfoPtr->Cs;
-      len = 3;
+      if (PduInfoPtr->Pid > 0x3F) {
+        data[0] = LIN_TYPE_EXT_HEADER;
+        data[1] = (PduInfoPtr->Pid >> 24) & 0xFF;
+        data[2] = (PduInfoPtr->Pid >> 16) & 0xFF;
+        data[3] = (PduInfoPtr->Pid >> 8) & 0xFF;
+        data[4] = PduInfoPtr->Pid & 0xFF;
+        data[5] = PduInfoPtr->Dl;
+        linFrame[Channel].pid = PduInfoPtr->Pid;
+        linFrame[Channel].dlc = PduInfoPtr->Dl;
+        linFrame[Channel].Cs = PduInfoPtr->Cs;
+        len = 6;
+      } else {
+        data[0] = LIN_TYPE_HEADER;
+        data[1] = Lin_GetPid(PduInfoPtr);
+        data[2] = PduInfoPtr->Dl;
+        linFrame[Channel].pid = data[1];
+        linFrame[Channel].dlc = PduInfoPtr->Dl;
+        linFrame[Channel].Cs = PduInfoPtr->Cs;
+        len = 3;
+      }
       if (LIN_FRAMERESPONSE_RX == PduInfoPtr->Drc) {
         state = LIN_STATE_HEADER_TRANSMITTING;
       } else {
@@ -286,7 +334,7 @@ void Lin_MainFunction_Read(void) {
     if ((2 == size) && (LIN_TYPE_HEADER == data[0])) {
       linFrame[i].type = LIN_TYPE_HEADER;
       linFrame[i].pid = data[1];
-      linPdu.Pid = data[1];
+      linPdu.Pid = data[1] & 0x3F;
       linPdu.Dl = 0;
       linPdu.Drc = LIN_FRAMERESPONSE_IGNORE;
       ret = LinIf_HeaderIndication(i, &linPdu);
@@ -336,10 +384,56 @@ void Lin_MainFunction_Read(void) {
       linFrame[i].dlc = size - 3;
       memcpy(linFrame[i].data, &data[2], size - 3);
       linFrame[i].checksum = data[size - 1];
-      ret = Lin_IsFrameGood(&linFrame[i]);
+      linPdu.Pid = data[1] & 0x3F;
+      ret = LinIf_HeaderIndication(i, &linPdu);
       if (E_OK == ret) {
-        linPdu.Pid = data[1];
-        ret = LinIf_HeaderIndication(i, &linPdu);
+        linFrame[i].Cs = linPdu.Cs;
+        ret = Lin_IsFrameGood(&linFrame[i]);
+        if (E_OK == ret) {
+          LinIf_RxIndication(i, linFrame[i].data);
+        }
+      } else {
+        ASLOG(LINE, ("invalid frame full received in state %d\n", linState[i]));
+      }
+    } else if ((5 == size) && (LIN_TYPE_EXT_HEADER == data[0])) {
+      linFrame[i].type = LIN_TYPE_EXT_HEADER;
+      linFrame[i].pid =
+        ((uint32_t)data[1] << 24) + ((uint32_t)data[2] << 16) + ((uint32_t)data[3] << 8) + data[4];
+      linPdu.Pid = linFrame[i].pid;
+      linPdu.Dl = 0;
+      linPdu.Drc = LIN_FRAMERESPONSE_IGNORE;
+      ret = LinIf_HeaderIndication(i, &linPdu);
+      if (E_OK == ret) {
+        if (LIN_FRAMERESPONSE_TX == linPdu.Drc) {
+          data[0] = LIN_TYPE_DATA;
+          Lin_GetData(&linPdu, &data[1], &data[1 + linPdu.Dl]);
+          r = dev_write(fd, data, linPdu.Dl + 2);
+          if ((linPdu.Dl + 2) != r) {
+            ASLOG(LINE, ("failed to slave response %x\n", linPdu.Pid));
+          } else {
+            linState[i] = LIN_STATE_DATA_TRANSMITTING;
+          }
+        } else if (LIN_FRAMERESPONSE_RX == linPdu.Drc) {
+          linFrame[i].dlc = linPdu.Dl;
+          linFrame[i].Cs = linPdu.Cs;
+          linState[i] = LIN_STATE_WAITING_DATA;
+        } else {
+          /* ignore the response */
+          linState[i] = LIN_STATE_ONLINE;
+        }
+      }
+    } else if ((LIN_TYPE_EXT_HEADER_AND_DATA == data[0]) && (size > 6)) {
+      linFrame[i].type = LIN_TYPE_EXT_HEADER_AND_DATA;
+      linFrame[i].pid =
+        ((uint32_t)data[1] << 24) + ((uint32_t)data[2] << 16) + ((uint32_t)data[3] << 8) + data[4];
+      linFrame[i].dlc = size - 6;
+      memcpy(linFrame[i].data, &data[5], size - 6);
+      linFrame[i].checksum = data[size - 1];
+      linPdu.Pid = data[1];
+      ret = LinIf_HeaderIndication(i, &linPdu);
+      if (E_OK == ret) {
+        linFrame[i].Cs = linPdu.Cs;
+        ret = Lin_IsFrameGood(&linFrame[i]);
         if (E_OK == ret) {
           LinIf_RxIndication(i, linFrame[i].data);
         }

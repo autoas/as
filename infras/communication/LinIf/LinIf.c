@@ -31,8 +31,7 @@ static void LinIf_ScheduleEntry(uint8_t Channel) {
   LinIf_ChannelContextType *context;
   const LinIf_ChannelConfigType *config;
   const LinIf_ScheduleTableEntryType *entry;
-  LinIf_ResultType result = LINIF_R_OK;
-  Std_ReturnType r;
+  Std_ReturnType result = LINIF_R_OK;
 
   context = &LINIF_CONFIG->channelContexts[Channel];
   config = &LINIF_CONFIG->channelConfigs[Channel];
@@ -56,8 +55,8 @@ static void LinIf_ScheduleEntry(uint8_t Channel) {
   }
 
   if (LINIF_R_OK == result) {
-    r = Lin_SendFrame(config->linChannel, &context->frame);
-    if (E_OK == r) {
+    result = Lin_SendFrame(config->linChannel, &context->frame);
+    if (E_OK == result) {
       context->status |= LINIF_STATUS_SENDING;
     } else {
       ASLOG(LINIFE, ("%d: FAIL to send\n", Channel));
@@ -71,20 +70,20 @@ static void LinIf_CheckEntry(uint8_t Channel) {
   LinIf_ChannelContextType *context;
   const LinIf_ChannelConfigType *config;
   const LinIf_ScheduleTableEntryType *entry;
-  Lin_StatusType r;
-  LinIf_ResultType result = LINIF_R_NOT_OK;
+  Std_ReturnType result = LINIF_R_NOT_OK;
+  Lin_StatusType status;
 
   context = &LINIF_CONFIG->channelContexts[Channel];
   config = &LINIF_CONFIG->channelConfigs[Channel];
   entry = &context->scheduleTable->entrys[context->curSch];
 
-  r = Lin_GetStatus(config->linChannel, &context->frame.SduPtr);
+  status = Lin_GetStatus(config->linChannel, &context->frame.SduPtr);
   if (LIN_FRAMERESPONSE_TX == entry->Drc) {
-    if (LIN_TX_OK == r) {
+    if (LIN_TX_OK == status) {
       result = LINIF_R_TX_COMPLETED;
     }
   } else {
-    if (LIN_RX_OK == r) {
+    if (LIN_RX_OK == status) {
       result = LINIF_R_RECEIVED_OK;
     }
   }
@@ -228,7 +227,6 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
   const LinIf_ChannelConfigType *config;
   const LinIf_ScheduleTableEntryType *entry;
   Std_ReturnType ret = E_NOT_OK;
-  LinIf_ResultType result;
   int i;
 
   if (Channel < LINIF_CONFIG->numOfChannels) {
@@ -253,7 +251,7 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
   if (E_OK == ret) {
     for (i = 0; i < context->scheduleTable->numOfEntries; i++) {
       entry = &context->scheduleTable->entrys[i];
-      if ((PduPtr->Pid & 0x3F) == entry->id) {
+      if (PduPtr->Pid == entry->id) {
         if (LIN_FRAMERESPONSE_RX == entry->Drc) {
           context->curSch = i;
           PduPtr->Dl = entry->dlc;
@@ -266,8 +264,8 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
           context->frame.Dl = entry->dlc;
           context->frame.SduPtr = context->data;
           context->frame.Drc = entry->Drc;
-          result = entry->callback(Channel, &context->frame, LINIF_R_TRIGGER_TRANSMIT);
-          if (LINIF_R_OK == result) {
+          ret = entry->callback(Channel, &context->frame, LINIF_R_TRIGGER_TRANSMIT);
+          if (LINIF_R_OK == ret) {
             PduPtr->Pid = entry->id;
             PduPtr->Cs = entry->Cs;
             PduPtr->Drc = entry->Drc;

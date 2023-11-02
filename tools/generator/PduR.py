@@ -105,8 +105,8 @@ def Gen_PduR(cfg, dir):
     C.write(
         '/* ================================ [ INCLUDES  ] ============================================== */\n')
     C.write('#include "PduR.h"\n')
-    C.write('#include "PduR_Priv.h"\n')
     C.write('#include "PduR_Cfg.h"\n')
+    C.write('#include "PduR_Priv.h"\n')
     for mod in modules:
         C.write('#include "%s.h"\n' % (mod))
         if mod not in ['Dcm']:

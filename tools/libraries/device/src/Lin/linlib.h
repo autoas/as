@@ -17,22 +17,27 @@
 #define LIN_TYPE_DATA ((uint8_t)'D')
 #define LIN_TYPE_HEADER_AND_DATA ((uint8_t)'F')
 
+#define LIN_TYPE_EXT_HEADER ((uint8_t)'h')
+#define LIN_TYPE_EXT_HEADER_AND_DATA ((uint8_t)'f')
+
 #define LIN_MTU sizeof(Lin_FrameType)
 
 #ifndef LIN_MAX_DATA_SIZE
 #define LIN_MAX_DATA_SIZE 64
 #endif
+
+typedef uint32_t lin_id_t;
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t type;
-  uint8_t pid;
+  lin_id_t pid;
   uint8_t dlc;
   uint8_t data[LIN_MAX_DATA_SIZE];
   uint8_t checksum;
 } Lin_FrameType;
 
 struct Lin_Frame_s {
-  uint8_t data[LIN_MAX_DATA_SIZE + 3];
+  uint8_t data[LIN_MAX_DATA_SIZE + 6];
   int size;
   STAILQ_ENTRY(Lin_Frame_s) entry;
 };

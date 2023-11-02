@@ -57,7 +57,7 @@ const LinIf_ConfigType LinIf_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint8_t rxid, uint8_t txid) {
+void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint32_t rxid, uint32_t txid) {
   if (Channel < ARRAY_SIZE(LinIf_ChannelCfgs)) {
     entrysDiagRequest->id = txid;
     entrysDiagRequest->dlc = ll_dl;
@@ -66,10 +66,10 @@ void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint8_t rxid, uint8_t txid) 
   }
 }
 
-uint8_t LinIf_CanTpGetTxId(uint8_t Channel) {
+uint32_t LinIf_CanTpGetTxId(uint8_t Channel) {
   return entrysDiagRequest->id;
 }
 
-uint8_t LinIf_CanTpGetRxId(uint8_t Channel) {
+uint32_t LinIf_CanTpGetRxId(uint8_t Channel) {
   return entrysDiagResponse->id;
 }
