@@ -1,0 +1,34 @@
+version: '1.0'
+name: master-pipeline
+displayName: BuildingOfAs
+triggers:
+  trigger: manual
+  push:
+    branches:
+      include:
+        - master
+stages:
+  - name: compile
+    displayName: Compiler
+    strategy: naturally
+    trigger: auto
+    steps:
+      - step: build@gcc
+        name: build_gcc
+        displayName: GCC Compiler
+        gccVersion: '9.4'
+        commands:
+          - echo ==================== setup env start ========================
+          - apt-get update
+          - apt-get install -qq git cmake curl wget unzip
+          - apt-get install -qq python3-pip libprotobuf-dev
+          - pip3 install scons==4.5.2 pyserial pybind11 pillow ply bitarray
+          - echo ==================== setup env done ========================
+          - scons --app=CanApp
+          - scons --app=IsoTpSend
+          - scons --app=DoIPSend
+          - scons --app=NetApp --os=OSAL
+        caches: []
+        notify: []
+        strategy:
+          retry: '0'
