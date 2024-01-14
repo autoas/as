@@ -26,6 +26,12 @@ const CanIf_ConfigType CanIf_Config = {
 };
 
 /* ================================ [ LOCALS    ] ============================================== */
+static void __attribute__((constructor)) _isotp_canif_init(void) {
+  int i;
+  for (i = 0; i < ARRAY_SIZE(CanIf_RxPdus); i++) {
+    CanIf_RxPdus[i].mask = 0xFFFFFFFF;
+  }
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 void CanIf_CanTpReconfig(uint8_t Channel, CanTp_ParamType *params) {
   CanIf_RxPdus[Channel].rxInd = CanTp_RxIndication;

@@ -95,9 +95,20 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
     } else if (var->canid < Mailbox->CanId) {
       l = m + 1;
     } else {
+      /* TODO: add logic here to handle 2 or more CANs receive the message with the same CANID */
       break; /* should not reach here */
     }
   }
+
+#if defined(linux) || defined(_WIN32)
+  /* For the host PC tools, the CanIf table is not sorted */
+  for (l = 0; (l < config->numOfRxPdus) && (NULL == rxPdu); l++) {
+    var = &config->rxPdus[l];
+    if ((var->hoh == Mailbox->Hoh) && (var->canid == (Mailbox->CanId & var->mask))) {
+      rxPdu = var;
+    }
+  }
+#endif
 
   if (NULL != rxPdu) {
     if (NULL != rxPdu->rxInd) {
