@@ -212,7 +212,7 @@ def Gen_SoAd(cfg, dir):
             IpAddress = 'TCPIP_IPV4_ADDR(%s)' % (','.join(IpAddress.split('.')))
         else:
             IpAddress = 0
-        if sock.get('multicast', False) and (sock['protocol'] is 'UDP'):
+        if sock.get('multicast', False) and (sock['protocol'] == 'UDP'):
             multicast = 'TRUE'
             LocalAddrId = 0  # TODO
         else:

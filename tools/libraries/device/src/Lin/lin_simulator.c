@@ -123,7 +123,7 @@ static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t 
   int r = -__LINE__;
 
   switch (type) {
-  case DEV_IOCTL_LIN_SET_TIMEOUT:
+  case DEV_IOCTL_SET_TIMEOUT:
     r = 0;
     break;
   default:

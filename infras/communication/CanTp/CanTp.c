@@ -17,6 +17,7 @@
 #include "PduR_CanTp.h"
 #include "Std_Debug.h"
 #include <string.h>
+#include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANTP 0
 #define AS_LOG_CANTPI 0
@@ -39,6 +40,10 @@
 #define N_PCI_OVFLW 0x02
 
 #define N_PCI_SN 0x0F
+
+#ifdef CANTP_FIX_LL_DL
+#define CanTp_GetDL(len, LL_DL) LL_DL
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const CanTp_ConfigType CanTp_Config;
@@ -49,7 +54,7 @@ static void CanTp_SendFC(PduIdType TxPduId);
 #endif
 static void CanTp_SendCF(PduIdType TxPduId);
 /* ================================ [ DATAS     ] ============================================== */
-#ifndef LINTP_H
+#ifndef CANTP_FIX_LL_DL
 static const PduLengthType lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48};
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
@@ -59,9 +64,9 @@ static void CanTp_ResetToIdle(CanTp_ChannelContextType *context) {
   context->TpSduLength = 0;
 }
 
+#ifndef CANTP_FIX_LL_DL
 static PduLengthType CanTp_GetDL(PduLengthType len, PduLengthType LL_DL) {
   PduLengthType dl = LL_DL;
-#ifndef LINTP_H
   int i;
 
   for (i = 0; i < ARRAY_SIZE(lLL_DLs); i++) {
@@ -70,9 +75,9 @@ static PduLengthType CanTp_GetDL(PduLengthType len, PduLengthType LL_DL) {
       break;
     }
   }
-#endif
   return dl;
 }
+#endif
 
 static uint8_t CanTp_GetSFMaxLen(const CanTp_ChannelConfigType *config) {
   PduLengthType sfMaxLen;
@@ -180,6 +185,8 @@ static void CanTp_SendFC(PduIdType RxPduId) {
 #else
   r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
   if (E_OK == r) {
+    STD_TOPIC_ISOTP(RxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+                    context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
     context->state = CANTP_WAIT_CF;
     context->timer = config->N_Cr;
     context->BS = config->BS;
@@ -410,6 +417,8 @@ static void CanTp_SendSF(PduIdType TxPduId) {
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
+      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+                      context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
       context->state = CANTP_WAIT_SF_TX_COMPLETED;
       context->timer = config->N_As;
@@ -423,7 +432,7 @@ static void CanTp_SendSF(PduIdType TxPduId) {
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("SF: failed to provide TX data, reset to idle\n"));
+    ASLOG(CANTPE, ("[%d]SF: failed to provide TX data, reset to idle\n", TxPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
@@ -478,6 +487,8 @@ static void CanTp_SendFF(PduIdType TxPduId) {
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
+      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+                      context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
       context->state = CANTP_WAIT_FF_TX_COMPLETED;
       context->timer = config->N_As;
@@ -492,7 +503,7 @@ static void CanTp_SendFF(PduIdType TxPduId) {
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("FF: failed to provide TX data, reset to idle\n"));
+    ASLOG(CANTPE, ("[%d]FF: failed to provide TX data, reset to idle\n", TxPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
@@ -551,6 +562,8 @@ static void CanTp_SendCF(PduIdType TxPduId) {
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
+      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+                      context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
       context->state = CANTP_WAIT_CF_TX_COMPLETED;
       context->timer = config->N_As;
     } else {
@@ -559,7 +572,7 @@ static void CanTp_SendCF(PduIdType TxPduId) {
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("CF: failed to provide TX data, reset to idle\n"));
+    ASLOG(CANTPE, ("[%d]CF: failed to provide TX data, reset to idle\n", TxPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
@@ -629,6 +642,8 @@ static void CanTp_ReSend(PduIdType TxPduId) {
   r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
 #endif
   if (E_OK == r) {
+    STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+                    context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
     if (CANTP_RESEND_SF == context->state) {
       context->state = CANTP_WAIT_SF_TX_COMPLETED;
@@ -720,6 +735,8 @@ void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
                  PduInfoPtr->SduDataPtr[4], PduInfoPtr->SduDataPtr[5], PduInfoPtr->SduDataPtr[6],
                  PduInfoPtr->SduDataPtr[7], CANTP_CONFIG->channelContexts[RxPduId].state,
                  CANTP_CONFIG->channelContexts[RxPduId].TpSduLength));
+  STD_TOPIC_ISOTP(RxPduId, TRUE, CanIf_CanTpGetRxCanId(RxPduId), PduInfoPtr->SduLength,
+                  PduInfoPtr->SduDataPtr);
   if ((RxPduId < CANTP_CONFIG->numOfChannels) && (NULL != PduInfoPtr) &&
       (NULL != PduInfoPtr->SduDataPtr) && (PduInfoPtr->SduLength > 0)) {
     config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
@@ -881,11 +898,61 @@ void CanTp_MainFunction(void) {
 }
 
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
+PduLengthType CanTp_GetTxPacketLength(PduIdType TxPduId) {
+  PduLengthType ret = 0;
+  CanTp_ChannelContextType *context;
+
+  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
+  switch (context->state) {
+  case CANTP_RESEND_SF:
+  case CANTP_RESEND_FF:
+  case CANTP_RESEND_FC:
+  case CANTP_RESEND_CF:
+    ret = context->PduInfo.SduLength;
+    break;
+  default:
+    break;
+  }
+
+  return ret;
+}
+
+PduLengthType CanTp_GetRxLeftLength(PduIdType RxPduId) {
+  PduLengthType ret = 0;
+  CanTp_ChannelContextType *context;
+
+  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
+  switch (context->state) {
+  case CANTP_WAIT_CF:
+  case CANTP_WAIT_CF_TX_COMPLETED:
+    ret = context->TpSduLength;
+    break;
+  default:
+    break;
+  }
+
+  return ret;
+}
+
 Std_ReturnType CanTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
   Std_ReturnType ret = E_OK;
   CanTp_ChannelContextType *context;
 
   context = &(CANTP_CONFIG->channelContexts[TxPduId]);
+  switch (context->state) {
+  case CANTP_RESEND_SF:
+  case CANTP_RESEND_FF:
+  case CANTP_RESEND_FC:
+  case CANTP_RESEND_CF:
+    ret = CanTp_ReSend(TxPduId, PduInfoPtr);
+    break;
+  default:
+    ASLOG(CANTPI, ("[%d] trigger transmit in state %d\n", TxPduId, context->state));
+    ret = E_NOT_OK;
+    break;
+  }
+
+  return ret;
 
   switch (context->state) {
   case CANTP_RESEND_SF:

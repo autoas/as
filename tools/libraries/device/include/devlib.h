@@ -18,13 +18,11 @@ extern "C" {
 #define DEV_I2C_IGNORE_NACK (1u << 5)
 #define DEV_I2C_NO_READ_ACK (1u << 6) /* when I2C reading, we do not ACK */
 #define DEV_I2C_NO_STOP (1u << 7)
+#define DEV_I2C_NO_WRITE_ACK (1u << 8)
 
-#define DEV_IOCTL_LIN_SET_TIMEOUT 0
-
-#define DEV_IOCTL_I2C_TRANSFER 1
-#define DEV_IOCTL_I2C_DELAY 2 /* set delay for each operation */
-
-#define DEV_IOCTL_SPI_TRANSFER 3
+#define DEV_IOCTL_SET_TIMEOUT 0
+#define DEV_IOCTL_TRANSFER 1  /* transfer request for I2C or SPI */
+#define DEV_IOCTL_SET_DELAY 2 /* set delay for each operation */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t *data;

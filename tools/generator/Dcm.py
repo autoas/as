@@ -372,6 +372,42 @@ def gen_communication_control_config(C, service, cfg):
     C.write('};\n\n')
 
 
+def gen_authentication_api(C, service, cfg):
+    for x in service['functions']:
+        if 'API' in x:  # user defined authentication
+            C.write('Std_ReturnType %s(Dcm_OpStatusType OpStatus,\n' % (x['API']))
+            C.write('                  const uint8_t *dataIn, uint16_t dataInLen,\n')
+            C.write('                  uint8_t *dataOut, uint16_t *dataOutLen,\n')
+            C.write('                  Dcm_NegativeResponseCodeType *ErrorCode);\n\n')
+
+
+def gen_authentication_config(C, service, cfg):
+    AuthDefaultApi = {
+        0x00: "Dcm_DspDeAuthentication",
+        0x01: "Dcm_DspVerifyCertificateUnidirectional",
+        0x02: "Dcm_DspVerifyCertificateBidirectional",
+        0x03: "Dcm_DspProofOfOwnership",
+        0x04: "Dcm_DspTransmitCertificate",
+        0x05: "Dcm_DspRequestChallengeForAuthentication",
+        0x06: "Dcm_DspVerifyProofOfOwnershipUnidirectional",
+        0x07: "Dcm_DspVerifyProofOfOwnershipBidirectional",
+        0x08: "Dcm_DspAuthenticationConfiguration",
+    }
+    C.write('#ifdef USE_CRYPTO\n')
+    C.write('static const Dcm_AuthenticationType Dcm_Authentications[] = {\n')
+    for x in service['functions']:
+        C.write('  {\n')
+        C.write('    %s,\n' % (x['id']))
+        C.write('    %s,\n' % (x.get('API', AuthDefaultApi[toNum(x['id'])])))
+        C.write('  },\n')
+    C.write('};\n\n')
+    C.write('static const Dcm_AuthenticationConfigType Dcm_AuthenticationConfig = {\n')
+    C.write('  Dcm_Authentications,\n')
+    C.write('  ARRAY_SIZE(Dcm_Authentications),\n')
+    C.write('};\n\n')
+    C.write('#endif\n\n')
+
+
 ServiceMap = {
     0x10: {"name": "DIAGNOSTIC_SESSION_CONTROL", "subfunc": True, "API": "SessionControl",
            "config": gen_session_control_config, "api": gen_session_control_api},
@@ -389,6 +425,8 @@ ServiceMap = {
            "config": gen_security_access_config, "api": gen_security_access_api},
     0x28: {"name": "COMMUNICATION_CONTROL", "subfunc": True, "API": "CommunicationControl",
            "config": gen_communication_control_config, "api": gen_communication_control_api},
+    0x29: {"name": "AUTHENTICATION", "subfunc": True, "API": "Authentication",
+           "config": gen_authentication_config, "api": gen_authentication_api},
     0x2A: {"name": "READ_DATA_BY_PERIODIC_IDENTIFIER", "subfunc": False, "API": "ReadDataByPeriodicIdentifier",
            "config": gen_read_periodic_did_config, "api": gen_read_periodic_did_api},
     0x2C: {"name": "DYNAMICALLY_DEFINE_DATA_IDENTIFIER", "subfunc": True, "API": "DynamicallyDefineDataIdentifier",
@@ -482,10 +520,13 @@ def Gen_Dcm(cfg, dir):
     for service in cfg['services']:
         isDtcRelated = ServiceMap[service['id']]['name'] in [
             'CLEAR_DIAGNOSTIC_INFORMATION', 'READ_DTC_INFORMATION', 'CONTROL_DTC_SETTING']
+        isCryptoRelated = ServiceMap[service['id']]['name'] in ['AUTHENTICATION']
         if isDtcRelated:
             H.write('#ifdef USE_DEM\n')
+        elif isCryptoRelated:
+            H.write('#ifdef USE_CRYPTO\n')
         H.write('#define DCM_USE_SERVICE_%s\n' % (ServiceMap[service['id']]['name']))
-        if isDtcRelated:
+        if isDtcRelated or isCryptoRelated:
             H.write('#endif\n')
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
@@ -602,8 +643,11 @@ def Gen_Dcm(cfg, dir):
     for service in cfg['services']:
         isDtcRelated = ServiceMap[service['id']]['name'] in [
             'CLEAR_DIAGNOSTIC_INFORMATION', 'READ_DTC_INFORMATION', 'CONTROL_DTC_SETTING']
+        isCryptoRelated = ServiceMap[service['id']]['name'] in ['AUTHENTICATION']
         if isDtcRelated:
             C.write('#ifdef USE_DEM\n')
+        elif isCryptoRelated:
+            C.write('#ifdef USE_CRYPTO\n')
         C.write('  {\n')
         C.write('    SID_%s,\n' % (ServiceMap[service['id']]['name']))
         C.write('    {\n')
@@ -619,7 +663,7 @@ def Gen_Dcm(cfg, dir):
         else:
             C.write('    (const void *)&Dcm_%sConfig,\n' % (ServiceMap[service['id']]['API']))
         C.write('  },\n')
-        if isDtcRelated:
+        if isDtcRelated or isCryptoRelated:
             C.write('#endif\n')
     C.write('};\n\n')
 

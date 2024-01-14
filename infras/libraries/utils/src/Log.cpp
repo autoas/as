@@ -44,6 +44,10 @@ Logger::Logger() {
   m_File = stdout;
 }
 
+FILE *Logger::getFile() {
+  return m_File;
+}
+
 Logger::Logger(std::string name, std::string format) {
   m_Name = name;
   m_Format = format;
@@ -283,6 +287,10 @@ void Log::vprint(const char *fmt, va_list args) {
 
 void Log::putc(char chr) {
   s_Logger->putc(chr);
+}
+
+FILE *Log::getFile() {
+  return s_Logger->getFile();
 }
 
 extern "C" void std_set_log_name(const char *name) {

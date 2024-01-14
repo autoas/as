@@ -433,12 +433,24 @@ def GetStructSize(struct, structs={}):
     return size
 
 
+def GetStructs(cfg):
+    structs = {}
+    for st in cfg.get('structs', []):
+        structs[st['name']] = st
+    return structs
+
+def GetArgs(cfg):
+    args = {}
+    for arg in cfg.get('args', []):
+        args[arg['name']] = arg['args']
+    return args
+
 def Gen_XfApi(H, api, args, cfg):
     if args == None:
         return
     cstr = ''
     for data in args:
-        dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+        dinfo = GetTypeInfo(data, GetStructs(cfg))
         if False == dinfo['IsArray'] and True == dinfo.get('IsStruct', False):
             cstr += '%s* %s' % (dinfo['ctype'], data['name'])
         else:
@@ -473,12 +485,12 @@ def Gen_ServerServiceXf(service, cfg, dir):
     H.write(
         '/* ================================ [ FUNCTIONS ] ============================================== */\n')
     for method in service.get('methods', []):
-        args = cfg.get('args', {}).get(method.get('args', None), None)
+        args = GetArgs(cfg).get(method.get('args', None), None)
         api = '%s_%s_request' % (service['name'], method['name'])
         Gen_XfApi(H, api, args, cfg)
     for egroup in service['event-groups']:
         for event in egroup['events']:
-            args = cfg.get('args', {}).get(event.get('args', None), None)
+            args = GetArgs(cfg).get(event.get('args', None), None)
             api = '%s_%s_%s_notify' % (service['name'], egroup['name'], event['name'])
             Gen_XfApi(H, api, args, cfg)
     H.write('#endif /* _SS_%s_XF_H */\n' % (service['name'].upper()))
@@ -1190,12 +1202,12 @@ def Gen_SOMEIPXF(cfg, dir):
         '/* ================================ [ MACROS    ] ============================================== */\n')
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
-    for name, struct in cfg.get('structs', {}).items():
+    for name, struct in GetStructs(cfg).items():
         H.write('typedef struct %s_s %s_Type;\n\n' % (name, name))
-    for name, struct in cfg.get('structs', {}).items():
+    for name, struct in GetStructs(cfg).items():
         H.write('struct %s_s {\n' % (name))
         for data in struct['data']:
-            dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+            dinfo = GetTypeInfo(data, GetStructs(cfg))
             cstr = '%s %s' % (dinfo['ctype'], data['name'])
             if dinfo['IsArray']:
                 cstr += '[%s]' % (data['size'])
@@ -1218,7 +1230,7 @@ def Gen_SOMEIPXF(cfg, dir):
         H.write('};\n\n')
     H.write(
         '/* ================================ [ DECLARES  ] ============================================== */\n')
-    for name, struct in cfg.get('structs', {}).items():
+    for name, struct in GetStructs(cfg).items():
         H.write('extern const SomeIpXf_StructDefinitionType SomeIpXf_Struct%sDef;\n' % (name))
     H.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
@@ -1242,10 +1254,10 @@ def Gen_SOMEIPXF(cfg, dir):
         '/* ================================ [ DECLARES  ] ============================================== */\n')
     C.write(
         '/* ================================ [ DATAS     ] ============================================== */\n')
-    for name, struct in cfg.get('structs', {}).items():
+    for name, struct in GetStructs(cfg).items():
         C.write('static const SomeIpXf_DataElementType Struct%sDataElements[] = {\n' % (name))
         for idx, data in enumerate(struct['data']):
-            dinfo = GetTypeInfo(data, cfg.get('structs', {}))
+            dinfo = GetTypeInfo(data, GetStructs(cfg))
             if dinfo['ctype'] in ['boolean', 'uint8_t', 'int8_t']:
                 dtype = 'Byte'
             elif dinfo['ctype'] in ['uint16_t', 'int16_t']:
@@ -1279,7 +1291,7 @@ def Gen_SOMEIPXF(cfg, dir):
             else:
                 C.write('    SOMEIPXF_TAG_NOT_USED, /* tag */\n')
             C.write('    SOMEIPXF_DATA_ELEMENT_TYPE_%s,\n' % (toMacro(dtype)))
-            sz = GetStructDataSize(data, cfg.get('structs', {}))
+            sz = GetStructDataSize(data, GetStructs(cfg))
             if data.get('with_length', False):
                 if sz < 256:
                     sizeOfDataLengthField = 1
@@ -1292,13 +1304,13 @@ def Gen_SOMEIPXF(cfg, dir):
             C.write('    %s, /* sizeOfDataLengthField for %s */\n' % (sizeOfDataLengthField, sz))
             C.write('  },\n')
         C.write('};\n\n')
-    for name, struct in cfg.get('structs', {}).items():
+    for name, struct in GetStructs(cfg).items():
         C.write('const SomeIpXf_StructDefinitionType SomeIpXf_Struct%sDef = {\n' % (name))
         C.write('  "%s",\n' % (name))
         C.write('  Struct%sDataElements,\n' % (name))
         C.write('  sizeof(%s_Type),\n' % (name))
         C.write('  ARRAY_SIZE(Struct%sDataElements),\n' % (name))
-        sz = GetStructSize(struct, cfg.get('structs', {}))
+        sz = GetStructSize(struct, GetStructs(cfg))
         if struct.get('with_length', False) or struct.get('with_tag', False):
             if sz < 256:
                 sizeOfStructLengthField = 1

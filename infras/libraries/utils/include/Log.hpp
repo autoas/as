@@ -15,8 +15,7 @@ namespace as {
 /* ================================ [ TYPES     ] ============================================== */
 class Logger {
 public:
-  enum
-  {
+  enum {
     DEBUG = 0,
     INFO,
     WARN,
@@ -39,6 +38,8 @@ public:
   void hexdump(int level, const char *prefix, const void *data, size_t size, size_t len = 16);
   void vprint(const char *fmt, va_list args);
   void putc(char chr);
+
+  FILE *getFile();
 
   ~Logger();
 
@@ -69,6 +70,7 @@ public:
                       size_t len = 16);
   static void vprint(const char *fmt, va_list args);
   static void putc(char chr);
+  static FILE *getFile();
 
 private:
   static std::shared_ptr<Logger> s_Logger;

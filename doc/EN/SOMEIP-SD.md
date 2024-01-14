@@ -67,3 +67,29 @@ And under the root directory of ssas-public, you could see net.log and wireshark
 
 ![someip pcap](../images/someip-netapp-netappt-pcap.png)
 
+### ref
+
+[LwIP + Win PCAP](https://blog.csdn.net/zengsenhua/article/details/123914711)
+
+### verify communication with vsomeip
+
+#### build vsomeip with WSL Ubuntu 20.04
+
+```sh
+git clone https://gitee.com/autoas/vsomeip.git
+cd vsomeip
+mkdir build
+cd build
+cmake ..
+```
+
+#### Run ssas client example
+
+```sh
+cd build
+export LD_LIBRARY_PATH=`pwd`:$LD_LIBRARY_PATH
+ln -fs ../examples/ssas/vsomeip.json vsomeip.json
+ ./examples/ssas/client-example
+```
+
+

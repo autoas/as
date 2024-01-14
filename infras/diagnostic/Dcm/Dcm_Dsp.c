@@ -1924,6 +1924,169 @@ Std_ReturnType Dcm_DspReadDDDID(const Dcm_DDDIDConfigType *DDConfig, Dcm_OpStatu
 }
 #endif
 
+#ifdef DCM_USE_SERVICE_AUTHENTICATION
+Std_ReturnType Dcm_DspAuthentication(Dcm_MsgContextType *msgContext,
+                                     Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_NOT_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  const Dcm_AuthenticationConfigType *config =
+    (const Dcm_AuthenticationConfigType *)context->curService->config;
+  const Dcm_AuthenticationType *auth = NULL;
+  uint8_t id;
+  uint16_t len;
+  int i;
+
+  if (msgContext->reqDataLen >= 1) {
+    id = msgContext->reqData[0];
+    for (i = 0; i < config->numOfAuthentications; i++) {
+      if (config->Authentications[i].id == id) {
+        auth = &config->Authentications[i];
+        r = E_OK;
+        break;
+      }
+    }
+
+    if (E_OK != r) {
+      *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
+    }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+  }
+
+  if (E_OK == r) {
+    if (auth->authenticationFnc != NULL) {
+      len = msgContext->resMaxDataLen - 1;
+      r = auth->authenticationFnc(context->opStatus, &msgContext->reqData[1],
+                                  msgContext->reqDataLen - 1, &msgContext->resData[1], &len, nrc);
+    } else {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+      r = E_NOT_OK;
+    }
+  }
+
+  if (E_OK == r) {
+    msgContext->resData[0] = id;
+    msgContext->resDataLen = 1 + len;
+  }
+
+  return r;
+}
+
+Std_ReturnType Dcm_DspDeAuthentication(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                       uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
+                                       Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspVerifyCertificateUnidirectional(Dcm_OpStatusType OpStatus,
+                                                      const uint8_t *dataIn, uint16_t dataInLen,
+                                                      uint8_t *dataOut, uint16_t *dataOutLen,
+                                                      Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_OK;
+  uint16_t publicKeyLen = 0;
+  const uint8_t *publicKey;
+  uint16_t signatureLen = 0;
+  const uint8_t *signature;
+  if (0x00 != dataIn[0]) {
+    r = E_NOT_OK;
+    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+  }
+
+  if (E_OK == r) {
+    publicKey = &dataIn[3];
+    publicKeyLen = ((uint16_t)dataIn[1] << 8) + dataIn[2];
+    signature = &dataIn[5 + publicKeyLen];
+    signatureLen = ((uint16_t)dataIn[3 + publicKeyLen] << 8) + dataIn[4 + publicKeyLen];
+    if ((publicKeyLen + signatureLen + 5) != dataInLen) {
+      r = E_NOT_OK;
+      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+    }
+  }
+
+  if (E_OK == r) {
+    r = Dcm_AuthenticationVerifyTesterCertificate(publicKey, publicKeyLen, signature, signatureLen,
+                                                  ErrorCode);
+  }
+
+  if (E_OK == r) {
+    *dataOutLen -= 1;
+    r = Dcm_AuthenticationGetChallenge(&dataOut[1], dataOutLen);
+  }
+
+  if (E_OK == r) {
+    dataOut[0] = 0x11;
+    *dataOutLen += 1;
+  }
+
+  return r;
+}
+
+Std_ReturnType Dcm_DspVerifyCertificateBidirectional(Dcm_OpStatusType OpStatus,
+                                                     const uint8_t *dataIn, uint16_t dataInLen,
+                                                     uint8_t *dataOut, uint16_t *dataOutLen,
+                                                     Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspProofOfOwnership(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                       uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
+                                       Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_OK;
+
+  r = Dcm_AuthenticationVerifyProofOfOwnership(dataIn, dataInLen, ErrorCode);
+
+  if (E_OK == r) {
+    dataOut[0] = 0x12;
+    *dataOutLen = 1;
+  }
+
+  return r;
+}
+
+Std_ReturnType Dcm_DspTransmitCertificate(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                          uint16_t dataInLen, uint8_t *dataOut,
+                                          uint16_t *dataOutLen,
+                                          Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspRequestChallengeForAuthentication(Dcm_OpStatusType OpStatus,
+                                                        const uint8_t *dataIn, uint16_t dataInLen,
+                                                        uint8_t *dataOut, uint16_t *dataOutLen,
+                                                        Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipUnidirectional(
+  Dcm_OpStatusType OpStatus, const uint8_t *dataIn, uint16_t dataInLen, uint8_t *dataOut,
+  uint16_t *dataOutLen, Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipBidirectional(Dcm_OpStatusType OpStatus,
+                                                          const uint8_t *dataIn, uint16_t dataInLen,
+                                                          uint8_t *dataOut, uint16_t *dataOutLen,
+                                                          Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_NOT_OK;
+  return r;
+}
+
+Std_ReturnType Dcm_DspAuthenticationConfiguration(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                                  uint16_t dataInLen, uint8_t *dataOut,
+                                                  uint16_t *dataOutLen,
+                                                  Dcm_NegativeResponseCodeType *ErrorCode) {
+  Std_ReturnType r = E_OK;
+  *dataOutLen = 1;
+  dataOut[0] = DCM_AUTHENTICATION_TYPE;
+  return r;
+}
+#endif /* DCM_USE_SERVICE_AUTHENTICATION */
+
 void Dcm_DspInit(void) {
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
   Dcm_ReadPeriodicDID_Init();

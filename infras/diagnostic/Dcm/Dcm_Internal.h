@@ -39,6 +39,7 @@
 #define SID_READ_MEMORY_BY_ADDRESS 0x23
 #define SID_SECURITY_ACCESS 0x27
 #define SID_COMMUNICATION_CONTROL 0x28
+#define SID_AUTHENTICATION 0x29
 #define SID_READ_DATA_BY_PERIODIC_IDENTIFIER 0x2A
 #define SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2C
 #define SID_WRITE_DATA_BY_IDENTIFIER 0x2E
@@ -125,9 +126,19 @@
 #define DCM_MEM_ATTR_READ ((uint8_t)0x01)
 #define DCM_MEM_ATTR_WRITE ((uint8_t)0x02)
 #define DCM_MEM_ATTR_EXECUTE ((uint8_t)0x04)
+
+/* Authentication with PKI Certificate Exchange (APCE) (Will be supported by DEXT and AUTOSAR) */
+#define DCM_AUTHENTICATION_WITH_APCE 0x02
+/* Authentication with ChallengeResponse (ACR) and asymmetric cryptography*/
+#define DCM_AUTHENTICATION_WITH_ACRA 0x03
+/* Authentication with ChallengeResponse (ACR) and symmetric cryptograph */
+#define DCM_AUTHENTICATION_WITH_ACRS 0x04
+
+#ifndef DCM_AUTHENTICATION_TYPE
+#define DCM_AUTHENTICATION_TYPE DCM_AUTHENTICATION_WITH_APCE
+#endif
 /* ================================ [ TYPES     ] ============================================== */
-enum
-{
+enum {
   DCM_BUFFER_IDLE = 0,
   DCM_BUFFER_PROVIDED,
   DCM_BUFFER_FULL,
@@ -138,8 +149,7 @@ typedef struct Dcm_Service_s Dcm_ServiceType;
 
 #if defined(DCM_USE_SERVICE_REQUEST_DOWNLOAD) || defined(DCM_USE_SERVICE_REQUEST_UPLOAD)
 /* UDT = Upload Download Transfer */
-typedef enum
-{
+typedef enum {
   DCM_UDT_IDLE_STATE = 0,
   DCM_UDT_UPLOAD_STATE,
   DCM_UDT_DOWNLOAD_STATE
@@ -326,6 +336,22 @@ typedef struct {
   const Dcm_ComCtrlType *ComCtrls;
   uint8_t numOfComCtrls;
 } Dcm_CommunicationControlConfigType;
+
+typedef Std_ReturnType (*Dcm_AuthenticationFncType)(Dcm_OpStatusType OpStatus,
+                                                    const uint8_t *dataIn, uint16_t dataInLen,
+                                                    uint8_t *dataOut,
+                                                    uint16_t *dataOutLen, /* InOut */
+                                                    Dcm_NegativeResponseCodeType *ErrorCode);
+
+typedef struct {
+  uint8_t id;
+  Dcm_AuthenticationFncType authenticationFnc;
+} Dcm_AuthenticationType;
+
+typedef struct {
+  const Dcm_AuthenticationType *Authentications;
+  uint8_t numOfAuthentications;
+} Dcm_AuthenticationConfigType;
 
 /* @SWS_Dcm_91071 */
 typedef Dcm_ReturnWriteMemoryType (*Dcm_ProcessTransferDataWriteFncType)(
@@ -563,8 +589,9 @@ Std_ReturnType Dem_DspReportDTCSnapshotRecordByDTCNumber(Dcm_MsgContextType *msg
                                                          Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dem_DspReportDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *msgContext,
                                                              Dcm_NegativeResponseCodeType *nrc);
-Std_ReturnType Dem_DspReportMirrorMemoryDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *msgContext,
-                                                             Dcm_NegativeResponseCodeType *nrc);
+Std_ReturnType
+Dem_DspReportMirrorMemoryDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *msgContext,
+                                                          Dcm_NegativeResponseCodeType *nrc);
 Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc);
 void Dcm_DslInit(void);
@@ -606,4 +633,43 @@ Std_ReturnType Dcm_DspDynamicallyDefineDataIdentifier(Dcm_MsgContextType *msgCon
 
 Std_ReturnType Dcm_DspReadDDDID(const Dcm_DDDIDConfigType *DDConfig, Dcm_OpStatusType opStatus,
                                 uint8_t *data, uint16_t length, Dcm_NegativeResponseCodeType *nrc);
+
+Std_ReturnType Dcm_DspAuthentication(Dcm_MsgContextType *msgContext,
+                                     Dcm_NegativeResponseCodeType *nrc);
+
+Std_ReturnType Dcm_DspDeAuthentication(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                       uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
+                                       Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspVerifyCertificateUnidirectional(Dcm_OpStatusType OpStatus,
+                                                      const uint8_t *dataIn, uint16_t dataInLen,
+                                                      uint8_t *dataOut, uint16_t *dataOutLen,
+                                                      Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspVerifyCertificateBidirectional(Dcm_OpStatusType OpStatus,
+                                                     const uint8_t *dataIn, uint16_t dataInLen,
+                                                     uint8_t *dataOut, uint16_t *dataOutLen,
+                                                     Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspProofOfOwnership(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                       uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
+                                       Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspTransmitCertificate(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                          uint16_t dataInLen, uint8_t *dataOut,
+                                          uint16_t *dataOutLen,
+                                          Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspRequestChallengeForAuthentication(Dcm_OpStatusType OpStatus,
+                                                        const uint8_t *dataIn, uint16_t dataInLen,
+                                                        uint8_t *dataOut, uint16_t *dataOutLen,
+                                                        Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipUnidirectional(Dcm_OpStatusType OpStatus,
+                                                           const uint8_t *dataIn,
+                                                           uint16_t dataInLen, uint8_t *dataOut,
+                                                           uint16_t *dataOutLen,
+                                                           Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipBidirectional(Dcm_OpStatusType OpStatus,
+                                                          const uint8_t *dataIn, uint16_t dataInLen,
+                                                          uint8_t *dataOut, uint16_t *dataOutLen,
+                                                          Dcm_NegativeResponseCodeType *ErrorCode);
+Std_ReturnType Dcm_DspAuthenticationConfiguration(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                                  uint16_t dataInLen, uint8_t *dataOut,
+                                                  uint16_t *dataOutLen,
+                                                  Dcm_NegativeResponseCodeType *ErrorCode);
 #endif /* DCM_INTERNAL_H */

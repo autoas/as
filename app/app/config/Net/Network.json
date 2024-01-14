@@ -2,6 +2,7 @@
   "class": "Net",
   "Modules": [
     {
+      "name": "DoIp",
       "class": "DoIp",
       "discovery": "224.244.224.245:13400",
       "max_connections" : 3,
@@ -35,6 +36,7 @@
       ]
     },
     {
+      "name": "SomeIp",
       "class": "SomeIp",
       "SD": {
         "hostname" : "ssas",
@@ -104,10 +106,12 @@
       ]
     },
     {
+      "name": "SoAd",
       "class": "SoAd",
       "sockets": [
         {
           "name": "UDPNM_CHL0",
+          "type": "server",
           "server": "224.244.224.245:12345",
           "protocol": "UDP",
           "multicast": true,

@@ -46,6 +46,19 @@
       "name": "security access", "id": "0x27",
       "sessions":["Default", "Program", "Extended"]
     },
+    { "name": "authentication", "id": "0x29", "sessions":["Default", "Extended"],
+      "functions": [
+        { "name": "deAuthenticate", "id": "0x00" },
+        { "name": "verifyCertificateUnidirectional", "id": "0x01" },
+        { "name": "verifyCertificateBidirectional", "id": "0x02" },
+        { "name": "proofOfOwnership", "id": "0x03" },
+        { "name": "transmitCertificate", "id": "0x04" },
+        { "name": "requestChallengeForAuthentication", "id": "0x05" },
+        { "name": "verifyProofOfOwnershipUnidirectional", "id": "0x06" },
+        { "name": "verifyProofOfOwnershipBidirectional", "id": "0x07" },
+        { "name": "authenticationConfiguration", "id": "0x08" }
+      ]
+    },
     {
       "name": "read periodic did", "id": "0x2A",
       "DIDs":[

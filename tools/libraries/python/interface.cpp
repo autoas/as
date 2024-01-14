@@ -102,13 +102,15 @@ public:
     uint32_t baudrate = get<uint32_t, py::int_>(kwargs, "baudrate", 0);
     enhanced = get<bool, py::bool_>(kwargs, "enhanced", true);
     timeout = get<uint32_t, py::int_>(kwargs, "timeout", 100);
+    delayUs = get<uint32_t, py::int_>(kwargs, "delayUs", 0);
     busid = lin_open(device.c_str(), port, baudrate);
     if (busid < 0) {
       throw std::runtime_error("failed to create lin " + device + " port " + std::to_string(port) +
                                " baudrate " + std::to_string(baudrate));
     }
     uint32_t _tmo = timeout * 1000;
-    dev_ioctl(busid, DEV_IOCTL_LIN_SET_TIMEOUT, &_tmo, sizeof(_tmo));
+    dev_ioctl(busid, DEV_IOCTL_SET_TIMEOUT, &_tmo, sizeof(_tmo));
+    dev_ioctl(busid, DEV_IOCTL_SET_DELAY, &delayUs, sizeof(delayUs));
   }
 
   ~lin() {
@@ -143,7 +145,8 @@ public:
 private:
   int busid;
   bool enhanced;
-  int timeout;
+  uint32_t timeout;
+  uint32_t delayUs;
 };
 
 class isotp {
@@ -229,7 +232,6 @@ private:
   isotp_t *tp = nullptr;
   uint8_t buffer[4096];
   isotp_parameter_t params;
-  std::string device;
 };
 
 class dev {

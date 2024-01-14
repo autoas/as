@@ -7,6 +7,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "PduR.h"
 #include "PduR_DoIP.h"
+#include "PduR_Cfg.h"
 #include "PduR_Priv.h"
 #if defined(PDUR_USE_MEMPOOL)
 /* ================================ [ MACROS    ] ============================================== */

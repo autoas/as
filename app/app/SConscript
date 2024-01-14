@@ -47,6 +47,7 @@ libsForCanApp = {'OsekNm': Glob('config/OsekNm_Cfg.c'),
                  'CanTp': Glob('config/Com/GEN/CanTp_Cfg.c'),
                  'PduR': Glob('config/Com/GEN/PduR_Cfg.c'),
                  'CanIf': Glob('config/Com/GEN/CanIf_Cfg.c'),
+                 'CanTSyn': Glob('config/CanTSyn/master/CanTSyn_Cfg.c'),
                  }
 libsForCanApp.update(libsCommon)
 

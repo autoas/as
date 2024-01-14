@@ -17,6 +17,14 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+/* @SWS_Crc_00031 */
+uint8_t Crc_CalculateCRC8(const uint8_t *Crc_DataPtr, uint32_t Crc_Length, uint8_t Crc_StartValue8,
+                          boolean Crc_IsFirstCall);
+
+/* @SWS_Crc_00043 */
+uint8_t Crc_CalculateCRC8H2F(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
+                             uint8_t Crc_StartValue8H2F, boolean Crc_IsFirstCall);
+
 /* @SWS_Crc_00002 */
 uint16_t Crc_CalculateCRC16(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
                             uint16_t Crc_StartValue16, boolean Crc_IsFirstCall);

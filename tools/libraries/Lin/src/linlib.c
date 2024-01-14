@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "Std_Timer.h"
+#include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define LIN_BIT(v, pos) (((v) >> (pos)) & 0x01)
 
@@ -84,6 +85,7 @@ bool lin_write(int busid, lin_id_t id, uint8_t dlc, const uint8_t *data, bool en
   bool r = false;
   size_t len;
   lin_id_t pid = get_pid(id);
+  STD_TOPIC_LIN(busid, false, id, dlc, data);
   if (id > 0x3F) {
     sd[0] = (uint8_t)LIN_TYPE_EXT_HEADER_AND_DATA;
     sd[1] = (pid >> 24) & 0xFF;
@@ -162,6 +164,7 @@ bool lin_read(int busid, lin_id_t id, uint8_t dlc, uint8_t *data, bool enhanced,
     checksum = get_checksum(pid, dlc, &sd[1], enhanced);
     if (checksum == sd[dlc + 1]) {
       memcpy(data, &sd[1], dlc);
+      STD_TOPIC_LIN(busid, true, id, dlc, data);
     } else {
       r = false;
     }

@@ -8,6 +8,7 @@
     "rxid": "0x732",
     "baudrate": 500000
   },
+  "lua": "dcm.lua",
   "groups": {
     "General": {
       "SessionControl": {
@@ -16,16 +17,64 @@
         "program": "0x02"
       },
       "SecurityAccess": {
-        "entend": {
+        "extend": {
           "level": 1,
-          "algorithm": [
+          "python": [
             "def CalculateKey(res):",
             "    seed = (res[2]<<24) + (res[3]<<16) + (res[4]<<8) +(res[5])",
             "    key = (seed^0x78934673)",
             "    return [(key>>24)&0xFF,(key>>16)&0xFF,(key>>8)&0xFF,key&0xFF]"
+          ],
+          "lua":[
+            "function CalculateKey(res)",
+            "    seed = (res[3]<<24) + (res[4]<<16) + (res[5]<<8) +(res[6])",
+            "    key = seed ~ 0x78934673",
+            "    return {(key>>24)&0xFF,(key>>16)&0xFF,(key>>8)&0xFF,key&0xFF}",
+            "end"
           ]
         }
       },
+      "Services": [
+        {
+          "name": "Read Finger Print",
+          "SID": "0x22",
+          "transmit": [
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xF15B", "visible": false }
+          ],
+          "receive": [
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xF15B", "visible": false },
+            { "name": "block ID", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "year", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "month", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "day", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "serial", "type": "U8Array", "size": 6, "display": "asc", "default": "text=#byas#" }
+          ]
+        },
+        {
+          "name": "start Telltales IO Control",
+          "SID": "0x2F",
+          "transmit": [
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xE0E0", "visible": false },
+            { "name": "start", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
+            { "name": "telltale0", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale1", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale2", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale3", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale4", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale5", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale6", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
+            { "name": "telltale7", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] }
+          ]
+        },
+        {
+          "name": "stop Telltales IO Control",
+          "SID": "0x2F",
+          "transmit": [
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xE0E0", "visible": false },
+            { "name": "stop", "type": "U8", "display": "hex", "default": "0x00", "visible": false }
+          ]
+        }
+      ],
       "DataIdentifier" : [
         {
           "name": "Finger Print",
@@ -49,7 +98,7 @@
           "result": true,
           "stop": true,
           "data" : [
-            { "name": "MemoryIdentifier", "type": "U8 Select", "Select": [
+            { "name": "MemoryIdentifier", "type": "U8Select", "Select": [
                             { "name": "FlASH", "value": "0xFF" },
                             { "name": "EEPROM", "value": "0xEE" }
                             ] },
@@ -75,7 +124,119 @@
         }
       ]
     },
+    "Authentication": {
+      "Services":[
+        {
+          "name": "Configuration",
+          "SID": "0x29",
+          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x08", "visible": false } ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x08", "visible": false },
+            { "name": "ARP", "type": "U8Select", "display": "hex", "default": "0x00",
+              "Select": [ { "name": "unknown", "value": "0x00" },
+                          { "name": "Authentication with PKI Certificate Exchange", "value": "0x02" },
+                          { "name": "Authentication with ChallengeResponse (ACR) and asymmetric cryptography", "value": "0x03" },
+                          { "name": "Authentication with ChallengeResponse (ACR) and symmetric cryptograph", "value": "0x04" } ] }
+          ]
+        },
+        {
+          "name": "Send public key certificate to ECU",
+          "SID": "0x29",
+          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
+                        { "name": "type", "type": "U8", "display": "hex", "default": "0x00", "visible": false },
+                        { "name": "certificate", "type": "Table", "size": 0, "lua": "load_certificate", "readonly": true } ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
+            { "name": "type", "type": "U8", "display": "hex", "default": "0x00" },
+            { "name": "challenge", "type": "Table", "size": 0, "lua": "decode_challenge" }
+          ]
+        },
+        {
+          "name": "Proof of Ownership Tester Certificate",
+          "SID": "0x29",
+          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
+                        { "name": "proof", "type": "Table", "size": 0, "lua": "sign_challenge", "readonly": true } ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
+            { "name": "type", "type": "U8", "display": "hex", "default": "0x00" }
+          ]
+        }
+      ]
+    },
     "DTC": {
+      "Services":[
+        {
+          "name": "Report Number Of DTC By Status Mask",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x01",
+               "Select": [{ "name": "Primary", "value": "0x01" }, { "name": "Mirror", "value": "0x11" }] },
+            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
+            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "FormatIdentifier", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "Number", "type": "U16", "display": "hex", "default": 0 }
+          ]
+        },
+        {
+          "name": "Report DTC By Status Mask",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x02",
+               "Select": [{ "name": "Primary", "value": "0x02" }, { "name": "Mirror", "value": "0x0F" }] },
+            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x02", "visible": false },
+            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_status", "datas": [] }
+          ]
+        },
+        {
+          "name": "Report DTC Snapshot Identification",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false}
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
+            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_record_number", "datas": [] }
+          ]
+        },
+        {
+          "name": "Report DTC Snapshot Record By DTCNumber",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x04", "visible": false},
+            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
+            { "name": "Record Number", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x04", "visible": false },
+            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
+            { "name": "StatusMask", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "records", "type": "Table", "size": 0, "lua": "decode_snapshot", "datas": []}
+          ]
+        },
+        {
+          "name": "Report DTC Extended Data Record By DTC Number",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x06",
+               "Select": [{ "name": "Primary", "value": "0x06" }, { "name": "Mirror", "value": "0x10" }] },
+            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
+            { "name": "Record Number", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x06", "visible": false },
+            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
+            { "name": "StatusMask", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "records", "type": "Table", "size": 0, "lua": "decode_extended_data", "datas": [] }
+          ]
+        }
+      ],
       "DTC" : {
         "path" : "../../app/app/config/Dem.json"
       }

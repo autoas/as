@@ -6,6 +6,7 @@
 #include "isotp.h"
 #include "isotp_types.h"
 #include <pthread.h>
+#include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_ISOTP 0
 #define AS_LOG_ISOTPI 2
@@ -51,6 +52,8 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
 int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize) {
   int r = -1;
+
+  STD_TOPIC_UDS(&isotp->params, FALSE, (uint32_t)txSize, txBuffer);
   switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
     r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
@@ -66,6 +69,13 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
   default:
     break;
   }
+
+#ifdef USE_STD_TOPIC
+  if ((r > 0) && (rxBuffer != NULL)) {
+    STD_TOPIC_UDS(&isotp->params, TRUE, (uint32_t)r, rxBuffer);
+  }
+#endif
+
   return r;
 }
 
@@ -86,6 +96,11 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   default:
     break;
   }
+#ifdef USE_STD_TOPIC
+  if (r > 0) {
+    STD_TOPIC_UDS(&isotp->params, TRUE, (uint32_t)r, rxBuffer);
+  }
+#endif
   return r;
 }
 

@@ -24,6 +24,9 @@
 #ifdef USE_CANNM
 #include "CanNm.h"
 #endif
+#ifdef USE_CANTSYN
+#include "CanTSyn.h"
+#endif
 #endif
 
 #ifdef USE_PDUR
@@ -150,6 +153,9 @@ static void MainTask_10ms(void) {
 #ifdef USE_CANNM
   CanNm_MainFunction();
 #endif
+#ifdef USE_CANTSYN
+  CanTSyn_MainFunction();
+#endif
 #endif
 #ifdef USE_LINTP
   LinTp_MainFunction();
@@ -271,6 +277,9 @@ static void BSW_Init(void) {
 #endif
 #ifdef USE_CANNM
   CanNm_Init(NULL);
+#endif
+#ifdef USE_CANTSYN
+  CanTSyn_Init(NULL);
 #endif
 #endif
 

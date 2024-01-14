@@ -62,7 +62,7 @@ def Gen_CanIf(cfg, dir):
             C.write('#include "PduR_CanIf.h"\n')
         else:
             C.write('#include "%s.h"\n' % (mod))
-        if mod not in ['OsekNm', 'CanNm']:
+        if mod not in ['OsekNm', 'CanNm', 'CanTSyn']:
             C.write('#include "%s_Cfg.h"\n' % (mod))
     C.write(
         '/* ================================ [ MACROS    ] ============================================== */\n')
@@ -80,7 +80,7 @@ def Gen_CanIf(cfg, dir):
                 C.write('    %s_CanIfRxIndication,\n' % (pdu['up']))
             else:
                 C.write('    %s_RxIndication,\n' % (pdu['up']))
-            if pdu['up'] in ['OsekNm', 'CanNm']:
+            if pdu['up'] in ['OsekNm', 'CanNm', 'CanTSyn']:
                 C.write('    %s, /* NetId */\n' % (netId))
             else:
                 C.write('    %s_%s,\n' % (pdu['up'].upper(), pdu['name']))
@@ -102,7 +102,7 @@ def Gen_CanIf(cfg, dir):
                 C.write('    %s_CanIfTxConfirmation,\n' % (pdu['up']))
             else:
                 C.write('    %s_TxConfirmation,\n' % (pdu['up']))
-            if pdu['up'] in ['OsekNm', 'CanNm']:
+            if pdu['up'] in ['OsekNm', 'CanNm', 'CanTSyn']:
                 C.write('    %s, /* NetId */\n' % (netId))
             else:
                 C.write('    %s_%s,\n' % (pdu['up'].upper(), pdu['name']))
@@ -166,6 +166,9 @@ def extract(cfg, dir):
     if bNew:
         with open('%s/CanIf.json' % (dir), 'w') as f:
             json.dump(cfg_, f, indent=2)
+    for network in cfg_['networks']:
+        network['RxPdus'].sort(key=lambda x: eval(str(x['id'])))
+        network['TxPdus'].sort(key=lambda x: eval(str(x['id'])))
     return cfg_
 
 

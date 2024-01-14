@@ -36,7 +36,7 @@ comments: true
 
 如上图所以，CAN Sim是一个TCP Server, N0、N1和N2是TCP Client， N0、N1和N2各自和CAN Sim建立TCP链接，当比如N0发送CAN报文时，N0实际是发送CAN报文数据给CAN Sim，在由CAN sim 负责将该CAN报文转发给N1和N2，从而实现一个虚拟的广播。此方案尽管不是很完美，其实是可以使用UDP广播技术会更好，但这是在我还不懂UDP广播技术之前就已开发实现的方案，尽管没有UDP广播技术方案好，但其也很nice，这么多年来，此技术方案帮助我向上实现验证了各CAN通讯栈基础模块，比如CANTP、DCM、COM、CANNM和OSKENM等，也辅助开发验证了bootloader解决方案。
 
-在我[ssas-public](https://github.com/autoas/ssas-public)仓库中，[CAN Sim代码](https://github.com/autoas/ssas-public/tools/libraries/Can/utils/can_simulator.c)是开源的，其实现相当的简单， 代码不超过500行，有兴趣的可以阅读理解下。但很抱歉，client端实现代码并未开源，目前client端开放头文件[canlib.h](https://github.com/autoas/ssas-public/tools/libraries/Can/include/canlib.h), 开放如下API接口：
+在我[ssas-public](https://github.com/autoas/ssas-public)仓库中，[CAN Sim代码](https://github.com/autoas/ssas-public/tools/libraries/Can/utils/can_simulator.c)是开源的，其实现相当的简单， 代码不超过500行，有兴趣的可以阅读理解下。client端实现代码也已开源，client端头文件[canlib.h](https://github.com/autoas/ssas-public/tools/libraries/Can/include/canlib.h)提供如下API接口：
 
 ```c
 int can_open(const char *device_name, uint32_t port, uint32_t baudrate);

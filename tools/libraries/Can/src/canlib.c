@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include "Std_Timer.h"
+#include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_BUS_NUM 32
 #define CAN_BUS_PDU_NUM 128
@@ -338,15 +339,13 @@ static const Can_DeviceOpsType *search_ops(const char *name) {
 }
 
 static void logCan(boolean isRx, int busid, uint32_t canid, uint8_t dlc, const uint8_t *data) {
-  static Std_TimerType timer;
+  uint32_t i;
+  char ts[64];
 
-  if (false == Std_IsTimerStarted(&timer)) {
-    Std_TimerStart(&timer);
-  }
+  STD_TOPIC_CAN(busid, isRx, canid, dlc, data);
+
   if (NULL != canLog) {
-    uint32_t i;
-    std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
-    float rtim = elapsedTime / 1000000.0;
+    Std_GetDateTime(ts, sizeof(ts));
     pthread_mutex_lock(&canbusH.q_lock);
     fprintf(canLog, "busid=%d %s canid=%04X dlc=%d data=[", busid, isRx ? "rx" : "tx", canid, dlc);
     if (dlc < 8) {
@@ -365,13 +364,13 @@ static void logCan(boolean isRx, int busid, uint32_t canid, uint8_t dlc, const u
         fprintf(canLog, ".");
       }
     }
-    fprintf(canLog, "] @ %f s\n", rtim);
+    fprintf(canLog, "] @ %s\n", ts);
     pthread_mutex_unlock(&canbusH.q_lock);
   }
 }
 
 static void __attribute__((constructor)) canlib_open(void) {
-
+  char ts[64];
   pthread_mutexattr_t attr;
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -387,11 +386,9 @@ static void __attribute__((constructor)) canlib_open(void) {
     if (logPath != NULL) {
       canLog = fopen(logPath, "w+");
       if (NULL != canLog) {
-        time_t t = time(0);
-        struct tm *lt = localtime(&t);
+        Std_GetDateTime(ts, sizeof(ts));
         ASLOG(INFO, ("can trace log to file < %s >\n", logPath));
-        fprintf(canLog, "can log %04d-%02d-%02d %02d:%02d:%02d\n\n", lt->tm_year + 1900,
-                lt->tm_mon + 1, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec);
+        fprintf(canLog, "can log %s\n\n", ts);
       } else {
         ASLOG(ERROR, ("canlib: failed to create log %s\n", logPath));
       }

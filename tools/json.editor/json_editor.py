@@ -120,6 +120,7 @@ class JsonEnumRefString(QComboBox):
         assert (isinstance(root, JsonModule))
         prop = obj.get_prop(title)
         self.enumref = prop['enumref']
+        self.enumitems = prop.get('enum', [])
         self.title = title
         self.obj = obj
         self.root = root
@@ -136,7 +137,7 @@ class JsonEnumRefString(QComboBox):
         if None != items:
             vs = str(self.obj.get(self.title))
             self.clear()
-            self.addItems([str(i) for i in items])
+            self.addItems(self.enumitems + [str(i) for i in items])
             self.setCurrentIndex(self.findText(vs))
 
     def initItems(self):
@@ -360,6 +361,11 @@ class JsonBase(QTreeWidgetItem):
             else:
                 raise
         attr = urls[-1]
+        if ':' in attr:
+            cfg = which.toJSON()
+            title, field = attr.split(':')
+            logging.debug('which cfg: %s, title: %s, field: %s', cfg, title, field)
+            return [x[field] for x in cfg[title]]
         return which.get(attr)
 
     def reload(self):
@@ -417,6 +423,8 @@ class JsonBase(QTreeWidgetItem):
             except KeyError:
                 if attr == 'name':
                     prop = {'default': self.title}
+                else:
+                    raise Exception('no attribute %s for %s' % (attr, self.schema))
             if 'default' in prop:
                 self.schema[attr] = prop['default']
             elif prop['type'] == 'string':

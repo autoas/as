@@ -235,4 +235,16 @@ Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType OpStatus, uint8_t Mem
                                           uint32_t MemoryAddress, uint32_t MemorySize,
                                           const uint8_t *MemoryData,
                                           Dcm_NegativeResponseCodeType *ErrorCode);
+
+Std_ReturnType Dcm_AuthenticationVerifyTesterCertificate(const uint8_t *publicKey,
+                                                         uint16_t publicKeyLen,
+                                                         const uint8_t *signature,
+                                                         uint16_t signatureLen,
+                                                         Dcm_NegativeResponseCodeType *ErrorCode);
+
+Std_ReturnType Dcm_AuthenticationGetChallenge(uint8_t *challenge, uint16_t *length);
+
+Std_ReturnType Dcm_AuthenticationVerifyProofOfOwnership(const uint8_t *signature,
+                                                        uint16_t signatureLen,
+                                                        Dcm_NegativeResponseCodeType *ErrorCode);
 #endif /* DCM_H */

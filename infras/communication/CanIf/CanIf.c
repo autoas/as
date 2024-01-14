@@ -81,16 +81,21 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
   const CanIf_ConfigType *config = CANIF_CONFIG;
   const CanIf_RxPduType *var;
   const CanIf_RxPduType *rxPdu = NULL;
-  uint16_t i;
+  uint16_t l, h, m;
 
-  /* TODO: this is slow, better to build fast searching map */
-  for (i = 0; i < config->numOfRxPdus; i++) {
-    var = &config->rxPdus[i];
-    if (var->hoh == Mailbox->Hoh) {
-      if (var->canid == (Mailbox->CanId & var->mask)) {
-        rxPdu = var;
-        break;
-      }
+  l = 0;
+  h = config->numOfRxPdus - 1;
+  while ((NULL == rxPdu) && (l <= h)) {
+    m = l + ((h - l) >> 1);
+    var = &config->rxPdus[m];
+    if ((var->hoh == Mailbox->Hoh) && (var->canid == (Mailbox->CanId & var->mask))) {
+      rxPdu = var;
+    } else if (var->canid > Mailbox->CanId) {
+      h = m - 1;
+    } else if (var->canid < Mailbox->CanId) {
+      l = m + 1;
+    } else {
+      break; /* should not reach here */
     }
   }
 

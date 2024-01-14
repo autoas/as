@@ -65,9 +65,10 @@ TypeInfoMap = {
     'uint32': {'size': 4, 'IsArray': False, 'ctype': 'uint32_t'},
     'int32': {'size': 4, 'IsArray': False, 'ctype': 'int32_t'},
     'uint64': {'size': 8,  'IsArray': False, 'ctype': 'uint64_t'},
-    'int164': {'size': 8, 'IsArray': False, 'ctype': 'uint64_t'},
+    'int64': {'size': 8, 'IsArray': False, 'ctype': 'uint64_t'},
     'float': {'size': 4, 'IsArray': False, 'ctype': 'float'},
     'double': {'size': 8, 'IsArray': False, 'ctype': 'double'},
+    'bool_n': {'size': 1, 'IsArray': True, 'ctype': 'boolean'},
     'uint8_n': {'size': 1, 'IsArray': True, 'ctype': 'uint8_t'},
     'int8_n': {'size': 1, 'IsArray': True, 'ctype': 'int8_t'},
     'uint16_n': {'size': 2, 'IsArray': True, 'ctype': 'uint16_t'},
@@ -76,6 +77,8 @@ TypeInfoMap = {
     'int32_n': {'size': 4, 'IsArray': True, 'ctype': 'int32_t'},
     'uint64_n': {'size': 8, 'IsArray': True, 'ctype': 'uint64_t'},
     'int64_n': {'size': 8, 'IsArray': True, 'ctype': 'int64_t'},
+    'float_n': {'size': 4, 'IsArray': True, 'ctype': 'float'},
+    'double_n': {'size': 8, 'IsArray': True, 'ctype': 'double'},
 }
 
 def GetDataSize(data):

@@ -19,7 +19,7 @@
 #define LINIF_STATUS_SENDING 0x10   /* for master node */
 #define LINIF_STATUS_RECEIVING 0x20 /* for slave node */
 
-#define IS_LINIF_IDEL(status) (0 == ((status)&0xF0))
+#define IS_LINIF_IDEL(status) (0 == ((status) & 0xF0))
 
 #define LINIF_CONFIG (&LinIf_Config)
 /* ================================ [ TYPES     ] ============================================== */
@@ -115,9 +115,12 @@ void LinIf_Init(const LinIf_ConfigType *ConfigPtr) {
 void LinIf_DeInit() {
   int i;
   LinIf_ChannelContextType *context;
+  const LinIf_ChannelConfigType *config;
   for (i = 0; i < LINIF_CONFIG->numOfChannels; i++) {
+    config = &LINIF_CONFIG->channelConfigs[i];
     context = &LINIF_CONFIG->channelContexts[i];
     context->status = 0;
+    Lin_SetControllerMode(config->linChannel, LIN_CS_STOPPED);
     Std_TimerStop(&context->timer);
   }
 }
@@ -227,7 +230,7 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
   const LinIf_ChannelConfigType *config;
   const LinIf_ScheduleTableEntryType *entry;
   Std_ReturnType ret = E_NOT_OK;
-  int i;
+  int l, h, m;
 
   if (Channel < LINIF_CONFIG->numOfChannels) {
     context = &LINIF_CONFIG->channelContexts[Channel];
@@ -249,36 +252,48 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
   }
 
   if (E_OK == ret) {
-    for (i = 0; i < context->scheduleTable->numOfEntries; i++) {
-      entry = &context->scheduleTable->entrys[i];
-      if (PduPtr->Pid == entry->id) {
-        if (LIN_FRAMERESPONSE_RX == entry->Drc) {
-          context->curSch = i;
-          PduPtr->Dl = entry->dlc;
-          PduPtr->Cs = entry->Cs;
-          PduPtr->Drc = entry->Drc;
-          context->status |= LINIF_STATUS_RECEIVING;
-          Std_TimerStart(&context->timer);
-        } else if (LIN_FRAMERESPONSE_TX == entry->Drc) {
-          context->frame.Pid = entry->id;
-          context->frame.Dl = entry->dlc;
-          context->frame.SduPtr = context->data;
-          context->frame.Drc = entry->Drc;
-          ret = entry->callback(Channel, &context->frame, LINIF_R_TRIGGER_TRANSMIT);
-          if (LINIF_R_OK == ret) {
-            PduPtr->Pid = entry->id;
-            PduPtr->Cs = entry->Cs;
-            PduPtr->Drc = entry->Drc;
-            PduPtr->Dl = entry->dlc;
-            PduPtr->SduPtr = context->data;
-            ret = E_OK;
-          } else {
-            ret = E_NOT_OK;
-          }
-        } else {
-          /* ignore */
-        }
+    l = 0;
+    h = context->scheduleTable->numOfEntries - 1;
+    ret = E_NOT_OK;
+    while ((E_NOT_OK == ret) && (l <= h)) {
+      m = l + ((h - l) >> 1);
+      entry = &context->scheduleTable->entrys[m];
+      if (entry->id > PduPtr->Pid) {
+        h = m - 1;
+      } else if (entry->id < PduPtr->Pid) {
+        l = m + 1;
+      } else {
+        ret = E_OK;
       }
+    }
+  }
+
+  if (E_OK == ret) {
+    if (LIN_FRAMERESPONSE_RX == entry->Drc) {
+      context->curSch = m;
+      PduPtr->Dl = entry->dlc;
+      PduPtr->Cs = entry->Cs;
+      PduPtr->Drc = entry->Drc;
+      context->status |= LINIF_STATUS_RECEIVING;
+      Std_TimerStart(&context->timer);
+    } else if (LIN_FRAMERESPONSE_TX == entry->Drc) {
+      context->frame.Pid = entry->id;
+      context->frame.Dl = entry->dlc;
+      context->frame.SduPtr = context->data;
+      context->frame.Drc = entry->Drc;
+      ret = entry->callback(Channel, &context->frame, LINIF_R_TRIGGER_TRANSMIT);
+      if (LINIF_R_OK == ret) {
+        PduPtr->Pid = entry->id;
+        PduPtr->Cs = entry->Cs;
+        PduPtr->Drc = entry->Drc;
+        PduPtr->Dl = entry->dlc;
+        PduPtr->SduPtr = context->data;
+        ret = E_OK;
+      } else {
+        ret = E_NOT_OK;
+      }
+    } else {
+      /* ignore */
     }
   }
 

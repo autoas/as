@@ -59,7 +59,7 @@ static void lin_sched(int busId, isotp_t *isotp) {
   Std_ReturnType r;
   bool ret;
   bool enahnced = true;
-  int timeout = isotp->params.U.LIN.timeout; /* ms */
+  int timeout = isotp->params.U.LIN.timeout + isotp->params.U.LIN.timeout / 5; /* ms */
   frame.SduPtr = data;
   frame.Dl = isotp->params.ll_dl;
   if (LINIF_SCH_TABLE_DIAG_REQUEST == lDiagRequestType) {
@@ -110,7 +110,7 @@ static void *lin_server_main(void *args) {
     sem_post(&isotp->sem);
     return NULL;
   }
-  dev_ioctl(busId, DEV_IOCTL_LIN_SET_TIMEOUT, &timeout, sizeof(timeout));
+  dev_ioctl(busId, DEV_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
 #endif
 #ifdef USE_LINIF
   Lin_Init(NULL);
@@ -154,6 +154,12 @@ static void *lin_server_main(void *args) {
 
     usleep(1000);
   }
+
+#ifdef USE_LINIF
+  LinIf_DeInit();
+#else
+  lin_close(busId);
+#endif
 
   return NULL;
 }

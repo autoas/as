@@ -2,36 +2,38 @@
   "class": "Net",
   "Modules": [
     {
+      "name": "SomeIp",
       "class": "SomeIp",
       "SD": {
         "hostname" : "ssas",
         "multicast" : "224.244.224.245"
       },
-      "structs": {
-        "Gauge": {
+      "structs": [
+        {
+          "name": "Gauge",
           "data": [
             { "name": "name", "type": "string", "size": 32 },
             { "name": "degree", "type": "uint32" }
           ]
         },
-        "Telltale": {
+        {
+          "name": "Telltale",
           "data": [
             { "name": "name", "type": "string", "size": 32 },
             { "name": "on", "type": "bool" }
           ]
         },
-        "Display": {
+        {
+          "name": "Display",
           "data": [
             { "name": "gauges", "type": "Gauge", "size": 4, "variable_array": true },
             { "name": "telltales", "type": "Telltale", "size": 16, "variable_array": true }
           ]
         }
-      },
-      "args": {
-        "display-args": [
-          { "name": "display", "type": "Display" }
-        ]
-      },
+      ],
+      "args": [
+        { "name": "display-args", "args": [ {"name": "display", "type": "Display"} ] }
+      ],
       "servers": [
         {
           "name": "VIC",

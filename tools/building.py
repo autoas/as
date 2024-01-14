@@ -6,6 +6,7 @@ import glob
 import shutil
 import SCons
 from SCons.Script import *
+import re
 
 RootDir = os.path.abspath(os.path.dirname(__file__) + '/..')
 
@@ -305,22 +306,41 @@ def PkgGlob(pkg, objs):
     return SConscript(sc, variant_dir='%s/%s' % (BUILD_DIR, os.path.basename(pkg)), duplicate=0)
 
 
+def __isInRemove__(x, remove):
+    if type(x) == type('str'):
+        bn = os.path.basename(x)
+    else:
+        bn = os.path.basename(x.rstr())
+    if bn in remove:
+        return True
+    else:
+        for rm in remove:
+            reRM = re.compile(r'^%s$' % (rm))
+            if reRM.search(bn):
+                return True
+    return False
+
 def SrcRemove(src, remove):
     if not src:
         return
-
+    L = []
     for item in src:
         if type(item) == type('str'):
-            if (os.path.basename(item) in remove):
-                src.remove(str(item))
+            if __isInRemove__(item, remove):
+                L.append(item)
         else:
             if (type(item) == list):
+                Li = []
                 for itt in item:
-                    if (os.path.basename(itt.rstr()) in remove):
-                        item.remove(itt)
-                continue
-            if (os.path.basename(item.rstr()) in remove):
-                src.remove(item)
+                    if __isInRemove__(itt, remove):
+                        Li.append(itt)
+                for itt in Li:
+                    item.remove(itt)
+            else:
+                if __isInRemove__(item, remove):
+                    L.append(item)
+    for item in L:
+        src.remove(item)
 
 
 def Package(url, ** parameters):
@@ -857,8 +877,9 @@ def CompilerArmGCC(**kwargs):
         cpl = Package(gccarm)
         if (not IsPlatformWindows()):
             cpl += '/gcc-arm-none-eabi-5_4-2016q3'
-    env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/5.4.1' % (cpl)])
-    env.Append(LIBPATH=['%s/arm-none-eabi/lib' % (cpl)])
+    machine = kwargs.get('machine', '')
+    env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/5.4.1/%s' % (cpl, machine)])
+    env.Append(LIBPATH=['%s/arm-none-eabi/lib/%s' % (cpl, machine)])
     env['CC'] = '%s/bin/arm-none-eabi-gcc' % (cpl)
     env['CXX'] = '%s/bin/arm-none-eabi-g++' % (cpl)
     env['AS'] = '%s/bin/arm-none-eabi-gcc -c' % (cpl)
@@ -928,7 +949,7 @@ def CompilerArmCC(**kwargs):
 
 @register_compiler
 def CompilerCM0PGCC(**kwargs):
-    env = CreateCompiler('ArmGCC')
+    env = CreateCompiler('ArmGCC', machine='armv6-m')
     env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m0plus'])
     env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
     env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m0plus'])
@@ -940,7 +961,7 @@ def CompilerCM0PGCC(**kwargs):
 
 @register_compiler
 def CompilerCM3GCC(**kwargs):
-    env = CreateCompiler('ArmGCC')
+    env = CreateCompiler('ArmGCC', machine='armv7-m')
     env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m3'])
     env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m3'])
     env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m3'])
@@ -956,8 +977,6 @@ def __CompilerGCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
-    if IsBuildForWindows():
-        env.Append(LINKFLAGS=['-static'])
     if IsPlatformTermux():
         prefix = os.getenv('PREFIX')
         env['CC'] = '%s/bin/clang' % (prefix)
@@ -1088,8 +1107,6 @@ def CompilerPYCC(**kwargs):
     env.Append(CPPFLAGS=['-Wall'])
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
-    if IsPlatformWindows():
-        env.Append(LINKFLAGS=['-static'])
     AddPythonDev(env)
     return env
 
@@ -1363,6 +1380,7 @@ def RegisterCPPPATH(name, path, force=False):
     if not name.startswith('$'):
         raise Exception('CPPPATH name %s not starts with "$"' % (name))
     if name not in __cpppath__ or force == True:
+        aslog("register global CPPPATH: %s=%s" % (name, path))
         __cpppath__[name] = path
     else:
         if __cpppath__[name] != path:
@@ -1555,6 +1573,7 @@ class BuildBase():
                 self.user.RegisterCPPPATH(name, path, force)
             else:
                 if name not in self.user.__cpppath__ or force == True:
+                    aslog("register local CPPPATH: %s=%s" % (name, path))
                     self.user.__cpppath__[name] = path
                 else:
                     raise KeyError('CPPPATH %s already registered for %s' %
@@ -1740,6 +1759,9 @@ class Library(BuildBase):
 
     def objs(self):
         libName = self.name
+        if getattr(self, 'prebuilt_shared', False):
+            aslog('prebuilt shared of %s' % (libName))
+            return self.source
         aslog('build objs of %s' % (libName))
         env = self.ensure_env()
         CPPPATH = getattr(self, 'CPPPATH', [])
@@ -1790,23 +1812,46 @@ class Library(BuildBase):
         return objs
 
     def build(self):
+        if getattr(self, 'prebuilt_shared', False):
+            return self.source
         libName = self.name
         if ':' in libName:
             libName = libName.split(':')[0]
         env = self.ensure_env()
-        objs = self.objs()
+        LIBS = []
+        objs = []
         LIBPATH = list(env.get('LIBPATH', [])) + getattr(self, 'LIBPATH', [])
         for libName_, lib in self.__libs__.items():
-            objs += lib.objs()
+            objs_ = lib.objs()
+            thresh = 200
+            if len(objs_) > thresh:
+                lib_ = env.Library(libName_, objs_)[0]
+                p = os.path.dirname(lib_.get_abspath())
+                if p not in LIBPATH:
+                    LIBPATH.append(p)
+                LIBS.append(libName_)
+            else:
+                objs += objs_
             LIBPATH += getattr(lib, 'LIBPATH', [])
+        objs += self.objs()
         if self.is_shared_library():
-            LIBS = []
             LINKFLAGS = getattr(self, 'LINKFLAGS', []) + \
                 list(env.get('LINKFLAGS', []))
             objs2 = []
             for obj in objs:
-                if str(obj).endswith('.a'):
+                if type(obj) is SCons.Node.FS.File:
+                    if (obj.rstr().endswith('.a')):
+                        name = os.path.basename(obj.rstr())[3:-2]
+                        LIBPATH.append(os.path.dirname(obj.rstr()))
+                        LIBS.append(name)
+                    else:
+                        objs2.append(obj)
+                elif str(obj).endswith('.a'):
                     name = os.path.basename(obj)[3:-2]
+                    LIBPATH.append(os.path.dirname(obj))
+                    LIBS.append(name)
+                elif str(obj).endswith('.dll'):
+                    name = os.path.basename(obj)[:-4]
                     LIBPATH.append(os.path.dirname(obj))
                     LIBS.append(name)
                 else:
@@ -1866,21 +1911,19 @@ class Application(BuildBase):
         for name in self.__libs_order__:
             if self.__libs__[name].is_shared_library():
                 aslog('build shared library %s' % (name))
-                objs += self.__libs__[name].build()
+                objs_ = self.__libs__[name].build()
+                objs += objs_
                 continue
             aslog('build library %s' % (name))
             objs_ = self.__libs__[name].objs()
-            tooMuch = True if (len(objs) + len(objs_)) > 200 else False
+            if isinstance(env, CustomEnv):
+                thresh = 1000000
+            else:
+                thresh = 200
+            tooMuch = True if (len(objs) + len(objs_)) > thresh else False
             libObjs = []
             for obj in objs_:
-                if not str(obj).endswith('.a'):
-                    if not tooMuch:
-                        objs.append(obj)
-                        if '%s_Cfg' % (name) not in str(obj):
-                            libObjs.append(obj)
-                    else:
-                        libObjs.append(obj)
-                else:
+                if str(obj).endswith('.a'):
                     libName = os.path.basename(str(obj))[3:-2]
                     p = os.path.dirname(str(obj))
                     if p not in LIBPATH:
@@ -1889,17 +1932,27 @@ class Application(BuildBase):
                         LIBS.insert(0, name)
                     else:
                         LIBS.append(libName)
+                elif str(obj).endswith('.dll'):
+                    libName = os.path.basename(str(obj))[:-4]
+                    p = os.path.dirname(str(obj))
+                    if p not in LIBPATH:
+                        LIBPATH.append(p)
+                    LIBS.append(libName)
+                else:
+                    if not tooMuch:
+                        objs.append(obj)
+                    else:
+                        libObjs.append(obj)
             if (len(libObjs) > 0):
                 if ':' in name:
                     libName = name.split(':')[0]
                 else:
                     libName = name
                 lib = env.Library(libName, libObjs)[0]
-                if tooMuch:
-                    p = os.path.dirname(lib.get_abspath())
-                    if p not in LIBPATH:
-                        LIBPATH.append(p)
-                    LIBS.append(name)
+                p = os.path.dirname(lib.get_abspath())
+                if p not in LIBPATH:
+                    LIBPATH.append(p)
+                LIBS.append(libName)
             LIBPATH += getattr(self.__libs__[name], 'LIBPATH', [])
         LIBS += self.__extra_libs__
         target = env.Program(appName, objs, CPPPATH=CPPPATH,

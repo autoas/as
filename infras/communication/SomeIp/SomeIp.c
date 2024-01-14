@@ -1063,6 +1063,8 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
 
   if (SOMEIP_E_PENDING == ret) {
     /* ok silent */
+  } else if (SOMEIPXF_E_WRONG_MESSAGE_TYPE == ret) {
+    /* ignore it */
   } else if (E_OK != ret) {
     (void)SomeIp_ReplyError(config->connections[conId].TxPduId, msg, ret);
   } else {

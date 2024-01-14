@@ -80,10 +80,11 @@
                 "read memory by address": { "id": "0x23" },
                 "security access": { "id": "0x27" },
                 "communication control": { "id": "0x28", "extend": true },
+                "authentication": { "id": "0x29", "extend": true },
                 "read periodic did": { "id": "0x2A", "extend": true },
                 "dynamic defined did": { "id": "0x2C" },
                 "write did": { "id": "0x2E", "extend": true },
-                "IO Control": { "id": "0x2F", "extend": true },
+                "ioctl": { "id": "0x2F", "extend": true },
                 "routine control": { "id": "0x31", "extend": true },
                 "request download": { "id": "0x34", "extend": true },
                 "request upload": { "id": "0x35", "extend": true },
@@ -134,6 +135,17 @@
                 }
               }
             },
+            "authentication": {
+              "functions": {
+                "type": "array", "items": {
+                  "type": "object", "title": "function",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFF", "minimum": 0,"maximum": 255 }
+                  }
+                }
+              }
+            },
             "read periodic did": {
               "DIDs": {
                 "type": "array", "items": {
@@ -166,7 +178,7 @@
                 }
               }
             },
-            "IO Control" : {
+            "ioctl" : {
               "IOCTLs": {
                 "type": "array", "items": {
                   "type": "object", "title": "IOCTL",
@@ -590,9 +602,44 @@
                   "multicast": { "type": "string", "default": "224.244.224.245" }
                 }
               },
+              "structs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "struct", "display_with_list": false,
+                    "properties": {
+                      "name": { "type": "string" },
+                      "data": { "type": "array", "items": {
+                        "type": "object", "title": "data",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "type": { "type": "string", "enumref": "../../../../structs:name", 
+                              "enum": ["string", "bool", "float", "double", "bool_n", "float_n", "double_n",
+                                "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64",
+                                "uint8_n", "uint16_n", "uint32_n", "uint64_n","int8_n", "int16_n", "int32_n", "int64_n"], "default": "uint32"},
+                          "variable_array": { "type": "bool", "default": false, "enabled": "'${type}' != 'string' or '${type}'[-2:] == '_n'"},
+                          "size":  { "type": "integer", "default": 1, "enabled": "'${type}'[-2:] == '_n' or '${type}' == 'string'" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "args": {
+                "type": "array", "items": {
+                  "type": "object", "title": "args", "properties": {
+                    "name": { "type": "string" },
+                    "args": { "type": "array", "items": {
+                      "type": "object", "title": "arg", "properties": {
+                        "name": { "type": "string" },
+                        "type": { "type": "string", "enumref": "../../../../structs:name" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "servers": {
                 "type": "array", "items": {
-                  "type": "object", "title": "server",  "display_with_list": false,
+                  "type": "object", "title": "server", "display_with_list": false,
                   "properties": {
                     "name": { "type": "string" },
                     "service": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
@@ -606,8 +653,9 @@
                         "type": "object", "title": "method",
                         "properties": {
                           "name": { "type": "string" },
+                          "args": { "type": "string", "enumref": "../../../../args:name" },
                           "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
-                          "tp": { "type": "bool", "default": true },
+                          "tp": { "type": "bool", "default": false },
                           "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
                         }
                       }
@@ -623,8 +671,9 @@
                                 "type": "object", "title": "event",
                                 "properties": {
                                   "name": { "type": "string" },
+                                  "args": { "type": "string", "enumref": "../../../../../../args:name" },
                                   "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
-                                  "tp": { "type": "bool", "default": true },
+                                  "tp": { "type": "bool", "default": false },
                                   "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
                                 }
                               }
@@ -651,8 +700,9 @@
                         "type": "object", "title": "method",
                         "properties": {
                           "name": { "type": "string" },
+                          "args": { "type": "string", "enumref": "../../../../args:name" },
                           "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
-                          "tp": { "type": "bool", "default": true },
+                          "tp": { "type": "bool", "default": false },
                           "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
                         }
                       }
@@ -667,6 +717,7 @@
                               "type": "object", "title": "event",
                               "properties": {
                                 "name": { "type": "string" },
+                                "args": { "type": "string", "enumref": "../../../../../../args:name" },
                                 "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
                                 "tp": { "type": "bool", "default": true },
                                 "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
@@ -692,7 +743,7 @@
                     "protocol": { "type": "string", "enum": ["UDP", "TCP"], "default": "UDP" },
                     "multicast": { "type": "bool", "default": false, "enabled": "'${protocol}' == 'UDP'" },
                     "listen": { "type": "integer", "default": 3, "enabled": "'${protocol}' == 'TCP' and '${type}' == 'server'" },
-                    "up": { "type": "string", "enum": ["DoIP", "SD", "SOMEIP", "User"] },
+                    "up": { "type": "string", "enum": ["DoIP", "SD", "SOMEIP", "UdpNm", "User"] },
                     "RxPduId": { "type": "string" }
                   }
                 }

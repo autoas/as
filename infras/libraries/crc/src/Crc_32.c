@@ -22,10 +22,12 @@ uint32_t Crc_CalculateCRC32(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
   uint32_t u32Crc = Crc_StartValue32;
 
   if (Crc_IsFirstCall) {
-    Crc_StartValue32 = 0xFFFFFFFF;
+    Crc_StartValue32 = crc_init();
   }
 
   u32Crc = crc_update(Crc_StartValue32, Crc_DataPtr, Crc_Length);
+
+  u32Crc = crc_finalize(u32Crc);
 
   return u32Crc;
 }
