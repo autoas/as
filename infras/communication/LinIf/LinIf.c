@@ -255,6 +255,10 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
     l = 0;
     h = context->scheduleTable->numOfEntries - 1;
     ret = E_NOT_OK;
+    entry = &context->scheduleTable->entrys[0];
+    if (PduPtr->Pid < entry->id) {
+      l = h + 1; /* avoid the underflow of "m - 1" */
+    }
     while ((E_NOT_OK == ret) && (l <= h)) {
       m = l + ((h - l) >> 1);
       entry = &context->scheduleTable->entrys[m];

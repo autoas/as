@@ -85,6 +85,10 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
 
   l = 0;
   h = config->numOfRxPdus - 1;
+
+  if (Mailbox->CanId < config->rxPdus[0].canid) {
+    l = h + 1; /* avoid the underflow of "m - 1" */
+  }
   while ((NULL == rxPdu) && (l <= h)) {
     m = l + ((h - l) >> 1);
     var = &config->rxPdus[m];
@@ -95,8 +99,21 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
     } else if (var->canid < Mailbox->CanId) {
       l = m + 1;
     } else {
-      /* TODO: add logic here to handle 2 or more CANs receive the message with the same CANID */
-      break; /* should not reach here */
+      /* A case that 2 CAN bus has message with the same IDs */
+      for (h = m + 1, var = &config->rxPdus[h];
+           (NULL == rxPdu) && (h < config->numOfRxPdus) && (var->canid == Mailbox->CanId); h++) {
+        if (var->hoh == Mailbox->Hoh) {
+          rxPdu = var;
+        }
+      }
+      for (l = m - 1, var = &config->rxPdus[l];
+           (NULL == rxPdu) && (l < config->numOfRxPdus) && (var->canid == Mailbox->CanId); l--) {
+        /* NOTE: l-- underflow then to be UINT16_MAX */
+        if (var->hoh == Mailbox->Hoh) {
+          rxPdu = var;
+        }
+      }
+      break;
     }
   }
 
