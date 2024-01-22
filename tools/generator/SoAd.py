@@ -28,34 +28,34 @@ def Gen_SoAd(cfg, dir):
         '/* ================================ [ MACROS    ] ============================================== */\n')
     ID = 0
     for sock in cfg['sockets']:
+        mn = toMacro(sock['name'])
         if sock['protocol'] == 'UDP':
-            H.write('#define SOAD_SOCKID_%s %s\n' % (sock['name'], ID))
+            H.write('#define SOAD_SOCKID_%s %s\n' % (mn, ID))
             ID += 1
         elif 'server' in sock:
-            H.write('#define SOAD_SOCKID_%s_SERVER %s\n' % (sock['name'], ID))
+            H.write('#define SOAD_SOCKID_%s_SERVER %s\n' % (mn, ID))
             ID += 1
             for i in range(sock['listen']):
-                H.write('#define SOAD_SOCKID_%s_APT%s %s\n' %
-                        (sock['name'], i, ID))
+                H.write('#define SOAD_SOCKID_%s_APT%s %s\n' % (mn, i, ID))
                 ID += 1
         elif 'client' in sock:
-            H.write('#define SOAD_SOCKID_%s %s\n' % (sock['name'], ID))
+            H.write('#define SOAD_SOCKID_%s %s\n' % (mn, ID))
             ID += 1
         else:
             raise Exception('wrong config for %s' % (sock))
     H.write('\n')
     ID = 0
     for sock in cfg['sockets']:
+        mn = toMacro(sock['name'])
         if sock['protocol'] == 'UDP':
-            H.write('#define SOAD_TX_PID_%s %s\n' % (sock['name'], ID))
+            H.write('#define SOAD_TX_PID_%s %s\n' % (mn, ID))
             ID += 1
         elif 'server' in sock:
             for i in range(sock['listen']):
-                H.write('#define SOAD_TX_PID_%s_APT%s %s\n' %
-                        (sock['name'], i, ID))
+                H.write('#define SOAD_TX_PID_%s_APT%s %s\n' %(mn, i, ID))
                 ID += 1
         elif 'client' in sock:
-            H.write('#define SOAD_TX_PID_%s %s\n' % (sock['name'], ID))
+            H.write('#define SOAD_TX_PID_%s %s\n' % (mn, ID))
             ID += 1
     H.write(
         '/* ================================ [ TYPES     ] ============================================== */\n')
@@ -145,20 +145,21 @@ def Gen_SoAd(cfg, dir):
         'static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n')
     for GID, sock in enumerate(cfg['sockets']):
         RxPduId = sock['RxPduId']
+        mn = toMacro(sock['name'])
         SoConType = '%s_%s' % (
             sock['protocol'], 'SERVER' if 'server' in sock else 'CLIENT')
         if sock['protocol'] == 'UDP':
-            SoConId = 'SOAD_SOCKID_%s' % (sock['name'])
+            SoConId = 'SOAD_SOCKID_%s' % (mn)
         elif 'server' in sock:
-            SoConId = 'SOAD_SOCKID_%s_SERVER' % (sock['name'])
+            SoConId = 'SOAD_SOCKID_%s_SERVER' % (mn)
             RxPduId = -1
         elif 'client' in sock:
-            SoConId = 'SOAD_SOCKID_%s' % (sock['name'])
+            SoConId = 'SOAD_SOCKID_%s' % (mn)
         Gen_Sock(C, RxPduId, SoConId, GID, SoConType)
         if ('server' in sock) and (sock['protocol'] == 'TCP'):
             for i in range(sock['listen']):
                 RxPduId = '%s%s' % (sock['RxPduId'], i)
-                SoConId = 'SOAD_SOCKID_%s_APT%s' % (sock['name'], i)
+                SoConId = 'SOAD_SOCKID_%s_APT%s' % (mn, i)
                 Gen_Sock(C, RxPduId, SoConId, GID, 'TCP_ACCEPT')
     C.write('};\n\n')
 
@@ -168,6 +169,7 @@ def Gen_SoAd(cfg, dir):
     C.write(
         'static const SoAd_SocketConnectionGroupType SoAd_SocketConnectionGroups[] = {\n')
     for GID, sock in enumerate(cfg['sockets']):
+        mn = toMacro(sock['name'])
         IF = 'TODO'
         SoConModeChgNotification = 'TODO'
         SoConId = -1
@@ -177,7 +179,7 @@ def Gen_SoAd(cfg, dir):
             pass
         elif 'server' in sock:
             numOfConnections = sock['listen']
-            SoConId = 'SOAD_SOCKID_%s_APT0' % (sock['name'])
+            SoConId = 'SOAD_SOCKID_%s_APT0' % (mn)
         elif 'client' in sock:
             pass
         if sock['up'] == 'DoIP':
@@ -239,16 +241,14 @@ def Gen_SoAd(cfg, dir):
 
     C.write('static const SoAd_SoConIdType TxPduIdToSoCondIdMap[] = {\n')
     for sock in cfg['sockets']:
+        mn = toMacro(sock['name'])
         if sock['protocol'] == 'UDP':
-            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' %
-                    (sock['name'], sock['name']))
+            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' % (mn, mn))
         elif 'server' in sock:
             for i in range(sock['listen']):
-                C.write('  SOAD_SOCKID_%s_APT%s, /* SOAD_TX_PID_%s_APT%s */\n' %
-                        (sock['name'], i, sock['name'], i))
+                C.write('  SOAD_SOCKID_%s_APT%s, /* SOAD_TX_PID_%s_APT%s */\n' % (mn, i, mn, i))
         else:
-            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' %
-                    (sock['name'], sock['name']))
+            C.write('  SOAD_SOCKID_%s, /* SOAD_TX_PID_%s */\n' % (mn, mn))
     C.write('};\n\n')
     C.write('const SoAd_ConfigType SoAd_Config = {\n')
     C.write('  SoAd_SocketConnections,\n')

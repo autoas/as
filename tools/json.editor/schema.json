@@ -666,6 +666,13 @@
                           "properties": {
                             "name": { "type": "string" },
                             "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                            "enable_multicast": { "type": "bool", "default": false },
+                            "multicast": { "type": "object", "title": "multicast", "enabled": "'${../enable_multicast}' == 'True'",
+                              "properties": {
+                                "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 },
+                                "addr": { "type": "string", "default": "224.244.224.245:30561" }
+                              }
+                            },
                             "events":  {
                               "type": "array", "items": {
                                 "type": "object", "title": "event",
@@ -713,6 +720,12 @@
                           "properties": {
                             "name": { "type": "string" },
                             "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                            "enable_multicast": { "type": "bool", "default": false },
+                            "multicast": { "type": "object", "title": "multicast", "enabled": "'${../enable_multicast}' == 'True'",
+                              "properties": {
+                                "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 }
+                              }
+                            },
                             "events":  { "type": "array", "items": {
                               "type": "object", "title": "event",
                               "properties": {

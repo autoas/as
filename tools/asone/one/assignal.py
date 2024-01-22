@@ -256,12 +256,12 @@ class Network(threading.Thread):
     def __init__(self, network):
         threading.Thread.__init__(self)
         device = network.get('device', 'simulator')
-        port = network.get('port', 'port')
-        baudrate = network.get('baudrate', 'baudrate')
+        port = network.get('port', 0)
+        baudrate = network.get('baudrate', 1000000)
         if network['network'] == 'CAN':
             self.bus = can(device, port, baudrate)
         else:
-            self.bus = lin(device, port, baudrate)
+            self.bus = lin(**network)
         self.msgs = {}
         for msg in network['messages']:
             self.msgs[msg['name']] = Message(

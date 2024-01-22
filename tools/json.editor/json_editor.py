@@ -130,6 +130,7 @@ class JsonEnumRefString(QComboBox):
         desc = obj.get_desc(title)
         if desc != None:
             self.setToolTip(desc)
+        self.timerEvent(None)
         self.startTimer(1000)
 
     def timerEvent(self, event):
@@ -313,7 +314,7 @@ class UIGroup(QScrollArea):
         for row in range(grid.rowCount()):
             K = grid.itemAtPosition(row, 0).widget()
             V = grid.itemAtPosition(row, 1).widget()
-            enabled = V.obj.is_enabled(V.title)
+            enabled = V.obj.is_enabled() and V.obj.is_enabled(V.title)
             K.setVisible(enabled)
             V.setVisible(enabled)
             V.setEnabled(enabled)

@@ -82,6 +82,7 @@ typedef struct {
   uint16_t HandleId;
   uint16_t EventGroupId;
   SoAd_SoConIdType MulticastEventSoConRef;
+  TcpIp_SockAddrType MulticastEventAddr;
   PduIdType MulticastTxPduId;
   uint8_t MulticastThreshold;
   Sd_EventHandlerContextType *context;

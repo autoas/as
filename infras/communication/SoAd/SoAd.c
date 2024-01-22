@@ -19,11 +19,12 @@
 
 #define SOAD_TX_ON_GOING 0x01
 
-#define SOAD_CONFIG (&SoAd_Config)
+#define SOAD_CONFIG (soAdConfigPtr)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const SoAd_ConfigType SoAd_Config;
 /* ================================ [ DATAS     ] ============================================== */
+static const SoAd_ConfigType *soAdConfigPtr = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
@@ -301,6 +302,12 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
   const SoAd_SocketConnectionGroupType *conG;
   SoAd_SocketContextType *context;
 
+  if (NULL != ConfigPtr) {
+    soAdConfigPtr = ConfigPtr;
+  } else {
+    soAdConfigPtr = &SoAd_Config;
+  }
+
   Net_MemInit();
   for (i = 0; i < SOAD_CONFIG->numOfConnections; i++) {
     connection = &SOAD_CONFIG->Connections[i];
@@ -486,18 +493,11 @@ Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
 
 Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *IpAddrPtr) {
   Std_ReturnType ret = E_NOT_OK;
-  const SoAd_SocketConnectionType *connection;
-  const SoAd_SocketConnectionGroupType *conG;
   SoAd_SocketContextType *context;
 
   if (SoConId < SOAD_CONFIG->numOfConnections) {
-    connection = &SOAD_CONFIG->Connections[SoConId];
-    conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     context = &SOAD_CONFIG->Contexts[SoConId];
-    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_SERVER) && conG->IsMulitcast) {
-      TcpIp_SetupAddrFrom(IpAddrPtr, conG->Remote, conG->Port);
-      ret = E_OK;
-    } else if (SOAD_SOCKET_READY <= context->state) {
+    if (SOAD_SOCKET_READY <= context->state) {
       *IpAddrPtr = context->RemoteAddr;
       ret = E_OK;
     }
@@ -551,6 +551,18 @@ Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort) {
   }
 
   return ret;
+}
+
+void SoAd_GetSoConMode(SoAd_SoConIdType SoConId, SoAd_SoConModeType *ModePtr) {
+  SoAd_SocketContextType *context;
+  if (SoConId < SOAD_CONFIG->numOfConnections) {
+    context = &SOAD_CONFIG->Contexts[SoConId];
+    if (SOAD_SOCKET_CLOSED != context->state) {
+      *ModePtr = SOAD_SOCON_ONLINE;
+    } else {
+      *ModePtr = SOAD_SOCON_OFFLINE;
+    }
+  }
 }
 
 Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType SoConId) {

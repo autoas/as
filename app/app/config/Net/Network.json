@@ -61,6 +61,7 @@
             {
               "name": "event_group1",
               "groupId": "0x8001",
+              "enable_multicast": false,
               "events": [
                 {
                   "name" : "event0",
@@ -92,6 +93,7 @@
             {
               "name": "event_group2",
               "groupId": "0x8002",
+              "enable_multicast": false,
               "events": [
                 {
                   "name" : "event0",

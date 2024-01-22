@@ -46,7 +46,7 @@
 
 #define SOMEIP_TP_FRAME_MAX (SOMEIP_TP_MAX + 20)
 
-#define SOMEIP_CONFIG (&SomeIp_Config)
+#define SOMEIP_CONFIG (someIpConfigPtr)
 
 #ifndef SOMEIP_ASYNC_REQUEST_MESSAGE_POOL_SIZE
 #define SOMEIP_ASYNC_REQUEST_MESSAGE_POOL_SIZE 8
@@ -187,6 +187,7 @@ DEF_SQP(TxTpMsg, SOMEIP_TX_TP_MESSAGE_POOL_SIZE)
 #define someIpRxTpEvtMsgPool someIpRxTpMsgPool
 DEF_SQP(TxTpEvtMsg, SOMEIP_TX_TP_EVENT_MESSAGE_POOL_SIZE)
 DEF_SQP(WaitResMsg, SOMEIP_WAIT_RESPOSE_MESSAGE_POOL_SIZE)
+static const SomeIp_ConfigType *someIpConfigPtr = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static Std_ReturnType SomeIp_DecodeHeader(const uint8_t *data, uint32_t length,
                                           SomeIp_HeaderType *header) {
@@ -1728,6 +1729,11 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
 
 void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr) {
   int i;
+  if (NULL != ConfigPtr) {
+    someIpConfigPtr = ConfigPtr;
+  } else {
+    someIpConfigPtr = &SomeIp_Config;
+  }
   SQP_INIT(AsyncReqMsg);
   SQP_INIT(TxTpMsg);
   SQP_INIT(RxTpMsg);

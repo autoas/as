@@ -38,7 +38,8 @@ namespace py = pybind11;
   "\tport: int, default 0\n"                                                                       \
   "\tbaudrate: int, default 500000\n"                                                              \
   "\tenhanced: bool, default true\n"                                                               \
-  "\ttimeout: int, unit ms\n"
+  "\ttimeout: int, unit ms\n"                                                                      \
+  "\tdelayUs: int, unit us\n"
 
 template <typename To, typename Ti> To get(py::kwargs &kwargs, std::string key, To dft) {
   To r = dft;

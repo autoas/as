@@ -515,8 +515,6 @@ class CustomEnv(dict):
         return ['lib%s.a' % (libName)]
 
     def SharedLibrary(self, libName, objs, **kwargs):
-        if len(objs) == 1:
-            return objs
         self.shared = True
         return self.Program(libName, objs, **kwargs)
 
@@ -1857,9 +1855,11 @@ class Library(BuildBase):
                 else:
                     objs2.append(obj)
             LIBS += list(env.get('LIBS', [])) + self.__extra_libs__
+            aslog('build shared library %s' % (libName))
             target = env.SharedLibrary(
                 libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         else:
+            aslog('build static library %s' % (libName))
             target = env.Library(libName, objs)
         for action in getattr(self, '__post_actions__', []):
             env.AddPostAction(target, action)

@@ -84,7 +84,7 @@
 
 #define SD_FLAG_MASK 0xC0u
 
-#define SD_CONFIG (&Sd_Config)
+#define SD_CONFIG (sdConfigPtr)
 
 #define SD_FIND_SERVICE 0x00
 #define SD_OFFER_SERVICE 0x01
@@ -252,6 +252,8 @@ extern Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId,
                                                Sd_EventHandlerSubscriberType *sub);
 /* ================================ [ DATAS     ] ============================================== */
 DEF_SQP(EventHandlerSubscriber, SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE)
+
+static const Sd_ConfigType *sdConfigPtr = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static uint16_t Sd_RandTime(uint16_t min, uint16_t max) {
   uint16_t ret;
@@ -426,7 +428,8 @@ static void Sd_BuildEntryType2(uint8_t *entry, uint8_t type, uint8_t indexOf1stO
   entry[15] = evnetGroupId & 0xFF;
 }
 
-static void Sd_BuildOptionIPv4(uint8_t *option, uint8_t type, TcpIp_SockAddrType *LocalAddrPtr,
+static void Sd_BuildOptionIPv4(uint8_t *option, uint8_t type,
+                               const TcpIp_SockAddrType *LocalAddrPtr,
                                TcpIp_ProtocolType ProtocolType) {
   option[0] = 0x00; /* length = 9 */
   option[1] = 0x09;
@@ -442,12 +445,12 @@ static void Sd_BuildOptionIPv4(uint8_t *option, uint8_t type, TcpIp_SockAddrType
   option[11] = LocalAddrPtr->port & 0xFF;
 }
 
-static void Sd_BuildOptionIPv4Endpoint(uint8_t *option, TcpIp_SockAddrType *LocalAddrPtr,
+static void Sd_BuildOptionIPv4Endpoint(uint8_t *option, const TcpIp_SockAddrType *LocalAddrPtr,
                                        TcpIp_ProtocolType ProtocolType) {
   Sd_BuildOptionIPv4(option, SD_OPT_IP4_ENDPOINT, LocalAddrPtr, ProtocolType);
 }
 
-static void Sd_BuildOptionIPv4Multicast(uint8_t *option, TcpIp_SockAddrType *LocalAddrPtr,
+static void Sd_BuildOptionIPv4Multicast(uint8_t *option, const TcpIp_SockAddrType *LocalAddrPtr,
                                         TcpIp_ProtocolType ProtocolType) {
   Sd_BuildOptionIPv4(option, SD_OPT_IP4_MULTICAST, LocalAddrPtr, ProtocolType);
 }
@@ -640,6 +643,13 @@ static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
     }
   }
 
+  if (E_OK == ret) {
+    if (SD_PHASE_INITIAL_WAIT == context->phase) {
+      /* @SWS_SD_00319 */
+      ret = E_NOT_OK;
+    }
+  }
+
   if ((E_OK == ret) &&
       ((SD_PHASE_DOWN != context->phase) || (context->flags & SD_FLG_STATE_REQUEST_ONLINE))) {
     Sd_BuildEntryType1(&Instance->buffer[24], SD_OFFER_SERVICE, 0, 0, 1, 0, config->ServiceId,
@@ -761,13 +771,12 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
                                                      const Sd_EventHandlerType *EventHandler,
                                                      Sd_EventHandlerSubscriberType *sub) {
   uint32_t lengthOfOptions = 0;
-  TcpIp_SockAddrType RemoteAddr;
   Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0, 0, 1, 0,
                      config->ServiceId, config->InstanceId, config->MajorVersion, 0,
                      EventHandler->EventGroupId, config->ServerTimer->TTL);
   if (sub->TxPduId == EventHandler->MulticastTxPduId) {
-    SoAd_GetRemoteAddr(EventHandler->MulticastEventSoConRef, &RemoteAddr);
-    Sd_BuildOptionIPv4Multicast(&Instance->buffer[44], &RemoteAddr, TCPIP_IPPROTO_UDP);
+    Sd_BuildOptionIPv4Multicast(&Instance->buffer[44], &EventHandler->MulticastEventAddr,
+                                TCPIP_IPPROTO_UDP);
     lengthOfOptions = 12;
   }
   Sd_BuildHeader(Instance->buffer, Instance->context->flags, Instance->context->multicastSessionId,
@@ -1174,9 +1183,10 @@ static void Sd_ServerServiceMain_Down(const Sd_InstanceType *Instance,
                                       const Sd_ServerServiceType *config) {
   Sd_ServerServiceContextType *context = config->context;
 
-  if (context->flags & SD_FLG_STATE_REQUEST_ONLINE) {
+  if (context->flags & SD_FLG_STATE_REQUEST_ONLINE) { /* @SWS_SD_00317 */
     Sd_InitServerServiceEventHandlers(config);
     context->phase = SD_PHASE_INITIAL_WAIT;
+    /* @SWS_SD_00318 */
     context->offerTimer = Sd_RandTime(config->ServerTimer->InitialOfferDelayMin,
                                       config->ServerTimer->InitialOfferDelayMax);
     ASLOG(SD, ("Service %X:%X going up\n", config->ServiceId, config->InstanceId));
@@ -1187,6 +1197,7 @@ static void Sd_ServerServiceMain_InitialWait(const Sd_InstanceType *Instance,
                                              const Sd_ServerServiceType *config) {
   Sd_ServerServiceContextType *context = config->context;
   if (0 == (context->flags & SD_FLG_STATE_REQUEST_ONLINE)) {
+    /* @SWS_SD_00323 */
     context->offerTimer = 0;
     Sd_ReInitServerServiceEventHandlers(config);
     context->phase = SD_PHASE_DOWN;
@@ -1803,8 +1814,14 @@ static void Sd_ServerClientServiceMain(const Sd_InstanceType *Instance) {
 void Sd_Init(const Sd_ConfigType *ConfigPtr) {
   uint16_t i;
   const Sd_InstanceType *Instance;
-  (void)ConfigPtr;
   SoAd_SoConIdType SoConId;
+
+  if (NULL != ConfigPtr) {
+    sdConfigPtr = ConfigPtr;
+  } else {
+    sdConfigPtr = &Sd_Config;
+  }
+
   for (i = 0; i < SD_CONFIG->numOfInstances; i++) {
     Instance = &SD_CONFIG->Instances[i];
     Instance->context->flags = SD_REBOOT_FLAG | SD_UNICAST_FLAG;

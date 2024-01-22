@@ -42,7 +42,7 @@ def ProcSomeIp(cfg, mod):
             'protocol': 'UDP', 'up': 'SD', 'RxPduId': 'SD_RX_PID_UNICAST'}
     cfg['sockets'].append(sock)
     for service in mod.get('servers', []):
-        name = 'SOMEIP_%s' % (service['name'].upper())
+        name = 'SOMEIP_%s' % (toMacro(service['name']))
         if 'reliable' in service:
             protocol = 'TCP'
             port = service['reliable']
@@ -60,7 +60,7 @@ def ProcSomeIp(cfg, mod):
                         'protocol': 'UDP', 'up': 'SOMEIP', 'ModeChg':'Sd', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
                 cfg['sockets'].append(sock)
     for service in mod.get('clients', []):
-        name = 'SOMEIP_%s' % (service['name'].upper())
+        name = 'SOMEIP_%s' % (toMacro(service['name']))
         if 'reliable' in service:
             protocol = 'TCP'
             port = service['reliable']

@@ -18,7 +18,13 @@ def toMacro(s):
         if a.isupper() or a.isdigit():
             if word != None:
                 a_ = word[-1]
-                if a_.isupper() or a_.isdigit():
+                # concat: Aa, AA, aa, 11, A1, 1A
+                if (a_.isupper() and a.islower()) or \
+                   (a_.isupper() and a.isupper()) or \
+                   (a_.islower() and a.islower()) or \
+                   (a_.isdigit() and a.isdigit()) or \
+                   (a_.isupper() and a.isdigit()) or \
+                   (a_.isdigit() and a.isupper()):
                     word += a
                     continue
                 else:
