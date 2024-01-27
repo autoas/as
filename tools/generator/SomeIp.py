@@ -871,6 +871,8 @@ def Gen_SD(cfg, dir):
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         mn = toMacro(service['name'])
         for ge in service['event-groups']:
             H.write('#define SD_EVENT_HANDLER_%s_%s %s\n' % (mn, toMacro(ge['name']), ID))
@@ -878,6 +880,8 @@ def Gen_SD(cfg, dir):
     ID = 0
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         mn = toMacro(service['name'])
         for ge in service['event-groups']:
@@ -953,6 +957,8 @@ def Gen_SD(cfg, dir):
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         mn = toMacro(service['name'])
         C.write('static Sd_EventHandlerContextType Sd_EventHandlerContext_%s[%d];\n' % (
             service['name'], len(service['event-groups'])))
@@ -963,7 +969,7 @@ def Gen_SD(cfg, dir):
             C.write('    SD_EVENT_HANDLER_%s_%s, /* HandleId */\n' % (mn, toMacro(ge['name'])))
             C.write('    %s, /* EventGroupId */\n' % (ge['groupId']))
             if 'multicast' in ge:
-                IpAddress, Port = ge['multicast']['addr'].split(':')
+                IpAddress, Port = ge['multicast'].get('addr', '0.0.0.0:0').split(':')
                 a1, a2, a3, a4 = IpAddress.split('.')
                 mcgn = toMacro('_'.join([service['name'], ge['name']]))
                 C.write('    SOAD_SOCKID_SOMEIP_%s, /* MulticastEventSoConRef */\n' %(mcgn))
@@ -985,6 +991,8 @@ def Gen_SD(cfg, dir):
         C.write('};\n\n')
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         mn = toMacro(service['name'])
         C.write('static Sd_ConsumedEventGroupContextType Sd_ConsumedEventGroupContext_%s[%d];\n' % (
@@ -1021,7 +1029,7 @@ def Gen_SD(cfg, dir):
         C.write('    %s,                         /* InstanceId */\n' % (service['instance']))
         C.write('    0,                              /* MajorVersion */\n')
         C.write('    0,                              /* MinorVersion */\n')
-        if ('unreliable' in service):
+        if 'unreliable' in service or service.get('protocol', None) == 'UDP':
             C.write('    SOAD_SOCKID_SOMEIP_%s,     /* SoConId */\n' % (mn))
             C.write('    TCPIP_IPPROTO_UDP,              /* ProtocolType */\n')
         else:
@@ -1033,6 +1041,8 @@ def Gen_SD(cfg, dir):
         C.write('    &Sd_ServerService_Contexts[%s],\n' % (ID))
         C.write('    0, /* InstanceIndex */\n')
         if 'event-groups' not in service:
+            C.write('    NULL,\n    0,\n')
+        elif 0 == len(service['event-groups']):
             C.write('    NULL,\n    0,\n')
         else:
             C.write('    Sd_EventHandlers_%s,\n' % (service['name']))
@@ -1057,7 +1067,7 @@ def Gen_SD(cfg, dir):
         C.write('    0,                              /* MajorVersion */\n')
         C.write('    0,                              /* MinorVersion */\n')
         C.write('    SOAD_SOCKID_SOMEIP_%s, /* SoConId */\n' % (mn))
-        if ('unreliable' in service):
+        if 'unreliable' in service or service.get('protocol', None) == 'UDP':
             C.write('    TCPIP_IPPROTO_UDP,              /* ProtocolType */\n')
         else:
             C.write('    TCPIP_IPPROTO_TCP,              /* ProtocolType */\n')
@@ -1067,6 +1077,8 @@ def Gen_SD(cfg, dir):
         C.write('    &Sd_ClientService_Contexts[%s],\n' % (ID))
         C.write('    0, /* InstanceIndex */\n')
         if 'event-groups' not in service:
+            C.write('    NULL,\n    0,\n')
+        elif 0 == len(service['event-groups']):
             C.write('    NULL,\n    0,\n')
         else:
             C.write('    Sd_ConsumedEventGroups_%s,\n' % (service['name']))
@@ -1130,6 +1142,8 @@ def Gen_SD(cfg, dir):
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         mn = toMacro(service['name'])
         for ge in service['event-groups']:
             C.write('  SD_SERVER_SERVICE_HANDLE_ID_%s,\n' % (mn))
@@ -1139,12 +1153,16 @@ def Gen_SD(cfg, dir):
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         for id, ge in enumerate(service['event-groups']):
             C.write('  %s,\n' % (id))
     C.write('  -1,\n};\n\n')
     C.write('static const uint16_t Sd_ConsumedEventGroupsMap[] = {\n')
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         mn = toMacro(service['name'])
         for ge in service['event-groups']:
@@ -1154,6 +1172,8 @@ def Gen_SD(cfg, dir):
         'static const uint16_t Sd_PerServiceConsumedEventGroupsMap[] = {\n')
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         for id, ge in enumerate(service['event-groups']):
             C.write('  %s,\n' % (id))
@@ -1386,6 +1406,8 @@ def Gen_SOMEIP(cfg, dir):
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         for egroup in service['event-groups']:
             for event in egroup['events']:
                 beName = '%s_%s_%s' % (service['name'],  egroup['name'], event['name'])
@@ -1395,6 +1417,8 @@ def Gen_SOMEIP(cfg, dir):
     ID = 0
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         for egroup in service['event-groups']:
             for event in egroup['events']:
@@ -1465,12 +1489,14 @@ def Gen_SOMEIP(cfg, dir):
                 C.write('    NULL,\n')
             resMaxLen = method.get('resMaxLen', 512)
             if method.get('tp', False):
-                resMaxLen = 1404
+                resMaxLen = 1396
             C.write('    %s /* resMaxLen */\n' % (resMaxLen))
             C.write('  },\n')
         C.write("};\n\n")
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         C.write('static const SomeIp_ServerEventType someIpServerEvents_%s[] = {\n' % (
             service['name']))
@@ -1512,6 +1538,8 @@ def Gen_SOMEIP(cfg, dir):
         C.write("};\n\n")
     for service in cfg.get('clients', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         C.write('static const SomeIp_ClientEventType someIpClientEvents_%s[] = {\n' % (
             service['name']))
@@ -1570,6 +1598,8 @@ def Gen_SOMEIP(cfg, dir):
                     (service['name']))
         if 'event-groups' not in service:
             C.write('  NULL,\n  0,\n')
+        elif 0 == len(service['event-groups']):
+            C.write('  NULL,\n  0,\n')
         else:
             C.write('  someIpServerEvents_%s,\n' % (service['name']))
             C.write('  ARRAY_SIZE(someIpServerEvents_%s),\n' %
@@ -1588,7 +1618,7 @@ def Gen_SOMEIP(cfg, dir):
         C.write('};\n\n')
     for service in cfg.get('clients', []):
         mn = toMacro(service['name'])
-        if 'reliable' in service:
+        if 'reliable' in service or service.get('protocol', None) == 'TCP':
             C.write('static SomeIp_TcpBufferType someIpTcpBuffer_%s;\n\n' % (
                     service['name']))
         C.write('static SomeIp_ClientServiceContextType someIpClientServiceContext_%s;\n' % (
@@ -1606,6 +1636,8 @@ def Gen_SOMEIP(cfg, dir):
                     (service['name']))
         if 'event-groups' not in service:
             C.write('  NULL,\n  0,\n')
+        elif 0 == len(service['event-groups']):
+            C.write('  NULL,\n  0,\n')
         else:
             C.write('  someIpClientEvents_%s,\n' % (service['name']))
             C.write('  ARRAY_SIZE(someIpClientEvents_%s),\n' %
@@ -1614,7 +1646,7 @@ def Gen_SOMEIP(cfg, dir):
                 (service['name']))
         C.write('  SOAD_TX_PID_SOMEIP_%s,\n' % (mn))
         C.write('  SomeIp_%s_OnAvailability,\n' % (service['name']))
-        if 'reliable' in service:
+        if 'reliable' in service or service.get('protocol', None) == 'TCP':
             C.write('  &someIpTcpBuffer_%s,\n' % (service['name']))
         else:
             C.write('  NULL,\n')
@@ -1686,6 +1718,8 @@ def Gen_SOMEIP(cfg, dir):
         mn = toMacro(service['name'])
         if 'event-groups' not in service:
             continue
+        if 0 == len(service['event-groups']):
+            continue
         for egroup in service['event-groups']:
             for event in egroup['events']:
                 C.write('  SOMEIP_SSID_%s, /* %s %s */\n' % (mn, egroup['name'], event['name']))
@@ -1693,6 +1727,8 @@ def Gen_SOMEIP(cfg, dir):
     C.write('static const uint16_t Sd_TxEvent2PerServiceMap[] = {\n')
     for service in cfg.get('servers', []):
         if 'event-groups' not in service:
+            continue
+        if 0 == len(service['event-groups']):
             continue
         ID = 0
         for egroup in service['event-groups']:

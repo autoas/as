@@ -21,3 +21,11 @@ class LibraryFlsAc(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         self.source = objsFlsAc
+
+objsCritical = Glob('src/critical.c')
+
+@register_library
+class LibraryCritical(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsCritical

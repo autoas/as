@@ -882,6 +882,14 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
     res.data = &resData[16];
     res.length = method->resMaxLen;
     ret = method->onRequest(requestId, &msg->req, &res);
+    if (res.data != &resData[16]) {
+      if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
+        /* OK for TP case */
+      } else {
+        ASLOG(SOMEIPE, ("For short message, fill in response in res.data\n"));
+        ret = E_NOT_OK;
+      }
+    }
     res.data = resData;
   }
 
@@ -1160,6 +1168,14 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
       res.data = &resData[16];
       res.length = method->resMaxLen;
       ret = method->onAsyncRequest(conId, &res);
+      if (res.data != &resData[16]) {
+        if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
+          /* OK for TP case */
+        } else {
+          ASLOG(SOMEIPE, ("For async short message, fill in response in res.data\n"));
+          ret = E_NOT_OK;
+        }
+      }
       res.data = resData;
       if (E_OK == ret) {
         ret = SomeIp_ReplyRequest(config, conId, var->methodId, var->clientId, var->sessionId,

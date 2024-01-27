@@ -1,0 +1,53 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+generate(Glob('config/*/*.json'))
+
+libsForCanPub = {
+    'SoAd': Glob('config/pub/GEN/SoAd_*.c') + Glob('config/pub/GEN/NetMem.c'),
+    'Sd': Glob('config/pub/GEN/Sd_*.c'),
+    'SomeIp': Glob('config/pub/GEN/SomeIp_*.c'),
+    'SomeIpXf': Glob('config/pub/GEN/SomeIpXf_*.c')
+}
+
+objsCanPub = Glob('can_publisher.c')
+
+@register_application
+class ApplicationCanPubEx(Application):
+    mylibs = libsForCanPub
+
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '%s/config/pub/GEN' % (CWD)]
+        self.source = objsCanPub
+        self.LIBS = ['TcpIp', 'StdTimer', 'Critical']
+        self.Append(CPPDEFINES=['USE_TCPIP'])
+        for libName, source in self.mylibs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' %
+                        (libName.split(':')[0].upper())])
+
+libsForCanSub = {
+    'SoAd': Glob('config/sub/GEN/SoAd_*.c') + Glob('config/sub/GEN/NetMem.c'),
+    'Sd': Glob('config/sub/GEN/Sd_*.c'),
+    'SomeIp': Glob('config/sub/GEN/SomeIp_*.c'),
+    'SomeIpXf': Glob('config/sub/GEN/SomeIpXf_*.c')
+}
+
+objsCanSub = Glob('can_subscriber.c')
+
+@register_application
+class ApplicationCanSubEx(Application):
+    mylibs = libsForCanSub
+
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '%s/config/sub/GEN' % (CWD)]
+        self.source = objsCanSub
+        self.LIBS = ['TcpIp', 'StdTimer', 'Critical']
+        self.Append(CPPDEFINES=['USE_TCPIP'])
+        for libName, source in self.mylibs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' %
+                        (libName.split(':')[0].upper())])

@@ -1,0 +1,52 @@
+{
+  "class": "Net",
+  "Modules": [
+    {
+      "name": "SomeIp",
+      "class": "SomeIp",
+      "SD": {
+        "hostname" : "ssas",
+        "multicast" : "224.244.224.245"
+      },
+      "structs": [
+        {
+          "name": "Vectors",
+          "data": [
+            { "name": "A", "type": "uint8_n", "variable_array": true, "size": 2048 },
+            { "name": "B", "type": "uint8_n", "variable_array": true, "size": 2048 }
+          ]
+        },
+        {
+          "name": "Result",
+          "data": [
+            { "name": "ercd", "type": "uint8" },
+            { "name": "summary", "type": "uint32" }
+          ]
+        }
+      ],
+      "args": [
+        { "name": "add-args", "args": [ { "name": "vectors", "type": "Vectors" } ] }
+      ],
+      "servers": [
+        {
+          "name": "Math",
+          "service": "0xadda",
+          "instance": "0x1001",
+          "clientId": "0x1001",
+          "protocol": "TCP",
+          "reliable": 30680,
+          "methods": [
+            {
+              "name" : "add",
+              "methodId" : "0x0add",
+              "args": "add-args",
+              "tp": true,
+              "version" : "0"
+            }
+          ],
+          "event-groups": []
+        }
+      ]
+    }
+  ]
+}

@@ -45,10 +45,10 @@ def ProcSomeIp(cfg, mod):
         name = 'SOMEIP_%s' % (toMacro(service['name']))
         if 'reliable' in service:
             protocol = 'TCP'
-            port = service['reliable']
+            port = service.get('reliable', 0)
         else:
             protocol = 'UDP'
-            port = service['unreliable']
+            port = service.get('unreliable', 0)
         sock = {'name': name, 'server': 'NULL:%s' % (port),
                 'protocol': protocol, 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
         if 'reliable' in service:
@@ -56,23 +56,30 @@ def ProcSomeIp(cfg, mod):
         cfg['sockets'].append(sock)
         for eg in service.get('event-groups', []):
             if 'multicast' in eg:
-                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
+                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast'].get('addr', 'NULL:0')), 'multicast': True,
                         'protocol': 'UDP', 'up': 'SOMEIP', 'ModeChg':'Sd', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
                 cfg['sockets'].append(sock)
     for service in mod.get('clients', []):
         name = 'SOMEIP_%s' % (toMacro(service['name']))
-        if 'reliable' in service:
-            protocol = 'TCP'
-            port = service['reliable']
+        if 'protocol' in service:
+            protocol = service['protocol']
+            if protocol == 'TCP':
+                port = service.get('reliable', 0)
+            else:
+                port = service.get('unreliable', 0)
         else:
-            protocol = 'UDP'
-            port = service['unreliable']
+            if 'reliable' in service:
+                protocol = 'TCP'
+                port = service.get('reliable', 0)
+            else:
+                protocol = 'UDP'
+                port = service.get('unreliable', 0)
         sock = {'name': name, 'client': 'NULL:%s' % (port),
                 'protocol': protocol, 'up': 'SOMEIP', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
         cfg['sockets'].append(sock)
         for eg in service.get('event-groups', []):
             if 'multicast' in eg:
-                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast']['addr']), 'multicast': True,
+                sock = {'name': '_'.join([name, eg['name']]), 'server': '%s' % (eg['multicast'].get('addr', 'NULL:0')), 'multicast': True,
                         'protocol': 'UDP', 'up': 'SOMEIP', 'ModeChg':'Sd', 'RxPduId': 'SOMEIP_RX_PID_%s' % (name)}
                 cfg['sockets'].append(sock)
 
@@ -134,4 +141,5 @@ def Gen(cfgj):
         cfg = json.load(f)
     ProcSoAd(cfg, dir)
     Gen_Net(cfg, dir)
-    GenAnitTestForSomeIp(cfgj)
+    if cfg.get('AnitTest', False):
+        GenAnitTestForSomeIp(cfgj)

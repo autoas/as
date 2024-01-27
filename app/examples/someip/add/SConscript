@@ -1,0 +1,53 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+generate(Glob('config/*/*.json'))
+
+libsForAddSrv = {
+    'SoAd': Glob('config/server/GEN/SoAd_*.c') + Glob('config/server/GEN/NetMem.c'),
+    'Sd': Glob('config/server/GEN/Sd_*.c'),
+    'SomeIp': Glob('config/server/GEN/SomeIp_*.c'),
+    'SomeIpXf': Glob('config/server/GEN/SomeIpXf_*.c')
+}
+
+objsAddServerEx = Glob('add_server.c')
+
+@register_application
+class ApplicationAddServerEx(Application):
+    mylibs = libsForAddSrv
+
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '%s/config/server/GEN' % (CWD)]
+        self.source = objsAddServerEx
+        self.LIBS = ['TcpIp', 'StdTimer', 'Critical']
+        self.Append(CPPDEFINES=['USE_TCPIP'])
+        for libName, source in self.mylibs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' %
+                        (libName.split(':')[0].upper())])
+
+libsForAddClientEx = {
+    'SoAd': Glob('config/client/GEN/SoAd_*.c') + Glob('config/client/GEN/NetMem.c'),
+    'Sd': Glob('config/client/GEN/Sd_*.c'),
+    'SomeIp': Glob('config/client/GEN/SomeIp_*.c'),
+    'SomeIpXf': Glob('config/client/GEN/SomeIpXf_*.c')
+}
+
+objsAddClientEx = Glob('add_client.c')
+
+@register_application
+class ApplicationAddClientEx(Application):
+    mylibs = libsForAddClientEx
+
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '%s/config/client/GEN' % (CWD)]
+        self.source = objsAddClientEx
+        self.LIBS = ['TcpIp', 'StdTimer', 'Critical']
+        self.Append(CPPDEFINES=['USE_TCPIP'])
+        for libName, source in self.mylibs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' %
+                        (libName.split(':')[0].upper())])

@@ -1,0 +1,58 @@
+{
+  "class": "Net",
+  "Modules": [
+    {
+      "name": "SomeIp",
+      "class": "SomeIp",
+      "SD": {
+        "hostname" : "ssas",
+        "multicast" : "224.244.224.245"
+      },
+      "structs": [
+        {
+          "name": "CanFrame",
+          "data": [
+            { "name": "busid", "type": "uint32", "variable_array": false },
+            { "name": "canid", "type": "uint32", "variable_array": false },
+            { "name": "dlc", "type": "uint8", "variable_array": false },
+            { "name": "data", "type": "uint8_n", "variable_array": false, "size": 64 }
+          ]
+        }
+      ],
+      "args": [
+        { "name": "canframe-args", "args": [ { "name": "canframe", "type": "CanFrame" } ] }
+      ],
+      "servers": [
+        {
+          "name": "CANBus",
+          "service": "0xcaab",
+          "instance": "0x1000",
+          "clientId": "0x1000",
+          "protocol": "UDP",
+          "unreliable": 30670,
+          "methods": [],
+          "event-groups": [
+            {
+              "name": "canframe",
+              "groupId": "0x8100",
+              "enable_multicast": true,
+              "multicast": {
+                "threshold": 1,
+                "addr":"224.244.224.245:30670"
+              },
+              "events": [
+                {
+                  "name": "canframe",
+                  "args": "canframe-args",
+                  "eventId": "0x8100",
+                  "tp": false,
+                  "version": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
