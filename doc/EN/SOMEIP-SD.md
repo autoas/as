@@ -7,6 +7,13 @@ comments: true
 
 ## SOMEIP and its Service Discovery
 
+SOMEIP/SD and SOMEIPXF dedicated examples:
+
+  - [SOMEIP CAN message publisher and subscriber](../../app/examples/someip/can/README.md)
+  - [SOMEIP math add client and server](../../app/examples/someip/add/README.md)
+
+But before trying the above examples, try the following example and following the step below to get environment ready.
+
 An example to play with:
 
 * NetApp: An app with SOMEIP/SD, DoIP and CAN stack together
