@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <mutex>
 #include <memory>
+#include <string>
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 #define LOG(level, ...) Log::print(Logger::level, #level ": " __VA_ARGS__)
