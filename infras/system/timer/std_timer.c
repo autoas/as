@@ -28,10 +28,10 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-#if defined(_WIN32)
+//#if defined(_WIN32)
 static std_time_t lTimeBase0 = 0;
 static std_time_t lGTP = 0;
-#endif
+//#endif
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32)
 static void __std_timer_deinit(void) {
@@ -68,46 +68,6 @@ std_time_t Std_GetTime(void) {
   tm = (std_time_t)now.tv_sec * 1000000 + now.tv_usec;
 
   return tm;
-}
-
-Std_ReturnType StbM_GetCurrentVirtualLocalTime(StbM_SynchronizedTimeBaseType timeBaseId,
-                                               StbM_VirtualLocalTimeType *localTimePtr) {
-  Std_ReturnType ret = E_OK;
-  std_time_t tm;
-  if (0 == timeBaseId) {
-    /* a simulation of local time for CanSyn development */
-    tm = Std_GetTime() - lTimeBase0 + lGTP;
-    tm = tm * 1000;
-    localTimePtr->nanosecondsHi = (uint32_t)(tm >> 32);
-    localTimePtr->nanosecondsLo = (uint32_t)(tm & 0xFFFFFFFFul);
-  } else {
-    ret = E_NOT_OK;
-  }
-
-  return ret;
-}
-
-Std_ReturnType StbM_BusSetGlobalTime(StbM_SynchronizedTimeBaseType timeBaseId,
-                                     const StbM_TimeStampType *globalTimePtr,
-                                     const StbM_UserDataType *userDataPtr,
-                                     const StbM_MeasurementType *measureDataPtr,
-                                     const StbM_VirtualLocalTimeType *localTimePtr) {
-  Std_ReturnType ret = E_OK;
-  std_time_t tm;
-  if (0 == timeBaseId) {
-    lTimeBase0 = Std_GetTime();
-    tm = (((uint64_t)globalTimePtr->secondsHi << 32) + globalTimePtr->seconds) * 1000000 +
-         (globalTimePtr->nanoseconds / 1000);
-    lGTP = tm;
-    ASLOG(INFO, ("GTP diff = %d us\n", (int)(lTimeBase0 - lGTP)));
-  } else {
-    ret = E_NOT_OK;
-  }
-  return ret;
-}
-
-uint8_t StbM_GetTimeBaseUpdateCounter(StbM_SynchronizedTimeBaseType timeBaseId) {
-  return 0;
 }
 
 void Std_GetDateTime(char *ts, size_t sz) {
@@ -152,6 +112,46 @@ void Std_Sleep(std_time_t time) {
 #endif
 }
 #endif
+
+Std_ReturnType StbM_GetCurrentVirtualLocalTime(StbM_SynchronizedTimeBaseType timeBaseId,
+                                               StbM_VirtualLocalTimeType *localTimePtr) {
+  Std_ReturnType ret = E_OK;
+  std_time_t tm;
+  if (0 == timeBaseId) {
+    /* a simulation of local time for CanSyn development */
+    tm = Std_GetTime() - lTimeBase0 + lGTP;
+    tm = tm * 1000;
+    localTimePtr->nanosecondsHi = (uint32_t)(tm >> 32);
+    localTimePtr->nanosecondsLo = (uint32_t)(tm & 0xFFFFFFFFul);
+  } else {
+    ret = E_NOT_OK;
+  }
+
+  return ret;
+}
+
+Std_ReturnType StbM_BusSetGlobalTime(StbM_SynchronizedTimeBaseType timeBaseId,
+                                     const StbM_TimeStampType *globalTimePtr,
+                                     const StbM_UserDataType *userDataPtr,
+                                     const StbM_MeasurementType *measureDataPtr,
+                                     const StbM_VirtualLocalTimeType *localTimePtr) {
+  Std_ReturnType ret = E_OK;
+  std_time_t tm;
+  if (0 == timeBaseId) {
+    lTimeBase0 = Std_GetTime();
+    tm = (((uint64_t)globalTimePtr->secondsHi << 32) + globalTimePtr->seconds) * 1000000 +
+         (globalTimePtr->nanoseconds / 1000);
+    lGTP = tm;
+    ASLOG(INFO, ("GTP diff = %d us\n", (int)(lTimeBase0 - lGTP)));
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+uint8_t StbM_GetTimeBaseUpdateCounter(StbM_SynchronizedTimeBaseType timeBaseId) {
+  return 0;
+}
 
 void Std_TimerStart(Std_TimerType *timer) {
   timer->status = STD_TIMER_STARTED;

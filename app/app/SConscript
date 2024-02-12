@@ -19,7 +19,7 @@ class ApplicationApp(Application):
     def config(self):
         self.CPPDEFINES = []
         self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]
-        self.LIBS = ['StdTimer']
+        self.LIBS = ['StdTimer', 'Crc']
         for libName, source in self.libsForApp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
