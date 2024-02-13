@@ -1060,7 +1060,7 @@ def AddPythonDev(env):
     pyp = sys.executable
     if (IsPlatformWindows()):
         pyp = pyp.replace(os.sep, '/')[:-10]
-        pylib = 'python'+sys.version[0]+sys.version[2]
+        pylib = 'python'+str(sys.version_info.major)+str(sys.version_info.minor)
         if (pylib in env.get('LIBS', [])):
             return
         pf = '%s/libs/lib%s.a' % (pyp, pylib)

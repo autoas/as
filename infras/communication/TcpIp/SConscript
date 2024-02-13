@@ -14,3 +14,4 @@ class LibraryTcpIp(Library):
             if IsBuildForWindows():
                 self.LIBS = ['ws2_32', 'iphlpapi']
         self.source = objs
+        self.LIBS += ['Utils']
