@@ -1,0 +1,28 @@
+@startuml Fee_Init
+
+start
+:BankId = 0;
+repeat 
+    if (BankId < NumOfBanks) then (yes)
+            :ReadBankAdmin;
+            if (Magic Number Correct) then (yes)
+                :BlankCheckInfo;
+                :BlankCheckBlock;
+            else (no)
+                :EraseInvalidBank;
+            endif
+    else (no)
+        :CheckBankInfo;
+        :CheckBankMagic;
+        :GetWorkingBank;
+        :SearchFreeSpace;
+        if (WorkingBank Full) then (yes)
+            :Backup; <<procedure>>
+            kill
+        else (no)
+            stop
+        endif
+    endif
+repeatwhile (:BankId++;)
+
+@enduml

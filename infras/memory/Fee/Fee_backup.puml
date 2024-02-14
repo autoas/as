@@ -1,0 +1,29 @@
+@startuml Backup
+
+start
+:ReadAdmin;
+:CheckBankStatus;
+:EnsureFull;
+:ReadNextBankAdmin;
+:BlankCheckNextBankEmpty;
+if (Empty) then (no)
+    :EraseNextBank;
+    :SetNextBankAdmin;
+else (yes)
+endif
+repeat :CopyAdmin;
+:CopyReadData;
+if (DataCrc OK) then (no)
+    :SearchNextData;
+    if (Find One) then (yes)
+        :CopyData;
+    else (no)
+    endif
+else (yes)
+    :CopyData;
+endif
+repeat while (All Copied) is (no) not (yes)
+:EraseBank;
+:SetBankAdmin;
+stop
+@enduml
