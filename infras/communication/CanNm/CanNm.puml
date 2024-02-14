@@ -1,0 +1,41 @@
+@startuml
+scale 1000 width
+
+state PowerOn <<start>>
+state PowerOff <<end>>
+state "Bus-Sleep Mode" as BSM
+state "Prepare Bus-Sleep Mode" as PBSM
+state "Network Mode" as NM {
+    state "Repeat Message State" as RMS: entry/Stop Bus Load Reduction
+    state "Normal Operation State" as NOS: entry/Start Bus Load Reduction
+    state "Ready Sleep State" as RSS
+    state "Repeat Message" as RM <<choice>>
+    RMS --> RMS : NM-Timeout Timer has expired\n/ Start NM-Timeout Timer;
+    RMS -left-> RMS : Tx Timeout Timer has expired\n/ NM_TxTimeoutException();
+    RMS --> RM : Repeat Message Timer has expired;
+    RM --> RSS : [Network Released]
+    RM --> NOS : [Network Requested]
+    NOS --> NOS : Tx Timeout Timer has expired\n/ NM_TxTimeoutException();
+    NOS -up-> NOS : NM-Timeout Timer has expired\n/ Start NM-Timeout Timer;
+    NOS --> RSS : CanNm_NetworkRelease();
+    RSS --> NOS : CanNm_NetworkRequest();\n[CanNmPnHandleMultipleNetworkRequests==FALSE]
+}
+
+NM --> RMS : CanNm_NetworkRequest()\n[CanNmPnHandleMultipleNetworkRequests==TRUE]\n/ Start Repeat Message Timer
+RSS --> PBSM: NM-Timeout Timer has expired\n/ Start Wait Bus-Sleep Timer;\nNm_PrepareBusSleepMode();
+NM -left-> NM : CanNm_RxIndication();\n/ Start NM-Timeout Timer;
+NM --> NM : CanNm_TxConfirmation(Result: E_OK);\n/ Start NM-Timeout Timer;
+
+PowerOn --> BSM : CanNm_Init();\n/ Initialization of CanNm
+BSM --> PowerOn : CanNum_DeInit()\n\n
+BSM --> PowerOff : PowerOff
+BSM --> BSM : CanNm_RxIndication();\n/ Nm_NetworkStartIndication();
+PBSM --> BSM : Wait Bus-Sleep Timer has expired\n/ Nm_BusSleepMode();
+
+BSM --> RMS : CanNm_PassiveStartup();\n/ Start NM-Timeout Timer;\nStart Repeat Message Timer;\nNm_NetworkMode();
+BSM --> RMS : CanNm_NetworkRequest();\n/ Start NM-Timeout Timer;\nStart Repeat Message Timer;\nNm_NetworkMode();
+PBSM --> RMS : \n\nCanNm_RxIndication();\n/ Start NM-Timeout Timer;\nStart Repeat Message Timer;\nNm_NetworkMode();
+PBSM --> RMS : \n\nCanNM_PassiveStartup();\n/ Start NM-Timeout Timer;\nStart Repeat Message Timer;\nNm_NetworkMode();
+PBSM --> RMS : \n\n\n\n\n\n\n\n\n\nCanNm_NetworkRequest();\n/ Start NM-Timeout Timer;\nStart Repeat Message Timer;\nNm_NetworkMode();
+
+@enduml
