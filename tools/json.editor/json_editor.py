@@ -525,7 +525,7 @@ class JsonBasic(JsonBase):
 
     def reloadUI(self):
         frame = QFrame()
-        frame.setMinimumWidth(self.root.width()*3/5)
+        frame.setMinimumWidth(int(self.root.width()*3/5))
         grid = QGridLayout()
         frame.setLayout(grid)
         K = QLabel(self.title)
@@ -623,7 +623,7 @@ class JsonObject(JsonBase):
 
     def reloadUI(self):
         frame = QFrame()
-        frame.setMinimumWidth(self.root.width()*3/5)
+        frame.setMinimumWidth(int(self.root.width()*3/5))
         grid = QGridLayout()
         frame.setLayout(grid)
         UIs = []
@@ -731,7 +731,7 @@ class JsonArray(JsonBase):
                     widths[column] = (len(str(V.obj.get(title)))+1)*cCharWidth
         for column in range(len(widths)):
             table.setColumnWidth(column, widths[column])
-        table.setMinimumWidth(self.root.width()*3/4)
+        table.setMinimumWidth(int(self.root.width()*3/4))
         return table
 
 
