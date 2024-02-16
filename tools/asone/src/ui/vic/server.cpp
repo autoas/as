@@ -16,6 +16,10 @@ extern "C" {
 #include "Std_Timer.h"
 
 #ifdef USE_SOMEIPXF
+extern "C" {
+#include "SomeIpXf_Cfg.h"
+}
+#else
 #include "display.msg.pb.h"
 #endif
 using namespace as;

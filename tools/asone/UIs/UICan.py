@@ -5,6 +5,10 @@ from PyQt5 import QtCore, QtGui
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
+import os
+os.add_dll_directory("C:\\anaconda3")
+os.add_dll_directory("C:\\msys64\\mingw64\\bin")
+os.add_dll_directory("C:\\WINDOWS\\system32")
 from one.AsPy import can as AsCan
 import sys
 import time
