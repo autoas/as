@@ -1997,7 +1997,11 @@ class Qemu():
         if IsPlatformWindows():
             url = 'https://qemu.weilnetz.de/w64/2022/qemu-w64-setup-20221208.exe'
             Package(url)
-            pkg = Glob('D:/Program*/qemu')[0].rstr()
+            pkg = Glob('D:/Program*/qemu')
+            if len(pkg) != 0:
+                pkg = Glob('D:/Program*/qemu')[0].rstr()
+            else:
+                pkg = Glob('C:/Program*/qemu')[0].rstr()
             return '%s/qemu-system-%s' % (pkg, self.arch)
         else:
             return 'qemu-system-%s' % (self.arch)
