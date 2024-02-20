@@ -1,5 +1,6 @@
 {
   "class": "Net",
+  "AnitTest": true,
   "Modules": [
     {
       "name": "SomeIp",

@@ -764,7 +764,8 @@
             }
           }
         }
-      }
+      },
+      "AnitTest": { "type": "bool", "default": false }
     }
   }
 ]
