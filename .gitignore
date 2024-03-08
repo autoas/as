@@ -12,7 +12,6 @@ download
 *.img
 Makefile*
 TAGS
-platform
 release
 *.pkl
 GEN*

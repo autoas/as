@@ -20,23 +20,14 @@ namespace as {
 /* ================================ [ DATAS     ] ============================================== */
 std::shared_ptr<Logger> Log::s_Logger = std::make_shared<Logger>();
 /* ================================ [ LOCALS    ] ============================================== */
-static float get_rel_time(void) {
-  static struct timeval m0 = {-1, -1};
-  struct timeval m1;
-  float rtim;
+static float get_abs_time(void) {
+  float absT;
+  struct timespec ts;
 
-  if ((-1 == m0.tv_sec) && (-1 == m0.tv_usec)) {
-    gettimeofday(&m0, NULL);
-  }
-  gettimeofday(&m1, NULL);
-  rtim = m1.tv_sec - m0.tv_sec;
-  if (m1.tv_usec > m0.tv_usec) {
-    rtim += (float)(m1.tv_usec - m0.tv_usec) / 1000000.0;
-  } else {
-    rtim = rtim - 1 + (float)(1000000.0 + m1.tv_usec - m0.tv_usec) / 1000000.0;
-  }
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  absT = (float)ts.tv_sec + (float)(ts.tv_nsec / 1000000000.0);
 
-  return rtim;
+  return absT;
 }
 
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -153,7 +144,7 @@ void Logger::print(int level, const char *fmt, ...) {
   if (level >= m_Level) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
-      float rtime = get_rel_time();
+      float rtime = get_abs_time();
       fprintf(m_File, "%.4f ", rtime);
     }
     va_start(args, fmt);
@@ -169,7 +160,7 @@ void Logger::print(int level, const char *fmt, va_list args) {
   if (level >= m_Level) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
-      float rtime = get_rel_time();
+      float rtime = get_abs_time();
       fprintf(m_File, "%.4f ", rtime);
     }
     (void)vfprintf(m_File, fmt, args);
@@ -225,7 +216,7 @@ void Logger::hexdump(int level, const char *prefix, const void *data, size_t siz
 void Logger::vprint(const char *fmt, va_list args) {
   std::unique_lock<std::mutex> lck(m_Lock);
   if (m_Ended) {
-    float rtime = get_rel_time();
+    float rtime = get_abs_time();
     fprintf(m_File, "%.4f ", rtime);
     m_Ended = false;
   }
@@ -239,7 +230,7 @@ void Logger::vprint(const char *fmt, va_list args) {
 
 void Logger::putc(char chr) {
   if (m_Ended) {
-    float rtime = get_rel_time();
+    float rtime = get_abs_time();
     fprintf(m_File, "%.4f ", rtime);
     m_Ended = false;
   }

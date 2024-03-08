@@ -53,6 +53,8 @@ Then, we can try to compile the following APPs to test the developemnt environme
 
 ```sh
 # app panel
+# better activate the python env before run scons, the same for other panels
+D:\repository\ssas-public>c:\anaconda3\Scripts\activate
 D:\repository\ssas-public>scons --app=IsoTpSend
 scons: Reading SConscript files ...
 scons: done reading SConscript files.

@@ -1,0 +1,46 @@
+from building import *
+Import('BUILD_DIR')
+CWD = GetCurrentDir()
+
+objs = Glob('src/*.cpp')
+objsWin = Glob('src/platform/win/*.cpp')
+
+
+@register_library
+class LibraryVDDS(Library):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objs
+        self.LIBS += ['Utils']
+        self.Append(CPPDEFINES = ['USE_STD_PRINTF'])
+        if IsBuildForWindows():
+            self.include += ['%s/src/platform/win/include' % (CWD)]
+            self.source += objsWin
+            self.LIBS += ['ws2_32', 'iphlpapi', 'bcrypt']
+        else:
+            self.LIBS += ['pthread', 'rt']
+
+
+objsHwPub = Glob('examples/hello_world_publisher.cpp')
+
+
+@register_application
+class ApplicationVDDSHwPub(Application):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsHwPub
+        self.LIBS += ['VDDS']
+
+
+objsHwSub = Glob('examples/hello_world_subscriber.cpp')
+
+
+@register_application
+class ApplicationVDDSHwSub(Application):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsHwSub
+        self.LIBS += ['VDDS']

@@ -34,6 +34,8 @@ This project now provide below tools & libraries:
 
 ![JSON Editor](doc/images/json-editor-ssas.gif)
 
+- [**VDDS**](infras/libraries/dds/vdds/): [The Virtio Ring Buffer & Shared Memory based DDS](doc/EN/ViotioDDS.md)
+
 ## Successful solutions for customer
 
 - CAN/LIN protocal based flashloader/bootloader for MCU.
@@ -68,3 +70,5 @@ This project now provide below tools & libraries:
 - **DoIP**: [EN](doc/EN/DoIP.md)
 
 - **Json Editor**: [EN](doc/EN/JsonEditor.md)
+
+- **VDDS**: [EN](doc/EN/ViotioDDS.md)
