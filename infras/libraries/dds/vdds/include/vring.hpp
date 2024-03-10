@@ -27,10 +27,10 @@ namespace vdds {
   VRING_ALIGN(sizeof(VRing_MetaType) * capability, align)
 
 #define VRING_SIZE_OF_DESC(capability, align)                                                      \
-  VRING_ALIGN((sizeof(VRing_DescType) + sizeof(uint16_t) * capability) * capability, align)
+  VRING_ALIGN((sizeof(VRing_DescType) + sizeof(uint32_t) * capability) * capability, align)
 
 #define VRING_SIZE_OF_AVAIL(capability, align)                                                     \
-  VRING_ALIGN((sizeof(VRing_AvailType) + sizeof(uint16_t) * capability) * capability, align)
+  VRING_ALIGN((sizeof(VRing_AvailType) + sizeof(uint32_t) * capability) * capability, align)
 
 #define VRING_SIZE_OF_USED(capability, align)                                                      \
   VRING_ALIGN((sizeof(VRing_UsedType) + sizeof(VRing_UsedElemType) * capability) * capability,     \
@@ -65,7 +65,7 @@ typedef struct {
   /* The spinlock to ensure the idx and ring content updated atomic */
   int32_t spin;
   uint32_t idx;
-  uint16_t ring[];
+  uint32_t ring[];
 } VRing_AvailType;
 
 /* u32 is used here for ids for padding reasons. */
