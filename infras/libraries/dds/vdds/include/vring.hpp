@@ -15,87 +15,83 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <array>
 #include <cstring>
 #include <semaphore.h>
 
 namespace as {
 namespace vdds {
 /* ================================ [ MACROS    ] ============================================== */
-#define VRING_ALIGN(sz, align) (((sz) + (align)-1) & (~((align)-1)))
+#ifndef VRING_ALIGNMENT
+#define VRING_ALIGNMENT 64
+#endif
 
-#define VRING_SIZE_OF_META(capability, align)                                                      \
-  VRING_ALIGN(sizeof(VRing_MetaType) * capability, align)
+#ifndef VRING_MAX_READERS
+#define VRING_MAX_READERS 8
+#endif
 
-#define VRING_SIZE_OF_DESC(capability, align)                                                      \
-  VRING_ALIGN((sizeof(VRing_DescType) + sizeof(uint32_t) * capability) * capability, align)
+#define VRING_ALIGN(sz) (((sz) + (VRING_ALIGNMENT)-1) & (~((VRING_ALIGNMENT)-1)))
 
-#define VRING_SIZE_OF_AVAIL(capability, align)                                                     \
-  VRING_ALIGN((sizeof(VRing_AvailType) + sizeof(uint32_t) * capability) * capability, align)
+#define VRING_SIZE_OF_META(numDesc) VRING_ALIGN(sizeof(VRing_MetaType) * numDesc)
 
-#define VRING_SIZE_OF_USED(capability, align)                                                      \
-  VRING_ALIGN((sizeof(VRing_UsedType) + sizeof(VRing_UsedElemType) * capability) * capability,     \
-              align)
+#define VRING_SIZE_OF_DESC(numDesc)                                                                \
+  VRING_ALIGN((sizeof(VRing_DescType) + sizeof(uint32_t) * numDesc) * numDesc)
+
+#define VRING_SIZE_OF_AVAIL(numDesc)                                                               \
+  VRING_ALIGN((sizeof(VRing_AvailType) + sizeof(uint32_t) * numDesc) * numDesc)
+
+#define VRING_SIZE_OF_USED(numDesc)                                                                \
+  VRING_ALIGN((sizeof(VRing_UsedType) + sizeof(VRing_UsedElemType) * numDesc) * numDesc)
+
+#define VRING_SIZE_OF_ALL_USED(numDesc)                                                            \
+  (VRING_ALIGN((sizeof(VRing_UsedType) + sizeof(VRing_UsedElemType) * numDesc) * numDesc) *        \
+   VRING_MAX_READERS)
+
+#define VRING_USED_STATE_FREE 0
+#define VRING_USED_STATE_INIT 1
+#define VRING_USED_STATE_READY 2
+#define VRING_USED_STATE_KILLED 3
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  uint32_t maxReaders;
   uint32_t msgSize;
-  uint32_t capability;
-  uint32_t align;
+  uint32_t numDesc;
 } VRing_MetaType;
 
-/* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
 typedef struct {
-  /* Address (guest-physical). */
-  uint64_t addr;
-  /* Length. */
+  uint64_t timestamp; /* timestamp in microseconds when publish this DESC */
+  uint64_t addr;      /* Address (guest-physical). */
   uint32_t len;
-  /* The spinlock to pretect the ref */
-  int32_t spin;
-  /* The reference counter */
-  int32_t ref;
-  /* The flags as indicated above. */
-  uint32_t flags;
-  /* We chain unused descriptors via this, too */
-  uint32_t next;
+  int32_t spin; /* The spinlock to protect the ref and timestamp */
+  int32_t ref;  /* The reference counter */
 } VRing_DescType;
 
 typedef struct {
   uint32_t lastIdx;
-  uint32_t flags;
-  /* The spinlock to ensure the idx and ring content updated atomic */
-  int32_t spin;
+  int32_t spin; /* The spinlock to ensure the idx and ring content updated atomic */
   uint32_t idx;
   uint32_t ring[];
 } VRing_AvailType;
 
-/* u32 is used here for ids for padding reasons. */
 typedef struct {
-  /* Index of start of used descriptor chain. */
-  uint32_t id;
-  /* Total length of the descriptor chain which was used (written to) */
-  uint32_t len;
+  uint32_t id;  /* Index of start of used descriptor chain. */
+  uint32_t len; /* Total length of the descriptor chain which was used (written to) */
 } VRing_UsedElemType;
 
 typedef struct {
-  int32_t ref;    /* atomic reference counter */
+  int32_t state;  /* atomic used state: 0 : free, 1: init, 2: ready, 3: killed */
   uint32_t heart; /* atomic heart beat counter */
-  uint32_t lastDescId;
   uint32_t lastHeart;
   uint32_t lastIdx;
-  uint32_t flags;
   uint32_t idx;
   VRing_UsedElemType ring[];
 } VRing_UsedType;
 
 class VRingBase {
 public:
-  VRingBase(std::string name, uint32_t maxReaders = 8, uint32_t capability = 8,
-            uint32_t align = 64);
+  VRingBase(std::string name, uint32_t numDesc = 8);
   ~VRingBase();
 
-  int getLastError() {
-    return m_Err;
-  }
+  uint64_t timestamp();
 
 protected:
   uint32_t size();
@@ -112,9 +108,7 @@ protected:
 
 protected:
   std::string m_Name;
-  uint32_t m_MaxReaders = 8;
-  uint32_t m_Capability = 8;
-  uint32_t m_Align = 64;
+  uint32_t m_NumDesc = 8;
 
   VRing_MetaType *m_Meta = nullptr;
   VRing_DescType *m_Desc = nullptr;
@@ -124,8 +118,6 @@ protected:
   void *m_SharedMemory = nullptr;
   int m_ShmFd = -1;
 
-  int m_Err = 0;
-
   std::mutex m_Lock;
   std::map<uint64_t, ShmInfo> m_ShmMap;
 };
@@ -133,24 +125,28 @@ protected:
 /*The Virtio Ring Writer*/
 class VRingWriter : public VRingBase {
 public:
-  VRingWriter(std::string name, uint32_t msgSize = 256 * 1024, uint32_t maxReaders = 8,
-              uint32_t capability = 8, uint32_t align = 64);
+  VRingWriter(std::string name, uint32_t msgSize = 256 * 1024, uint32_t numDesc = 8);
   ~VRingWriter();
 
-  /* get an avaiable buffer from the avaiable ring */
-  void *get(uint32_t *idx, uint32_t *len, uint32_t timeoutMs = 1000);
+  int init();
+
+  /* get an avaiable buffer from the avaiable ring
+   * Positive errors: ETIMEDOUT, ENODATA
+   */
+  int get(void *&buf, uint32_t &idx, uint32_t &len, uint32_t timeoutMs = 1000);
 
   /* put the avaiable buffer to the used ring */
-  void put(uint32_t idx, uint32_t len);
+  int put(uint32_t idx, uint32_t len);
 
   /* drop the avaiable buffer to the avaiable ring */
-  void drop(uint32_t idx);
+  int drop(uint32_t idx);
 
 private:
-  void setup();
-  void releaseDesc(uint32_t idx, uint32_t readerIdx, const char *prefix);
+  int setup();
+  void releaseDesc(uint32_t idx);
   void removeAbnormalReader(VRing_UsedType *used, uint32_t readerIdx);
   void readerHeartCheck();
+  void checkDescLife();
   void threadMain();
 
 private:
@@ -159,23 +155,27 @@ private:
   std::thread m_Thread;
 
   sem_t *m_SemAvail = nullptr;
-  std::vector<sem_t *> m_UsedSems;
+  std::array<sem_t *, VRING_MAX_READERS> m_UsedSems;
 };
 
 class VRingReader : public VRingBase {
 public:
-  VRingReader(std::string name, uint32_t maxReaders = 8, uint32_t capability = 8,
-              uint32_t align = 64);
+  VRingReader(std::string name, uint32_t numDesc = 8);
   ~VRingReader();
 
-  /* get an buffer with data from the used ring */
-  void *get(uint32_t *idx, uint32_t *len, uint32_t timeoutMs = 1000);
+  int init();
+
+  /* get an buffer with data from the used ring
+   * Positive errors: ETIMEDOUT, ENOMSG */
+  int get(void *&buf, uint32_t &idx, uint32_t &len, uint32_t timeoutMs = 1000);
 
   /* put the buffer back to the avaiable ring */
-  void put(uint32_t idx);
+  int put(uint32_t idx);
 
 private:
   void threadMain();
+  void addToDeatched(uint32_t idx);
+  void removeFromDeatched(uint32_t idx);
 
 private:
   uint32_t m_ReaderIdx;

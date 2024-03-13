@@ -119,7 +119,7 @@ int sem_timedwait(sem_t *sem, const struct timespec *abstime) {
   DWORD dwWaitResult = WaitForSingleObject((HANDLE)sem, timeoutMs);
   if (WAIT_OBJECT_0 == dwWaitResult) {
   } else if (WAIT_TIMEOUT == dwWaitResult) {
-    ercd = ETIME;
+    ercd = ETIMEDOUT;
   } else {
     ASLOG(SEME, ("sem_timedwait(%p) = %d\n", sem, dwWaitResult));
     ercd = EACCES;

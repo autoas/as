@@ -34,16 +34,22 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, signalHandler);
 #endif
   Subscriber<HelloWorld_t> sub("/hello_wrold/xx");
-  while ((0 == sub.getLastError())
+  r = sub.init();
+  while ((0 == r)
 #if defined(linux)
          && (false == lStopped)
 #endif
   ) {
     size_t size = 0;
-    auto sample = (HelloWorld_t *)sub.receive(size);
-    if (nullptr != sample) {
+    HelloWorld_t *sample = nullptr;
+    r = sub.receive(sample, size);
+    if (0 == r) {
       ASLOG(INFO, ("receive: %s, len=%d, idx = %u\n", sample->string, (int)size, sub.idx(sample)));
-      sub.release(sample);
+      r = sub.release(sample);
+    } else if (ETIMEDOUT == r) {
+      r = 0;
+    } else {
+      ASLOG(ERROR, ("exit as error %d\n", r));
     }
   }
   return r;

@@ -19,12 +19,10 @@ namespace vdds {
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct PublisherOptions {
 public:
-  PublisherOptions(uint32_t maxSubscribers = 8, uint32_t queueDepth = 8)
-    : maxSubscribers(maxSubscribers), queueDepth(queueDepth) {
+  PublisherOptions(uint32_t queueDepth = 8) : queueDepth(queueDepth) {
   }
 
 public:
-  uint32_t maxSubscribers = 8;
   uint32_t queueDepth = 8;
 } PublisherOptions_t;
 
@@ -33,12 +31,13 @@ public:
   Publisher(std::string topicName, const PublisherOptions_t &publisherOptions = PublisherOptions());
   ~Publisher();
 
-  int getLastError();
+  int init();
 
-  T *load(uint32_t timeoutMs = 1000);
-  void publish(T *sample);
-  void publish(T *sample, size_t size);
+  int load(T *&sample, uint32_t timeoutMs = 1000);
+  int publish(T *sample);
+  int publish(T *sample, size_t size);
 
+  // API for debug purpose
   uint32_t idx(T *sample);
 
 private:
@@ -53,45 +52,51 @@ private:
 /* ================================ [ FUNCTIONS ] ============================================== */
 template <typename T>
 Publisher<T>::Publisher(std::string topicName, const PublisherOptions_t &publisherOptions)
-  : m_TopicName(topicName),
-    m_Writer(topicName, sizeof(T), publisherOptions.maxSubscribers, publisherOptions.queueDepth) {
+  : m_TopicName(topicName), m_Writer(topicName, sizeof(T), publisherOptions.queueDepth) {
 }
 
 template <typename T> Publisher<T>::~Publisher() {
 }
 
-template <typename T> int Publisher<T>::getLastError() {
-  return m_Writer.getLastError();
+template <typename T> int Publisher<T>::init() {
+  return m_Writer.init();
 }
 
-template <typename T> T *Publisher<T>::load(uint32_t timeoutMs) {
-  T *sample;
+template <typename T> int Publisher<T>::load(T *&sample, uint32_t timeoutMs) {
   uint32_t idx;
   uint32_t len;
+  int ret = 0;
 
-  sample = (T *)m_Writer.get(&idx, &len, timeoutMs);
-  if (nullptr != sample) {
+  ret = m_Writer.get((void *&)sample, idx, len, timeoutMs);
+  if (0 == ret) {
     std::unique_lock<std::mutex> lck(m_Mutex);
     m_IdxMap[sample] = idx;
   }
 
-  return sample;
+  return ret;
 }
 
-template <typename T> void Publisher<T>::publish(T *sample) {
+template <typename T> int Publisher<T>::publish(T *sample) {
+  int ret = 0;
   uint32_t idx;
+
   std::unique_lock<std::mutex> lck(m_Mutex);
   auto it = m_IdxMap.find(sample);
   if (it != m_IdxMap.end()) {
     idx = it->second;
-    m_Writer.put(idx, sizeof(T));
+    ret = m_Writer.put(idx, sizeof(T));
   } else {
     ASLOG(VPUBE, ("%s: invalid sample\n", m_TopicName.c_str()));
+    ret = EINVAL;
   }
+
+  return ret;
 }
 
-template <typename T> void Publisher<T>::publish(T *sample, size_t size) {
+template <typename T> int Publisher<T>::publish(T *sample, size_t size) {
+  int ret = 0;
   uint32_t idx;
+
   std::unique_lock<std::mutex> lck(m_Mutex);
   auto it = m_IdxMap.find(sample);
   if (it != m_IdxMap.end()) {
@@ -100,7 +105,10 @@ template <typename T> void Publisher<T>::publish(T *sample, size_t size) {
     m_Writer.put(idx, (uint32_t)size);
   } else {
     ASLOG(VPUBE, ("%s: invalid sample\n", m_TopicName.c_str()));
+    ret = EINVAL;
   }
+
+  return ret;
 }
 
 template <typename T> uint32_t Publisher<T>::idx(T *sample) {

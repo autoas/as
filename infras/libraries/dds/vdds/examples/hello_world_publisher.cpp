@@ -29,23 +29,31 @@ static void signalHandler(int sig) {
 int main(int argc, char *argv[]) {
   int r = 0;
   uint32_t sessionId = 0;
+
 #if defined(linux)
   signal(SIGINT, signalHandler);
 #endif
   Publisher<HelloWorld_t> pub("/hello_wrold/xx");
-  while ((0 == pub.getLastError())
+  r = pub.init();
+  while ((0 == r)
 #if defined(linux)
          && (false == lStopped)
 #endif
   ) {
-    auto sample = (HelloWorld_t *)pub.load();
-    if (nullptr != sample) {
+    HelloWorld_t *sample = nullptr;
+    r = pub.load(sample);
+    if (0 == r) {
       int len = snprintf(sample->string, sizeof(sample->string), "hello world: %u", sessionId);
       ASLOG(INFO, ("publish: %s, idx = %u\n", sample->string, pub.idx(sample)));
-      pub.publish(sample, len);
+      r = pub.publish(sample, len);
       sessionId++;
+    } else if (ETIMEDOUT == r) {
+      r = 0;
+    } else {
+      ASLOG(ERROR, ("exit as error %d\n", r));
     }
     usleep(1000000);
   }
+
   return r;
 }
