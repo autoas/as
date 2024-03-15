@@ -29,6 +29,18 @@ static void signalHandler(int sig) {
 int main(int argc, char *argv[]) {
   int r = 0;
   uint32_t sessionId = 0;
+  int periodMs = 1000000;
+
+  int opt;
+  while ((opt = getopt(argc, argv, "p:")) != -1) {
+    switch (opt) {
+    case 'p':
+      periodMs = atoi(optarg);
+      break;
+    default:
+      break;
+    }
+  }
 
 #if defined(linux)
   signal(SIGINT, signalHandler);
@@ -47,12 +59,12 @@ int main(int argc, char *argv[]) {
       ASLOG(INFO, ("publish: %s, idx = %u\n", sample->string, pub.idx(sample)));
       r = pub.publish(sample, len);
       sessionId++;
-    } else if (ETIMEDOUT == r) {
+    } else if ((ETIMEDOUT == r) || (ENODATA == r)) {
       r = 0;
     } else {
       ASLOG(ERROR, ("exit as error %d\n", r));
     }
-    usleep(1000000);
+    usleep(periodMs * 1000);
   }
 
   return r;

@@ -40,7 +40,7 @@ pacman -S mingw32/mingw-w64-i686-gcc mingw-w64-x86_64-diffutils
 pacman -S ncurses-devel gperf curl make cmake automake-wrapper libtool
 pacman -S unrar mingw-w64-x86_64-pkg-config mingw-w64-x86_64-binutils
 pacman -S msys2-runtime-devel mingw-w64-x86_64-qemu mingw-w64-x86_64-dlfcn
-pacman -S mingw-w64-x86_64-protobuf
+pacman -S mingw-w64-x86_64-protobuf patch autotools
 # For some anaconda installations, need to modify C:\Anaconda3\Lib\site.py to change the
 # value of "ENABLE_USER_SITE" from "None" to "False", and need to ensure the user has full
 # access rights to "C:\Anaconda3"

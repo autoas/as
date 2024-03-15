@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     if (0 == r) {
       ASLOG(INFO, ("receive: %s, len=%d, idx = %u\n", sample->string, (int)size, sub.idx(sample)));
       r = sub.release(sample);
-    } else if (ETIMEDOUT == r) {
+    } else if ((ETIMEDOUT == r) || (ENOMSG == r)) {
       r = 0;
     } else {
       ASLOG(ERROR, ("exit as error %d\n", r));

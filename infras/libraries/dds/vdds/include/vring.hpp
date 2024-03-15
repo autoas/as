@@ -97,7 +97,7 @@ protected:
   uint32_t size();
   void *getVA(uint64_t PA, uint32_t size, int oflag = O_RDWR);
 
-  void spinLock(int32_t *pLock);
+  int spinLock(int32_t *pLock);
   void spinUnlock(int32_t *pLock);
 
 protected:
@@ -174,8 +174,6 @@ public:
 
 private:
   void threadMain();
-  void addToDeatched(uint32_t idx);
-  void removeFromDeatched(uint32_t idx);
 
 private:
   uint32_t m_ReaderIdx;
