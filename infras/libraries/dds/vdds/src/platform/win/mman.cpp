@@ -88,7 +88,7 @@ int shm_open(const char *name, int oflag, mode_t mode) {
     lShmNameToFdMap[name] = fd;
     lShmFdToHandleMap[fd] = handle;
   }
-  
+
   ASLOG(MMAN, ("shm_open(%s, oflag=%x, mode=%x)=%d\n", name, oflag, mode, fd));
 
   return fd;

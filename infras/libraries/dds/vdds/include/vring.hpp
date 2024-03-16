@@ -6,8 +6,6 @@
 #define _VRING_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <string>
 #include <map>
@@ -17,7 +15,11 @@
 #include <vector>
 #include <array>
 #include <cstring>
-#include <semaphore.h>
+#include <memory>
+
+#include "shared_memory.hpp"
+#include "dma_memory.hpp"
+#include "named_semaphore.hpp"
 
 namespace as {
 namespace vdds {
@@ -59,7 +61,7 @@ typedef struct {
 
 typedef struct {
   uint64_t timestamp; /* timestamp in microseconds when publish this DESC */
-  uint64_t addr;      /* Address (guest-physical). */
+  uint64_t handle;    /* the virtual shared large memory handle */
   uint32_t len;
   int32_t spin; /* The spinlock to protect the ref and timestamp */
   int32_t ref;  /* The reference counter */
@@ -95,16 +97,8 @@ public:
 
 protected:
   uint32_t size();
-  void *getVA(uint64_t PA, uint32_t size, int oflag = O_RDWR);
-
   int spinLock(int32_t *pLock);
   void spinUnlock(int32_t *pLock);
-
-protected:
-  struct ShmInfo {
-    void *addr;
-    int fd;
-  };
 
 protected:
   std::string m_Name;
@@ -115,11 +109,7 @@ protected:
   VRing_AvailType *m_Avail = nullptr;
   VRing_UsedType *m_Used = nullptr;
 
-  void *m_SharedMemory = nullptr;
-  int m_ShmFd = -1;
-
-  std::mutex m_Lock;
-  std::map<uint64_t, ShmInfo> m_ShmMap;
+  std::shared_ptr<SharedMemory> m_SharedMemory;
 };
 
 /*The Virtio Ring Writer*/
@@ -142,6 +132,7 @@ public:
   int drop(uint32_t idx);
 
 private:
+  void *getVA(uint64_t handle, uint32_t size);
   int setup();
   void releaseDesc(uint32_t idx);
   void removeAbnormalReader(VRing_UsedType *used, uint32_t readerIdx);
@@ -154,8 +145,10 @@ private:
   bool m_Stop = false;
   std::thread m_Thread;
 
-  sem_t *m_SemAvail = nullptr;
-  std::array<sem_t *, VRING_MAX_READERS> m_UsedSems;
+  std::shared_ptr<NamedSemaphore> m_SemAvail = nullptr;
+  std::vector<std::shared_ptr<NamedSemaphore>> m_UsedSems;
+
+  std::vector<std::shared_ptr<DmaMemory>> m_DmaMems;
 };
 
 class VRingReader : public VRingBase {
@@ -173,14 +166,18 @@ public:
   int put(uint32_t idx);
 
 private:
+  void *getVA(uint64_t handle, uint32_t size);
   void threadMain();
 
 private:
   uint32_t m_ReaderIdx;
   bool m_Stop = false;
   std::thread m_Thread;
-  sem_t *m_SemUsed = nullptr;
-  sem_t *m_SemAvail = nullptr;
+  std::shared_ptr<NamedSemaphore> m_SemUsed = nullptr;
+  std::shared_ptr<NamedSemaphore> m_SemAvail = nullptr;
+
+  std::mutex m_Lock;
+  std::map<uint64_t, std::shared_ptr<DmaMemory>> m_DmaMap;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

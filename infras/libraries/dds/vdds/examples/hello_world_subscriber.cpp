@@ -18,28 +18,20 @@ typedef struct {
 } HelloWorld_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-#if defined(linux)
 static bool lStopped = false;
-#endif
 /* ================================ [ LOCALS    ] ============================================== */
-#if defined(linux)
 static void signalHandler(int sig) {
   lStopped = true;
 }
-#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int r = 0;
-#if defined(linux)
+
   signal(SIGINT, signalHandler);
-#endif
+
   Subscriber<HelloWorld_t> sub("/hello_wrold/xx");
   r = sub.init();
-  while ((0 == r)
-#if defined(linux)
-         && (false == lStopped)
-#endif
-  ) {
+  while ((0 == r) && (false == lStopped)) {
     size_t size = 0;
     HelloWorld_t *sample = nullptr;
     r = sub.receive(sample, size);

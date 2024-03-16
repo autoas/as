@@ -16,20 +16,16 @@ typedef struct {
 } HelloWorld_t;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-#if defined(linux)
 static bool lStopped = false;
-#endif
 /* ================================ [ LOCALS    ] ============================================== */
-#if defined(linux)
 static void signalHandler(int sig) {
   lStopped = true;
 }
-#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int r = 0;
   uint32_t sessionId = 0;
-  int periodMs = 1000000;
+  int periodMs = 1000;
 
   int opt;
   while ((opt = getopt(argc, argv, "p:")) != -1) {
@@ -42,16 +38,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
-#if defined(linux)
   signal(SIGINT, signalHandler);
-#endif
+
   Publisher<HelloWorld_t> pub("/hello_wrold/xx");
   r = pub.init();
-  while ((0 == r)
-#if defined(linux)
-         && (false == lStopped)
-#endif
-  ) {
+  while ((0 == r) && (false == lStopped)) {
     HelloWorld_t *sample = nullptr;
     r = pub.load(sample);
     if (0 == r) {
