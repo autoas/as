@@ -44,3 +44,15 @@ class ApplicationVDDSHwSub(Application):
         self.CPPPATH = ['$INFRAS']
         self.source = objsHwSub
         self.LIBS += ['VDDS']
+
+
+objsHwPS = Glob('examples/hello_world_ps.cpp')
+
+
+@register_application
+class ApplicationVDDSHwPS(Application):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsHwPS
+        self.LIBS += ['VDDS']

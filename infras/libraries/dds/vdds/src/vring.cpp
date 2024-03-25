@@ -191,6 +191,7 @@ int VRingWriter::setup() {
 
 int VRingWriter::get(void *&buf, uint32_t &idx, uint32_t &len, uint32_t timeoutMs) {
   int ret = 0;
+  int32_t ref;
 
   (void)m_SemAvail->wait(timeoutMs);
 
@@ -201,12 +202,17 @@ int VRingWriter::get(void *&buf, uint32_t &idx, uint32_t &len, uint32_t timeoutM
       ret = ENODATA;
     } else {
       idx = m_Avail->ring[m_Avail->lastIdx % m_NumDesc];
-      __atomic_store_n(&m_Desc[idx].ref, 0, __ATOMIC_RELAXED);
-      buf = m_DmaMems[idx]->getVA();
-      len = m_Desc[idx].len;
-      m_Avail->lastIdx++;
-      ASLOG(VRING, ("vring writer %s: get DESC[%u], len = %u; AVAIL: lastIdx = %u, idx = %u\n",
-                    m_Name.c_str(), idx, len, m_Avail->lastIdx, m_Avail->idx));
+      ref = __atomic_load_n(&m_Desc[idx].ref, __ATOMIC_RELAXED);
+      if (0 == ref) {
+        buf = m_DmaMems[idx]->getVA();
+        len = m_Desc[idx].len;
+        m_Avail->lastIdx++;
+        ASLOG(VRING, ("vring writer %s: get DESC[%u], len = %u; AVAIL: lastIdx = %u, idx = %u\n",
+                      m_Name.c_str(), idx, len, m_Avail->lastIdx, m_Avail->idx));
+      } else {
+        ASLOG(VRINGE, ("vring writer %s: get DESC[%u] with ref = %d\n", m_Name.c_str(), idx, ref));
+        ret = EBADF;
+      }
     }
     spinUnlock(&m_Avail->spin);
   } else {
@@ -551,9 +557,12 @@ int VRingReader::get(void *&buf, uint32_t &idx, uint32_t &len, uint32_t timeoutM
     used = &m_Used->ring[m_Used->lastIdx % m_NumDesc];
     idx = used->id;
     len = used->len;
+    m_Used->lastIdx++;
 
     buf = (void *)getVA(m_Desc[idx].handle, m_Desc[idx].len);
-    m_Used->lastIdx++;
+    if (nullptr == buf) {
+      ret = EBADMSG;
+    }
 
     /* if the app crashed after this before call the put, then the desc is in detached state
      * that need the monitor to recycle it.

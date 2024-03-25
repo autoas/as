@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include "Std_Debug.h"
 #include <time.h>
+#include <assert.h>
 
 namespace as {
 namespace vdds {
@@ -14,10 +15,15 @@ namespace vdds {
 #define AS_LOG_NSEMW 2
 #define AS_LOG_NSEME 3
 /* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
+/* ================================ [ FUNCTIONS ] ============================================== */
 NamedSemaphore::NamedSemaphore(std::string name, int value) : m_Name(name), m_Value(value) {
 #if defined(_WIN32)
   m_Name = "Local/" + m_Name;
 #endif
+  assert(value >= 0);
 }
 
 NamedSemaphore::NamedSemaphore(std::string name) : m_Name(name) {
@@ -82,10 +88,5 @@ int NamedSemaphore::post() {
 
   return ret;
 }
-
-/* ================================ [ DECLARES  ] ============================================== */
-/* ================================ [ DATAS     ] ============================================== */
-/* ================================ [ LOCALS    ] ============================================== */
-/* ================================ [ FUNCTIONS ] ============================================== */
 } // namespace vdds
 } // namespace as

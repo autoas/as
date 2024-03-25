@@ -68,6 +68,26 @@ The Reader.get update the used ring "lastIdx". Only the Reader will update this 
 need atomic.
 ```
 
+The more key important details of the AVAIL ring and USED ring as below picture shows:
+
+![virtio ring dds arch](../images/virtio-ring-buffer-arch.png)
+
+As the Figure 0 shows, when the Writer initialization is done and 2 Readers(USED ring) online, the ring of AVAIL is full and each points to a valid DESC(the shared memory descriptor). And the USED[0] and USED[1] ring are empty.
+
+When the user of the Writer call API "get", the DESC[0] as pointed by the lastIdx of AVAIL ring will be returned to the user and the lastIdx will be moved to point to the next RING[1], as Figure 1 shows.
+
+Then when the user of the Writer fill valid data to the memory point by DESC[0], a "put" API call to put the DESC[0] to all the online USED ring, thus the USED[0] and USED[1] ring will has 1 ring that point to the DESC[0], as 2 consumers, the "ref" of DESC[0] will be 2, as the Figure 2 shows. The Writer will notify the 2 online Readers by using the semaphore associated with the USED ring.
+
+Now assume the Reader 1 wake up and take the DESC[0] from its USED ring, thus its USED ring will be empty again, the lastIdx move to point to the next ring which was no valid, as the Figure 3 shows, as DESC[0] now is still used by the Reader 0 and still in the USER ring of the Reader 1, the ref is still 2.
+
+Then the reader finish process the memory point out by DESC[0], then it will put it back, the first action is to decrease the "ref" of the DESC[0], its value will be 1, as not zero, so the DESC[0] is still in use, the reader 0 will not do the action to put it back the the AVAIL ring of the writer, as the Figure 4 shows.
+
+Only when the Reader 0 also consume the DESC[0] by call API "get" and "put", the ref of the DESC[0] will be 0, thus the Reader 0 will do the action to put the DESC[0] back to the AVAIL ring of the Writer, the idx will be moved to point to the next, the the AVAIL ring is full again in this case as Figure 5 shows.
+
+OK, so with the virtio ring buffer, the DDS zero copy communiaiton is quite simple and fast between the 1 writer and the multiply online readers.
+
+![virtio-ring-buffer-dds](../images/virtio-ring-buffer-dds.png)
+
 ```sh
 scons --app=VDDSHwPub
 scons --app=VDDSHwSub
