@@ -174,43 +174,45 @@ void Logger::hexdump(int level, const char *prefix, const void *data, size_t siz
   uint8_t *src = (uint8_t *)data;
   uint32_t offset = 0;
 
-  std::unique_lock<std::mutex> lck(m_Lock);
+  if (level >= m_Level) {
+    std::unique_lock<std::mutex> lck(m_Lock);
 
-  if (size <= len) {
-    len = size;
-    fprintf(m_File, "%s:", prefix);
-  } else {
-    fprintf(m_File, "%8s:", prefix);
-    for (i = 0; i < len; i++) {
-      fprintf(m_File, " %02X", (uint32_t)i);
-    }
-    fprintf(m_File, "\n");
-  }
-
-  for (i = 0; i < (size + len - 1) / len; i++) {
-    if (size > len) {
-      fprintf(m_File, "%08X:", (uint32_t)offset);
-    }
-    for (j = 0; j < len; j++) {
-      if ((i * len + j) < size) {
-        fprintf(m_File, " %02X", (uint32_t)src[i * len + j]);
-      } else {
-        fprintf(m_File, "   ");
+    if (size <= len) {
+      len = size;
+      fprintf(m_File, "%s:", prefix);
+    } else {
+      fprintf(m_File, "%8s:", prefix);
+      for (i = 0; i < len; i++) {
+        fprintf(m_File, " %02X", (uint32_t)i);
       }
+      fprintf(m_File, "\n");
     }
-    fprintf(m_File, "\t");
-    for (j = 0; j < len; j++) {
-      if (((i * len + j) < size) && isprint(src[i * len + j])) {
-        fprintf(m_File, "%c", src[i * len + j]);
-      } else {
-        fprintf(m_File, ".");
-      }
-    }
-    fprintf(m_File, "\n");
-    offset += len;
-  }
 
-  check();
+    for (i = 0; i < (size + len - 1) / len; i++) {
+      if (size > len) {
+        fprintf(m_File, "%08X:", (uint32_t)offset);
+      }
+      for (j = 0; j < len; j++) {
+        if ((i * len + j) < size) {
+          fprintf(m_File, " %02X", (uint32_t)src[i * len + j]);
+        } else {
+          fprintf(m_File, "   ");
+        }
+      }
+      fprintf(m_File, "\t");
+      for (j = 0; j < len; j++) {
+        if (((i * len + j) < size) && isprint(src[i * len + j])) {
+          fprintf(m_File, "%c", src[i * len + j]);
+        } else {
+          fprintf(m_File, ".");
+        }
+      }
+      fprintf(m_File, "\n");
+      offset += len;
+    }
+
+    check();
+  }
 }
 
 void Logger::vprint(const char *fmt, va_list args) {

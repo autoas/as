@@ -31,7 +31,7 @@ extern "C" {
 #define STD_TIMER_ONE_SECOND ((std_time_t)1000000000)
 #define STD_TIMER_ONE_MILISECOND ((std_time_t)1000000)
 /* ================================ [ TYPES     ] ============================================== */
-#if defined(linux) || defined(_WIN32)
+#if defined(linux) || defined(_WIN32) || defined(USE_STD_TIME_64)
 typedef uint64_t std_time_t;
 #else
 typedef uint32_t std_time_t;

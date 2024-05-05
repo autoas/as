@@ -25,10 +25,14 @@
 #define STD_TIMER_SET_OVERFLOW 3
 
 #define STD_TIMER_SET_MAX (STD_TIME_MAX / 2)
+
+#if defined(_WIN32) || defined(linux)
+#define USE_STBM_DFT
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
-#if defined(_WIN32)
+#ifdef USE_STBM_DFT
 static std_time_t lTimeBase0 = 0;
 static std_time_t lGTP = 0;
 #endif
@@ -51,8 +55,11 @@ static void __attribute__((constructor)) __std_timer_init(void) {
     atexit(__std_timer_deinit);
   }
 
+#ifdef USE_STBM_DFT
   lTimeBase0 = Std_GetTime();
   lGTP = lTimeBase0 - 1000000; /* simulate time that is 1 second slower */
+#endif
+
 #ifdef USE_CANTSYN
   ASLOG(INFO, ("GTP diff = %d\n", (int)(lTimeBase0 - lGTP)));
 #endif
@@ -69,7 +76,9 @@ std_time_t Std_GetTime(void) {
 
   return tm;
 }
+#endif
 
+#ifdef USE_STBM_DFT
 Std_ReturnType StbM_GetCurrentVirtualLocalTime(StbM_SynchronizedTimeBaseType timeBaseId,
                                                StbM_VirtualLocalTimeType *localTimePtr) {
   Std_ReturnType ret = E_OK;
@@ -109,7 +118,9 @@ Std_ReturnType StbM_BusSetGlobalTime(StbM_SynchronizedTimeBaseType timeBaseId,
 uint8_t StbM_GetTimeBaseUpdateCounter(StbM_SynchronizedTimeBaseType timeBaseId) {
   return 0;
 }
+#endif /* USE_STBM_DFT */
 
+#if defined(linux) || defined(_WIN32)
 void Std_GetDateTime(char *ts, size_t sz) {
   uint32_t year;
   uint8_t month;
@@ -143,7 +154,9 @@ void Std_GetDateTime(char *ts, size_t sz) {
   snprintf(ts, sz, "%d-%02d-%02d %02d:%02d:%02d:%d", year, month, day, hour, minute, second,
            miniseconds);
 }
+#endif
 
+#if defined(linux) || defined(_WIN32)
 void Std_Sleep(std_time_t time) {
 #if defined(_WIN32)
   Sleep(time / 1000);

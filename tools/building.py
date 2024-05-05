@@ -1990,14 +1990,14 @@ class Qemu():
             url += 'gnuarmeclipse-qemu-debian64-2.8.0-201612271623-dev.tgz'
         pkg = Package(url)
         if IsPlatformWindows():
-            pkg = Glob('D:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
+            pkg = Glob('C:/Program*/GNU*/QEMU/2.8.0-201612271623-dev/bin')[0].rstr()
         return '%s/qemu-system-gnuarmeclipse' % (pkg)
 
     def GetQemu(self):
         if IsPlatformWindows():
             url = 'https://qemu.weilnetz.de/w64/2022/qemu-w64-setup-20221208.exe'
             Package(url)
-            pkg = Glob('D:/Program*/qemu')[0].rstr()
+            pkg = Glob('C:/Program*/qemu')[0].rstr()
             return '%s/qemu-system-%s' % (pkg, self.arch)
         else:
             return 'qemu-system-%s' % (self.arch)
