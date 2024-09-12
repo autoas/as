@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #if defined(_WIN32) || defined(linux)
-#include <pthread.h>
+#include "osal.h"
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef SHELL_MAX_ARGS
@@ -27,13 +27,22 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+extern void stdio_can_putc(char chr);
 /* ================================ [ DATAS     ] ============================================== */
 #if defined(_WIN32) || defined(linux)
 Shell_CmdType __ssymtab_start[1024];
 Shell_CmdType *__ssymtab_end = &__ssymtab_start[0];
+static OSAL_ThreadType lStdinThread = NULL;
+#else
+#ifdef __CC_ARM
+extern const Shell_CmdType ShellCmdTab$$Base;
+extern const Shell_CmdType ShellCmdTab$$Limit;
+#define __ssymtab_start &ShellCmdTab$$Base
+#define __ssymtab_end &ShellCmdTab$$Limit
 #else
 extern const Shell_CmdType __ssymtab_start[];
 extern const Shell_CmdType __ssymtab_end[];
+#endif
 #endif
 
 static char lCmdLine[SHELL_CMDLINE_MAX];
@@ -42,14 +51,13 @@ static uint32_t lCmdPos = 0;
 RB_DECLARE(shin, char, SHELL_CMDLINE_MAX);
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32) || defined(linux)
-static void *ProcessStdio(void *arg) {
+static void ProcessStdio(void *arg) {
   char ch;
   (void)arg;
   while (1) {
     ch = getchar();
     Shell_Input(ch);
   }
-  return NULL;
 }
 #endif
 
@@ -84,6 +92,9 @@ SHELL_REGISTER(help, "help [cmd]\n", Shell_Help)
 
 static void Shell_PutC(char ch) {
 #ifdef SHELL_DISABLE_ECHO_BACK
+#ifdef USE_STDIO_CAN
+  stdio_can_putc(ch);
+#endif
 #else
   PRINTF("%c", ch);
 #endif
@@ -164,8 +175,9 @@ void Shell_Register(const Shell_CmdType *cmd) {
 
 void Shell_Init(void) {
 #if defined(_WIN32) || defined(linux)
-  pthread_t thread;
-  pthread_create(&thread, NULL, ProcessStdio, NULL);
+  if (NULL == lStdinThread) {
+    lStdinThread = OSAL_ThreadCreate(ProcessStdio, NULL);
+  }
 #endif
   Shell_Prompt();
 }
@@ -176,7 +188,11 @@ void Shell_Input(char ch) {
     /* ignore */
   } else {
     EnterCritical();
+#ifdef RB_PUSH_FAST
+    r = RB_PushChar(&rb_shin, &ch);
+#else
     r = RB_PUSH(shin, &ch, 1);
+#endif
     ExitCritical();
     if (1 != r) {
       ASLOG(ERROR, ("shell input buffer overflow!\n"));

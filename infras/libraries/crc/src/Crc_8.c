@@ -26,7 +26,5 @@ uint8_t Crc_CalculateCRC8(const uint8_t *Crc_DataPtr, uint32_t Crc_Length, uint8
 
   u8Crc = crc_update(Crc_StartValue8, Crc_DataPtr, Crc_Length);
 
-  u8Crc = crc_finalize(u8Crc);
-
   return u8Crc;
 }

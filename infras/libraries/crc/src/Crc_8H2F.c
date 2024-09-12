@@ -26,7 +26,5 @@ uint8_t Crc_CalculateCRC8H2F(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
 
   u8Crc = crc_update(Crc_StartValue8H2F, Crc_DataPtr, Crc_Length);
 
-  u8Crc = crc_finalize(u8Crc);
-
   return u8Crc;
 }

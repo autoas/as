@@ -8,8 +8,7 @@
 #include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-typedef enum
-{
+typedef enum {
   eRB_POLL,
   eRB_POP,
   eRB_DROP
@@ -29,6 +28,8 @@ static rb_size_t RB_Action(const RingBufferType *rb, void *data, rb_size_t len,
   in = rb->V->in;
   out = rb->V->out;
   max = rb->C->max;
+
+  len = len * rb->C->min;
 
   if (out == in) {
     /* already empty */
@@ -87,7 +88,7 @@ static rb_size_t RB_Action(const RingBufferType *rb, void *data, rb_size_t len,
     }
   }
 
-  return l;
+  return l / rb->C->min;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void RB_Init(const RingBufferType *rb) {
@@ -108,6 +109,8 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
   min = rb->C->min;
   max = rb->C->max;
 
+  len = len * min;
+
   in++;
   if (in >= max) {
     in = 0;
@@ -116,6 +119,13 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
   if ((in + min - 1) == out) {
     /* full, do nothing */
   } else if (in <= out) {
+    /* in < out
+     *                                    out
+     *                                    v
+     * | min | min | min | min | min | min |
+     *      ^
+     *      in = min -1
+     */
     l = out - in + 1;
     if (l > len) {
       l = len;
@@ -128,10 +138,20 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
     in += l - 1;
 
     rb->V->in = in;
-  } else { /* in > out */
+  } else {
+    /* in > out
+     *                              in = 5*min - 1
+     *                              v
+     * | min | min | min | min | min | min |
+     *      ^
+     *      out = min -1
+     */
     doSz = max - in;
     if (doSz > len) {
       doSz = len;
+    } else if (0 == out) {
+      doSz -= min;
+    } else {
     }
     if (data != NULL) {
       memcpy(&buffer[in], data, doSz);
@@ -165,7 +185,7 @@ rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len) {
     }
   }
 
-  return l;
+  return l / min;
 }
 
 rb_size_t RB_Pop(const RingBufferType *rb, void *data, rb_size_t len) {

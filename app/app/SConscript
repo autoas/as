@@ -5,10 +5,7 @@ for sc in Glob('*/SConscript'):
 
 CWD = GetCurrentDir()
 
-generate(Glob('config/*.json'))
-generate(Glob('config/Com/*.json'))
-generate(Glob('config/Net/*.json'))
-generate(Glob('config/SWC/*/*.json'))
+generate(Glob('config/*/*.json'))
 
 objsApp = Glob('*.c') + Glob('src/*.c')
 
@@ -18,7 +15,7 @@ LL_DL = os.getenv('LL_DL')
 class ApplicationApp(Application):
     def config(self):
         self.CPPDEFINES = []
-        self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS', '%s/include' % (CWD), '$StdTrace_Cfg']
         self.LIBS = ['StdTimer']
         for libName, source in self.libsForApp.items():
             self.LIBS.append(libName)
@@ -48,6 +45,7 @@ libsForCanApp = {'OsekNm': Glob('config/OsekNm_Cfg.c'),
                  'PduR': Glob('config/Com/GEN/PduR_Cfg.c'),
                  'CanIf': Glob('config/Com/GEN/CanIf_Cfg.c'),
                  'CanTSyn': Glob('config/CanTSyn/master/CanTSyn_Cfg.c'),
+                 'StdTrace': Glob('config/Trace/GEN/TraceApp_Cfg.c'),
                  }
 libsForCanApp.update(libsCommon)
 
@@ -68,9 +66,7 @@ class ApplicationCanApp(ApplicationApp):
         # self.LIBS.append('Shell')
         # self.LIBS.append('VFS')
         # self.Append(CPPDEFINES=['USE_VFS'])
-        # self.LIBS.append('StdTrace')
-        # self.Append(CPPDEFINES=['USE_TRACE', 'USE_TRACE_TEST'])
-        # self.source += objsTraceTestCfg
+        self.Append(CPPDEFINES=['USE_TRACE_APP'])
         #self.LIBS += ['LibC']
         #self.Append(CPPDEFINES=['USE_STDIO_CAN', 'USE_STD_PRINTF'])
 

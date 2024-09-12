@@ -8,8 +8,8 @@ objs = Glob('src/*.c')
 @register_library
 class LibraryCrc(Library):
     def gen(self):
-        pkg = Package(url='https://pycrc.org/download/pycrc-0.9.2.zip')
-        pkg = os.path.join(pkg, 'pycrc-0.9.2')
+        pkg = Package(url='https://pycrc.org/download/pycrc-0.10.0.zip')
+        pkg = os.path.join(pkg, 'pycrc-0.10.0/src')
         if (not os.path.exists('%s/src/crc8/crc8.c' % (CWD))):
             # @SWS_Crc_00031
             # ref https://github.com/IMProject/IMUtility/blob/main/Src/crc/crc8_variants/crc8_sae_j1850_zero.c
@@ -53,6 +53,7 @@ class LibraryCrc(Library):
 
     def config(self):
         self.gen()
-        self.include = ['%s/src' % (CWD), '%s/src/crc16' % (CWD), '%s/src/crc32' % (CWD)]
+        self.include = ['%s/src' % (CWD), '%s/src/crc8' % (CWD), '%s/src/crc8h2f' % (CWD),
+                        '%s/src/crc16' % (CWD), '%s/src/crc32' % (CWD)]
         self.CPPPATH = ['$INFRAS']
         self.source = objs

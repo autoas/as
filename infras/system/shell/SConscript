@@ -10,4 +10,6 @@ class LibraryShell(Library):
     def config(self):
         self.CPPPATH = ['$INFRAS']
         self.LIBS = ['RingBuffer']
+        if IsBuildForHost(self.GetCompiler()):
+            self.LIBS += ['OSAL']
         self.source = objs

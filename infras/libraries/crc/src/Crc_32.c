@@ -27,8 +27,6 @@ uint32_t Crc_CalculateCRC32(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
 
   u32Crc = crc_update(Crc_StartValue32, Crc_DataPtr, Crc_Length);
 
-  u32Crc = crc_finalize(u32Crc);
-
   return u32Crc;
 }
 #endif /* DISABLE_CRC32 */

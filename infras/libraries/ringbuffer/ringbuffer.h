@@ -29,6 +29,28 @@
 #define RB_INP(name) RB_InP(&rb_##name)
 #define RB_OUTP(name) RB_OutP(&rb_##name)
 #define IS_RB_EMPTY(name) ((rb_##name.V->in) == (rb_##name.V->out))
+/*
+ * If in  == out, empty. So must keep 1 min slot free not used if queue has data
+ *
+ * max = N * min
+ * Init:
+ *                                                                       in = max - 1
+ *                                                                        v
+ * | min | min | min | min | min | min | min | min | min | min | min | min |
+ *                                                                        ^
+ * First Push: len = min                                                  out
+ *      in = min - 1
+ *      v
+ * | min | min | min | min | min | min | min | min | min | min | min | min |
+ *                                                                        ^
+ *                                    in = 6*min - 1                      out = max - 1
+ *                                    v
+ * | min | min | min | min | min | min | min | min | min | min | min | min |
+ *            ^
+ *            out = 2*min -1
+ *
+ *
+ **/
 /* ================================ [ TYPES     ] ============================================== */
 typedef RB_SIZE_TYPE rb_size_t;
 
@@ -51,7 +73,6 @@ typedef struct {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-/* @param len: must be n times of min */
 void RB_Init(const RingBufferType *rb);
 rb_size_t RB_Push(const RingBufferType *rb, void *data, rb_size_t len);
 rb_size_t RB_Pop(const RingBufferType *rb, void *data, rb_size_t len);

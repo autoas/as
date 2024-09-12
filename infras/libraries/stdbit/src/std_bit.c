@@ -19,7 +19,7 @@ static int _bebm[STD_BIT_MAX_BYTES * 8];
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
-static void __attribute__((constructor)) _init_bebm(void) {
+INITIALIZER(_init_bebm) {
   int i, j;
   for (i = 0; i < STD_BIT_MAX_BYTES; i++) {
     for (j = 0; j < 8; j++) {
@@ -183,8 +183,7 @@ void Std_BitClear(void *ptr, uint16_t bitPos) {
   dataPtr[bytePos] &= ~(1 << bitShift);
 }
 
-boolean Std_BitGet(const void *ptr, uint16_t bitPos)
-{
+boolean Std_BitGet(const void *ptr, uint16_t bitPos) {
   boolean ret;
   uint8_t *dataPtr = (uint8_t *)ptr;
   uint16_t bytePos = bitPos >> 3;
