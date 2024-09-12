@@ -273,7 +273,7 @@ build\nt\GCC\CanBL\CanBL.exe
 build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -d CAN.simulator_v2 -l 64
 
 # 本实例使用了基于UDP广播特性的CAN simulator_v2,所以完整的bootloader UDS服务很快就可以完成
-# 但以为是模拟，内存映射和QEMU是有区别的，对于该问题，目前我也懒得修复。
+# 但因为是模拟，内存映射和QEMU是有区别的，对于该问题，目前我也懒得修复。
 download application            progress 97.16%   negative response 31
 loader failed
 ```
