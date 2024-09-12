@@ -1,28 +1,44 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef CANLIB_H
-#define CANLIB_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <stdint.h>
-#include <stdbool.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "osal.h"
+#include "Std_Types.h"
+#include <stdlib.h>
+#include <thread>
+#include <assert.h>
 /* ================================ [ MACROS    ] ============================================== */
-#define CAN_ID_EXTENDED 0x80000000U
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int can_open(const char *device_name, uint32_t port, uint32_t baudrate);
-bool can_write(int busid, uint32_t canid, uint8_t dlc, const uint8_t *data);
-bool can_read(int busid, uint32_t *canid /* InOut */, uint8_t *dlc /* InOut */, uint8_t *data);
-bool can_close(int busid);
-bool can_reset(int busid);
-#ifdef __cplusplus
+OSAL_ThreadType OSAL_ThreadCreate(OSAL_ThreadEntryType entry, void *args) {
+  OSAL_ThreadType thread = NULL;
+
+  thread = (OSAL_ThreadType) new std::thread(entry, args);
+
+  return thread;
 }
-#endif
-#endif /* CANLIB_H */
+
+int OSAL_ThreadJoin(OSAL_ThreadType thread) {
+  std::thread *th = (std::thread *)thread;
+
+  if (th->joinable()) {
+    th->join();
+  }
+
+  return 0;
+}
+
+int OSAL_ThreadDestory(OSAL_ThreadType thread) {
+  std::thread *th = (std::thread *)thread;
+
+  if (th->joinable()) {
+    th->join();
+  }
+
+  delete th;
+  return 0;
+}

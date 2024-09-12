@@ -4,16 +4,19 @@
  */
 #ifdef _WIN32
 /* ================================ [ INCLUDES  ] ============================================== */
+#include "osal.h"
 #include <string.h>
 #include <assert.h>
-#include <minwindef.h>
-#include "vxlapi.h"
 #include <sys/queue.h>
-#include <pthread.h>
 #include "Std_Debug.h"
 #include "Std_Types.h"
 #include "canlib.h"
 #include "canlib_types.h"
+
+#define POINTER_32
+typedef void *HANDLE;
+
+#include "vxlapi.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 struct Can_VxlHandle_s {
@@ -29,9 +32,9 @@ struct Can_VxlHandle_s {
 
 struct Can_VxlHandleList_s {
   bool initialized;
-  pthread_t rx_thread;
+  OSAL_ThreadType rx_thread;
   volatile bool terminated;
-  pthread_mutex_t mutex;
+  OSAL_MutexType mutex;
   STAILQ_HEAD(, Can_VxlHandle_s) head;
 };
 /* ================================ [ DECLARES  ] ============================================== */
@@ -39,7 +42,7 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
                       can_device_rx_notification_t rx_notification);
 static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data);
 static void vxl_close(uint32_t port);
-static void *rx_daemon(void *);
+static void rx_daemon(void *);
 /* ================================ [ DATAS     ] ============================================== */
 const Can_DeviceOpsType can_vxl_ops = {
   .name = "vxl",
@@ -51,21 +54,21 @@ const Can_DeviceOpsType can_vxl_ops = {
 static struct Can_VxlHandleList_s vxlH = {
   .initialized = false,
   .terminated = false,
-  .mutex = PTHREAD_MUTEX_INITIALIZER,
+  .mutex = NULL,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 
 static struct Can_VxlHandle_s *getHandle(uint32_t port) {
   struct Can_VxlHandle_s *handle, *h;
   handle = NULL;
-  pthread_mutex_lock(&vxlH.mutex);
+  OSAL_MutexLock(vxlH.mutex);
   STAILQ_FOREACH(h, &vxlH.head, entry) {
     if (h->port == port) {
       handle = h;
       break;
     }
   }
-  pthread_mutex_unlock(&vxlH.mutex);
+  OSAL_MutexUnlock(vxlH.mutex);
   return handle;
 }
 
@@ -144,7 +147,6 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
   bool rv = true;
   struct Can_VxlHandle_s *handle;
 
-  pthread_mutex_lock(&vxlH.mutex);
   if (false == vxlH.initialized) {
     XLstatus status = xlOpenDriver();
 
@@ -152,7 +154,6 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
       if (xlGetErrorString != NULL) {
         ASLOG(WARN, ("CAN VXL open error<%d>: %s\n", status, xlGetErrorString(status)));
       }
-      pthread_mutex_unlock(&vxlH.mutex);
       return false;
     }
 
@@ -160,8 +161,8 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
 
     vxlH.initialized = true;
     vxlH.terminated = true;
+    vxlH.mutex = OSAL_MutexCreate(NULL);
   }
-  pthread_mutex_unlock(&vxlH.mutex);
 
   handle = getHandle(port);
 
@@ -176,9 +177,9 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
     handle->baudrate = baudrate;
     handle->rx_notification = rx_notification;
     if (open_vxl(handle)) { /* open port OK */
-      pthread_mutex_lock(&vxlH.mutex);
+      OSAL_MutexLock(vxlH.mutex);
       STAILQ_INSERT_TAIL(&vxlH.head, handle, entry);
-      pthread_mutex_unlock(&vxlH.mutex);
+      OSAL_MutexUnlock(vxlH.mutex);
     } else {
       free(handle);
       ASLOG(WARN, ("CAN VXL port=%d is is not able to be opened!\n", port));
@@ -187,7 +188,8 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
   }
 
   if ((true == vxlH.terminated) && (false == STAILQ_EMPTY(&vxlH.head))) {
-    if (0 == pthread_create(&(vxlH.rx_thread), NULL, rx_daemon, NULL)) {
+    vxlH.rx_thread = OSAL_ThreadCreate(rx_daemon, NULL);
+    if (NULL != vxlH.rx_thread) {
       vxlH.terminated = false;
     } else {
       assert(0);
@@ -237,15 +239,17 @@ static void vxl_close(uint32_t port) {
   struct Can_VxlHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    pthread_mutex_lock(&vxlH.mutex);
+    OSAL_MutexLock(vxlH.mutex);
     STAILQ_REMOVE(&vxlH.head, handle, Can_VxlHandle_s, entry);
-    pthread_mutex_unlock(&vxlH.mutex);
+    OSAL_MutexUnlock(vxlH.mutex);
 
     free(handle);
 
     if (true == STAILQ_EMPTY(&vxlH.head)) {
       vxlH.terminated = true;
-      pthread_join(vxlH.rx_thread, NULL);
+      OSAL_ThreadJoin(vxlH.rx_thread);
+      OSAL_ThreadDestory(vxlH.rx_thread);
+      OSAL_MutexDestory(vxlH.mutex);
     }
   }
 }
@@ -288,21 +292,20 @@ static void rx_notifiy(struct Can_VxlHandle_s *handle) {
     }
   } while (XL_SUCCESS == status);
 }
-static void *rx_daemon(void *param) {
+static void rx_daemon(void *param) {
   (void)param;
   struct Can_VxlHandle_s *handle;
 
   while (false == vxlH.terminated) {
-    pthread_mutex_lock(&vxlH.mutex);
+    OSAL_MutexLock(vxlH.mutex);
     STAILQ_FOREACH(handle, &vxlH.head, entry) {
       rx_notifiy(handle);
     }
-    pthread_mutex_unlock(&vxlH.mutex);
-    usleep(1000);
+    OSAL_MutexUnlock(vxlH.mutex);
+    OSAL_SleepUs(1000);
   }
 
   xlCloseDriver();
-  return NULL;
 }
 
 /* ================================ [ FUNCTIONS ] ============================================== */

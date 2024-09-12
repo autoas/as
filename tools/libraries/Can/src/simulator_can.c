@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <pthread.h>
+#include "osal.h"
 #include <sys/queue.h>
 
 #include "canlib.h"
@@ -56,9 +56,9 @@ struct Can_SocketHandle_s {
 };
 struct Can_SocketHandleList_s {
   bool initialized;
-  pthread_t rx_thread;
+  OSAL_ThreadType rx_thread;
   volatile bool terminated;
-  pthread_mutex_t mutex;
+  OSAL_MutexType mutex;
   STAILQ_HEAD(, Can_SocketHandle_s) head;
 };
 /* ================================ [ DECLARES  ] ============================================== */
@@ -66,7 +66,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
                          can_device_rx_notification_t rx_notification);
 static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data);
 static void socket_close(uint32_t port);
-static void *rx_daemon(void *);
+static void rx_daemon(void *);
 /* ================================ [ DATAS     ] ============================================== */
 const Can_DeviceOpsType can_simulator_ops = {
   .name = "simulator",
@@ -77,21 +77,21 @@ const Can_DeviceOpsType can_simulator_ops = {
 static struct Can_SocketHandleList_s socketH = {
   .initialized = FALSE,
   .terminated = FALSE,
-  .mutex = PTHREAD_MUTEX_INITIALIZER,
+  .mutex = NULL,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static struct Can_SocketHandle_s *getHandle(uint32_t port) {
   struct Can_SocketHandle_s *handle, *h;
   handle = NULL;
 
-  pthread_mutex_lock(&socketH.mutex);
+  OSAL_MutexLock(socketH.mutex);
   STAILQ_FOREACH(h, &socketH.head, entry) {
     if (h->port == port) {
       handle = h;
       break;
     }
   }
-  pthread_mutex_unlock(&socketH.mutex);
+  OSAL_MutexUnlock(socketH.mutex);
 
   return handle;
 }
@@ -104,14 +104,13 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
   TcpIp_SockAddrType RemoteAddr;
   Std_ReturnType ercd;
 
-  pthread_mutex_lock(&socketH.mutex);
   if (FALSE == socketH.initialized) {
     STAILQ_INIT(&socketH.head);
     TcpIp_Init(NULL);
     socketH.initialized = TRUE;
     socketH.terminated = TRUE;
+    socketH.mutex = OSAL_MutexCreate(NULL);
   }
-  pthread_mutex_unlock(&socketH.mutex);
 
   handle = getHandle(port);
 
@@ -139,23 +138,24 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->baudrate = baudrate;
       handle->rx_notification = rx_notification;
       handle->s = s;
-      pthread_mutex_lock(&socketH.mutex);
+      OSAL_MutexLock(socketH.mutex);
       STAILQ_INSERT_TAIL(&socketH.head, handle, entry);
-      pthread_mutex_unlock(&socketH.mutex);
+      OSAL_MutexUnlock(socketH.mutex);
     } else {
       rv = FALSE;
     }
   }
 
-  pthread_mutex_lock(&socketH.mutex);
+  OSAL_MutexLock(socketH.mutex);
   if ((TRUE == socketH.terminated) && (FALSE == STAILQ_EMPTY(&socketH.head))) {
-    if (0 == pthread_create(&(socketH.rx_thread), NULL, rx_daemon, NULL)) {
+    socketH.rx_thread = OSAL_ThreadCreate(rx_daemon, NULL);
+    if (NULL != socketH.rx_thread) {
       socketH.terminated = FALSE;
     } else {
       assert(0);
     }
   }
-  pthread_mutex_unlock(&socketH.mutex);
+  OSAL_MutexUnlock(socketH.mutex);
 
   return rv;
 }
@@ -183,15 +183,17 @@ static void socket_close(uint32_t port) {
   struct Can_SocketHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    pthread_mutex_lock(&socketH.mutex);
+    OSAL_MutexLock(socketH.mutex);
     STAILQ_REMOVE(&socketH.head, handle, Can_SocketHandle_s, entry);
-    pthread_mutex_unlock(&socketH.mutex);
+    OSAL_MutexUnlock(socketH.mutex);
     TcpIp_Close(handle->s, TRUE);
     free(handle);
 
     if (TRUE == STAILQ_EMPTY(&socketH.head)) {
       socketH.terminated = TRUE;
-      pthread_join(socketH.rx_thread, NULL);
+      OSAL_ThreadJoin(socketH.rx_thread);
+      OSAL_ThreadDestory(socketH.rx_thread);
+      OSAL_MutexDestory(socketH.mutex);
     }
   }
 }
@@ -213,18 +215,16 @@ static void rx_notifiy(struct Can_SocketHandle_s *handle) {
   } while (sizeof(frame) == Length);
 }
 
-static void *rx_daemon(void *param) {
+static void rx_daemon(void *param) {
   (void)param;
   struct Can_SocketHandle_s *handle;
   while (FALSE == socketH.terminated) {
-    pthread_mutex_lock(&socketH.mutex);
+    OSAL_MutexLock(socketH.mutex);
     STAILQ_FOREACH(handle, &socketH.head, entry) {
       rx_notifiy(handle);
     }
-    pthread_mutex_unlock(&socketH.mutex);
-    usleep(1000);
+    OSAL_MutexUnlock(socketH.mutex);
+    OSAL_SleepUs(1000);
   }
-
-  return NULL;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

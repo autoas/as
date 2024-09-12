@@ -170,6 +170,12 @@ def IsBuildForWin32(compiler=None):
         return compiler in ['x86GCC']
     return False
 
+def IsBuildForMSVC(compiler=None):
+    if compiler is None:
+        compiler = GetOption('compiler')
+    if IsPlatformWindows():
+        return compiler in ['MSVC']
+    return False
 
 def IsBuildForAndroid(compiler=None):
     if compiler is None:
@@ -182,14 +188,21 @@ def IsBuildForHost(compiler=None):
         compiler = GetOption('compiler')
     return compiler in ['GCC', 'MSVC', 'NDK', 'x86GCC', 'PYCC']
 
+def IsMsysPython():
+    bYes = False
+    if (sys.platform in ['msys', 'cygwin']):
+        bYes = True
+    return bYes
 
 def IsPlatformWindows():
     bYes = False
     if (os.name == 'nt'):
         bYes = True
-    if (sys.platform == 'msys'):
+    if (sys.platform in ['msys', 'cygwin']):
         bYes = True
     return bYes
+
+
 
 
 def IsPlatformTermux():
@@ -598,6 +611,8 @@ class ReleaseEnv(CustomEnv):
         MKDir(self.WDIR)
         if self.release == 'make':
             self.GenerateMakefile(objs, **kwargs)
+        if self.release in ['keil']:
+            self.GenerateKeilProject(objs, **kwargs)
         if self.release in ['cmake', 'build']:
             self.GenerateCMake(objs, **kwargs)
         if self.release in ['cmake', 'make']:
@@ -630,6 +645,55 @@ class ReleaseEnv(CustomEnv):
             else:
                 cstr = ' '.join([cstr, flg])
         return cstr
+
+    def GenerateKeilProject(self, objs, **kwargs):
+        import xml.etree.ElementTree as ET
+        self.mkf = '%s/%s.uvprojx' % (self.WDIR, self.appName)
+        CPPPATH = []
+        CPPDEFINES = []
+        for _, kwargs in self.objs.items():
+            self.getKL(kwargs, 'CPPPATH', CPPPATH)
+            self.getKL(kwargs, 'CPPDEFINES', CPPDEFINES)
+        root = ET.Element('ROOT')
+        define = ET.Element('Define')
+        define.text=' '.join(CPPDEFINES)
+        root.append(define)
+        incs = ET.Element('IncludePath')
+        incs.text=';'.join(CPPPATH)
+        root.append(incs)
+        groups = ET.Element('Groups')
+        grpsMap = {}
+        for obj, kwargs in self.objs.items():
+            filePath = str(obj)
+            elements = filePath.replace(RootDir+os.path.sep, '').split(os.path.sep)
+            fileName = elements[-1]
+            groupName = elements[-2]
+            if groupName.lower() in ['src', 'source']:
+                groupName = elements[-3]
+            if groupName not in grpsMap:
+                group = ET.Element('Group')
+                grpName = ET.Element('GroupName')
+                grpName.text=groupName
+                group.append(grpName)
+                grpFiles = ET.Element('Files')
+                group.append(grpFiles)
+                groups.append(group)
+                grpsMap[groupName] = [group,grpFiles]
+            else:
+                group, grpFiles = grpsMap[groupName]
+            ef = ET.Element('File')
+            efn = ET.Element('FileName')
+            efn.text=fileName
+            eft = ET.Element('FileType')
+            eft.text='1'
+            efp = ET.Element('FilePath')
+            efp.text=filePath
+            ef.extend([efn, eft, efp])
+            grpFiles.append(ef)
+        root.append(groups)
+        tree = ET.ElementTree(root)
+        tree.write(self.mkf, encoding="utf-8", xml_declaration=True);
+
 
     def GenerateMakefile(self, objs, **kwargs):
         self.mkf = open('%s/Makefile.%s' % (self.WDIR, self.cplName), 'w')
@@ -778,7 +842,7 @@ def register_compiler(compiler):
 
     def create_compiler(**kwargs):
         env = compiler(**kwargs)
-        if IsPlatformWindows():
+        if IsPlatformWindows() and not IsMsysPython():
             win32_spawn = Win32Spawn()
             env['SPAWN'] = win32_spawn.spawn
         if (not GetOption('verbose')):
@@ -794,7 +858,7 @@ def register_compiler(compiler):
                 SHCXXCOMSTR='SHCXX $SOURCE',
                 SHLINKCOMSTR='SHLINK $TARGET')
         release = GetOption('release')
-        if release in ['build', 'cmake', 'make']:
+        if release in ['build', 'cmake', 'make', 'keil']:
             env = ReleaseEnv(env, release)
         elif release != None:
             raise Exception('invalid release option, choose from: build, cmake, make')
@@ -864,26 +928,39 @@ def CompilerArmGCC(**kwargs):
     if not GetOption('strip'):
         env.Append(CPPFLAGS=['-g'])
         env.Append(ASFLAGS=['-g'])
+    version = os.getenv('ARMGCC_VERSION', "5.4.1")
     if (IsPlatformWindows()):
-        gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-win32.zip'
+        if version == '5.4.1':
+            gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-win32.zip'
+        else:
+            gccarm = 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi.zip'
     else:
-        gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-linux.tar.bz2'
+        if version == '5.4.1':
+            gccarm = 'https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q3-update/+download/gcc-arm-none-eabi-5_4-2016q3-20160926-linux.tar.bz2'
+        else:
+            gccarm = 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz'
     ARMGCC = os.getenv('ARMGCC')
     if ARMGCC != None:
         cpl = ARMGCC
     else:
         cpl = Package(gccarm)
         if (not IsPlatformWindows()):
-            cpl += '/gcc-arm-none-eabi-5_4-2016q3'
+            if version == '5.4.1':
+                cpl += '/gcc-arm-none-eabi-5_4-2016q3'
+            else:
+                cpl += '/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi'
+        else:
+            if version == '13.3.1':
+                cpl += '/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi'
     machine = kwargs.get('machine', '')
-    env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/5.4.1/%s' % (cpl, machine)])
+    env.Append(LIBPATH=['%s/lib/gcc/arm-none-eabi/%s/%s' % (cpl, version, machine)])
     env.Append(LIBPATH=['%s/arm-none-eabi/lib/%s' % (cpl, machine)])
     env['CC'] = '%s/bin/arm-none-eabi-gcc' % (cpl)
     env['CXX'] = '%s/bin/arm-none-eabi-g++' % (cpl)
     env['AS'] = '%s/bin/arm-none-eabi-gcc -c' % (cpl)
     env['LINK'] = '%s/bin/arm-none-eabi-ld' % (cpl)
-    env['S19'] = '%s/bin/arm-none-eabi-objcopy -O srec --srec-forceS3 --srec-len 32 {0} {1}' % (
-        cpl)
+    env['S19'] = '%s/bin/arm-none-eabi-objcopy -O srec --srec-forceS3 --srec-len 32 {0} {1}' % (cpl)
+    env['ELFSIZE'] = '%s/bin/arm-none-eabi-size --format=berkeley {0}' % (cpl)
     env.Append(CPPFLAGS=['-ffunction-sections', '-fdata-sections'])
     env.Append(LINKFLAGS=['--gc-sections'])
     return env
@@ -942,6 +1019,8 @@ def CompilerArmCC(**kwargs):
     env.Append(LINKFLAGS=['--strict', '--summary_stderr', '--info', 'summarysizes',
                           '--map', '--xref', '--callgraph', '--symbols', '--info', 'sizes', '--info', 'totals',
                           '--info', 'unused', '--info', 'veneers'])
+    env['LIBDIRPREFIX']='--userlibpath='
+    env['LIBLINKPREFIX']='--library='
     return env
 
 
@@ -963,6 +1042,17 @@ def CompilerCM3GCC(**kwargs):
     env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m3'])
     env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m3'])
     env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m3'])
+    env['LINK'] = env['LINK'][:-2] + 'gcc'
+    env['LINKFLAGS'].remove('--gc-sections')
+    env.Append(LINKFLAGS=['-Wl,--gc-sections'])
+    return env
+
+@register_compiler
+def CompilerCM4GCC(**kwargs):
+    env = CreateCompiler('ArmGCC', machine='armv7-m')
+    env.Append(CPPFLAGS=['-mthumb', '-mlong-calls', '-mcpu=cortex-m4'])
+    env.Append(ASFLAGS=['-mthumb', '-mcpu=cortex-m4'])
+    env.Append(LINKFLAGS=['-mthumb', '-mcpu=cortex-m4'])
     env['LINK'] = env['LINK'][:-2] + 'gcc'
     env['LINKFLAGS'].remove('--gc-sections')
     env.Append(LINKFLAGS=['-Wl,--gc-sections'])
@@ -1060,18 +1150,26 @@ def AddPythonDev(env):
     pyp = sys.executable
     if (IsPlatformWindows()):
         pyp = pyp.replace(os.sep, '/')[:-10]
-        pylib = 'python'+sys.version[0]+sys.version[2]
+        major, minor = sys.version.split('.')[:2]
+        pylib = 'python' + major + minor
         if (pylib in env.get('LIBS', [])):
             return
         pf = '%s/libs/lib%s.a' % (pyp, pylib)
-        if (not os.path.exists(pf)):
+        if IsMsysPython():
+            env.Append(CPPPATH=['/usr/include', '/usr/include/python%s.%s' % (major, minor)])
+            env.Append(LIBPATH=['/usr/lib'])
+            pylib = 'python%s.%s.dll' % (major, minor)
+        elif not os.path.exists(pf):
             RunCommand(
                 'cp {0}/libs/{1}.lib {0}/libs/lib{1}.a'.format(pyp, pylib))
         env.Append(CPPDEFINES=['_hypot=hypot'])
         env.Append(CPPPATH=['%s/include' % (pyp)])
         env.Append(LIBPATH=['%s/libs' % (pyp)])
         istr = 'set'
-        pybind11 = '%s/Lib/site-packages/pybind11/include' % (pyp)
+        pybind11_inc = '%s/Lib/site-packages/pybind11/include' % (pyp)
+        if not os.path.isdir(pybind11_inc):
+            import pybind11
+            pybind11_inc = os.path.dirname(pybind11.__file__) + '/include'
     else:
         pyp = os.sep.join(pyp.split(os.sep)[:-2])
         if (sys.version[0:3] == '2.7'):
@@ -1081,30 +1179,32 @@ def AddPythonDev(env):
                 'python3 -c "import sys; print(sys.version[0:3])"')
             pylib = 'python'+version+'m'
         else:
-            pylib = 'python'+sys.version[0:3]+'m'
+            pylib = 'python'+sys.version[0:3] + 'm'
+        pydir = '%s/include/%s' % (pyp, pylib)
+        if not os.path.isdir(pydir):
+            pylib = pylib[:-1]
         if (pylib in env.get('LIBS', [])):
             return
-        env.Append(CPPPATH=['%s/include/%s' % (pyp, pylib)])
+        env.Append(CPPPATH=[pydir])
         if (pyp == '/usr'):
             env.Append(LIBPATH=['%s/lib/x86_64-linux-gnu' % (pyp)])
             env.Append(CPPPATH=['%s/local/include/%s' % (pyp, pylib[:9])])
         else:
             env.Append(LIBPATH=['%s/lib' % (pyp)])
         istr = 'export'
-        pybind11 = '%s/lib/%s/site-packages/pybind11/include' % (
-            pyp, pylib[:9])
-    env.Append(CPPPATH=[pybind11])
+        pybind11_inc = '%s/lib/%s/site-packages/pybind11/include' % (pyp, pylib[:9])
+    env.Append(CPPPATH=[pybind11_inc])
     aslog('%s PYTHONHOME=%s if see error " Py_Initialize: unable to load the file system codec"' % (istr, pyp))
-    env.Append(LIBS=[pylib, 'pthread', 'stdc++', 'm'])
+    if not IsBuildForMSVC():
+        env.Append(LIBS=[pylib, 'pthread', 'stdc++', 'm'])
 
 
 @register_compiler
 def CompilerPYCC(**kwargs):
-    env = Environment(TOOLS=['ar', 'as', 'gcc', 'g++', 'gnulink'])
-    env.Append(CFLAGS=['-std=gnu99'])
-    env.Append(CPPFLAGS=['-Wall'])
-    if not GetOption('strip'):
-        env.Append(CPPFLAGS=['-g'])
+    pycpl = 'GCC'
+    if cplName != None:
+        pycpl = cplName
+    env = CreateCompiler(pycpl)
     AddPythonDev(env)
     return env
 
@@ -1117,10 +1217,13 @@ if IsPlatformWindows():
 
         @register_compiler
         def CompilerMSVC(**kwargs):
-            env = Environment()
+            env = Environment(TOOLS=['msvc', 'mslib', 'mslink', 'mssdk', 'msvs'])
             env['CC'] = os.path.join(VC, 'cl.exe')
             env['AR'] = os.path.join(VC, 'lib.exe')
             env['LINK'] = os.path.join(VC, 'link.exe')
+            env['MAXLINELENGTH']  = 10000000
+            env.Append(LINKFLAGS=['/debug'])
+            env.Append(CXXFLAGS=['/EHsc', '/std:c++20'])
             return env
 
     @register_compiler
@@ -1288,11 +1391,13 @@ class CWS12MakeEnv(CustomEnv):
         CPPDEFINES = []
         LIBS = []
         LINKFLAGS = []
+        CPPFLAGS = []
         self.getKL(kwargs, 'CPPPATH', CPPPATH)
         self.getKL(kwargs, 'LIBPATH', LIBPATH)
         self.getKL(kwargs, 'LIBS', LIBS)
         self.getKL(kwargs, 'CPPDEFINES', CPPDEFINES)
         self.getKL(kwargs, 'LINKFLAGS', LINKFLAGS)
+        self.getKL(kwargs, 'CPPFLAGS', CPPFLAGS)
         link_script = None
         for i, flg in enumerate(LINKFLAGS):
             if flg == '-T':
@@ -1312,7 +1417,7 @@ class CWS12MakeEnv(CustomEnv):
             fp.write('AS = "%s"\n' % (AS))
             fp.write('LD = "%s"\n' % (LINK))
             fp.write('COMMON_FLAGS = -WErrFileOff -WOutFileOff -EnvOBJPATH=%s\n' % (BUILD_DIR))
-            fp.write('C_FLAGS   = -I"%s/lib/hc12c/include" -Mb -CpuHCS12X\n' % (self.CWS12DIR))
+            fp.write('C_FLAGS   = -Cc -I"%s/lib/hc12c/include" -Mb -CpuHCS12X\n' % (self.CWS12DIR))
             fp.write('ASM_FLAGS = -I"%s/lib/hc12c/include" -Mb -CpuHCS12X\n' % (self.CWS12DIR))
             fp.write('LD_FLAGS  = -M -WmsgNu=abcet\n')
             fp.write('LIBS = "%s/lib/hc12c/lib/ansixbi.lib"\n' % (self.CWS12DIR))
@@ -1322,6 +1427,9 @@ class CWS12MakeEnv(CustomEnv):
             fp.write('\nC_FLAGS += ')
             for d in CPPDEFINES:
                 fp.write('-D%s ' % (d))
+            fp.write('\nC_FLAGS += ')
+            for d in CPPFLAGS:
+                fp.write('%s ' % (d))
             fp.write('\n\nOBJS = ')
             for obj in objs:
                 obj = str(obj)
@@ -1390,6 +1498,9 @@ def RequireCPPPATH(name):
         raise Exception('CPPPATH name %s not starts with "$"' % (name))
     if name in __cpppath__:
         return __cpppath__[name]
+    elif name.endswith('_Cfg'):
+        print("WARNING: CPPPATH %s not found" % (name))
+        return []
     else:
         raise KeyError('CPPPATH %s not found, available CPPPATH: %s' %
                        (name, [k for k in __cpppath__.keys()]))
@@ -1430,6 +1541,7 @@ class BuildBase():
         self.__libs__ = {}
         self.__libs_order__ = []
         self.__extra_libs__ = []
+        aslog("init base %s" % (self.name))
         if getattr(self, 'prebuilt_shared', False):
             CPPPATH = []
             searched_libs = []
@@ -1445,6 +1557,7 @@ class BuildBase():
                 self.include = [include] + CPPPATH
             else:
                 self.include = include + CPPPATH
+            aslog("init base %s: include = %s" % (self.name, self.include))
         else:
             for name in getattr(self, 'LIBS', []):
                 self.ensure_lib(name)
@@ -1516,8 +1629,11 @@ class BuildBase():
         self.os = kwargs.get('name', 'OS')
         if 'arch' in kwargs:
             self.arch = kwargs['arch']
-        config = kwargs['config']
-        self.RegisterConfig(self.os, config)
+        if 'variant' in kwargs:
+            self.os_variant = kwargs['variant']
+        if 'config' in kwargs:
+            config = kwargs['config']
+            self.RegisterConfig(self.os, config)
         self.LIBS += [self.os]
         self.Append(CPPDEFINES=['USE_%s' % (self.os.upper())])
         if 'CPPDEFINES' in kwargs:
@@ -1532,7 +1648,14 @@ class BuildBase():
             return self.os
         if TARGET_OS:
             return TARGET_OS
-        raise Exception('os is not specified, add --os')
+        return None
+
+    def GetOSVariant(self):
+        if getattr(self, 'user', None):
+            return self.user.GetOSVariant()
+        if hasattr(self, 'os_variant'):
+            return self.os_variant
+        return None
 
     def GetArch(self):
         if getattr(self, 'user', None):
@@ -1626,6 +1749,16 @@ class BuildBase():
         if getattr(self, 'user', None):
             return self.user.is_shared_library()
         return False
+
+    def is_object_library(self):
+        ret= getattr(self, 'object', False)
+        return ret
+
+    def libName(self):
+        ln = self.name
+        if ':' in ln:
+            ln = ln.split(':')[0]
+        return ln
 
     def ensure_lib(self, name):
         if getattr(self, 'user', None) and not getattr(self, 'shared', False):
@@ -1726,21 +1859,21 @@ class Library(BuildBase):
         if False == getattr(self, 'typed_class', False):
             self.init_base()
         self.config()
-        if GetOption('prebuilt') and GetOption('library') != self.name:
-            liba = os.path.abspath('%s/../prebuilt/lib%s.a' %
-                                   (BUILD_DIR, self.name))
-            if os.path.isfile(liba):
-                self.source = [liba]
-            else:
+        if (GetOption('prebuilt') or getattr(self, 'shared', False)) and (GetOption('library') != self.name):
+            if getattr(self, 'shared', False):
                 if IsBuildForWindows():
-                    dll = os.path.abspath('%s/../prebuilt/%s.dll' %
-                                          (BUILD_DIR, self.name))
+                    dll = os.path.abspath('%s/../prebuilt/%s.dll' % (BUILD_DIR, self.name))
                 else:
-                    dll = os.path.abspath('%s/../prebuilt/lib%s.so' %
-                                          (BUILD_DIR, self.name))
+                    dll = os.path.abspath('%s/../prebuilt/lib%s.so' % (BUILD_DIR, self.name))
                 if os.path.isfile(dll):
                     self.source = [dll]
                     self.prebuilt_shared = True
+                else:
+                    raise Exception('The prebuilt shared library not found: %s' % (dll))
+            else:
+                liba = os.path.abspath('%s/../prebuilt/lib%s.a' % (BUILD_DIR, self.name))
+                if os.path.isfile(liba):
+                    self.source = [liba]
         if hasattr(self, 'include') and len(self.include):
             self.RegisterCPPPATH('$%s' % (self.name), self.include, force=True)
         super().__init__()
@@ -1792,7 +1925,13 @@ class Library(BuildBase):
         CPPPATH = self.sortL(CPPPATH)
         CPPDEFINES = self.sortL(CPPDEFINES)
         objs = []
+        source = []
         for c in self.source:
+            # because of "#libName" in CPPPATH, so possible that source has some duplicate files
+            if c not in source:
+                source.append(c)
+            else:
+                continue
             if str(c).endswith('.a') or str(c).endswith('.dll') or str(c).endswith('.so'):
                 objs.append(c)
             elif self.is_shared_library():
@@ -1819,15 +1958,20 @@ class Library(BuildBase):
         LIBS = []
         objs = []
         LIBPATH = list(env.get('LIBPATH', [])) + getattr(self, 'LIBPATH', [])
-        for libName_, lib in self.__libs__.items():
+        for libName_ in self.__libs_order__:
+            lib = self.__libs__[libName_]
             objs_ = lib.objs()
             thresh = 200
-            if len(objs_) > thresh:
-                lib_ = env.Library(libName_, objs_)[0]
+            # intension here that check on 'len(objs_)', not 'len(objs + objs_)'
+            tooMuch = True if len(objs_) > thresh else False
+            if lib.is_object_library():
+                tooMuch = False # object library not allowed to be a static library
+            if tooMuch:
+                lib_ = env.Library(lib.libName(), objs_)[0]
                 p = os.path.dirname(lib_.get_abspath())
                 if p not in LIBPATH:
                     LIBPATH.append(p)
-                LIBS.append(libName_)
+                LIBS.append(lib.libName())
             else:
                 objs += objs_
             LIBPATH += getattr(lib, 'LIBPATH', [])
@@ -1909,18 +2053,21 @@ class Application(BuildBase):
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
         for name in self.__libs_order__:
-            if self.__libs__[name].is_shared_library():
+            lib = self.__libs__[name]
+            if lib.is_shared_library():
                 aslog('build shared library %s' % (name))
-                objs_ = self.__libs__[name].build()
+                objs_ = lib.build()
                 objs += objs_
                 continue
             aslog('build library %s' % (name))
-            objs_ = self.__libs__[name].objs()
+            objs_ = lib.objs()
             if isinstance(env, CustomEnv):
                 thresh = 1000000
             else:
                 thresh = 200
             tooMuch = True if (len(objs) + len(objs_)) > thresh else False
+            if lib.is_object_library():
+                tooMuch = False # object library not allowed to be a static library
             libObjs = []
             for obj in objs_:
                 if str(obj).endswith('.a'):
@@ -1948,12 +2095,16 @@ class Application(BuildBase):
                     libName = name.split(':')[0]
                 else:
                     libName = name
-                lib = env.Library(libName, libObjs)[0]
-                p = os.path.dirname(lib.get_abspath())
+                libT = env.Library(libName, libObjs)
+                libO = libT[0]
+                p = os.path.dirname(libO.get_abspath())
                 if p not in LIBPATH:
                     LIBPATH.append(p)
-                LIBS.append(libName)
-            LIBPATH += getattr(self.__libs__[name], 'LIBPATH', [])
+                if 'armcc' in env['CC']:
+                    objs.append(libT)
+                else:
+                    LIBS.append(libName)
+            LIBPATH += getattr(lib, 'LIBPATH', [])
         LIBS += self.__extra_libs__
         target = env.Program(appName, objs, CPPPATH=CPPPATH,
                              CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, LIBS=LIBS,
@@ -1963,6 +2114,12 @@ class Application(BuildBase):
             action = env['S19'].format(
                 target[0].get_abspath(), '%s/%s.s19' % (BUILD_DIR, appName))
             env.AddPostAction(target, action)
+        if 'ELFSIZE' in env:
+            BUILD_DIR = os.path.dirname(target[0].get_abspath())
+            action = env['ELFSIZE'].format(target[0].get_abspath())
+            env.AddPostAction(target, action)
+            readelf = 'echo python %s/tools/utils/readelf.py -i %s -o %s/%s.json'%(RootDir, target[0].get_abspath(), BUILD_DIR, appName)
+            env.AddPostAction(target, readelf)
         for action in getattr(self, '__post_actions__', []):
             env.AddPostAction(target, action)
         self.do_install(target)

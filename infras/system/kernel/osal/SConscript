@@ -2,23 +2,29 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs_freertos = Glob('osal_freertos.c')
-objs_pthread = Glob('osal_pthread.c')
+objs_freertos = Glob("osal_freertos.c")
+objs_pthread = Glob("osal_pthread.c")
+objs_win = Glob("osal_windows.c") + Glob("osal_mutex.cpp") + Glob("osal_thread.cpp")
+
 
 @register_os
 class LibraryOSAL(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
         self.include = CWD
         OS = self.GetOS()
-        if OS == 'FreeRTOS':
+        if OS != None and "FreeRTOS" in OS:
             self.source = objs_freertos
-            self.LIBS += ['FreeRTOS']
-        elif OS == 'OS':
+            self.LIBS += [OS]
+        elif OS == "OS":
             self.source = objs_pthread
-            self.LIBS += ['OS']
+            self.LIBS += ["OS"]
         else:
-            self.source = objs_pthread
-
-
-    
+            if IsBuildForMSVC():
+                self.source = objs_win
+                self.LIBS += ["Shlwapi"]
+            else:
+                self.source = objs_pthread
+                if not IsBuildForAndroid():
+                    self.LIBS.append("pthread")
+                self.LIBS += ["dl"]

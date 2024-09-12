@@ -6,12 +6,16 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
+#include <chrono>
 
+#include "Std_Timer.h"
 #include "Log.hpp"
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
@@ -19,15 +23,14 @@ namespace as {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 std::shared_ptr<Logger> Log::s_Logger = std::make_shared<Logger>();
+std::chrono::high_resolution_clock::time_point s_StartTimePoint =
+  std::chrono::high_resolution_clock::now();
 /* ================================ [ LOCALS    ] ============================================== */
 static float get_abs_time(void) {
-  float absT;
-  struct timespec ts;
-
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  absT = (float)ts.tv_sec + (float)(ts.tv_nsec / 1000000000.0);
-
-  return absT;
+  auto now = std::chrono::high_resolution_clock::now();
+  auto elapsed =
+    std::chrono::duration_cast<std::chrono::milliseconds>(now - s_StartTimePoint).count();
+  return (float)elapsed / 1000.0;
 }
 
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -39,11 +42,15 @@ FILE *Logger::getFile() {
   return m_File;
 }
 
-Logger::Logger(std::string name, std::string format) {
+void Logger::setName(std::string name, std::string format) {
   m_Name = name;
   m_Format = format;
   m_FileIndex = getFileIndex();
   open();
+}
+
+Logger::Logger(std::string name, std::string format) {
+  setName(name, format);
 }
 
 void Logger::setMaxSize(int sz) {
@@ -65,14 +72,14 @@ void Logger::open(void) {
   std::string np;
 
 #ifdef _WIN32
-  mkdir("log");
+  _mkdir("log");
 #else
   mkdir("log", 0777);
 #endif
   np = "log/" + std::string(m_Name) + "." + std::to_string(m_FileIndex) + "." + m_Format;
   fp = fopen(np.c_str(), "wb");
   if (nullptr != fp) {
-    if (m_File != stdout) {
+    if ((nullptr != m_File) && (m_File != stdout)) {
       fclose(m_File);
     }
     m_File = fp;
@@ -139,29 +146,38 @@ void Logger::write(const char *fmt, ...) {
 }
 
 void Logger::print(int level, const char *fmt, ...) {
+  char ts[64];
   va_list args;
   std::unique_lock<std::mutex> lck(m_Lock);
   if (level >= m_Level) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
-      float rtime = get_abs_time();
-      fprintf(m_File, "%.4f ", rtime);
+      Std_GetDateTime(ts, sizeof(ts));
+      fprintf(m_File, "%s ", ts);
     }
     va_start(args, fmt);
     (void)vfprintf(m_File, fmt, args);
     va_end(args);
-
     check();
   }
 }
 
-void Logger::print(int level, const char *fmt, va_list args) {
+void Logger::print(const char *fmt, ...) {
+  va_list args;
+  std::unique_lock<std::mutex> lck(m_Lock);
+  va_start(args, fmt);
+  (void)vfprintf(m_File, fmt, args);
+  va_end(args);
+}
+
+void Logger::vprint(int level, const char *fmt, va_list args) {
+  char ts[64];
   std::unique_lock<std::mutex> lck(m_Lock);
   if (level >= m_Level) {
     if ((0 == memcmp(fmt, "ERROR", 5)) || (0 == memcmp(fmt, "WARN", 4)) ||
         (0 == memcmp(fmt, "INFO", 4)) || (0 == memcmp(fmt, "DEBUG", 5))) {
-      float rtime = get_abs_time();
-      fprintf(m_File, "%.4f ", rtime);
+      Std_GetDateTime(ts, sizeof(ts));
+      fprintf(m_File, "%s ", ts);
     }
     (void)vfprintf(m_File, fmt, args);
 
@@ -216,10 +232,11 @@ void Logger::hexdump(int level, const char *prefix, const void *data, size_t siz
 }
 
 void Logger::vprint(const char *fmt, va_list args) {
+  char ts[64];
   std::unique_lock<std::mutex> lck(m_Lock);
   if (m_Ended) {
-    float rtime = get_abs_time();
-    fprintf(m_File, "%.4f ", rtime);
+    Std_GetDateTime(ts, sizeof(ts));
+    fprintf(m_File, "%s ", ts);
     m_Ended = false;
   }
   auto len = strlen(fmt);
@@ -266,7 +283,7 @@ void Log::print(int level, const char *fmt, ...) {
   va_list args;
 
   va_start(args, fmt);
-  s_Logger->print(level, fmt, args);
+  s_Logger->vprint(level, fmt, args);
   va_end(args);
 }
 

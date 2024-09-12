@@ -13,6 +13,9 @@
 #include <sys/queue.h>
 #include <assert.h>
 #include <ctype.h>
+
+#include <map>
+#include <chrono>
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
 /* ================================ [ TYPES     ] ============================================== */
@@ -20,6 +23,13 @@ struct can_frame {
   uint32_t can_id;
   uint8_t can_dlc;
   uint8_t data[CAN_MAX_DLEN];
+};
+
+struct can_msg_info {
+  struct can_frame frame;
+  uint64_t count;
+  std::chrono::high_resolution_clock::time_point start;
+  float period;
 };
 
 struct Can_Filter_s {
@@ -34,8 +44,12 @@ struct Can_FilterList_s {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static struct Can_FilterList_s *canFilterH = NULL;
+static std::map<uint32_t, can_msg_info> canMsgInfoMap;
+static uint32_t canLastMsgNum = 0;
+std::chrono::high_resolution_clock::time_point canLastShowTime =
+  std::chrono::high_resolution_clock::now();
 /* ================================ [ LOCALS    ] ============================================== */
-static void log_msg(struct can_frame *frame, float rtim) {
+static void log_msg(struct can_frame *frame, float rtim, uint64_t count = 0) {
   int bOut = FALSE;
   static float lastTime = -1;
   int nSame = 0;
@@ -106,14 +120,50 @@ static void log_msg(struct can_frame *frame, float rtim) {
       printf("`");
     }
 
-    printf("] @ %f s rel %.2f ms\n", rtim, (rtim - lastTime) * 1000);
-    lastTime = rtim;
+    if (count > 0) { /* periodic mode */
+      printf("] period %.2f ms count %lld\n", rtim, count);
+    } else {
+      printf("] @ %f s rel %.2f ms\n", rtim, (rtim - lastTime) * 1000);
+      lastTime = rtim;
+    }
+  }
+}
+
+static void add_msg(struct can_frame *frame) {
+  auto it = canMsgInfoMap.find(frame->can_id);
+  if (it != canMsgInfoMap.end()) {
+    it->second.frame = *frame;
+    it->second.count++;
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.start).count();
+    it->second.period = (float)((double)elapsed / (it->second.count - 1));
+  } else {
+    canMsgInfoMap[frame->can_id] = {*frame, 1, std::chrono::high_resolution_clock::now(), 0};
+  }
+
+  auto now = std::chrono::high_resolution_clock::now();
+  auto elapsed =
+    std::chrono::duration_cast<std::chrono::milliseconds>(now - canLastShowTime).count();
+
+  if (elapsed > 1000) {
+    for (uint32_t i = 0; i < canLastMsgNum; i++) {
+      printf("\033[1A"); /* back to last line */
+      printf("\033[K");  /* clear this line */
+    }
+
+    for (auto &it : canMsgInfoMap) {
+      auto &frame = it.second.frame;
+      log_msg(&frame, it.second.period, it.second.count);
+    }
+    canLastMsgNum = canMsgInfoMap.size();
+    canLastShowTime = std::chrono::high_resolution_clock::now();
   }
 }
 
 static void arg_filter(char *s) {
   char *code;
-  struct Can_Filter_s *filter = malloc(sizeof(struct Can_Filter_s));
+  struct Can_Filter_s *filter = (struct Can_Filter_s *)malloc(sizeof(struct Can_Filter_s));
   assert(filter);
 
   code = strchr(s, '#');
@@ -124,7 +174,7 @@ static void arg_filter(char *s) {
   filter->code = strtoul(code, NULL, 16);
 
   if (NULL == canFilterH) {
-    canFilterH = malloc(sizeof(struct Can_FilterList_s));
+    canFilterH = (struct Can_FilterList_s *)malloc(sizeof(struct Can_FilterList_s));
     assert(canFilterH);
     STAILQ_INIT(&canFilterH->head);
   }
@@ -141,16 +191,17 @@ static void usage(char *prog) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int ch;
-  char *device = "simulator_v2";
+  const char *device = "simulator_v2";
   int busid;
   int port = 0;
   int baudrate = 500000;
   struct can_frame frame;
   bool rv;
+  bool bPeriodMode = false;
   Std_TimerType timer;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "b:d:f:hp:")) != -1) {
+  while ((ch = getopt(argc, argv, "b:d:f:hp:P")) != -1) {
     switch (ch) {
     case 'b':
       baudrate = atoi(optarg);
@@ -167,6 +218,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'p':
       port = atoi(optarg);
+      break;
+    case 'P':
+      bPeriodMode = true;
       break;
     default:
       break;
@@ -191,9 +245,13 @@ int main(int argc, char *argv[]) {
       frame.can_id = -1;
       rv = can_read(busid, &frame.can_id, &frame.can_dlc, frame.data);
       if (true == rv) {
-        std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
-        float rtim = elapsedTime / 1000000.0;
-        log_msg(&frame, rtim);
+        if (bPeriodMode) {
+          add_msg(&frame);
+        } else {
+          std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
+          float rtim = elapsedTime / 1000000.0;
+          log_msg(&frame, rtim);
+        }
       }
     } while (true == rv);
     Std_Sleep(1000);

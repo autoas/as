@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
   int portIndex = 0;
 
   bool rv;
+  bool bHasMsg;
   uint32_t canid = -1;
   uint8_t dlc = 0;
   uint8_t data[64];
@@ -63,6 +64,9 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  printf("device 0: %s port=%d, baudrare=%d\n", device[0], port[0], baudrate[0]);
+  printf("device 1: %s port=%d, baudrare=%d\n", device[1], port[1], baudrate[1]);
+
   busid[0] = can_open(device[0], (uint32_t)port[0], (uint32_t)baudrate[0]);
   if (busid[0] >= 0) {
     busid[1] = can_open(device[1], (uint32_t)port[1], (uint32_t)baudrate[1]);
@@ -70,19 +74,24 @@ int main(int argc, char *argv[]) {
 
   if ((busid[0] >= 0) && (busid[1] >= 0)) {
     while (TRUE) {
+      bHasMsg = FALSE;
       canid = -1;
       dlc = sizeof(data);
       rv = can_read(busid[0], &canid, &dlc, data);
       if (rv) {
         can_write(busid[1], canid, dlc, data);
+        bHasMsg = TRUE;
       }
       canid = -1;
       dlc = sizeof(data);
       rv = can_read(busid[1], &canid, &dlc, data);
       if (rv) {
         can_write(busid[0], canid, dlc, data);
+        bHasMsg = TRUE;
       }
-      Std_Sleep(1000);
+      if (FALSE == bHasMsg) {
+        Std_Sleep(1000); /* sleep to wait a message to be ready */
+      }
     }
   }
 

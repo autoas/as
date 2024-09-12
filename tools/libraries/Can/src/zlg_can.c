@@ -5,11 +5,9 @@
 #ifdef _WIN32
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <sys/queue.h>
-#include <pthread.h>
+#include "osal.h"
 #include <assert.h>
-#ifdef USE_ZLG_DLL
-#include <dlfcn.h>
-#endif
+#include "osal.h"
 #include "Std_Types.h"
 #include "Std_Debug.h"
 #include "canlib.h"
@@ -24,7 +22,7 @@
 #ifdef USE_ZLG_DLL
 #define ZLG_LOAD(sym)                                                                              \
   if (r) {                                                                                         \
-    *(void **)&zlgH.IF.VCI_##sym = dlsym(zlgH.IF.dll, "VCI_" #sym);                                \
+    *(void **)&zlgH.IF.VCI_##sym = OSAL_DlSym(zlgH.IF.dll, "VCI_" #sym);                           \
     if (NULL == zlgH.IF.VCI_##sym) {                                                               \
       r = false;                                                                                   \
       ASLOG(ERROR, ("Can't find symbold " #sym "\n"));                                             \
@@ -61,9 +59,9 @@ typedef struct {
 
 struct Can_ZLGHandleList_s {
   bool initialized;
-  pthread_t rx_thread;
+  OSAL_ThreadType rx_thread;
   volatile bool terminated;
-  pthread_mutex_t mutex;
+  OSAL_MutexType mutex;
   Zlg_InterfaceType IF;
   STAILQ_HEAD(, Can_ZLGHandle_s) head;
 };
@@ -72,7 +70,7 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
                       can_device_rx_notification_t rx_notification);
 static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data);
 static void zlg_close(uint32_t port);
-static void *rx_daemon(void *);
+static void rx_daemon(void *);
 /* ================================ [ DATAS     ] ============================================== */
 const Can_DeviceOpsType can_zlg_ops = {
   .name = "zlg",
@@ -91,16 +89,16 @@ static uint32_t zlg_bauds[][2] = {
 static struct Can_ZLGHandleList_s zlgH = {
   .initialized = false,
   .terminated = false,
-  .mutex = PTHREAD_MUTEX_INITIALIZER,
+  .mutex = NULL,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static bool openDriver(void) {
   bool r = true;
 #ifdef USE_ZLG_DLL
-  zlgH.IF.dll = dlopen("ControlCAN.dll", RTLD_NOW);
+  zlgH.IF.dll = OSAL_DlOpen("ControlCAN.dll");
   if (NULL == zlgH.IF.dll) {
     r = false;
-    ASLOG(ERROR, ("Can't open ControlCAN.dll: %s\n", dlerror()));
+    ASLOG(ERROR, ("Can't open ControlCAN.dll\n"));
   }
 
   ZLG_LOAD(OpenDevice);
@@ -115,7 +113,7 @@ static bool openDriver(void) {
 
   if (false == r) {
     if (NULL != zlgH.IF.dll) {
-      dlclose(zlgH.IF.dll);
+      OSAL_DlClose(zlgH.IF.dll);
       zlgH.IF.dll = NULL;
     }
   }
@@ -127,14 +125,14 @@ static struct Can_ZLGHandle_s *getHandle(uint32_t port) {
   struct Can_ZLGHandle_s *handle, *h;
   handle = NULL;
 
-  pthread_mutex_lock(&zlgH.mutex);
+  OSAL_MutexLock(zlgH.mutex);
   STAILQ_FOREACH(h, &zlgH.head, entry) {
     if (h->port == port) {
       handle = h;
       break;
     }
   }
-  pthread_mutex_unlock(&zlgH.mutex);
+  OSAL_MutexUnlock(zlgH.mutex);
 
   return handle;
 }
@@ -154,9 +152,10 @@ static bool get_zlg_param(uint32_t port, uint32_t *DeviceType, uint32_t *CANInd,
     ASLOG(
       WARN,
       ("please set env VCI_USBCAN according to the device type value specified in ConttrolCAN.h!\n"
-       "  set VCI_USBCAN=4 REM for VCI_USBCAN2\n"
+       "  set VCI_USBCAN=4 REM for VCI_USBCAN2 (default)\n"
        "  set VCI_USBCAN=21 REM for VCI_USBCAN_2E_U\n"));
-    rv = false;
+    *DeviceType = 4; /* default for VCI_USBCAN2 */
+    *CANInd = port;
   }
 
   for (i = 0; i < ARRAY_SIZE(zlg_bauds); i++) {
@@ -178,18 +177,16 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
   bool rv = true;
   struct Can_ZLGHandle_s *handle;
 
-  pthread_mutex_lock(&zlgH.mutex);
   if (false == zlgH.initialized) {
     rv = openDriver();
     if (false == rv) {
-      pthread_mutex_unlock(&zlgH.mutex);
       return false;
     }
     STAILQ_INIT(&zlgH.head);
     zlgH.initialized = true;
     zlgH.terminated = true;
+    zlgH.mutex = OSAL_MutexCreate(NULL);
   }
-  pthread_mutex_unlock(&zlgH.mutex);
 
   handle = getHandle(port);
 
@@ -258,16 +255,17 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->CANInd = CANInd;
       handle->baudrate = baudrate;
       handle->rx_notification = rx_notification;
-      pthread_mutex_lock(&zlgH.mutex);
+      OSAL_MutexLock(zlgH.mutex);
       STAILQ_INSERT_TAIL(&zlgH.head, handle, entry);
-      pthread_mutex_unlock(&zlgH.mutex);
+      OSAL_MutexUnlock(zlgH.mutex);
     } else {
       rv = false;
     }
   }
 
   if ((true == zlgH.terminated) && (false == STAILQ_EMPTY(&zlgH.head))) {
-    if (0 == pthread_create(&(zlgH.rx_thread), NULL, rx_daemon, NULL)) {
+    zlgH.rx_thread = OSAL_ThreadCreate(rx_daemon, NULL);
+    if (NULL != zlgH.rx_thread) {
       zlgH.terminated = false;
     } else {
       assert(0);
@@ -286,7 +284,7 @@ static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
     msg.SendType = 0;
     msg.ID = canid & 0x7FFFFFFFUL;
     msg.DataLen = dlc;
-    if (canid & 0x8000000UL) {
+    if (0 != (canid & CAN_ID_EXTENDED)) {
       msg.ExternFlag = 1;
     } else {
       msg.ExternFlag = 0;
@@ -313,13 +311,15 @@ static void zlg_close(uint32_t port) {
   struct Can_ZLGHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    pthread_mutex_lock(&zlgH.mutex);
+    OSAL_MutexLock(zlgH.mutex);
     STAILQ_REMOVE(&zlgH.head, handle, Can_ZLGHandle_s, entry);
-    pthread_mutex_unlock(&zlgH.mutex);
+    OSAL_MutexUnlock(zlgH.mutex);
     if (true == STAILQ_EMPTY(&zlgH.head)) {
       ZLG_CALL(CloseDevice)(handle->DeviceType, 0);
       zlgH.terminated = true;
-      pthread_join(zlgH.rx_thread, NULL);
+      OSAL_ThreadJoin(zlgH.rx_thread);
+      OSAL_ThreadDestory(zlgH.rx_thread);
+      OSAL_MutexDestory(zlgH.mutex);
     }
     free(handle);
   }
@@ -350,19 +350,17 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
     ASLOG(ZLG, ("ZLG error for %d: 0x%X\n", handle->CANInd, info.ErrCode));
   }
 }
-static void *rx_daemon(void *param) {
+static void rx_daemon(void *param) {
   (void)param;
   struct Can_ZLGHandle_s *handle;
   while (false == zlgH.terminated) {
-    pthread_mutex_lock(&zlgH.mutex);
+    OSAL_MutexLock(zlgH.mutex);
     STAILQ_FOREACH(handle, &zlgH.head, entry) {
       rx_notifiy(handle);
     }
-    pthread_mutex_unlock(&zlgH.mutex);
-    usleep(1000);
+    OSAL_MutexUnlock(zlgH.mutex);
+    OSAL_SleepUs(1000);
   }
-
-  return NULL;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 #endif /* _WIN32 */

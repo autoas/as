@@ -50,9 +50,9 @@ struct Can_PeakHandle_s {
 
 typedef struct {
   void *dll;
-  TPCANStatus (*CAN_Initialize)(TPCANHandle, TPCANBaudrate, TPCANType, DWORD, WORD);
-  TPCANStatus (*CAN_Write)(TPCANHandle, TPCANMsg *);
-  TPCANStatus (*CAN_Read)(TPCANHandle, TPCANMsg *, TPCANTimestamp *);
+  TPCANStatus (*CAN_InitializeFD)(TPCANHandle, TPCANBitrateFD);
+  TPCANStatus (*CAN_WriteFD)(TPCANHandle, TPCANMsgFD *);
+  TPCANStatus (*CAN_ReadFD)(TPCANHandle, TPCANMsgFD *, TPCANTimestampFD *);
   TPCANStatus (*CAN_Uninitialize)(TPCANHandle);
 } Peak_InterfaceType;
 
@@ -64,6 +64,11 @@ struct Can_PeakHandleList_s {
   Peak_InterfaceType IF;
   STAILQ_HEAD(, Can_PeakHandle_s) head;
 };
+
+typedef struct {
+  uint32_t baudrate;
+  const char *bitrate;
+} Can_PeakBaudrate_t;
 /* ================================ [ DECLARES  ] ============================================== */
 static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
                        can_device_rx_notification_t rx_notification);
@@ -71,8 +76,8 @@ static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t
 static void peak_close(uint32_t port);
 static void rx_daemon(void *);
 /* ================================ [ DATAS     ] ============================================== */
-const Can_DeviceOpsType can_peak_ops = {
-  .name = "peak",
+const Can_DeviceOpsType can_peakfd_ops = {
+  .name = "peakfd",
   .probe = peak_probe,
   .close = peak_close,
   .write = peak_write,
@@ -89,12 +94,17 @@ static uint32_t peak_ports[] = {
   PCAN_USBBUS5, PCAN_USBBUS6, PCAN_USBBUS7, PCAN_USBBUS8,
 };
 
-static uint32_t peak_bauds[][2] = {
-  {1000 Kbps, PCAN_BAUD_1M},  {800 Kbps, PCAN_BAUD_800K}, {500 Kbps, PCAN_BAUD_500K},
-  {250 Kbps, PCAN_BAUD_250K}, {100 Kbps, PCAN_BAUD_100K}, {95 Kbps, PCAN_BAUD_95K},
-  {83 Kbps, PCAN_BAUD_83K},   {50 Kbps, PCAN_BAUD_50K},   {47 Kbps, PCAN_BAUD_47K},
-  {33 Kbps, PCAN_BAUD_33K},   {20 Kbps, PCAN_BAUD_20K},   {10 Kbps, PCAN_BAUD_10K},
-  {5 Kbps, PCAN_BAUD_5K}};
+/* refer: https://documentation.help/PCAN-Basic/CAN_InitializeFD.html
+ * https://docs.peak-system.com/API/PCAN-Basic.Net/html/eebb7d25-f978-60f2-54b8-5b126db9dff5.htm
+ * https://docs.peak-system.com/API/PCAN-Basic.Net/html/63345c55-9c4f-4f59-a2c4-b200cf71ed3a.htm */
+static Can_PeakBaudrate_t peak_bauds[] = {
+  /* Defines a FD Bit rate string with nominal and data Bit rate set to 1 MB */
+  {1000 Kbps, "f_clock_mhz=24, nom_brp=1, nom_tseg1=17, nom_tseg2=6, nom_sjw=1, data_brp=1, "
+              "data_tseg1=16, data_tseg2=7, data_sjw=1"},
+  /* Defines a FD Bit rate string with nominal bit rate of 500 kBit/s and data bit rate
+   * of 2 MB (SAE J2284-4) */
+  {500 Kbps, "f_clock=80000000,nom_brp=2,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,data_brp=2,data_"
+             "tseg1=15,data_tseg2=4,data_sjw=4"}};
 /* ================================ [ LOCALS    ] ============================================== */
 static struct Can_PeakHandle_s *getHandle(uint32_t port) {
   struct Can_PeakHandle_s *handle, *h;
@@ -112,7 +122,7 @@ static struct Can_PeakHandle_s *getHandle(uint32_t port) {
 /*
  * InOut: port, baudrate
  */
-static bool get_peak_param(uint32_t *port, uint32_t *baudrate) {
+static bool get_peak_param(uint32_t *port, uint32_t baudrate, const char **pBitrate) {
   uint32_t i;
   bool rv = true;
 
@@ -123,8 +133,8 @@ static bool get_peak_param(uint32_t *port, uint32_t *baudrate) {
   }
 
   for (i = 0; i < ARRAY_SIZE(peak_bauds); i++) {
-    if (*baudrate == peak_bauds[i][0]) {
-      *baudrate = peak_bauds[i][1];
+    if (baudrate == peak_bauds[i].baudrate) {
+      *pBitrate = peak_bauds[i].bitrate;
       break;
     }
   }
@@ -145,9 +155,9 @@ static bool openDriver(void) {
     ASLOG(ERROR, ("Can't open PCANBasic.dll\n"));
   }
 
-  PEAK_LOAD(Initialize);
-  PEAK_LOAD(Write);
-  PEAK_LOAD(Read);
+  PEAK_LOAD(InitializeFD);
+  PEAK_LOAD(WriteFD);
+  PEAK_LOAD(ReadFD);
   PEAK_LOAD(Uninitialize);
 
   if (false == r) {
@@ -164,7 +174,7 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
                        can_device_rx_notification_t rx_notification) {
   bool rv = true;
   struct Can_PeakHandle_s *handle;
-  uint32_t peak_baud = baudrate;
+  const char *peak_baud = NULL;
   uint32_t peak_port = port;
   TPCANStatus status;
 
@@ -186,9 +196,9 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
     ASLOG(WARN, ("CAN PEAK port=%d is already on-line, no need to probe it again!\n", port));
     rv = false;
   } else {
-    rv = get_peak_param(&peak_port, &peak_baud);
+    rv = get_peak_param(&peak_port, baudrate, &peak_baud);
     if (rv) {
-      status = PEAK_CALL(Initialize)(peak_port, peak_baud, 0, 0, 0);
+      status = PEAK_CALL(InitializeFD)(peak_port, (TPCANBitrateFD)peak_baud);
 
       if (PCAN_ERROR_OK == status) {
         rv = true;
@@ -228,12 +238,12 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data) {
   bool rv = true;
   TPCANStatus status;
-  TPCANMsg msg;
+  TPCANMsgFD msg;
   struct Can_PeakHandle_s *handle = getHandle(port);
 
   if (handle != NULL) {
     msg.ID = canid;
-    msg.LEN = dlc;
+    msg.DLC = dlc;
     if (0 != (canid & CAN_ID_EXTENDED)) {
       msg.MSGTYPE = PCAN_MESSAGE_EXTENDED;
     } else {
@@ -242,7 +252,7 @@ static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t
 
     memcpy(msg.DATA, data, dlc);
 
-    status = PEAK_CALL(Write)(handle->channel, &msg);
+    status = PEAK_CALL(WriteFD)(handle->channel, &msg);
     if (PCAN_ERROR_OK == status) {
       /* send OK */
     } else {
@@ -279,13 +289,13 @@ static void peak_close(uint32_t port) {
 }
 
 static void rx_notifiy(struct Can_PeakHandle_s *handle) {
-  TPCANMsg msg;
+  TPCANMsgFD msg;
   TPCANStatus status;
   do {
-    status = PEAK_CALL(Read)(handle->channel, &msg, NULL);
+    status = PEAK_CALL(ReadFD)(handle->channel, &msg, NULL);
 
     if (PCAN_ERROR_OK == status) {
-      handle->rx_notification(handle->busid, msg.ID, msg.LEN, msg.DATA);
+      handle->rx_notification(handle->busid, msg.ID, msg.DLC, msg.DATA);
     } else if (PCAN_ERROR_QRCVEMPTY == status) {
 
     } else {

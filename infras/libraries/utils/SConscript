@@ -8,4 +8,5 @@ objs = Glob('src/*.cpp')
 class LibraryUtils(Library):
     def config(self):
         self.include = ['%s/include'%(CWD)]
+        self.CPPPATH = ['$INFRAS']
         self.source = objs

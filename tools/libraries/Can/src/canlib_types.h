@@ -17,9 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
-#include <unistd.h>
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef CAN_DEVICE_NAME_SIZE
 #define CAN_DEVICE_NAME_SIZE 128
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef void (*can_device_rx_notification_t)(int busid, uint32_t canid, uint8_t dlc, uint8_t *data);
 typedef bool (*can_device_probe_t)(int busid, uint32_t port, uint32_t baudrate,

@@ -1,7 +1,7 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c')
+objs = Glob('src/*.c') + Glob('src/*.cpp')
 
 objsVXL = Glob('src/vxlapi/*.cpp')
 
@@ -13,18 +13,20 @@ class LibraryCanLib(Library):
     def config_peakcan(self):
         peakcan = Package(
             'https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip')
-        self.CPPPATH += ['%s/PCAN-Basic API/Include' % (peakcan)]
+        self.CPPPATH += ['%s/Include' % (peakcan)]
         if IsBuildForWin32():
             v0, v1 = 'Win32', 'mingw32'
         else:
             v0, v1 = 'x64', 'mingw64'
-        shutil.copy('%s/PCAN-Basic API/%s/VC_LIB/PCANBasic.lib' %
-                    (peakcan, v0), '%s/libPCANBasic.a' % (BUILD_DIR))
+        # if not IsBuildForMSVC():
+        #     shutil.copy('%s/%s/VC_LIB/PCANBasic.lib' % (peakcan, v0), '%s/libPCANBasic.a' % (BUILD_DIR))
+        # else:
+        #     shutil.copy('%s/%s/VC_LIB/PCANBasic.lib' % (peakcan, v0), BUILD_DIR)
         dll = '%s/%s/bin/PCANBasic.dll' % (GetMsys2Root(), v1)
         if not os.path.isfile(dll):
-            shutil.copy('%s/PCAN-Basic API/%s/PCANBasic.dll' %
-                        (peakcan, v0), dll)
-        self.LIBS += ['PCANBasic']
+            shutil.copy('%s/%s/PCANBasic.dll' % (peakcan, v0), dll)
+        #self.LIBS += ['PCANBasic']
+        self.CPPDEFINES += ['USE_PEAK_DLL']
         self.LIBPATH += [BUILD_DIR]
 
     def config_vxl(self):
@@ -41,20 +43,20 @@ class LibraryCanLib(Library):
             ControlCAN = Glob('%s/ControlCAN*/ControlCANx64' % (pkg))[0].rstr()
         self.CPPPATH += [ControlCAN]
         if not IsBuildForWin32():  # mingw32 has no dlfcn
-            self.LIBS += ['dl']
+            if not IsBuildForMSVC():
+                self.LIBS += ['dl']
             self.CPPDEFINES += ['USE_ZLG_DLL']
         else:
             self.LIBS += ['ControlCAN']
             self.LIBPATH += [BUILD_DIR]
-            shutil.copy('%s/ControlCAN.lib' %
-                        (ControlCAN), '%s/libControlCAN.a' % (BUILD_DIR))
+            shutil.copy('%s/ControlCAN.lib' % (ControlCAN), '%s/libControlCAN.a' % (BUILD_DIR))
 
     def config(self):
         self.include = '%s/include' % (CWD)
         self.CPPPATH = ['$INFRAS']
         self.CPPDEFINES = []
         self.LIBPATH = []
-        self.LIBS = ['TcpIp', 'StdTimer', 'Utils']
+        self.LIBS = ['TcpIp', 'StdTimer', 'Utils', 'OSAL']
         self.CPPFLAGS = []
         self.source = objs
         if IsBuildForWindows():
@@ -62,6 +64,8 @@ class LibraryCanLib(Library):
             self.config_peakcan()
             self.config_vxl()
             self.config_zlg()
+        else:
+            self.LIBS += ['uuid']
 
 
 objsCanSim = Glob('utils/can_simulator.c')
@@ -76,7 +80,7 @@ class ApplicationCanSimulator(Application):
         self.source = objsCanSim
 
 
-objsCanDump = Glob('utils/can_dump.c')
+objsCanDump = Glob('utils/can_dump.cpp')
 
 
 @register_application
@@ -85,6 +89,7 @@ class ApplicationCanDump(Application):
         self.LIBS = ['CanLib']
         self.CPPPATH = ['$INFRAS']
         self.source = objsCanDump
+        self.Install('../one')
 
 
 objsCanSend = Glob('utils/can_send.c')
@@ -96,6 +101,7 @@ class ApplicationCanSend(Application):
         self.LIBS = ['CanLib']
         self.CPPPATH = ['$INFRAS']
         self.source = objsCanSend
+        self.Install('../one')
 
 
 objsCanBr = Glob('utils/can_bridge.c')
@@ -107,3 +113,16 @@ class ApplicationCanBridge(Application):
         self.LIBS = ['CanLib']
         self.CPPPATH = ['$INFRAS']
         self.source = objsCanBr
+        self.Install('../one')
+
+
+objsCanIO = Glob('utils/can_stdio.c')
+
+
+@register_application
+class ApplicationCanStdio(Application):
+    def config(self):
+        self.LIBS = ['CanLib']
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsCanIO
+        self.Install('../one')

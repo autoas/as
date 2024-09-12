@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   int ch;
   char *device = "simulator_v2";
   int port = 0;
-  int canid = -1;
+  uint32_t canid = -1;
   int dlc = 0;
   uint8_t data[64];
   char bytes[3] = {0, 0, 0};
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if ((NULL == device) || (port < 0) || (canid < 0) || (dlc > sizeof(data)) || (baudrate < 0) ||
+  if ((NULL == device) || (port < 0) || (dlc > sizeof(data)) || (baudrate < 0) ||
       (opterr != 0)) {
     usage(argv[0]);
     return -1;

@@ -532,9 +532,9 @@ XLstatus xlUnloadLibrary(void){
 XLstatus xlOpenDriver(void){
   
 #ifdef WIN64
-  if (xlLoadLibrary("vxlapi64")!=XL_SUCCESS) return XL_ERR_CANNOT_OPEN_DRIVER;
+  if (xlLoadLibrary((char*)"vxlapi64")!=XL_SUCCESS) return XL_ERR_CANNOT_OPEN_DRIVER;
 #else
-  if (xlLoadLibrary("vxlapi")!=XL_SUCCESS) return XL_ERR_CANNOT_OPEN_DRIVER;
+  if (xlLoadLibrary((char*)"vxlapi")!=XL_SUCCESS) return XL_ERR_CANNOT_OPEN_DRIVER;
 #endif
   return xlDllOpenDriver();
 }

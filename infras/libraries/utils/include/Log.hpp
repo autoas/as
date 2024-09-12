@@ -26,6 +26,8 @@ public:
 public:
   Logger();
   Logger(std::string name, std::string format = "txt");
+
+  void setName(std::string name, std::string format = "txt");
   void setMaxSize(int sz);
   void setMaxNum(int num);
   void setLogLevel(int level);
@@ -34,8 +36,10 @@ public:
   void write(const char *fmt, ...);
   void check(void);
 
+  void print(const char *fmt, ...);
   void print(int level, const char *fmt, ...);
-  void print(int level, const char *fmt, va_list args);
+  void vprint(int level, const char *fmt, va_list args);
+
   void hexdump(int level, const char *prefix, const void *data, size_t size, size_t len = 16);
   void vprint(const char *fmt, va_list args);
   void putc(char chr);

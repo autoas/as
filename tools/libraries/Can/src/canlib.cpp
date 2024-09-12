@@ -7,9 +7,12 @@
 #include "canlib.h"
 #include "canlib_types.h"
 #include <ctype.h>
-#include <pthread.h>
+#include "osal.h"
 #include "Std_Timer.h"
 #include "Std_Topic.h"
+#include "Log.hpp"
+
+using namespace as;
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_BUS_NUM 32
 #define CAN_BUS_PDU_NUM 128
@@ -50,32 +53,32 @@ struct Can_Bus_s {
   bool warningQ;
   STAILQ_ENTRY(Can_Bus_s) entry;
   uint32_t ref;
-  pthread_mutex_t q_lock;
+  OSAL_MutexType q_lock;
 };
 
 struct Can_BusList_s {
   boolean initialized;
-  pthread_mutex_t q_lock;
+  OSAL_MutexType q_lock;
   uint32_t busidMask; /* I am going to support only 64 bus */
   STAILQ_HEAD(, Can_Bus_s) head;
 };
 
 /* ================================ [ DECLARES  ] ============================================== */
-extern const Can_DeviceOpsType can_simulator_ops;
-extern const Can_DeviceOpsType can_simulator_v2_ops;
-extern const Can_DeviceOpsType can_qs_ops;
+extern "C" const Can_DeviceOpsType can_simulator_ops;
+extern "C" const Can_DeviceOpsType can_simulator_v2_ops;
+extern "C" const Can_DeviceOpsType can_qs_ops;
 #if defined(_WIN32) && !defined(ANDROID)
-extern const Can_DeviceOpsType can_peak_ops;
-extern const Can_DeviceOpsType can_vxl_ops;
-extern const Can_DeviceOpsType can_zlg_ops;
+extern "C" const Can_DeviceOpsType can_peak_ops;
+extern "C" const Can_DeviceOpsType can_peakfd_ops;
+extern "C" const Can_DeviceOpsType can_vxl_ops;
+extern "C" const Can_DeviceOpsType can_zlg_ops;
 #endif
 
-static void canlib_close(void);
 static void logCan(boolean isRx, int busid, uint32_t canid, uint8_t dlc, const uint8_t *data);
 /* ================================ [ DATAS     ] ============================================== */
 static struct Can_BusList_s canbusH = {
   .initialized = false,
-  .q_lock = PTHREAD_MUTEX_INITIALIZER,
+  .q_lock = NULL,
   .busidMask = 0,
 };
 static const Can_DeviceOpsType *canOps[] = {
@@ -84,12 +87,13 @@ static const Can_DeviceOpsType *canOps[] = {
   &can_qs_ops,
 #if defined(_WIN32) && !defined(ANDROID)
   &can_peak_ops,
+  &can_peakfd_ops,
   &can_vxl_ops,
   &can_zlg_ops,
 #endif
   NULL,
 };
-static FILE *canLog = NULL;
+static Logger *s_Logger = nullptr;
 /* ================================ [ LOCALS    ] ============================================== */
 static void freeQ(struct Can_PduQueue_s *l) {
   struct Can_Pdu_s *pdu;
@@ -112,14 +116,14 @@ static void freeB(struct Can_Bus_s *b) {
 static void freeH(struct Can_BusList_s *h) {
   struct Can_Bus_s *b;
 
-  pthread_mutex_lock(&h->q_lock);
+  OSAL_MutexLock(h->q_lock);
   while (false == STAILQ_EMPTY(&h->head)) {
     b = STAILQ_FIRST(&h->head);
     STAILQ_REMOVE_HEAD(&h->head, entry);
     freeB(b);
     free(b);
   }
-  pthread_mutex_unlock(&h->q_lock);
+  OSAL_MutexUnlock(h->q_lock);
 }
 
 static struct Can_Bus_s *getBus(int busid) {
@@ -127,14 +131,14 @@ static struct Can_Bus_s *getBus(int busid) {
   handle = NULL;
 
   if (canbusH.initialized) {
-    (void)pthread_mutex_lock(&canbusH.q_lock);
+    (void)OSAL_MutexLock(canbusH.q_lock);
     STAILQ_FOREACH(h, &canbusH.head, entry) {
       if (h->device.busid == busid) {
         handle = h;
         break;
       }
     }
-    (void)pthread_mutex_unlock(&canbusH.q_lock);
+    (void)OSAL_MutexUnlock(canbusH.q_lock);
   }
 
   return handle;
@@ -144,14 +148,14 @@ static struct Can_Bus_s *getBusByName(const char *device_name, uint32_t port) {
   struct Can_Bus_s *handle, *h;
   handle = NULL;
   if (canbusH.initialized) {
-    (void)pthread_mutex_lock(&canbusH.q_lock);
+    (void)OSAL_MutexLock(canbusH.q_lock);
     STAILQ_FOREACH(h, &canbusH.head, entry) {
       if ((0 == strcmp(h->device.device_name, device_name)) && (h->device.port == port)) {
         handle = h;
         break;
       }
     }
-    (void)pthread_mutex_unlock(&canbusH.q_lock);
+    (void)OSAL_MutexUnlock(canbusH.q_lock);
   }
   return handle;
 }
@@ -165,27 +169,27 @@ static void saveQ(struct Can_Bus_s *b, uint32_t canid, uint8_t dlc, const uint8_
     }
     return;
   }
-  pdu = malloc(sizeof(struct Can_Pdu_s));
+  pdu = (struct Can_Pdu_s *)malloc(sizeof(struct Can_Pdu_s));
   if (NULL != pdu) {
     pdu->msg.id = canid;
     pdu->msg.length = dlc;
     memcpy(&(pdu->msg.sdu), data, dlc);
-    (void)pthread_mutex_lock(&b->q_lock);
+    (void)OSAL_MutexLock(b->q_lock);
     STAILQ_INSERT_TAIL(&b->headQ, pdu, entry);
     b->sizeQ++;
-    (void)pthread_mutex_unlock(&b->q_lock);
+    (void)OSAL_MutexUnlock(b->q_lock);
   }
 }
 
 static struct Can_Pdu_s *getQ(struct Can_Bus_s *b) {
   struct Can_Pdu_s *pdu = NULL;
-  (void)pthread_mutex_lock(&b->q_lock);
+  (void)OSAL_MutexLock(b->q_lock);
   if ((false == STAILQ_EMPTY(&b->headQ))) {
     pdu = STAILQ_FIRST(&b->headQ);
     STAILQ_REMOVE_HEAD(&b->headQ, entry);
     b->sizeQ--;
   }
-  (void)pthread_mutex_unlock(&b->q_lock);
+  (void)OSAL_MutexUnlock(b->q_lock);
   return pdu;
 }
 
@@ -193,7 +197,7 @@ static int allocBusId(void) {
   int i;
   int busid = -1;
 
-  (void)pthread_mutex_lock(&canbusH.q_lock);
+  (void)OSAL_MutexLock(canbusH.q_lock);
   for (i = 0; i < CAN_BUS_NUM; i++) {
     if (0 == ((1 << i) & canbusH.busidMask)) {
       busid = i;
@@ -201,15 +205,15 @@ static int allocBusId(void) {
       break;
     }
   }
-  (void)pthread_mutex_unlock(&canbusH.q_lock);
+  (void)OSAL_MutexUnlock(canbusH.q_lock);
 
   return busid;
 }
 
 static void freeBusId(int busid) {
-  (void)pthread_mutex_lock(&canbusH.q_lock);
+  (void)OSAL_MutexLock(canbusH.q_lock);
   canbusH.busidMask &= ~(1 << busid);
-  (void)pthread_mutex_unlock(&canbusH.q_lock);
+  (void)OSAL_MutexUnlock(canbusH.q_lock);
 }
 
 static struct Can_Pdu_s *getPdu(struct Can_Bus_s *b, uint32_t canid) {
@@ -221,7 +225,7 @@ static struct Can_Pdu_s *getPdu(struct Can_Bus_s *b, uint32_t canid) {
     return getQ(b);
   }
 
-  (void)pthread_mutex_lock(&b->q_lock);
+  (void)OSAL_MutexLock(b->q_lock);
   if ((uint32_t)-1 == canid) { /* id is -1, means get the first of queue from b->head2 */
     if (false == STAILQ_EMPTY(&b->head2)) {
       pdu = STAILQ_FIRST(&b->head2);
@@ -233,7 +237,7 @@ static struct Can_Pdu_s *getPdu(struct Can_Bus_s *b, uint32_t canid) {
   }
   /* search queue specified by canid */
   STAILQ_FOREACH(l, &b->head, entry) {
-    if (l->id == canid) {
+    if ((l->id & (~CAN_ID_EXTENDED)) == (canid & (~CAN_ID_EXTENDED))) {
       L = l;
       break;
     }
@@ -246,7 +250,7 @@ static struct Can_Pdu_s *getPdu(struct Can_Bus_s *b, uint32_t canid) {
     b->size2--;
     L->size--;
   }
-  (void)pthread_mutex_unlock(&b->q_lock);
+  (void)OSAL_MutexUnlock(b->q_lock);
   return pdu;
 }
 
@@ -254,7 +258,7 @@ static void saveB(struct Can_Bus_s *b, struct Can_Pdu_s *pdu) {
   struct Can_PduQueue_s *L;
   struct Can_PduQueue_s *l;
   L = NULL;
-  (void)pthread_mutex_lock(&b->q_lock);
+  (void)OSAL_MutexLock(b->q_lock);
   STAILQ_FOREACH(l, &b->head, entry) {
     if (l->id == pdu->msg.id) {
       L = l;
@@ -263,7 +267,7 @@ static void saveB(struct Can_Bus_s *b, struct Can_Pdu_s *pdu) {
   }
 
   if (NULL == L) {
-    L = malloc(sizeof(struct Can_PduQueue_s));
+    L = (struct Can_PduQueue_s *)malloc(sizeof(struct Can_PduQueue_s));
     if (L) {
       L->id = pdu->msg.id;
       L->size = 0;
@@ -292,7 +296,7 @@ static void saveB(struct Can_Bus_s *b, struct Can_Pdu_s *pdu) {
     }
   }
 
-  (void)pthread_mutex_unlock(&b->q_lock);
+  (void)OSAL_MutexUnlock(b->q_lock);
 }
 
 static void rx_notification(int busid, uint32_t canid, uint8_t dlc, uint8_t *data) {
@@ -300,7 +304,7 @@ static void rx_notification(int busid, uint32_t canid, uint8_t dlc, uint8_t *dat
     /* canid -1 reserved for can_read get the first received CAN message on bus */
     struct Can_Bus_s *b = getBus(busid);
     if (NULL != b) {
-      struct Can_Pdu_s *pdu = malloc(sizeof(struct Can_Pdu_s));
+      struct Can_Pdu_s *pdu = (struct Can_Pdu_s *)malloc(sizeof(struct Can_Pdu_s));
       if (pdu) {
         pdu->msg.id = canid;
         pdu->msg.length = dlc;
@@ -344,82 +348,87 @@ static void logCan(boolean isRx, int busid, uint32_t canid, uint8_t dlc, const u
 
   STD_TOPIC_CAN(busid, isRx, canid, dlc, data);
 
-  if (NULL != canLog) {
+  if (NULL != s_Logger) {
     Std_GetDateTime(ts, sizeof(ts));
-    pthread_mutex_lock(&canbusH.q_lock);
-    fprintf(canLog, "busid=%d %s canid=%04X dlc=%d data=[", busid, isRx ? "rx" : "tx", canid, dlc);
+    OSAL_MutexLock(canbusH.q_lock);
+    s_Logger->print("busid=%d %s canid=%08X dlc=%d data=[", busid, isRx ? "rx" : "tx",
+                    canid & (~CAN_ID_EXTENDED), dlc);
     if (dlc < 8) {
       dlc = 8;
     }
     for (i = 0; i < dlc; i++) {
-      fprintf(canLog, "%02X,", data[i]);
+      s_Logger->print("%02X,", data[i]);
     }
 
-    fprintf(canLog, "] [");
+    s_Logger->print("] [");
 
     for (i = 0; i < dlc; i++) {
       if (isprint(data[i])) {
-        fprintf(canLog, "%c", data[i]);
+        s_Logger->print("%c", data[i]);
       } else {
-        fprintf(canLog, ".");
+        s_Logger->print(".");
       }
     }
-    fprintf(canLog, "] @ %s\n", ts);
-    pthread_mutex_unlock(&canbusH.q_lock);
+    s_Logger->print("] @ %s\n", ts);
+    s_Logger->check();
+    OSAL_MutexUnlock(canbusH.q_lock);
   }
 }
 
-static void __attribute__((constructor)) canlib_open(void) {
-  char ts[64];
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&canbusH.q_lock, &attr);
+class CanLibInitializer {
+public:
+  CanLibInitializer() {
+    char ts[64];
+    OSAL_MutexAttrType attr;
+    OSAL_MutexAttrInit(&attr);
+    OSAL_MutexAttrSetType(&attr, OSAL_MUTEX_RECURSIVE);
 
-  pthread_mutex_lock(&canbusH.q_lock);
-  if (false == canbusH.initialized) {
-    canbusH.initialized = true;
-    canbusH.busidMask = 0;
-    STAILQ_INIT(&canbusH.head);
-    canLog = NULL;
-    char *logPath = getenv("CAN_LOG_PATH");
-    if (logPath != NULL) {
-      canLog = fopen(logPath, "w+");
-      if (NULL != canLog) {
-        Std_GetDateTime(ts, sizeof(ts));
-        ASLOG(INFO, ("can trace log to file < %s >\n", logPath));
-        fprintf(canLog, "can log %s\n\n", ts);
-      } else {
-        ASLOG(ERROR, ("canlib: failed to create log %s\n", logPath));
+    if (false == canbusH.initialized) {
+      canbusH.initialized = true;
+      canbusH.busidMask = 0;
+      STAILQ_INIT(&canbusH.head);
+      canbusH.q_lock = OSAL_MutexCreate(&attr);
+      char *logName = getenv("CAN_LOG_NAME");
+      if (logName != NULL) {
+        s_Logger = new Logger(logName);
+        if (NULL != s_Logger) {
+          Std_GetDateTime(ts, sizeof(ts));
+          ASLOG(INFO, ("can trace logger < %s >\n", logName));
+          s_Logger->print("can log <%s> %s\n\n", logName, ts);
+        } else {
+          ASLOG(ERROR, ("canlib: failed to create logger %s\n", logName));
+        }
       }
     }
-    atexit(canlib_close);
   }
-  pthread_mutex_unlock(&canbusH.q_lock);
-}
 
-static void canlib_close(void) {
-  if (canbusH.initialized) {
-    struct Can_Bus_s *b;
-    STAILQ_FOREACH(b, &canbusH.head, entry) {
-      b->device.ops->close(b->device.port);
+  ~CanLibInitializer() {
+    if (canbusH.initialized) {
+      struct Can_Bus_s *b;
+      STAILQ_FOREACH(b, &canbusH.head, entry) {
+        b->device.ops->close(b->device.port);
+      }
+      freeH(&canbusH);
+      canbusH.initialized = false;
+
+      if (NULL != s_Logger) {
+        delete s_Logger;
+      }
     }
-    freeH(&canbusH);
-    canbusH.initialized = false;
   }
+};
 
-  if (NULL != canLog) {
-    fclose(canLog);
-  }
-}
+static CanLibInitializer g_CanLibInitializer;
 /* ================================ [ FUNCTIONS ] ============================================== */
 int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
   int rv;
   int busid = -1;
   const Can_DeviceOpsType *ops;
-  pthread_mutexattr_t attr;
+  OSAL_MutexAttrType attr;
 
-  (void)pthread_mutex_lock(&canbusH.q_lock);
+  (void)&g_CanLibInitializer;
+
+  (void)OSAL_MutexLock(canbusH.q_lock);
   ops = search_ops(device_name);
   struct Can_Bus_s *b = getBusByName(device_name, port);
   rv = false;
@@ -427,9 +436,9 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
     if (b->device.baudrate == baudrate) {
       b->ref++;
       busid = b->device.busid;
-      if (canLog) {
-        fprintf(canLog, "reopen %s:%d baudrate=%d, busid %d\n", b->device.device_name,
-                b->device.port, b->device.baudrate, b->device.busid);
+      if (s_Logger) {
+        s_Logger->print("reopen %s:%d baudrate=%d, busid %d\n", b->device.device_name,
+                        b->device.port, b->device.baudrate, b->device.busid);
       }
     } else {
       ASLOG(ERROR, ("can_open: device <%s:%d> already opened with baudrate %d!, can't reopen with "
@@ -440,7 +449,7 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
     if (NULL != ops) {
       busid = allocBusId();
       if (busid >= 0) {
-        b = malloc(sizeof(struct Can_Bus_s));
+        b = (struct Can_Bus_s *)malloc(sizeof(struct Can_Bus_s));
         b->device.busid = busid;
         b->device.ops = ops;
         b->device.busid = busid;
@@ -453,10 +462,9 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
       }
 
       if (rv) {
-
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&b->q_lock, &attr);
+        OSAL_MutexAttrInit(&attr);
+        OSAL_MutexAttrSetType(&attr, OSAL_MUTEX_RECURSIVE);
+        b->q_lock = OSAL_MutexCreate(&attr);
         STAILQ_INIT(&b->head);
         STAILQ_INIT(&b->head2);
         STAILQ_INIT(&b->headQ);
@@ -464,9 +472,9 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
         b->sizeQ = 0;
         STAILQ_INSERT_TAIL(&canbusH.head, b, entry);
         /* result OK */
-        if (canLog) {
-          fprintf(canLog, "open %s:%d baudrate=%d as busid %d\n", b->device.device_name,
-                  b->device.port, b->device.baudrate, b->device.busid);
+        if (s_Logger) {
+          s_Logger->print("open %s:%d baudrate=%d as busid %d\n", b->device.device_name,
+                          b->device.port, b->device.baudrate, b->device.busid);
         }
       } else {
         if (NULL != b) {
@@ -483,7 +491,7 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
       ASLOG(ERROR, ("can_open device <%s> is not known!\n", device_name));
     }
   }
-  (void)pthread_mutex_unlock(&canbusH.q_lock);
+  (void)OSAL_MutexUnlock(canbusH.q_lock);
   return busid;
 }
 
@@ -528,12 +536,15 @@ bool can_read(int busid, uint32_t *canid, uint8_t *dlc, uint8_t *data) {
     if (NULL == pdu) {
       /* no data */
     } else if ((data == NULL) || (len < pdu->msg.length)) {
-      ASLOG(ERROR, ("bus(%d) 'can_read' with invalid args: data=%p, dlc=%d\n", (int)busid, data,
-                    (int)len));
+      ASLOG(ERROR, ("bus(%d) 'can_read' with invalid args: canid=%x, dlc=%d\n", (int)busid,
+                    (int)pdu->msg.id, (int)pdu->msg.length));
     } else {
       *canid = pdu->msg.id;
       *dlc = pdu->msg.length;
       memcpy(data, pdu->msg.sdu, *dlc);
+      if (pdu->msg.length < len) {
+        memset(&data[pdu->msg.length], 0x55, len - pdu->msg.length);
+      }
       free(pdu);
       rv = true;
     }
@@ -549,16 +560,17 @@ bool can_close(int busid) {
   if (NULL == b) {
     ASLOG(ERROR, ("can bus(%d) is not on-line 'can_close'\n", (int)busid));
   } else {
-    (void)pthread_mutex_lock(&canbusH.q_lock);
+    (void)OSAL_MutexLock(canbusH.q_lock);
     b->ref--;
     if (0 == b->ref) {
       b->device.ops->close(b->device.port);
       STAILQ_REMOVE(&canbusH.head, b, Can_Bus_s, entry);
       freeB(b);
+      OSAL_MutexDestory(b->q_lock);
       free(b);
       freeBusId(busid);
     }
-    (void)pthread_mutex_unlock(&canbusH.q_lock);
+    (void)OSAL_MutexUnlock(canbusH.q_lock);
     rv = true;
   }
 
