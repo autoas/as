@@ -25,7 +25,5 @@ ai
 .project
 .settings/
 *.bin
-*trace.json
 jse.json
-config
 log

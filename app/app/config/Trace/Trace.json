@@ -1,0 +1,15 @@
+{
+  "class": "Trace",
+  "area": "App",
+  "size": 1024,
+  "durations": [
+    "MainTask10ms",
+    "MainTaskFast",
+    "MemoryTask",
+    "FeeBackup"
+  ],
+  "events": [
+    "FlsAcErase",
+    "FlsAcWrite"
+  ]
+}
