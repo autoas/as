@@ -6,7 +6,7 @@ objs = Glob('*.c')
 @register_library
 class LibraryCanNm(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
+        self.CPPPATH = ['$INFRAS', '$CanIf_Cfg', '$PduR_Cfg', '$Com_Cfg', CWD]
         self.source = objs
 
     

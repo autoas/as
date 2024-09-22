@@ -7,7 +7,7 @@ objs = Glob('*.c')
 class LibraryDem(Library):
     def config(self):
         self.include = CWD
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ['$INFRAS', "$NvM_Cfg"]
         self.source = objs
 
     

@@ -6,8 +6,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #ifdef USE_DCM
 #include "Dcm.h"
-#include "../config/GEN/Dcm_Cfg.h"
-#ifdef DCM_USE_SERVICE_AUTHENTICATION
+#ifdef USE_CRYPTO
 #include "Std_Debug.h"
 #include "Std_Timer.h"
 #include <stdlib.h>

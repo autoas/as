@@ -5,7 +5,7 @@ objs = Glob('*.c')
 @register_library
 class LibraryOsekNm(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
+        self.CPPPATH = ['$INFRAS', '$CanIf_Cfg', CWD]
         self.source = objs
 
     

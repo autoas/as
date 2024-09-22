@@ -6,7 +6,7 @@ objs = Glob('*.c')
 @register_library
 class LibraryLinIf(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
+        self.CPPPATH = ['$INFRAS', CWD, '$Com_Cfg']
         self.source = objs
 
     

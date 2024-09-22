@@ -10,7 +10,7 @@
 #include "CanNm.h"
 #include "Com.h"
 #if defined(USE_COM) && defined(_WIN32)
-#include "../config/Com/GEN/Com_Cfg.h"
+#include "Com_Cfg.h"
 #include <time.h>
 #endif
 /* ================================ [ MACROS    ] ============================================== */

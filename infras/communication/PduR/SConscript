@@ -1,13 +1,23 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibraryPduR(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
-        if self.GetCompiler() not in ['CWS12']:
-            self.LIBS = ['MemPool']
+        self.CPPPATH = [
+            "$INFRAS",
+            CWD,
+            "$CanIf_Cfg",
+            "$Com_Cfg",
+            "$CanTp_Cfg",
+            "$LinTp_Cfg",
+            "$J1939Tp_Cfg",
+            "$Dcm_Cfg",
+            "$NvM_Cfg",
+        ]
+        if self.GetCompiler() not in ["CWS12"]:
+            self.LIBS = ["MemPool"]
         self.source = objs
-
