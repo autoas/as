@@ -81,12 +81,16 @@ D:\repository\ssas-public>build\nt\GCC\CanSimulator\CanSimulator.exe 0
 # step 2: 切换到 app 页，运行如下python交互命令，相当于模拟了一个CAN节点N0
 D:\repository\ssas-public>python
 Type "help", "copyright", "credits" or "license" for more information.
+>>> import os
+>>> os.add_dll_directory('C:/msys64/mingw64/bin')
 >>> import AsPy
 >>> n0 = AsPy.can('simulator', 0)
 
 # step 3: boot 页， 运行如下python交互命令，相当于模拟了一个CAN节点N1
 D:\repository\ssas-public>python
 Type "help", "copyright", "credits" or "license" for more information.
+>>> import os
+>>> os.add_dll_directory('C:/msys64/mingw64/bin')
 >>> import AsPy
 >>> n1 = AsPy.can('simulator', 0)
 

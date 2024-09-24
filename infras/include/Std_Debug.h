@@ -11,6 +11,7 @@
 #if defined(linux) || defined(_WIN32)
 #include <stdarg.h>
 #endif
+#include <inttypes.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

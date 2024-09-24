@@ -953,20 +953,5 @@ Std_ReturnType CanTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduIn
   }
 
   return ret;
-
-  switch (context->state) {
-  case CANTP_RESEND_SF:
-  case CANTP_RESEND_FF:
-  case CANTP_RESEND_FC:
-  case CANTP_RESEND_CF:
-    ret = CanTp_ReSend(TxPduId, PduInfoPtr);
-    break;
-  default:
-    ASLOG(CANTPE, ("[%d] trigger transmit in state %d\n", TxPduId, context->state));
-    ret = E_NOT_OK;
-    break;
-  }
-
-  return ret;
 }
 #endif

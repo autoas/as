@@ -75,8 +75,9 @@ objsCanSim = Glob('utils/can_simulator.c')
 class ApplicationCanSimulator(Application):
     def config(self):
         self.CPPPATH = ['$INFRAS']
+        self.LIBS = ['TcpIp', 'StdTimer', 'Utils']
         if IsBuildForWindows():
-            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32', 'winmm']
+            self.LIBS += ['wsock32', 'winmm']
         self.source = objsCanSim
 
 

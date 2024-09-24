@@ -197,9 +197,15 @@ std_time_t Std_GetTimerElapsedTime(Std_TimerType *timer) {
 }
 
 void Std_TimerSet(Std_TimerType *timer, std_time_t timeout) {
-  std_time_t curTime = Std_GetTime();
+  std_time_t curTime;
 
   asAssert(timeout <= STD_TIMER_SET_MAX);
+
+  if (0 == timer->status) {
+    curTime = Std_GetTime();
+  } else {
+    curTime = timer->time;
+  }
 
   if (timeout <= (STD_TIME_MAX - curTime)) {
     timer->time = curTime + timeout;

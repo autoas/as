@@ -24,7 +24,7 @@ int OSAL_MutexAttrInit(OSAL_MutexAttrType *attr) {
 }
 
 int OSAL_MutexAttrSetType(OSAL_MutexAttrType *attr, int type) {
-  attr->type = OSAL_MUTEX_RECURSIVE;
+  attr->type = type;
   return 0;
 }
 
