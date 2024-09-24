@@ -22,4 +22,4 @@ class LibraryOS(Library):
                          '%s/kernel/posix/include' % (CWD),
                          '%s/portable/%s' % (CWD, self.GetArch())]
         self.CPPPATH += ['$INFRAS', '%s/kernel' % (CWD)]
-        self.LIBS += ['MemPool']
+        self.LIBS += ['MemPool', 'RingBuffer']

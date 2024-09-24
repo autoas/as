@@ -140,7 +140,7 @@ SHELL_REGISTER(kill,
 /* |------------------+------------------------------------------------------| */
 /* | Conformance:     | BCC1, BCC2, ECC1, ECC2                               | */
 /* |------------------+------------------------------------------------------| */
-void __weak Os_PortStartFirstDispatch(void) {
+FUNC(void, __weak) Os_PortStartFirstDispatch(void) {
   Os_PortStartDispatch();
 }
 

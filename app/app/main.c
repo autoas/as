@@ -384,7 +384,7 @@ void Task_MainLoop(void) {
 #endif
     STD_TRACE_APP_MAIN();
 #ifdef USE_OSAL
-    osal_usleep(1000);
+    OSAL_SleepUs(1000);
 #endif
   }
 }
@@ -395,7 +395,7 @@ void TaskMainTaskIdle(void) {
     ;
 }
 void StartupHook(void) {
-  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
+  OSAL_ThreadCreate((OSAL_ThreadEntryType)Task_MainLoop, NULL);
 }
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -430,7 +430,7 @@ int main(int argc, char *argv[]) {
   Mcu_Init(NULL);
 
 #ifdef USE_OSAL
-  osal_start();
+  OSAL_Start();
 #else
   Task_MainLoop();
 #endif

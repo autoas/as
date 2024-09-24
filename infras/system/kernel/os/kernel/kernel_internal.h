@@ -36,16 +36,14 @@
  * ECC2 (like ECC1, plus more than one task per priority possible and multiple requesting
  * of task activation allowed for basic tasks)
  */
-enum
-{
+enum {
   BCC1,
   BCC2,
   ECC1,
   ECC2
 };
 
-enum
-{
+enum {
   STANDARD,
   EXTENDED
 };
@@ -66,10 +64,15 @@ enum
 #define INVALID_PRIORITY ((PriorityType)-1)
 
 #ifdef USE_SMP
-#define EnterCritical() do { imask_t imask = Os_LockKernel()
+#define EnterCritical()                                                                            \
+  do {                                                                                             \
+  imask_t imask = Os_LockKernel()
 #define InterLeaveCritical() Os_UnLockKernel(imask)
 #define InterEnterCritical() imask = Os_LockKernel()
-#define ExitCritical() Os_UnLockKernel(imask); } while (0)
+#define ExitCritical()                                                                             \
+  Os_UnLockKernel(imask);                                                                          \
+  }                                                                                                \
+  while (0)
 #endif
 
 #ifdef OS_USE_ERROR_HOOK
@@ -221,7 +224,9 @@ enum
   } while (0)
 
 #if (OS_PTHREAD_NUM > 0)
-#define PTHREAD_DEFAULT_STACK_SIZE 4096
+#ifndef PTHREAD_DEFAULT_STACK_SIZE
+#define PTHREAD_DEFAULT_STACK_SIZE 1024
+#endif
 #define PTHREAD_DEFAULT_PRIORITY (OS_PTHREAD_PRIORITY / 2)
 #endif
 

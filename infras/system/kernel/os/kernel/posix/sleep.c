@@ -92,7 +92,7 @@ void Os_SleepTick(void) {
     }
 
     pTaskVar = pNext;
-    if (pTaskVar->sleep_tick > 0) {
+    if ((NULL != pTaskVar) && (pTaskVar->sleep_tick > 0)) {
       break;
     }
   }

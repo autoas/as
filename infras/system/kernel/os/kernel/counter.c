@@ -67,7 +67,6 @@ void Os_CounterInit(void) {
 void statOsCounter(void) {
   CounterType id;
   AlarmVarType *pVar;
-  
 
   EnterCritical();
 

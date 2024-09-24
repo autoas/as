@@ -222,7 +222,7 @@ StatusType SetRelAlarm(AlarmType AlarmID, TickType Increment, TickType Cycle) {
 /* |------------------+-----------------------------------------------------------------| */
 StatusType SetAbsAlarm(AlarmType AlarmID, TickType Start, TickType Cycle) {
   StatusType ercd = E_OK;
-  
+
   DECLARE_SMP_PROCESSOR_ID();
 
 #if (OS_STATUS == EXTENDED)
@@ -381,8 +381,8 @@ void statOsAlarm(void) {
     pVar = &AlarmVarArray[id];
 
     printf("%-16s %-6s %-10d %-10d %s(%d)\n", pConst->name,
-                 OS_IS_ALARM_STARTED(pVar) ? "start" : "stop", pVar->value, pVar->period,
-                 pConst->pCounter->name, pConst->pCounter->pVar->value);
+           OS_IS_ALARM_STARTED(pVar) ? "start" : "stop", pVar->value, pVar->period,
+           pConst->pCounter->name, pConst->pCounter->pVar->value);
   }
 
   ExitCritical();
