@@ -2,6 +2,8 @@
 
 This project is only free to be used for evaluation and study purpose, all of the BSWs are developed by me alone according to AUTOSAR 4.4.
 
+This is a public version of the SSAS; please note that the code may not be up to date and certain modules are absent. For an official version intended for commercial use, please feel free to contact me through my mail <parai@foxmail.com>.
+
 ## AUTOSAR and its toolchain
 
 ![architecture](doc/images/architecture.png)
