@@ -1,8 +1,15 @@
 import time
-try:
-    from .AsPy import can
-except:
-    from AsPy import can
+import os
+import sys
+
+CWD = os.path.dirname(__file__)
+if CWD == "":
+    CWD = os.path.abspath(".")
+
+ASONE = os.path.abspath("%s/../../../../tools/asone" % (CWD))
+sys.path.append(ASONE)
+
+from one.AsPy import can
 
 n0 = can('simulator_v2', 0, 1000000)
 

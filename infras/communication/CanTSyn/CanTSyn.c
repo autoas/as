@@ -45,7 +45,7 @@ extern const CanTSyn_ConfigType CanTSyn_Config;
  *               |                             |
  * t0r is the time that shall be transmitted. Second portion of t0r is put in CAN message.
  * Capture actual time of transmission time t1r through transmit confirmation in the interrupt.
- * Capture actuak time of reception time t2r through receive indication in the interrupt.
+ * Capture actual time of reception time t2r through receive indication in the interrupt.
  *   computed rel.time = (t3r - t2r) + s(t0r) + t4r
  *                                     `--- t1r --`
  */
@@ -312,7 +312,12 @@ static void CanTSyn_TransmitFUP(const CanTSyn_GlobalTimeDomainType *domain) {
     data[1] = 0x00;
   }
 
-  data[2] = (domain->GlobalTimeDomainId << 4) + context->SC;
+  /* @SWS_CanTSyn_00076 */
+  if (context->SC > 0) {
+    data[2] = (domain->GlobalTimeDomainId << 4) + (context->SC - 1);
+  } else {
+    data[2] = (domain->GlobalTimeDomainId << 4) + 15;
+  }
 
   t0rNs = ((uint64_t)context->t0r.nanosecondsHi << 32) + context->t0r.nanosecondsLo;
   t1rNs = ((uint64_t)context->t1r.nanosecondsHi << 32) + context->t1r.nanosecondsLo;
@@ -477,9 +482,11 @@ void CanTSyn_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   if (E_OK == ret) {
     switch (PduInfoPtr->SduDataPtr[0]) {
     case CANTSYN_SYNC_NO_CRC:
+    case CANTSYN_SYNC_WITH_CRC:
       CanTSyn_HandleMsgSync(domain, &PduInfoPtr->SduDataPtr[0], PduInfoPtr->SduLength);
       break;
     case CANTSYN_FUP_NO_CRC:
+    case CANTSYN_FUP_WITH_CRC:
       CanTSyn_HandleMsgFup(domain, &PduInfoPtr->SduDataPtr[0], PduInfoPtr->SduLength);
       break;
     default:
