@@ -208,7 +208,17 @@ static int cmdComLsSgFunc(int argc, const char *argv[]) {
   const Com_IPduConfigType *IPdu;
   const Com_SignalConfigType *signal;
   int i, j;
-  for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+
+  if (2 == argc) {
+    i = (int)strtoul(argv[1], NULL, 10);
+  } else {
+    for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+      IPdu = &COM_CONFIG->IPduConfigs[i];
+      PRINTF("%d %s\n", i, IPdu->name);
+    }
+    return 0;
+  }
+  if (i < COM_CONFIG->numOfIPdus) {
     IPdu = &COM_CONFIG->IPduConfigs[i];
     if (IPdu->rxConfig) {
       for (j = 0; j < IPdu->numOfSignals; j++) {
@@ -255,7 +265,7 @@ static int cmdComLsSgFunc(int argc, const char *argv[]) {
   return 0;
 }
 static int cmdComWrSgFunc(int argc, const char *argv[]) {
-  Com_SignalIdType sid, gid = -1;
+  Com_SignalIdType sid, gid = (Com_SignalIdType)-1;
   uint32_t u32V;
   union {
     uint32_t u32V;
@@ -305,7 +315,7 @@ static int cmdComWrSgFunc(int argc, const char *argv[]) {
     break;
   }
 
-  if (gid > 0) {
+  if ((int)gid > 0) {
     Com_SendSignalGroup(gid);
   }
 
@@ -362,6 +372,9 @@ void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
           } else {
             IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
           }
+#ifdef COM_USE_MAIN_FAST
+          IPduConfig->txConfig->context->bTxRetry = FALSE;
+#endif
         } else {
           /* do nothing */
         }
@@ -396,6 +409,31 @@ Std_ReturnType Com_SendSignal(Com_SignalIdType SignalId, const void *SignalDataP
     signal = &COM_CONFIG->SignalConfigs[SignalId];
 
     ret = comSendSignal(signal, SignalDataPtr);
+  }
+
+  return ret;
+}
+
+Std_ReturnType Com_SendDynSignal(Com_SignalIdType SignalId, const void *SignalDataPtr,
+                                 uint16_t Length) {
+  Std_ReturnType ret = E_NOT_OK;
+  const Com_SignalConfigType *signal;
+  const Com_IPduConfigType *IPduConfig;
+
+  if (SignalId < COM_CONFIG->numOfSignals) {
+    signal = &COM_CONFIG->SignalConfigs[SignalId];
+
+    if (COM_UINT8_DYN == signal->type) {
+      IPduConfig = &COM_CONFIG->IPduConfigs[signal->PduId];
+      if (IPduConfig->signals[IPduConfig->numOfSignals - 1] == signal) {
+        /* only the last signal can by dyn type */
+        if (Length <= (signal->BitSize >> 3)) {
+          memcpy(signal->ptr, SignalDataPtr, Length);
+          *IPduConfig->dynLen = IPduConfig->length - (signal->BitSize >> 3) + Length;
+          ret = E_OK;
+        }
+      }
+    }
   }
 
   return ret;
@@ -442,6 +480,9 @@ Std_ReturnType Com_TriggerIPDUSend(PduIdType PduId) {
     if ((IPduConfig->txConfig) && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
       PduInfo.SduDataPtr = IPduConfig->ptr;
       PduInfo.SduLength = IPduConfig->length;
+      if (NULL != IPduConfig->dynLen) {
+        PduInfo.SduLength = *IPduConfig->dynLen;
+      }
       ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
       if (E_OK == ret) {
         IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
@@ -500,6 +541,30 @@ Std_ReturnType Com_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr) {
   }
 
   return ret;
+}
+
+BufReq_ReturnType Com_CopyTxData(PduIdType id, const PduInfoType *info, const RetryInfoType *retry,
+                                 PduLengthType *availableDataPtr) {
+  BufReq_ReturnType bufRet = BUFREQ_E_NOT_OK;
+  const Com_IPduConfigType *IPduConfig;
+  PduLengthType offset = 0;
+
+  if (id < COM_CONFIG->numOfIPdus) {
+    IPduConfig = &COM_CONFIG->IPduConfigs[id];
+    if (IPduConfig->txConfig && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
+      if (info->MetaDataPtr != NULL) {
+        offset = *(PduLengthType *)info->MetaDataPtr;
+      }
+
+      if (offset + info->SduLength <= IPduConfig->length) {
+        memcpy(info->SduDataPtr, (uint8_t *)IPduConfig->ptr + offset, info->SduLength);
+        *availableDataPtr = IPduConfig->length - (offset + info->SduLength);
+        bufRet = BUFREQ_OK;
+      }
+    }
+  }
+
+  return bufRet;
 }
 
 void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
@@ -593,6 +658,7 @@ void Com_MainFunctionTx(void) {
   const Com_IPduConfigType *IPduConfig;
   Std_ReturnType ret;
   PduInfoType PduInfo;
+  boolean bProcess;
   int i;
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
@@ -603,14 +669,29 @@ void Com_MainFunctionTx(void) {
         if (0 == IPduConfig->txConfig->context->timer) {
           PduInfo.SduDataPtr = IPduConfig->ptr;
           PduInfo.SduLength = IPduConfig->length;
-          ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
-          if (E_OK == ret) {
-            IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
-#ifdef COM_USE_SIGNAL_UPDATE_BIT
-            comTxClearUpdateBit(IPduConfig);
-#endif
+          if (NULL != IPduConfig->dynLen) {
+            PduInfo.SduLength = *IPduConfig->dynLen;
+          }
+          if (NULL != IPduConfig->txConfig->TxIpduCallout) {
+            bProcess = IPduConfig->txConfig->TxIpduCallout((PduIdType)i, &PduInfo);
           } else {
-            IPduConfig->txConfig->context->timer = 1;
+            bProcess = TRUE;
+          }
+          if (TRUE == bProcess) {
+            ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
+            if (E_OK == ret) {
+              IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
+#ifdef COM_USE_SIGNAL_UPDATE_BIT
+              comTxClearUpdateBit(IPduConfig);
+#endif
+            } else {
+#ifdef COM_USE_MAIN_FAST
+              IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
+              IPduConfig->txConfig->context->bTxRetry = TRUE;
+#else
+              IPduConfig->txConfig->context->timer = 1;
+#endif
+            }
           }
         }
       }
@@ -619,7 +700,44 @@ void Com_MainFunctionTx(void) {
 #endif
 }
 
+#ifdef COM_USE_MAIN_FAST
+void Com_MainFunctionTx_Fast(void) {
+#if defined(COM_USE_CAN)
+  const Com_IPduConfigType *IPduConfig;
+  Std_ReturnType ret;
+  PduInfoType PduInfo;
+  int i;
+
+  for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+    IPduConfig = &COM_CONFIG->IPduConfigs[i];
+    if ((IPduConfig->txConfig) && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
+      if (TRUE == IPduConfig->txConfig->context->bTxRetry) {
+        PduInfo.SduDataPtr = IPduConfig->ptr;
+        PduInfo.SduLength = IPduConfig->length;
+        if (NULL != IPduConfig->dynLen) {
+          PduInfo.SduLength = *IPduConfig->dynLen;
+        }
+        ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
+        if (E_OK == ret) {
+#ifdef COM_USE_SIGNAL_UPDATE_BIT
+          comTxClearUpdateBit(IPduConfig);
+#endif
+          IPduConfig->txConfig->context->bTxRetry = FALSE;
+        }
+      }
+    }
+  }
+#endif
+}
+#endif
+
 void Com_MainFunction(void) {
   Com_MainFunctionRx();
   Com_MainFunctionTx();
+}
+
+void Com_MainFunction_Fast(void) {
+#ifdef COM_USE_MAIN_FAST
+  Com_MainFunctionTx_Fast();
+#endif
 }

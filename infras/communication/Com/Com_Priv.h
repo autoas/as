@@ -14,7 +14,6 @@
 #define COM_ACTION_REPLACE ((Com_DataActionType)0x02)
 #define COM_ACTION_SUBSTITUTE ((Com_DataActionType)0x03)
 
-
 #define BIG ((Com_SignalEndiannessType)0x00)
 #define LITTLE ((Com_SignalEndiannessType)0x01)
 #define OPAQUE ((Com_SignalEndiannessType)0x02)
@@ -66,7 +65,7 @@ typedef struct {
   Com_CbkInvFncType InvalidNotification;
   Com_CbkRxAckFncType RxNotification;
   Com_CbkRxTOutFncType RxTOut;
-  const uint8_t* TimeoutSubstitutionValue;
+  const uint8_t *TimeoutSubstitutionValue;
   uint16_t FirstTimeout;
   uint16_t Timeout;
   Com_DataActionType DataInvalidAction;   /* NOTIFY / REPLACE */
@@ -79,8 +78,7 @@ typedef struct {
 } Com_SignalTxConfigType;
 
 /* @SWS_Com_00675 */
-typedef enum
-{
+typedef enum {
   COM_SINT8,
   COM_UINT8,
   COM_SINT16,
@@ -88,14 +86,19 @@ typedef enum
   COM_SINT32,
   COM_UINT32,
   COM_UINT8N,
+  COM_UINT8_DYN,
 } Com_SignalTypeType;
 
 /* @ECUC_Com_00344 */
 typedef struct {
+#ifdef USE_SHELL
+  char *name;
+#endif
   void *ptr;
   const void *initPtr; /* or shadowPtr for group signal */
   Com_SignalTypeType type;
   Com_SignalIdType HandleId;
+  PduIdType PduId;
   uint16_t BitPosition;
   uint16_t BitSize;
 #ifdef COM_USE_SIGNAL_UPDATE_BIT
@@ -106,10 +109,7 @@ typedef struct {
   const Com_SignalRxConfigType *rxConfig;
   const Com_SignalTxConfigType *txConfig;
 #endif
-#ifdef USE_SHELL
-  char *name;
   bool isGroupSignal;
-#endif
 } Com_SignalConfigType;
 
 typedef struct {
@@ -126,28 +126,33 @@ typedef struct {
 
 typedef struct {
   uint16_t timer;
+#ifdef COM_USE_MAIN_FAST
+  boolean bTxRetry;
+#endif
 } Com_IPduTxContextType;
 
 typedef struct {
   Com_IPduTxContextType *context;
   Com_CbkTxErrFncType ErrorNotification;
   Com_CbkTxAckFncType TxNotification;
+  Com_TxIpduCalloutFncType TxIpduCallout;
   uint16_t FirstTime;
   uint16_t CycleTime;
   PduIdType TxPduId;
 } Com_IPduTxConfigType;
 
 typedef struct {
+#ifdef USE_SHELL
+  char *name;
+#endif
   void *ptr;
+  uint8_t *dynLen;
   const Com_SignalConfigType **signals;
   const Com_IPduRxConfigType *rxConfig;
   const Com_IPduTxConfigType *txConfig;
   Com_GroupMaskType GroupRefMask;
   uint8_t length;
   uint8_t numOfSignals;
-#ifdef USE_SHELL
-  char *name;
-#endif
 } Com_IPduConfigType;
 
 typedef struct {
