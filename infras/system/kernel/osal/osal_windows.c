@@ -132,19 +132,3 @@ int OSAL_SemaphoreDestory(OSAL_SemType sem) {
   }
   return ret;
 }
-
-bool OSAL_FileExists(const char *file) {
-  return PathFileExistsA(file);
-}
-
-void *OSAL_DlOpen(const char *path) {
-  return LoadLibrary(path);
-}
-
-void *OSAL_DlSym(void *dll, const char *symbol) {
-  return GetProcAddress(dll, symbol);
-}
-
-void OSAL_DlClose(void *dll) {
-  FreeLibrary(dll);
-}

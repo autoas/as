@@ -15,6 +15,7 @@
 #define LINTP_CONVERT_MS_TO_MAIN_CYCLES(x)                                                         \
   ((x + LINTP_MAIN_FUNCTION_PERIOD - 1) / LINTP_MAIN_FUNCTION_PERIOD)
 
+#ifndef PDUR_CANTP
 #define CANTP_CONVERT_MS_TO_MAIN_CYCLES(x) LINTP_CONVERT_MS_TO_MAIN_CYCLES(x)
 #define PduR_CanTpCopyTxData LinTp_CopyTxData
 #define PduR_CanTpRxIndication LinTp_TpRxIndication
@@ -24,6 +25,7 @@
 
 #define CanIf_CanTpGetTxCanId LinIf_CanTpGetTxId
 #define CanIf_CanTpGetRxCanId LinIf_CanTpGetRxId
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

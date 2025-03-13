@@ -10,8 +10,11 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #include "ringbuffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
-#ifdef USE_TRACE
+#ifdef USE_STDTRACE
 #define STD_TRACE_EVENT(area, ev) Std_TraceEvent(area, ev)
 #define STD_TRACE_MAIN(area) Std_TraceMain(area)
 #else
@@ -31,4 +34,7 @@ typedef struct {
 void Std_TraceEvent(const Std_TraceAreaType *area, Std_TraceEventType event);
 void Std_TraceDump(const Std_TraceAreaType *area);
 void Std_TraceMain(const Std_TraceAreaType *area);
+#ifdef __cplusplus
+}
+#endif
 #endif /* __STD_TRACE_H__ */

@@ -40,10 +40,6 @@ static int routine_erase_flash(loader_t *loader) {
 
   r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 
-  if (L_R_OK == r) {
-    loader_add_progress(loader, 500, 0);  /* step 5% */
-  }
-
   return r;
 }
 
@@ -102,35 +98,26 @@ static int routine_check_integrity(loader_t *loader) {
 
   r = uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 
-  if (L_R_OK == r) {
-    loader_add_progress(loader, 500, 0); /* step 5% */
-  }
-
   return r;
 }
 
 static const loader_service_t lStdServices[] = {
-  {"enter extended session", " okay\n", enter_extend_session},
-  // {"control dtc setting off", " okay\n", control_dtc_setting_off},
-  // {"communication disable", " okay\n", communicaiton_disable},
-  {"level 1 security access", " okay\n", security_extds_access},
-  {"enter program session", " okay\n", enter_program_session},
-  {"level 2 security access", " okay\n", security_prgs_access},
-  {NULL, NULL, download_flash_driver},
-  {"read finger print", " okay\n", read_finger_print},
-  {"erase flash", " okay\n", routine_erase_flash},
-  {"write finger print", " okay\n", write_finger_print},
-  {"download application", " okay\n", download_application},
-  {"check integrity", " okay\n", routine_check_integrity},
-  {"ecu reset", " okay\n", ecu_reset},
-  // {"communication enable", " okay\n", communicaiton_enable},
-  // {"control dtc setting on", " okay\n", control_dtc_setting_on},
+  {"enter extended session", " okay\n", enter_extend_session, 100},
+  {"control dtc setting off", " okay\n", control_dtc_setting_off, 100},
+  {"communication disable", " okay\n", communicaiton_disable, 100},
+  {"level 1 security access", " okay\n", security_extds_access, 100},
+  {"enter program session", " okay\n", enter_program_session, 100},
+  {"level 2 security access", " okay\n", security_prgs_access, 100},
+  {NULL, NULL, download_flash_driver, 500},
+  {"read finger print", " okay\n", read_finger_print, 100},
+  {"erase flash", " okay\n", routine_erase_flash, 500},
+  {"write finger print", " okay\n", write_finger_print, 100},
+  {"download application", " okay\n", download_application, 100},
+  {"check integrity", " okay\n", routine_check_integrity, 100},
+  {"ecu reset", " okay\n", ecu_reset, 100},
+  {"communication enable", " okay\n", communicaiton_enable, 100},
+  {"control dtc setting on", " okay\n", control_dtc_setting_on, 100},
 };
 
-static const loader_app_t lStdApp = {
-  "FBL",
-  lStdServices,
-  ARRAY_SIZE(lStdServices),
-};
 /* ================================ [ FUNCTIONS ] ============================================== */
-LOADER_APP_REGISTER(lStdApp)
+LOADER_APP_REGISTER(lStdServices, FBL)

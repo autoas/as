@@ -1,129 +1,127 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c') + Glob('src/*.cpp')
+objs = Glob("src/*.cpp")
 
-objsVXL = Glob('src/vxlapi/*.cpp')
+objsVXL = Glob("src/vxlapi/*.cpp")
 
-Import('BUILD_DIR')
+Import("BUILD_DIR")
 
 
 @register_library
 class LibraryCanLib(Library):
     def config_peakcan(self):
-        peakcan = Package(
-            'https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip')
-        self.CPPPATH += ['%s/Include' % (peakcan)]
+        peakcan = Package("https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip")
+        self.CPPPATH += ["%s/Include" % (peakcan)]
         if IsBuildForWin32():
-            v0, v1 = 'Win32', 'mingw32'
+            v0, v1 = "Win32", "mingw32"
         else:
-            v0, v1 = 'x64', 'mingw64'
+            v0, v1 = "x64", "mingw64"
         # if not IsBuildForMSVC():
         #     shutil.copy('%s/%s/VC_LIB/PCANBasic.lib' % (peakcan, v0), '%s/libPCANBasic.a' % (BUILD_DIR))
         # else:
         #     shutil.copy('%s/%s/VC_LIB/PCANBasic.lib' % (peakcan, v0), BUILD_DIR)
-        dll = '%s/%s/bin/PCANBasic.dll' % (GetMsys2Root(), v1)
+        dll = "%s/%s/bin/PCANBasic.dll" % (GetMsys2Root(), v1)
         if not os.path.isfile(dll):
-            shutil.copy('%s/%s/PCANBasic.dll' % (peakcan, v0), dll)
-        #self.LIBS += ['PCANBasic']
-        self.CPPDEFINES += ['USE_PEAK_DLL']
+            shutil.copy("%s/%s/PCANBasic.dll" % (peakcan, v0), dll)
+        # self.LIBS += ['PCANBasic']
+        self.CPPDEFINES += ["USE_PEAK_DLL"]
         self.LIBPATH += [BUILD_DIR]
 
     def config_vxl(self):
-        self.CPPPATH += ['%s/src/vxlapi' % (CWD)]
-        self.CPPDEFINES += ['DYNAMIC_XLDRIVER_DLL']
+        self.CPPPATH += ["%s/src/vxlapi" % (CWD)]
+        self.CPPDEFINES += ["DYNAMIC_XLDRIVER_DLL"]
         self.source += objsVXL
 
     def config_zlg(self):
-        pkg = Package(
-            'https://www.zlg.cn/data/upload/software/Can/CAN_lib.rar')
+        pkg = Package("https://www.zlg.cn/data/upload/software/Can/CAN_lib.rar")
         if IsBuildForWin32():
-            ControlCAN = Glob('%s/ControlCAN*/ControlCANx86' % (pkg))[0].rstr()
+            ControlCAN = Glob("%s/ControlCAN*/ControlCANx86" % (pkg))[0].rstr()
         else:
-            ControlCAN = Glob('%s/ControlCAN*/ControlCANx64' % (pkg))[0].rstr()
+            ControlCAN = Glob("%s/ControlCAN*/ControlCANx64" % (pkg))[0].rstr()
         self.CPPPATH += [ControlCAN]
         if not IsBuildForWin32():  # mingw32 has no dlfcn
             if not IsBuildForMSVC():
-                self.LIBS += ['dl']
-            self.CPPDEFINES += ['USE_ZLG_DLL']
+                self.LIBS += ["dl"]
+            self.CPPDEFINES += ["USE_ZLG_DLL"]
         else:
-            self.LIBS += ['ControlCAN']
+            self.LIBS += ["ControlCAN"]
             self.LIBPATH += [BUILD_DIR]
-            shutil.copy('%s/ControlCAN.lib' % (ControlCAN), '%s/libControlCAN.a' % (BUILD_DIR))
+            shutil.copy("%s/ControlCAN.lib" % (ControlCAN), "%s/libControlCAN.a" % (BUILD_DIR))
 
     def config(self):
-        self.include = '%s/include' % (CWD)
-        self.CPPPATH = ['$INFRAS']
+        self.include = "%s/include" % (CWD)
+        self.CPPPATH = ["$INFRAS"]
         self.CPPDEFINES = []
         self.LIBPATH = []
-        self.LIBS = ['TcpIp', 'StdTimer', 'Utils', 'OSAL']
+        self.LIBS = ["TcpIp", "StdTimer", "Utils"]
         self.CPPFLAGS = []
         self.source = objs
         if IsBuildForWindows():
-            self.LIBS += ['wsock32', 'Ole32']
+            self.LIBS += ["wsock32", "Ole32"]
             self.config_peakcan()
             self.config_vxl()
             self.config_zlg()
         else:
-            self.LIBS += ['uuid']
+            self.LIBS += ["uuid"]
 
 
-objsCanSim = Glob('utils/can_simulator.c')
+objsCanSim = Glob("utils/can_simulator.c")
 
 
 @register_application
 class ApplicationCanSimulator(Application):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
-        self.LIBS = ['TcpIp', 'StdTimer', 'Utils']
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["TcpIp", "StdTimer", "Utils"]
         if IsBuildForWindows():
-            self.LIBS += ['wsock32', 'winmm']
+            self.LIBS += ["wsock32", "winmm"]
         self.source = objsCanSim
 
 
-objsCanDump = Glob('utils/can_dump.cpp')
+objsCanDump = Glob("utils/can_dump.cpp")
 
 
 @register_application
 class ApplicationCanDump(Application):
     def config(self):
-        self.LIBS = ['CanLib']
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["CanLib"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsCanDump
-        self.Install('../one')
+        self.Install("../one")
 
 
-objsCanSend = Glob('utils/can_send.c')
+objsCanSend = Glob("utils/can_send.c")
 
 
 @register_application
 class ApplicationCanSend(Application):
     def config(self):
-        self.LIBS = ['CanLib']
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["CanLib"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsCanSend
-        self.Install('../one')
+        self.Install("../one")
 
 
-objsCanBr = Glob('utils/can_bridge.c')
+objsCanBr = Glob("utils/can_bridge.cpp")
 
 
 @register_application
 class ApplicationCanBridge(Application):
     def config(self):
-        self.LIBS = ['CanLib']
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["CanLib"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsCanBr
-        self.Install('../one')
+        self.Install("../one")
 
 
-objsCanIO = Glob('utils/can_stdio.c')
+objsCanIO = Glob("utils/can_stdio.cpp")
 
 
 @register_application
 class ApplicationCanStdio(Application):
     def config(self):
-        self.LIBS = ['CanLib']
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["CanLib"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsCanIO
-        self.Install('../one')
+        self.Install("../one")

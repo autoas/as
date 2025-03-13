@@ -1,33 +1,42 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c') + Glob('src/*.cpp')
+objs = Glob("src/*.c") + Glob("src/*.cpp")
 
 libsForIsoTp = {}
-for libName in ['CanTp', 'LinTp', 'CanIf', 'PduR']:
-    libsForIsoTp[libName] = Glob('config/%s_Cfg.c' % (libName))
+for libName in ["CanTp", "LinTp", "CanIf", "PduR"]:
+    libsForIsoTp[libName] = Glob("config/%s_Cfg.c" % (libName))
+
 
 @register_library
 class LibraryIsoTp(Library):
     def config(self):
         self.CPPDEFINES = []
-        self.include = '%s/include' % (CWD)
-        self.LIBS = ['StdTimer', 'Simulator', 'CanLib', 'LinLib', 'DevLib', 'DoIPClient']
+        self.include = "%s/include" % (CWD)
+        if IsBuildForMSVC():
+            self.LIBS = ["StdTimer", "Simulator", "CanLib"]
+        else:
+            self.LIBS = ["StdTimer", "Simulator", "CanLib", "LinLib", "DevLib", "DoIPClient"]
+            self.Append(CPPDEFINES=["USE_DOIP_CLIENT"])
         for libName, source in libsForIsoTp.items():
+            if IsBuildForMSVC():
+                if libName in "LinTp":
+                    continue
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES = ['USE_%s' % (libName.split(':')[0].upper())])
-        self.CPPPATH = ['$INFRAS']
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        self.CPPPATH = ["$INFRAS"]
         self.source = objs
 
 
-objsIsoTpSend = Glob('utils/isotp_send.c')
+objsIsoTpSend = Glob("utils/isotp_send.c")
 
 
 @register_application
 class ApplicationIsoTpSend(Application):
     def config(self):
-        self.LIBS = ['IsoTp']
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["IsoTp"]
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsIsoTpSend
+        self.Install("../one")

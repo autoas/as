@@ -59,8 +59,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if ((NULL == device) || (port < 0) || (dlc > sizeof(data)) || (baudrate < 0) ||
-      (opterr != 0)) {
+  if ((NULL == device) || (port < 0) || (dlc > sizeof(data)) || (baudrate < 0) || (opterr != 0)) {
     usage(argv[0]);
     return -1;
   }

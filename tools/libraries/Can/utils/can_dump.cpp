@@ -19,14 +19,9 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
 /* ================================ [ TYPES     ] ============================================== */
-struct can_frame {
-  uint32_t can_id;
-  uint8_t can_dlc;
-  uint8_t data[CAN_MAX_DLEN];
-};
 
 struct can_msg_info {
-  struct can_frame frame;
+  can_frame_t frame;
   uint64_t count;
   std::chrono::high_resolution_clock::time_point start;
   float period;
@@ -49,7 +44,7 @@ static uint32_t canLastMsgNum = 0;
 std::chrono::high_resolution_clock::time_point canLastShowTime =
   std::chrono::high_resolution_clock::now();
 /* ================================ [ LOCALS    ] ============================================== */
-static void log_msg(struct can_frame *frame, float rtim, uint64_t count = 0) {
+static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
   int bOut = FALSE;
   static float lastTime = -1;
   int nSame = 0;
@@ -64,7 +59,7 @@ static void log_msg(struct can_frame *frame, float rtim, uint64_t count = 0) {
     bOut = TRUE;
   } else {
     STAILQ_FOREACH(filter, &canFilterH->head, entry) {
-      if ((frame->can_id & filter->mask) == (filter->code & filter->mask)) {
+      if ((frame->canid & filter->mask) == (filter->code & filter->mask)) {
         bOut = TRUE;
       }
     }
@@ -73,8 +68,8 @@ static void log_msg(struct can_frame *frame, float rtim, uint64_t count = 0) {
   if (bOut) {
     int i;
     int dlc;
-    printf("canid=%08X,dlc=%02d,data=[", frame->can_id, frame->can_dlc);
-    dlc = frame->can_dlc;
+    printf("canid=%08X,dlc=%02d,data=[", frame->canid, frame->dlc);
+    dlc = frame->dlc;
     if (dlc < 8) {
       dlc = 8;
     }
@@ -129,8 +124,8 @@ static void log_msg(struct can_frame *frame, float rtim, uint64_t count = 0) {
   }
 }
 
-static void add_msg(struct can_frame *frame) {
-  auto it = canMsgInfoMap.find(frame->can_id);
+static void add_msg(can_frame_t *frame) {
+  auto it = canMsgInfoMap.find(frame->canid);
   if (it != canMsgInfoMap.end()) {
     it->second.frame = *frame;
     it->second.count++;
@@ -139,7 +134,7 @@ static void add_msg(struct can_frame *frame) {
       std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.start).count();
     it->second.period = (float)((double)elapsed / (it->second.count - 1));
   } else {
-    canMsgInfoMap[frame->can_id] = {*frame, 1, std::chrono::high_resolution_clock::now(), 0};
+    canMsgInfoMap[frame->canid] = {*frame, 1, std::chrono::high_resolution_clock::now(), 0};
   }
 
   auto now = std::chrono::high_resolution_clock::now();
@@ -195,10 +190,9 @@ int main(int argc, char *argv[]) {
   int busid;
   int port = 0;
   int baudrate = 500000;
-  struct can_frame frame;
+  can_frame_t frame;
   bool rv;
   bool bPeriodMode = false;
-  Std_TimerType timer;
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:f:hp:P")) != -1) {
@@ -237,19 +231,17 @@ int main(int argc, char *argv[]) {
     return -2;
   }
 
-  Std_TimerStart(&timer);
+  uint64_t begin = PAL_Timestamp();
 
   while (true) {
     do {
-      frame.can_dlc = sizeof(frame.data);
-      frame.can_id = -1;
-      rv = can_read(busid, &frame.can_id, &frame.can_dlc, frame.data);
+      frame.canid = -1;
+      rv = can_read_v2(busid, &frame);
       if (true == rv) {
         if (bPeriodMode) {
           add_msg(&frame);
         } else {
-          std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
-          float rtim = elapsedTime / 1000000.0;
+          float rtim = (float)((frame.timestamp - begin) / 1000000.0f);
           log_msg(&frame, rtim);
         }
       }

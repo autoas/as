@@ -21,7 +21,7 @@
 BufReq_ReturnType IsoTp_CanTpStartOfReception(PduIdType id, const PduInfoType *info,
                                               PduLengthType TpSduLength,
                                               PduLengthType *bufferSizePtr);
-BufReq_ReturnType IsoTp_CanCopyRxData(PduIdType id, const PduInfoType *info,
+BufReq_ReturnType IsoTp_CanTpCopyRxData(PduIdType id, const PduInfoType *info,
                                       PduLengthType *bufferSizePtr);
 BufReq_ReturnType IsoTp_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
                                         const RetryInfoType *retry,
@@ -30,7 +30,7 @@ void IsoTp_CanTpRxIndication(PduIdType id, Std_ReturnType result);
 void IsoTp_CanTpTxConfirmation(PduIdType id, Std_ReturnType result);
 /* ================================ [ DATAS     ] ============================================== */
 const PduR_ApiType PduR_IsoTpCanTpApi = {
-  IsoTp_CanTpStartOfReception, IsoTp_CanCopyRxData,       {(void *)IsoTp_CanTpRxIndication}, NULL,
+  IsoTp_CanTpStartOfReception, IsoTp_CanTpCopyRxData,       {(void *)IsoTp_CanTpRxIndication}, NULL,
   IsoTp_CanTpCopyTxData,       IsoTp_CanTpTxConfirmation,
 };
 

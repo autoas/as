@@ -9,10 +9,11 @@
 #define CRC_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
-
 /* ================================ [ TYPES     ] ============================================== */
-
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -33,4 +34,7 @@ uint16_t Crc_CalculateCRC16(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
 uint32_t Crc_CalculateCRC32(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
                             uint32_t Crc_StartValue32, boolean Crc_IsFirstCall);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* CRC_H */

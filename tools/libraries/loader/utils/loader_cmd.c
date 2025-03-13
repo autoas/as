@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <string.h>
 #include "isotp.h"
 #include "srec.h"
 #include "loader.h"
@@ -22,6 +23,17 @@ static void usage(char *prog) {
          "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate]\n",
          prog);
 }
+static uint32_t toU32(const char *strV) {
+  uint32_t u32V = 0;
+
+  if ((0 == strncmp("0x", strV, 2)) || (0 == strncmp("0X", strV, 2))) {
+    u32V = strtoul(strV, NULL, 16);
+  } else {
+    u32V = strtoul(strV, NULL, 10);
+  }
+
+  return u32V;
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int ch;
@@ -31,7 +43,7 @@ int main(int argc, char *argv[]) {
   uint32_t rxid = 0x732, txid = 0x731;
   uint16_t N_TA = 0xFFFF;
   uint32_t delayUs = 0;
-  int funcAddr = 0x7DF;
+  uint32_t funcAddr = 0x7DF;
   int ll_dl = 8;
   char *appSRecPath = NULL;
   char *flsSRecPath = NULL;
@@ -55,7 +67,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:c:d:D:f:l:n:p:r:s:S:t:T:v")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:c:d:D:f:F:l:n:p:r:s:S:t:T:v")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -76,22 +88,22 @@ int main(int argc, char *argv[]) {
       flsSRecPath = optarg;
       break;
     case 'F':
-      funcAddr = atoi(optarg);
+      funcAddr = toU32(optarg);
       break;
     case 'l':
       ll_dl = atoi(optarg);
       break;
     case 'n':
-      N_TA = strtoul(optarg, NULL, 16);
+      N_TA = toU32(optarg);
       break;
     case 'p':
       port = atoi(optarg);
       break;
     case 'r':
-      rxid = strtoul(optarg, NULL, 16);
+      rxid = toU32(optarg);
       break;
     case 's':
-      total = strtoul(optarg, NULL, 10);
+      total = toU32(optarg);
       break;
     case 'S':
       if (0 == strcmp("crc32", optarg)) {
@@ -104,10 +116,10 @@ int main(int argc, char *argv[]) {
       }
       break;
     case 't':
-      txid = strtoul(optarg, NULL, 16);
+      txid = toU32(optarg);
       break;
     case 'T':
-      timeout = strtoul(optarg, NULL, 10);
+      timeout = toU32(optarg);
       break;
     case 'v':
       verbose = 1;
@@ -131,8 +143,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if ((NULL == device) || (port < 0) || (rxid < 0) || (txid < 0) || (baudrate < 0) ||
-      (opterr != 0) || ((ll_dl != 8) && (ll_dl != 64)) || (funcAddr < 0)) {
+  if ((NULL == device) || (port < 0) || (baudrate < 0) || (opterr != 0)) {
     usage(argv[0]);
     return -1;
   }
@@ -174,7 +185,7 @@ int main(int argc, char *argv[]) {
     params.U.CAN.RxCanId = (uint32_t)rxid;
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
-    params.U.CAN.STmin = 0;
+    params.U.CAN.STmin = delayUs;
   } else if (0 == strncmp("LIN", device, 3)) {
     if (0x731 == txid) {
       txid = 0x3c;

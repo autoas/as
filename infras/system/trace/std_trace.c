@@ -9,6 +9,15 @@
 #ifdef USE_VFS
 #include "vfs.h"
 #endif
+#ifdef USE_CAN
+#include "Can.h"
+#ifdef USE_STARTUP_TRACE /* NOTE: do undef USE_CANSM to enable trace during startup */
+#undef USE_CANSM
+#endif
+#ifdef USE_CANSM
+#include "CanSM.h"
+#endif
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef TRACE_CAN_DLC
 #define TRACE_CAN_DLC 8
@@ -18,11 +27,28 @@
 RB_PUSH_FAST(TraceEvent, Std_TraceEventType)
 #endif
 /* ================================ [ DECLARES  ] ============================================== */
-#ifdef USE_CAN
-int trace_can_put(uint8_t *data, uint8_t dlc);
-#endif
 /* ================================ [ DATAS     ] ============================================== */
+#if TRACE_CAN_DLC > 8
+static const uint8_t lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48, 64};
+#else
+#define Std_TraceGetDlc(sz) sz
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
+#if TRACE_CAN_DLC > 8
+static PduLengthType Std_TraceGetDlc(PduLengthType len) {
+  PduLengthType dl = len;
+  int i;
+  if (len > 8) {
+    for (i = 0; i < ARRAY_SIZE(lLL_DLs); i++) {
+      if (len <= lLL_DLs[i]) {
+        dl = lLL_DLs[i];
+        break;
+      }
+    }
+  }
+  return dl;
+}
+#endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Std_TraceEvent(const Std_TraceAreaType *area, Std_TraceEventType event) {
   EnterCritical();
@@ -57,18 +83,42 @@ void Std_TraceDump(const Std_TraceAreaType *area) {
 void Std_TraceMain(const Std_TraceAreaType *area) {
   uint8_t data[TRACE_CAN_DLC];
   rb_size_t sz;
-  int r;
+#if TRACE_CAN_DLC > 8
+  rb_size_t i;
+#endif
+  Std_ReturnType ret;
+  Can_PduType PduInfo;
 
-  EnterCritical();
-  sz = RB_Poll(area->rb, data, TRACE_CAN_DLC / sizeof(Std_TraceEventType));
-  ExitCritical();
-  if (sz > 0) {
-    r = trace_can_put(data, (uint8_t)(sz * sizeof(Std_TraceEventType)));
-    if (0 == r) {
-      EnterCritical();
-      (void)RB_Drop(area->rb, sz); /* consume it */
-      ExitCritical();
+#ifdef USE_CANSM
+  ComM_ModeType mode = COMM_NO_COMMUNICATION;
+#endif
+
+#ifdef USE_CANSM
+  CanSM_GetCurrentComMode(0, &mode);
+  if (CANSM_BSWM_FULL_COMMUNICATION == mode) {
+#endif
+    EnterCritical();
+    sz = RB_Poll(area->rb, data, TRACE_CAN_DLC / sizeof(Std_TraceEventType));
+    ExitCritical();
+    if (sz > 0) {
+      PduInfo.id = TRACE_TX_CANID;
+      PduInfo.length = Std_TraceGetDlc(sz * sizeof(Std_TraceEventType));
+      PduInfo.sdu = data;
+#if TRACE_CAN_DLC > 8
+      for (i = sz * sizeof(Std_TraceEventType); i < PduInfo.length; i++) {
+        data[i] = 0;
+      }
+#endif
+      PduInfo.swPduHandle = TRACE_TX_CAN_HANDLE;
+      ret = Can_Write(STDIO_TX_CAN_HTH, &PduInfo);
+      if (E_OK == ret) {
+        EnterCritical();
+        (void)RB_Drop(area->rb, sz); /* consume it */
+        ExitCritical();
+      }
     }
+#ifdef USE_CANSM
   }
+#endif
 }
 #endif

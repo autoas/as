@@ -6,18 +6,21 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <pybind11/pybind11.h>
 #include <string>
+#include <thread>
+#include <chrono>
 
 #include <stdio.h>
-#include <unistd.h>
 #include <stdarg.h>
-
 #include "canlib.h"
+#include "isotp.h"
+#include "Log.hpp"
+
+#include "Std_Compiler.h"
 #include "linlib.h"
 #include "isotp.h"
 #include "devlib.h"
 #include "loader.h"
 #include "srec.h"
-#include "Log.hpp"
 
 using namespace as;
 namespace py = pybind11;
@@ -68,11 +71,23 @@ public:
     return (busid >= 0);
   }
 
-  py::object read(int canid) {
-    uint32_t rcanid = (uint32_t)canid;
+  py::object read(uint32_t canid, uint32_t timeoutMs = 0) {
+    uint32_t rcanid = canid;
     uint8_t data[64];
     uint8_t dlc = sizeof(data);
-    bool r = can_read(busid, &rcanid, &dlc, data);
+    bool r = FALSE;
+    r = can_read(busid, &rcanid, &dlc, data);
+    while (FALSE == r) {
+      if (timeoutMs > 0) {
+        timeoutMs--;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      } else {
+        break;
+      }
+      rcanid = canid;
+      dlc = sizeof(data);
+      r = can_read(busid, &rcanid, &dlc, data);
+    }
     py::list L;
     L.append(py::bool_(r));
     if (true == r) {
@@ -85,9 +100,9 @@ public:
     return L;
   }
 
-  bool write(int canid, py::bytes b) {
+  bool write(uint32_t canid, py::bytes b) {
     std::string str = b;
-    bool r = can_write(busid, (uint32_t)canid, (uint8_t)str.size(), (uint8_t *)str.data());
+    bool r = can_write(busid, canid, (uint8_t)str.size(), (uint8_t *)str.data());
     return r;
   }
 
@@ -330,6 +345,11 @@ public:
       loader_destory(m_Loader);
       m_Loader = nullptr;
     }
+
+    if (nullptr != m_IsoTp) {
+      delete m_IsoTp;
+      m_IsoTp = nullptr;
+    }
   }
 
   py::object poll() {
@@ -371,12 +391,13 @@ static void __attribute__((constructor)) AsPyInit(void) {
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 PYBIND11_MODULE(AsPy, m) {
+  Log::setName("AsPy");
   m.doc() = "pybind11 AsPy library";
   py::class_<can>(m, "can")
     .def(py::init<std::string, uint32_t, uint32_t>(), py::arg("device") = "simulator",
          py::arg("port") = 0, py::arg("baudrate") = 1000000)
     .def("is_opened", &can::is_opened)
-    .def("read", &can::read, py::arg("canid"))
+    .def("read", &can::read, py::arg("canid"), py::arg("timeoutMs") = 0)
     .def("write", &can::write, py::arg("canid"), py::arg("data"));
   py::class_<lin>(m, "lin")
     .def(py::init<py::kwargs>(), LIN_KWARGS)

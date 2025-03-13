@@ -35,7 +35,7 @@ public:
   struct Connection {
     Server *self;
     uint16_t conId;
-    osal_thread_t thread;
+    OSAL_ThreadType thread;
     bool online;
   };
   void run_rx(Connection *con);

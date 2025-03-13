@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "LinIf_Internal.h"
+#include "LinIf_Priv.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef _WIN32
 #define LINIF_DELAY_US 100000

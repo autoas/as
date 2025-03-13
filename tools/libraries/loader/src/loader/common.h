@@ -6,6 +6,9 @@
 #define __LOADER_COMMON_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "loader.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -24,4 +27,7 @@ int download_flash_driver(loader_t *loader);
 int ecu_reset(loader_t *loader);
 int security_extds_access(loader_t *loader);
 int security_prgs_access(loader_t *loader);
+#ifdef __cplusplus
+}
+#endif
 #endif /* __LOADER_COMMON_H */

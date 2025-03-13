@@ -43,8 +43,8 @@ int doip_await_vehicle_announcement(doip_client_t *client, doip_node_t **nodes, 
 doip_node_t *doip_request(doip_client_t *client);
 int doip_connect(doip_node_t *node);
 int doip_activate(doip_node_t *node, uint16_t sa, uint8_t at, uint8_t *oem, uint8_t oem_len);
-int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
-                  size_t rxSize);
+int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_t txSize,
+                  uint8_t *rxBuffer, size_t rxSize);
 int doip_receive(doip_node_t *node, uint8_t *rxBuffer, size_t rxSize);
 void doip_destory_client(doip_client_t *client);
 #ifdef __cplusplus

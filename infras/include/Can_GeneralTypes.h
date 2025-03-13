@@ -14,6 +14,10 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 /* @SWS_Can_00039 */
 #define CAN_BUSY 0x02
+
+#define CANTRCV_TRCVMODE_SLEEP ((CanTrcv_TrcvModeType)0)
+#define CANTRCV_TRCVMODE_STANDBY ((CanTrcv_TrcvModeType)1)
+#define CANTRCV_TRCVMODE_NORMAL ((CanTrcv_TrcvModeType)2)
 /* ================================ [ TYPES     ] ============================================== */
 typedef enum
 {
@@ -43,6 +47,9 @@ typedef struct {
   Can_HwHandleType Hoh;
   uint8_t ControllerId;
 } Can_HwType;
+
+/* @SWS_CanTrcv_00163 */
+typedef uint8_t CanTrcv_TrcvModeType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

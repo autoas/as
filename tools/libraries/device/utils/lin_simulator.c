@@ -194,14 +194,20 @@ static void try_recv_forward(void) {
       if ((frame.type == LIN_TYPE_HEADER) || (frame.type == LIN_TYPE_EXT_HEADER)) {
         printf("%c: ", (char)frame.type);
         if (socketH->frame.type != LIN_TYPE_INVALID) {
-          printf("Lin Error: type %c pid=0x%02X\n", (char)socketH->frame.type, socketH->frame.pid);
+          printf("Lin Error with header: type %c pid=0x%02X\n", (char)socketH->frame.type,
+                 socketH->frame.pid);
+          printf("  %c: ", (char)frame.type);
+          log_msg(&frame, rtim);
         } else {
           memcpy(&socketH->frame, &frame, LIN_MTU);
         }
         Std_TimerStart(&socketH->timer);
       } else if (frame.type == LIN_TYPE_DATA) {
-        if ((socketH->frame.type != LIN_TYPE_HEADER) || (frame.type != LIN_TYPE_EXT_HEADER)) {
-          printf("Lin Error: type %c pid=0x%02X\n", (char)socketH->frame.type, socketH->frame.pid);
+        if ((socketH->frame.type != LIN_TYPE_HEADER) && (frame.type != LIN_TYPE_EXT_HEADER)) {
+          printf("Lin Error with data: type %c pid=0x%02X\n", (char)socketH->frame.type,
+                 socketH->frame.pid);
+          printf("  %c: ", (char)frame.type);
+          log_msg(&frame, rtim);
         } else {
           memcpy(&socketH->frame.dlc, &frame.dlc, LIN_MAX_DATA_SIZE + 2);
           log_msg(&socketH->frame, rtim);

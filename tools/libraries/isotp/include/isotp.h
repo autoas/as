@@ -11,11 +11,10 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
-#define ISOTP_OTCTL_SET_TX_ID 0
-
+#define ISOTP_IOCTL_SET_TX_ID 0
+#define ISOTP_IOCTL_J1939TP_GET_PGN 1
 /* ================================ [ TYPES     ] ============================================== */
-typedef enum
-{
+typedef enum {
   ISOTP_OVER_CAN,
   ISOTP_OVER_LIN,
   ISOTP_OVER_DOIP
@@ -35,6 +34,35 @@ typedef struct {
   uint32_t TxId;
 } isotp_lin_param_t;
 
+typedef enum {
+  ISOTP_J1939TP_PROTOCOL_BAM = 0,
+  ISOTP_J1939TP_PROTOCOL_CMDT,
+} isotp_j1939tp_protocal_t;
+
+typedef struct {
+  isotp_j1939tp_protocal_t protocol;
+  struct {
+    uint32_t CM;
+    uint32_t Direct;
+    uint32_t DT;
+    uint32_t FC;
+  } TX;
+  struct {
+    uint32_t CM;
+    uint32_t Direct;
+    uint32_t DT;
+    uint32_t FC;
+  } RX;
+  uint32_t PgPGN;
+  uint16_t STMin;
+  uint16_t Tr;
+  uint16_t T1;
+  uint16_t T2;
+  uint16_t T3;
+  uint16_t T4;
+  uint8_t TxMaxPacketsPerBlock;
+} isotp_j1939tp_param_t;
+
 typedef struct {
   uint16_t sourceAddress;
   uint16_t targetAddress;
@@ -51,6 +79,7 @@ typedef struct {
   union {
     isotp_can_param_t CAN;
     isotp_lin_param_t LIN;
+    isotp_j1939tp_param_t J1939TP;
     isotp_doip_param_t DoIP;
   } U;
 } isotp_parameter_t;

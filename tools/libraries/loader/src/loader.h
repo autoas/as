@@ -33,17 +33,20 @@ extern "C" {
 #define LDLOG(level, fmt, ...) loader_log(loader, L_LOG_##level, fmt, ##__VA_ARGS__)
 #define LDHEX(level, prefix, data, len) loader_log_hex(loader, L_LOG_##level, prefix, data, len)
 
-#ifdef LOADER_USE_APP_BUILT_IN
-#define LOADER_APP_REGISTER(app)                                                                   \
-  static void __attribute__((constructor)) __loader_register_##app(void) {                         \
-    loader_register_app(&app);                                                                     \
+#define LOADER_APP_REGISTER(services, name)                                                        \
+  static const loader_app_t s_LoaderApp##name = {                                                  \
+    #name,                                                                                         \
+    services,                                                                                      \
+    ARRAY_SIZE(services),                                                                          \
+  };                                                                                               \
+  INITIALIZER(__loader_register_##name) {                                                          \
+    loader_register_app(&s_LoaderApp##name);                                                       \
+  }                                                                                                \
+  const loader_app_t *name##Get(void) {                                                            \
+    return &s_LoaderApp##name;                                                                     \
   }
-#else
-#define LOADER_APP_REGISTER(app)                                                                   \
-  const loader_app_t *get(void) {                                                                  \
-    return &app;                                                                                   \
-  }
-#endif
+
+#define SUPPRESS_POS_RESP_BIT (uint8_t)0x80
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct loader_s loader_t;
 
@@ -60,6 +63,7 @@ typedef struct {
   char *preLog;
   char *postLog;
   int (*handle)(loader_t *loader);
+  int progress;
 } loader_service_t;
 
 typedef struct {
@@ -89,14 +93,12 @@ void loader_log_hex(loader_t *loader, int level, const char *prefix, const uint8
                     size_t size);
 
 boolean loader_is_stopt(loader_t *loader);
-void loader_add_progress(loader_t *loader, int progress, uint32_t doSize);
+void loader_add_progress(loader_t *loader, uint32_t doSize);
 
 srec_t *loader_get_app_srec(loader_t *loader);
 srec_t *loader_get_flsdrv_srec(loader_t *loader);
 
-#ifdef LOADER_USE_APP_BUILT_IN
 void loader_register_app(const loader_app_t *app);
-#endif
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */

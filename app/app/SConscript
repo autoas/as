@@ -82,7 +82,9 @@ class ApplicationCanApp(ApplicationApp):
         self.platform_config()
 
 
-objsSwc = Glob('config/SWC/*/*.c')
+generate(Glob("config/SWC/*/*.json"))
+
+objsSwc = Glob("config/SWC/*/*.c")
 
 
 @register_application

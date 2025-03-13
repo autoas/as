@@ -6,9 +6,10 @@
 #include "CanTp_Cfg.h"
 #include "CanTp.h"
 #include "CanTp_Types.h"
+#include "CanIf_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef CANTP_CFG_N_As
-#define CANTP_CFG_N_As 25
+#define CANTP_CFG_N_As 100
 #endif
 #ifndef CANTP_CFG_N_Bs
 #define CANTP_CFG_N_Bs 1000
@@ -64,9 +65,12 @@ void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType *params) {
     CanTpChannelConfigs[Channel].N_As = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As);
     CanTpChannelConfigs[Channel].N_Bs = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs);
     CanTpChannelConfigs[Channel].N_Cr = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr);
-    CanTpChannelConfigs[Channel].STmin = CANTP_CFG_STMIN;
+    CanTpChannelConfigs[Channel].STmin = params->STmin;
     CanTpChannelConfigs[Channel].BS = CANTP_CFG_BS;
-    CanTpChannelConfigs[Channel].N_TA = 0;
+    CanTpChannelConfigs[Channel].N_TA = params->N_TA;
+    if (0xFFFF != params->N_TA) {
+      CanTpChannelConfigs[Channel].AddressingFormat = CANTP_EXTENDED;
+    }
     CanTpChannelConfigs[Channel].CanTpRxWftMax = CANTP_CFG_RX_WFT_MAX;
     CanTpChannelConfigs[Channel].padding = CANTP_CFG_PADDING;
     CanTpChannelConfigs[Channel].data = u8P2PData[Channel];

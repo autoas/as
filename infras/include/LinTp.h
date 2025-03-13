@@ -6,6 +6,9 @@
 #define LINTP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define CanTp_Init LinTp_Init
 #define CanTp_RxIndication LinTp_RxIndication
@@ -29,4 +32,7 @@
 PduLengthType LinTp_GetTxPacketLength(PduIdType TxPduId);
 PduLengthType LinTp_GetRxLeftLength(PduIdType RxPduId);
 Std_ReturnType LinTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+#ifdef __cplusplus
+}
+#endif
 #endif /* LINTP_H */

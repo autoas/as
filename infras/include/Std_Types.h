@@ -9,9 +9,11 @@
 #ifndef STD_TYPES_H
 #define STD_TYPES_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <errno.h>
 #include "Std_Compiler.h"
 #ifdef __cplusplus

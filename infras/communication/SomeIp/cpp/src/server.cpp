@@ -253,7 +253,7 @@ void Server::on_connect(uint16_t conId, bool isConnected) {
       con->conId = conId;
       con->online = true;
       con->self = this;
-      con->thread = osal_thread_create(thread_con_main, con);
+      con->thread = OSAL_ThreadCreate(thread_con_main, con);
       m_ConnectionMap[conId] = con;
     } else {
       usLOG(ERROR, "invalid service %d connection %d offline callback\n", m_Identity, conId);
@@ -262,7 +262,7 @@ void Server::on_connect(uint16_t conId, bool isConnected) {
     if (false == isConnected) {
       auto con = it->second;
       con->online = false;
-      osal_thread_join(con->thread);
+      OSAL_ThreadJoin(con->thread);
       m_ConnectionMap.erase(conId);
       delete con;
     } else {

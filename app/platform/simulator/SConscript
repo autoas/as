@@ -1,16 +1,28 @@
 from building import *
 
-objs = Glob('src/*.c') + Glob('src/*.cpp')
+objs = Glob("src/*.c") + Glob("src/*.cpp")
+
+libsForSimulator = {
+    "Can": Glob("src/config/Can_Cfg.c"),
+}
 
 
 @register_library
 class LibrarySimulator(Library):
     def config(self):
-        self.LIBS = ['CanLib', 'RS232', 'DevLib', 'Utils']
-        if not IsBuildForAndroid():
-            self.LIBS.append('pthread')
-        self.CPPPATH = ['$INFRAS']
+        if IsBuildForMSVC():
+            self.LIBS = ["CanLib", "RS232", "Utils"]
+        else:
+            self.LIBS = ["CanLib", "DevLib", "Utils"]
+        self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer"]
         self.source = objs
+        for libName, cfg in libsForSimulator.items():
+            self.LIBS += [libName]
+            self.RegisterConfig(libName, cfg)
+            self.CPPPATH += ["$%s_Cfg" % (libName)]
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        if IsBuildForMSVC():
+            self.LIBS += ["User32"]
 
 
 objsFlsAc = Glob('src/FlsAc.c') + Glob('src/critical.c')

@@ -353,7 +353,6 @@ void Task_MainLoop(void) {
 
     if (Std_GetTimerElapsedTime(&timer100ms) >= 100000) {
       Std_TimerStart(&timer100ms);
-      STD_TRACE_APP(APP_ALIVE);
       App_AliveIndicate();
     }
 #ifdef USE_DCM

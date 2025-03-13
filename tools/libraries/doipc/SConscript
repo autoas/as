@@ -1,24 +1,26 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.c')
+objs = Glob("src/*.cpp")
 
 
 @register_library
 class LibraryDoIPClient(Library):
     def config(self):
         self.CPPDEFINES = []
-        self.include = '%s/include' % (CWD)
-        self.LIBS = ['StdTimer', 'TcpIp', 'Simulator']
-        self.CPPPATH = ['$INFRAS']
+        self.include = "%s/include" % (CWD)
+        self.LIBS = ["StdTimer", "TcpIp", "Simulator"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objs
 
-objsDoIPSend = Glob('utils/doip_send.c')
+
+objsDoIPSend = Glob("utils/doip_send.c")
+
 
 @register_application
 class ApplicationDoIPSend(Application):
     def config(self):
-        self.LIBS = ['DoIPClient']
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["DoIPClient"]
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsDoIPSend

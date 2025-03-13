@@ -2,9 +2,9 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs_freertos = Glob("osal_freertos.c")
-objs_pthread = Glob("osal_pthread.c")
-objs_win = Glob("osal_windows.c") + Glob("osal_mutex.cpp") + Glob("osal_thread.cpp")
+objs_freertos = Glob("osal_freertos.c") + Glob("osal.c")
+objs_pthread = Glob("osal_pthread.c") + Glob("osal.c")
+objs_win = Glob("osal_windows.c") + Glob("osal_mutex.cpp") + Glob("osal_thread.cpp") + Glob("osal.c")
 
 
 @register_os
@@ -27,4 +27,3 @@ class LibraryOSAL(Library):
                 self.source = objs_pthread
                 if not IsBuildForAndroid():
                     self.LIBS.append("pthread")
-                self.LIBS += ["dl"]

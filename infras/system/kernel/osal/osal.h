@@ -50,12 +50,6 @@ int OSAL_SemaphoreTryWait(OSAL_SemType sem);
 int OSAL_SemaphoreTimedWait(OSAL_SemType sem, uint32_t timeoutMs);
 int OSAL_SemaphorePost(OSAL_SemType sem);
 int OSAL_SemaphoreDestory(OSAL_SemType sem);
-
-void *OSAL_DlOpen(const char *path);
-void *OSAL_DlSym(void *dll, const char *symbol);
-void OSAL_DlClose(void *dll);
-
-bool OSAL_FileExists(const char *file);
 #ifdef __cplusplus
 }
 #endif

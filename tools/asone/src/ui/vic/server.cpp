@@ -15,7 +15,7 @@ extern "C" {
 #include "plugin.h"
 #include "Std_Timer.h"
 
-#ifdef USE_SOMEIPXF
+#ifndef USE_SOMEIPXF
 #include "display.msg.pb.h"
 #endif
 using namespace as;

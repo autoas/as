@@ -15,10 +15,6 @@
 #ifdef USE_OS
 #include "kernel.h"
 #endif
-
-#if !defined(USE_OS) && (defined(_WIN32) || defined(linux))
-#include <dlfcn.h>
-#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef USE_OS
 #define Os_MemAlloc malloc
@@ -177,25 +173,3 @@ int OSAL_SemaphoreDestory(OSAL_SemType sem) {
   Os_MemFree(sem);
   return 0;
 }
-
-bool OSAL_FileExists(const char *file) {
-  bool ret = false;
-  if (0 != access(file, F_OK | R_OK)) {
-    ret = true;
-  }
-  return ret;
-}
-
-#if !defined(USE_OS) && (defined(_WIN32) || defined(linux))
-void *OSAL_DlOpen(const char *path) {
-  return dlopen(path, RTLD_NOW);
-}
-
-void *OSAL_DlSym(void *dll, const char *symbol) {
-  return dlsym(dll, symbol);
-}
-
-void OSAL_DlClose(void *dll) {
-  dlclose(dll);
-}
-#endif

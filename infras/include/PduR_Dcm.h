@@ -14,6 +14,9 @@
 #ifdef PDUR_DCM_LINTP_ZERO_COST
 #include "LinTp.h"
 #endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef PDUR_DCM_CANTP_ZERO_COST
 #define PduR_DcmTransmit CanTp_Transmit
@@ -34,5 +37,9 @@ Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr
 Std_ReturnType PduR_DcmCancelTransmit(PduIdType TxPduId);
 /* @SWS_PduR_00767 */
 Std_ReturnType PduR_DcmCancelReceive(PduIdType RxPduId);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 #endif /* PDUR_DCM_H */

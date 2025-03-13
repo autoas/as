@@ -13,31 +13,31 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 int enter_extend_session(loader_t *loader) {
-  static const uint8_t data[] = {0x10, 0x03};
+  static const uint8_t data[] = {0x10, 0x03 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0x50, 0x03, -1, -1, -1, -1};
   return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
 int control_dtc_setting_off(loader_t *loader) {
-  static const uint8_t data[] = {0x85, 0x02};
+  static const uint8_t data[] = {0x85, 0x02 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0xC5, 0x02};
   return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
 int control_dtc_setting_on(loader_t *loader) {
-  static const uint8_t data[] = {0x85, 0x01};
+  static const uint8_t data[] = {0x85, 0x01 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0xC5, 0x01};
   return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
 int communicaiton_disable(loader_t *loader) {
-  static const uint8_t data[] = {0x28, 0x03, 0x03};
+  static const uint8_t data[] = {0x28, 0x03 | SUPPRESS_POS_RESP_BIT, 0x03};
   static const int expected[] = {0x68, 0x03};
   return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
 int communicaiton_enable(loader_t *loader) {
-  static const uint8_t data[] = {0x28, 0x00, 0x03};
+  static const uint8_t data[] = {0x28, 0x00 | SUPPRESS_POS_RESP_BIT, 0x03};
   static const int expected[] = {0x68, 0x00};
   return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
@@ -98,7 +98,7 @@ int transfer_data(loader_t *loader, uint32_t ability, uint8_t *data, size_t leng
     r = uds_request_service(loader, request, 2 + doSz, expected, ARRAY_SIZE(expected));
 
     if (L_R_OK == r) {
-      loader_add_progress(loader, 0, doSz);
+      loader_add_progress(loader, doSz);
     }
 
     blockSequenceCounter = (blockSequenceCounter + 1) & 0xFF;
@@ -124,9 +124,10 @@ int download_one_section(loader_t *loader, sblk_t *blk) {
   if (L_R_OK == r) {
     ability = ((uint32_t)response[2] << 8) + response[3];
     if ((ability >= FL_MIN_ABILITY) && ((ability + 2) < LOADER_MSG_SIZE)) {
+      LDLOG(DEBUG, "\n  ability %" PRIu32 "\n", ability);
       r = transfer_data(loader, ability - 2, blk->data, blk->length);
     } else {
-      LDLOG(DEBUG, "server ability error %d", ability);
+      LDLOG(ERROR, "server ability error %" PRIu32, ability);
       r = L_R_NOK;
     }
   }

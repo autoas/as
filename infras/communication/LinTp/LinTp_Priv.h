@@ -29,6 +29,8 @@
 #ifndef PduR_CanTpCopyRxData
 #define PduR_CanTpCopyRxData PduR_LinTpCopyRxData
 #endif
+
+#define CANTP_MAIN_FUNCTION_PERIOD LINTP_MAIN_FUNCTION_PERIOD
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

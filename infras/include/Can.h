@@ -12,6 +12,29 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef STDIO_TX_CANID
+#define STDIO_TX_CANID 0x7FF
+#endif
+
+#ifndef STDIO_RX_CANID
+#define STDIO_RX_CANID 0x7FE
+#endif
+
+#ifndef STDIO_TX_CAN_HANDLE
+#define STDIO_TX_CAN_HANDLE 0xFFFE
+#endif
+
+#ifndef STDIO_TX_CAN_HTH
+#define STDIO_TX_CAN_HTH 0
+#endif
+
+#ifndef TRACE_TX_CANID
+#define TRACE_TX_CANID 0x7FD
+#endif
+
+#ifndef TRACE_TX_CAN_HANDLE
+#define TRACE_TX_CAN_HANDLE STDIO_TX_CAN_HANDLE
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Can_Config_s Can_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */

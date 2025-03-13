@@ -7,10 +7,12 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Can.h"
 #include "CanIf_Can.h"
+#include "CanIf.h"
+#include "Can_Priv.h"
 #include "canlib.h"
-#include "Can_Lcfg.h"
-#include <pthread.h>
+#include "Can_Cfg.h"
 #include "Std_Critical.h"
+#include "Std_Debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,32 +21,21 @@
 #include "shell.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* this simulation just alow only one HTH/HRH for each CAN controller */
-#define CAN_MAX_HOH 32
+#define CAN_MAX_HOH 64
 
 #define CAN_CONFIG (&Can_Config)
 
-#ifndef STDIO_TX_CANID
-#define STDIO_TX_CANID 0x7FF
-#endif
-#ifndef STDIO_RX_CANID
-#define STDIO_RX_CANID 0x7FE
-#endif
-#ifndef STDIO_TX_CAN_HANDLE
-#define STDIO_TX_CAN_HANDLE 0xFFFE
+#ifndef CAN_BUSOFF_SIMULAE_CANID
+#define CAN_BUSOFF_SIMULAE_CANID 0xdeadbeef
 #endif
 
-#ifndef TRACE_TX_CANID
-#define TRACE_TX_CANID 0x7FD
-#endif
-
-#ifndef TRACE_TX_CAN_HANDLE
-#define TRACE_TX_CAN_HANDLE STDIO_TX_CAN_HANDLE
+#ifndef CAN_TX_TIMEOUT_SIMULAE_CANID
+#define CAN_TX_TIMEOUT_SIMULAE_CANID 0xbeefdead
 #endif
 
 #ifndef USE_CAN_FILE_LOG
 #define logCan(isRx, Controller, canid, dlc, data)
 #endif
-
 /* ================================ [ TYPES     ] ============================================== */
 struct CanFrame {
   PduIdType handle;
@@ -53,22 +44,25 @@ struct CanFrame {
   uint8_t data[64];
 };
 /* ================================ [ DECLARES  ] ============================================== */
-extern Can_ConfigType Can_Config;
+extern "C" Can_ConfigType Can_Config;
 /* ================================ [ DATAS     ] ============================================== */
-static uint32_t lOpenFlag = 0;
-static uint32_t lWriteFlag = 0;
-static PduIdType lswPduHandle[32];
-static int lBusIdMap[32];
+static uint64_t lOpenFlag = 0;
+static uint64_t lWriteFlag = 0;
+static PduIdType lswPduHandle[CAN_MAX_HOH];
+static int lBusIdMap[CAN_MAX_HOH];
 #ifdef USE_CAN_FILE_LOG
-static FILE *lBusLog[32];
+static FILE *lBusLog[CAN_MAX_HOH];
 #endif
-static std::queue<CanFrame> lPendingFrames[32];
+static std::queue<CanFrame> lPendingFrames[CAN_MAX_HOH];
+static bool lStopConfirm[CAN_MAX_HOH];
 /* ================================ [ LOCALS    ] ============================================== */
-__attribute__((weak)) void CanIf_RxIndication(const Can_HwType *Mailbox,
-                                              const PduInfoType *PduInfoPtr) {
+#ifndef _MSC_VER
+FUNC(void, __weak) CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
 }
-__attribute__((weak)) void CanIf_TxConfirmation(PduIdType CanTxPduId) {
+
+FUNC(void, __weak) CanIf_TxConfirmation(PduIdType CanTxPduId) {
 }
+#endif
 #ifdef USE_CAN_FILE_LOG
 static void logCan(boolean isRx, uint8_t Controller, uint32_t canid, uint8_t dlc,
                    const uint8_t *data) {
@@ -105,7 +99,7 @@ static void __mcal_can_sim_deinit(void) {
   }
 }
 
-static void __attribute__((constructor)) __mcal_can_sim_init(void) {
+INITIALIZER(__mcal_can_sim_init) {
   atexit(__mcal_can_sim_deinit);
 }
 #endif /* USE_CAN_FILE_LOG */
@@ -140,58 +134,59 @@ static bool pop_from_queue(uint8_t Controller, CanFrame &frame) {
   return ret;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Can_Init(const Can_ConfigType *Config) {
-  (void)Config;
-  lOpenFlag = 0;
-  lWriteFlag = 0;
+Std_ReturnType CanAc_SetupPinMode(const Can_CtrlPinType *pin) {
+  return E_OK;
 }
 
-Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType Transition) {
-  Std_ReturnType ret = E_NOT_OK;
-  Can_ChannelConfigType *config;
-  int rv;
-#ifdef USE_CAN_FILE_LOG
-  static char path[128];
-#endif
-  EnterCritical();
-  if (Controller < CAN_CONFIG->numOfChannels) {
-    config = &CAN_CONFIG->channelConfigs[Controller];
-    switch (Transition) {
-    case CAN_CS_STARTED:
-      lBusIdMap[Controller] = can_open(config->device, config->port, config->baudrate);
-      if (lBusIdMap[Controller] >= 0) {
-        ret = E_OK;
-        lOpenFlag |= (1 << Controller);
-        lWriteFlag = 0;
-        clear_queue(Controller);
-#ifdef USE_CAN_FILE_LOG
-        snprintf(path, sizeof(path), ".CAN%d-%s-%d.log", Controller, config->device, config->port);
-        lBusLog[Controller] = fopen(path, "wb");
-#endif
-      }
-      break;
-    case CAN_CS_STOPPED:
-    case CAN_CS_SLEEP:
-      rv = can_close(lBusIdMap[Controller]);
-      if (TRUE == rv) {
-        ret = E_OK;
-        lOpenFlag &= ~(1 << Controller);
-#ifdef USE_CAN_FILE_LOG
-        if (NULL != lBusLog[Controller]) {
-          fclose(lBusLog[Controller]);
-          lBusLog[Controller] = NULL;
-        }
-#endif
-        clear_queue(Controller);
-      }
-      break;
-    default:
-      break;
-    }
-  }
-  ExitCritical();
+Std_ReturnType CanAc_WritePin(const Can_CtrlPinType *pin, uint8_t value) {
+  return E_OK;
+}
 
+Std_ReturnType CanAc_Init(uint8_t Controller, const Can_ChannelConfigType *config) {
+  Std_ReturnType ret = E_NOT_OK;
+  if (0 == (lOpenFlag & ((uint64_t)1 << Controller))) {
+    lBusIdMap[Controller] = can_open(config->device, config->hwInstanceId, config->baudrate);
+    if (lBusIdMap[Controller] >= 0) {
+      ret = E_OK;
+      lOpenFlag |= ((uint64_t)1 << Controller);
+      lWriteFlag = 0;
+      clear_queue(Controller);
+#ifdef USE_CAN_FILE_LOG
+      snprintf(path, sizeof(path), ".CAN%d-%s-%d.log", Controller, config->device, config->port);
+      lBusLog[Controller] = fopen(path, "wb");
+#endif
+      lStopConfirm[Controller] = false;
+    }
+  } else {
+    ret = E_OK;
+  }
   return ret;
+}
+
+Std_ReturnType CanAc_DeInit(uint8_t Controller, const Can_ChannelConfigType *config) {
+  Std_ReturnType ret = E_NOT_OK;
+  int rv;
+  if (0 != (lOpenFlag & ((uint64_t)1 << Controller))) {
+    rv = can_close(lBusIdMap[Controller]);
+    if (TRUE == rv) {
+      ret = E_OK;
+      lOpenFlag &= ~((uint64_t)1 << Controller);
+#ifdef USE_CAN_FILE_LOG
+      if (NULL != lBusLog[Controller]) {
+        fclose(lBusLog[Controller]);
+        lBusLog[Controller] = NULL;
+      }
+#endif
+      clear_queue(Controller);
+    }
+  } else {
+    ret = E_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType CanAc_SetSleepMode(uint8_t Controller, const Can_ChannelConfigType *config) {
+  return CanAc_DeInit(Controller, config);
 }
 
 Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
@@ -199,16 +194,17 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
   int r;
 
   EnterCritical();
-  if (lOpenFlag & (1 << Hth)) {
-    if (0 == (lWriteFlag & (1 << Hth))) {
+  if (lOpenFlag & ((uint64_t)1 << Hth)) {
+    if (0 == (lWriteFlag & ((uint64_t)1 << Hth))) {
+      lWriteFlag |= ((uint64_t)1 << Hth);
       InterLeaveCritical();
       r = can_write(lBusIdMap[Hth], PduInfo->id, PduInfo->length, PduInfo->sdu);
       InterEnterCritical();
       if (TRUE == r) {
         logCan(FALSE, Hth, PduInfo->id, PduInfo->length, PduInfo->sdu);
-        lWriteFlag |= (1 << Hth);
         lswPduHandle[Hth] = PduInfo->swPduHandle;
       } else {
+        lWriteFlag &= ~((uint64_t)1 << Hth);
         ret = E_NOT_OK;
       }
     } else {
@@ -222,20 +218,19 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
   return ret;
 }
 
-void Can_DeInit(void) {
-}
-
 void Can_MainFunction_WriteChannel(uint8_t Channel) {
   PduIdType swPduHandle;
   EnterCritical();
   if (Channel < CAN_MAX_HOH) {
-    if (lWriteFlag & (1 << Channel)) {
+    if (lWriteFlag & ((uint64_t)1 << Channel)) {
       swPduHandle = lswPduHandle[Channel];
-      lWriteFlag &= ~(1 << Channel);
+      lWriteFlag &= ~((uint64_t)1 << Channel);
       if (STDIO_TX_CAN_HANDLE == swPduHandle) {
       } else {
         InterLeaveCritical();
-        CanIf_TxConfirmation(swPduHandle);
+        if (false == lStopConfirm[Channel]) {
+          CanIf_TxConfirmation(swPduHandle);
+        }
         InterEnterCritical();
       }
     }
@@ -248,7 +243,12 @@ void Can_MainFunction_WriteChannel(uint8_t Channel) {
       if (TRUE == r) {
         logCan(FALSE, Channel, frame.canid, frame.dlc, frame.data);
         InterLeaveCritical();
-        CanIf_TxConfirmation(frame.handle);
+        if (STDIO_TX_CAN_HANDLE == frame.handle) {
+        } else {
+          if (false == lStopConfirm[Channel]) {
+            CanIf_TxConfirmation(frame.handle);
+          }
+        }
         InterEnterCritical();
       }
     }
@@ -263,8 +263,8 @@ void Can_MainFunction_Write(void) {
   }
 }
 
-extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId) {
-  int r;
+extern "C" int Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId) {
+  int r = FALSE;
   uint32_t canid;
   uint8_t dlc;
   uint8_t data[64];
@@ -273,7 +273,7 @@ extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId)
 
   EnterCritical();
   if (Channel < CAN_MAX_HOH) {
-    if (lOpenFlag & (1 << Channel)) {
+    if (lOpenFlag & ((uint64_t)1 << Channel)) {
       canid = byId;
       dlc = sizeof(data);
       InterLeaveCritical();
@@ -284,6 +284,18 @@ extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId)
         for (r = 0; r < dlc; r++) {
           Shell_Input((char)data[r]);
         }
+        r = FALSE;
+      }
+#endif
+#ifdef USE_CANSM
+      if ((TRUE == r) && (CAN_BUSOFF_SIMULAE_CANID == canid)) {
+        ASLOG(INFO, ("[%d] Trigger BusOff\n", Channel));
+        CanIf_ControllerBusOff(Channel);
+        r = FALSE;
+      }
+      if ((TRUE == r) && (CAN_TX_TIMEOUT_SIMULAE_CANID == canid)) {
+        ASLOG(INFO, ("[%d] Trigger TxTimeout\n", Channel));
+        lStopConfirm[Channel] = true;
         r = FALSE;
       }
 #endif
@@ -302,6 +314,35 @@ extern "C" void Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId)
     }
   }
   ExitCritical();
+
+  return r;
+}
+
+extern "C" boolean Can_WakeupCheck() { /* polling method to check wakeup CAN message */
+  boolean bWakeup = FALSE;
+  uint8_t Channel;
+  uint32_t canid;
+  uint8_t dlc;
+  uint8_t data[64];
+  bool r;
+
+  EnterCritical();
+  for (Channel = 0; Channel < CAN_MAX_HOH; Channel++) {
+    if (lOpenFlag & ((uint64_t)1 << Channel)) {
+      canid = -1;
+      dlc = sizeof(data);
+      InterLeaveCritical();
+      r = can_read(lBusIdMap[Channel], &canid, &dlc, data);
+      InterEnterCritical();
+      if (TRUE == r) {
+        bWakeup = TRUE;
+        break;
+      }
+    }
+  }
+  ExitCritical();
+
+  return bWakeup;
 }
 
 void Can_MainFunction_ReadChannel(uint8_t Channel) {
@@ -315,28 +356,15 @@ void Can_MainFunction_Read(void) {
   }
 }
 
-extern "C" int stdio_can_put(uint8_t *data, uint8_t dlc) {
-  Std_ReturnType ret;
-  Can_PduType PduInfo;
-  PduInfo.id = STDIO_TX_CANID;
-  PduInfo.length = dlc;
-  PduInfo.sdu = data;
-  PduInfo.swPduHandle = STDIO_TX_CAN_HANDLE;
+extern "C" void Can_Wait(uint8_t Channel, uint32_t canid, uint32_t timeoutMs) {
 
-  ret = Can_Write(0, &PduInfo);
-
-  return (int)ret;
-}
-
-extern "C" int trace_can_put(uint8_t *data, uint8_t dlc) {
-  Std_ReturnType ret;
-  Can_PduType PduInfo;
-  PduInfo.id = TRACE_TX_CANID;
-  PduInfo.length = dlc;
-  PduInfo.sdu = data;
-  PduInfo.swPduHandle = TRACE_TX_CAN_HANDLE;
-
-  ret = Can_Write(0, &PduInfo);
-
-  return (int)ret;
+  EnterCritical();
+  if (Channel < CAN_MAX_HOH) {
+    if (lOpenFlag & ((uint64_t)1 << Channel)) {
+      InterLeaveCritical();
+      (void)can_wait(lBusIdMap[Channel], canid, timeoutMs);
+      InterEnterCritical();
+    }
+  }
+  ExitCritical();
 }

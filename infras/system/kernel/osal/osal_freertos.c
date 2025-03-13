@@ -10,6 +10,9 @@
 #include "task.h"
 #include "Std_Compiler.h"
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef configMINIMAL_SECURE_STACK_SIZE
+#define configMINIMAL_SECURE_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 void StartupHook(void);
@@ -20,7 +23,7 @@ FUNC(void, __weak) StartupHook(void) {
 FUNC(void, __weak) TaskIdleHook(void) {
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void vApplicationIdleHook(void) {
+FUNC(void, __weak) vApplicationIdleHook(void) {
   TaskIdleHook();
 }
 
@@ -44,6 +47,10 @@ int OSAL_ThreadJoin(OSAL_ThreadType thread) {
     /* When task exited, the state is ready */
   } while (eReady != state);
 
+  return 0;
+}
+
+int OSAL_ThreadDestory(OSAL_ThreadType thread) {
   vTaskDelete((TaskHandle_t)thread);
   return 0;
 }

@@ -14,7 +14,11 @@
 #define LINTP_CFG_N_Bs 1000
 #endif
 #ifndef LINTP_CFG_N_Cr
+#ifdef _WIN32
+#define LINTP_CFG_N_Cr 1000
+#else
 #define LINTP_CFG_N_Cr 200
+#endif
 #endif
 
 #ifndef LINTP_CFG_STMIN
@@ -52,7 +56,7 @@ static LinTp_ChannelConfigType LinTpChannelConfigs[] = {
     LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_Cr),
     LINTP_CFG_STMIN,
     LINTP_CFG_BS,
-    0 /* N_TA */,
+    1 /* N_TA */,
     LINTP_CFG_RX_WFT_MAX,
     LINTP_LL_DL,
     LINTP_CFG_PADDING,

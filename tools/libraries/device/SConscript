@@ -2,30 +2,43 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob('src/*.c')
-objs += Glob('src/*/*.c')
-
-
+objs = Glob("src/*.cpp")
+objs += Glob("src/*/*.c")
+objs += Glob("src/*/*.cpp")
 
 
 @register_library
 class LibraryDevLib(Library):
     def config(self):
-        self.include = '%s/include' % (CWD)
-        self.LIBS = ['RS232']
+        self.include = "%s/include" % (CWD)
+        self.LIBS = ["RS232", "Utils"]
         if IsBuildForWindows():
-            self.LIBS += ['TcpIp', 'StdTimer', 'wsock32']
-        self.CPPPATH = ['$INFRAS', '%s/src' % (CWD)]
+            self.LIBS += ["TcpIp", "StdTimer", "wsock32"]
+        self.CPPPATH = ["$INFRAS", "%s/src" % (CWD)]
         self.source = objs
 
 
-objsLinSim = Glob('utils/lin_simulator.c')
+objsLinSim = Glob("utils/lin_simulator.c")
 
 
 @register_application
 class ApplicationLinSimulator(Application):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
         if IsBuildForWindows():
-            self.LIBS = ['TcpIp', 'StdTimer', 'wsock32', 'Utils']
+            self.LIBS = ["TcpIp", "StdTimer", "wsock32", "Utils"]
         self.source = objsLinSim
+        self.Install("../one")
+
+
+objsLinSimV2 = Glob("utils/lin_simulator_v2.c")
+
+
+@register_application
+class ApplicationLinSimulatorV2(Application):
+    def config(self):
+        self.CPPPATH = ["$INFRAS"]
+        if IsBuildForWindows():
+            self.LIBS = ["TcpIp", "StdTimer", "wsock32", "Utils"]
+        self.source = objsLinSimV2
+        self.Install("../one")

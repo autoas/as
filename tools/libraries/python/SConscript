@@ -12,14 +12,14 @@ class LibraryAsPy(Library):
     compiler = 'PYCC'
 
     def config(self):
-        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'LoaderApp', 'Utils']
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ['$INFRAS', '%s/../../asone/src/one/include' % (CWD)]
+        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils', 'StdBit']
         self.source = objs
         INSTALL_DIR = os.path.abspath('%s/../../asone/one' % (CWD))
         if IsBuildForWindows():
             cmd = 'cp -v %s/AsPy.dll %s/AsPy.pyd' % (BUILD_DIR, INSTALL_DIR)
             self.AddPostAction(cmd)
         else:
-            cmd = 'cp -v %s/AsPy.so %s/AsPy.so' % (BUILD_DIR, INSTALL_DIR)
+            cmd = 'cp -v %s/libAsPy.so %s/AsPy.so' % (BUILD_DIR, INSTALL_DIR)
             self.AddPostAction(cmd)
