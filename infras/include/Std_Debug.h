@@ -23,6 +23,9 @@ extern "C" {
 #ifndef AS_LOG_DEFAULT
 #define AS_LOG_DEFAULT std_get_log_level()
 #endif
+#define AS_LOG_LEVEL(lvl) std_get_as_log_level(#lvl)
+#else
+#define AS_LOG_LEVEL(lvl) AS_LOG_##lvl
 #endif
 
 #ifndef AS_LOG_DEFAULT
@@ -38,13 +41,17 @@ extern "C" {
 #endif
 
 #ifndef PRINTF
+#if defined(linux) || defined(_WIN32)
 #define PRINTF printf
+#else
+#define PRINTF(fmt, ...)
+#endif
 #endif
 
 #ifdef USE_STD_DEBUG
 #define ASLOG(level, msg)                                                                          \
   do {                                                                                             \
-    if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
+    if ((AS_LOG_LEVEL(level)) >= AS_LOG_DEFAULT) {                                                 \
       PRINTF("%-8s:", #level);                                                                     \
       PRINTF msg;                                                                                  \
     }                                                                                              \
@@ -52,15 +59,15 @@ extern "C" {
 
 #define ASPRINT(level, msg)                                                                        \
   do {                                                                                             \
-    if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
+    if ((AS_LOG_LEVEL(level)) >= AS_LOG_DEFAULT) {                                                 \
       PRINTF msg;                                                                                  \
     }                                                                                              \
   } while (0)
 
 #define ASHEXDUMP(level, msg, data, size)                                                          \
   do {                                                                                             \
-    if ((AS_LOG_##level) >= AS_LOG_DEFAULT) {                                                      \
-      uint8_t *pData = (uint8_t *)(data);                                                          \
+    if ((AS_LOG_LEVEL(level)) >= AS_LOG_DEFAULT) {                                                 \
+      uint8_t *__pData = (uint8_t *)(data);                                                        \
       uint32_t __index;                                                                            \
       PRINTF("%-8s:", #level);                                                                     \
       PRINTF msg;                                                                                  \
@@ -68,7 +75,7 @@ extern "C" {
         if (0 == (__index & 0x1F)) {                                                               \
           PRINTF("\n  %08X ", __index);                                                            \
         }                                                                                          \
-        PRINTF("%02X ", pData[__index]);                                                           \
+        PRINTF("%02X ", __pData[__index]);                                                         \
       }                                                                                            \
       PRINTF("\n");                                                                                \
     }                                                                                              \
@@ -92,12 +99,13 @@ extern "C" {
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 #ifdef USE_STD_PRINTF
-extern int std_printf(const char *fmt, ...);
+int std_printf(const char *fmt, ...);
 #endif
 #if defined(linux) || defined(_WIN32)
-extern int std_get_log_level(void);
-extern void std_set_log_level(int level);
-extern void std_set_log_name(const char *name);
+int std_get_log_level(void);
+void std_set_log_level(int level);
+int std_get_as_log_level(const char *name);
+void std_set_log_name(const char *name);
 #endif
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

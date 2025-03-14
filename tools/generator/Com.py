@@ -21,9 +21,15 @@ def gen_rx_sig_cfg(sig, C):
     DataInvalidAction = sig.get("DataInvalidAction", "NOTIFY")
     RxDataTimeoutAction = sig.get("RxDataTimeoutAction", "NONE")
     C.write("  &Com_SignalRxContext_%s,\n" % (sig["name"]))
+    C.write("  #ifdef COM_USE_SIGNAL_RX_INVALID_NOTIFICATION\n")
     C.write("  %s, /* InvalidNotification */\n" % (InvalidNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_SIGNAL_RX_NOTIFICATION\n")
     C.write("  %s, /* RxNotification */\n" % (RxNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_SIGNAL_RX_TIMEOUT\n")
     C.write("  %s, /* RxTOut */\n" % (RxTOut))
+    C.write("  #endif\n")
     if "SUBSTITUTE" == RxDataTimeoutAction:
         t0, t1, nBytes = get_signal_info(sig)
         C.write("  %s%s_TimeoutSubstitutionValue,\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["name"]))
@@ -42,8 +48,15 @@ def gen_tx_sig_cfg(sig, C):
     C.write("static const Com_SignalTxConfigType Com_SignalTxConfig_%s = {\n" % (sig["name"]))
     ErrorNotification = sig.get("ErrorNotification", "NULL")
     TxNotification = sig.get("TxNotification", "NULL")
+    C.write("  #ifdef COM_USE_SIGNAL_TX_ERROR_NOTIFICATION\n")
     C.write("  %s, /* ErrorNotification */\n" % (ErrorNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_SIGNAL_TX_NOTIFICATION\n")
     C.write("  %s, /* TxNotification */\n" % (TxNotification))
+    C.write("  #endif\n")
+    C.write("  #if !defined(COM_USE_SIGNAL_TX_ERROR_NOTIFICATION) && !defined(COM_USE_SIGNAL_TX_NOTIFICATION)\n")
+    C.write("  0,\n")
+    C.write("  #endif\n")
     C.write("};\n\n")
 
 
@@ -112,7 +125,10 @@ def gen_signal_timeout_value(sig, C):
 
 
 def gen_sig(network, sig, msg, C, isTx):
-    name = toPduSymbol((network["name"], msg["name"]))
+    if msg["name"].startswith(network["name"]):
+        name = toMacro(msg["name"])
+    else:
+        name = toPduSymbol((network["name"], msg["name"]))
     C.write("  {\n")
     C.write("#ifdef USE_SHELL\n")
     C.write('    "%s",\n' % (sig["name"]))
@@ -160,34 +176,54 @@ def gen_sig(network, sig, msg, C, isTx):
 
 def gen_rx_msg_cfg(network, msg, C):
     C.write("static const Com_IPduRxConfigType Com_IPduRxConfig_%s = {\n" % (msg["name"]))
+    RxIpduCallout = msg.get("RxIpduCallout", "NULL")
     RxNotification = msg.get("RxNotification", "NULL")
     RxTOut = msg.get("RxTOut", "NULL")
     FirstTimeout = msg.get("FirstTimeout", 0)
     Timeout = msg.get("Timeout", 0)
     C.write("  &Com_IPduRxContext_%s,\n" % (msg["name"]))
+    C.write("  #ifdef COM_USE_RX_NOTIFICATION\n")
     C.write("  %s, /* RxNotification */\n" % (RxNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_RX_TIMEOUT\n")
     C.write("  %s, /* RxTOut */\n" % (RxTOut))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_RX_IPDU_CALLOUT\n")
+    C.write("  %s, /* RxIpduCallout */\n" % (RxIpduCallout))
+    C.write("  #endif\n")
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* FirstTimeout */\n" % (FirstTimeout))
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* Timeout */\n" % (Timeout))
     C.write("};\n\n")
 
 
 def gen_tx_msg_cfg(network, msg, C):
-    name = toPduSymbol((network["name"], msg["name"]))
+    if msg["name"].startswith(network["name"]):
+        name = toMacro(msg["name"])
+    else:
+        name = toPduSymbol((network["name"], msg["name"]))
     C.write("static const Com_IPduTxConfigType Com_IPduTxConfig_%s = {\n" % (msg["name"]))
     ErrorNotification = msg.get("ErrorNotification", "NULL")
     TxNotification = msg.get("TxNotification", "NULL")
     TxIpduCallout = msg.get("TxIpduCallout", "NULL")
     FirstTime = msg.get("FirstTime", 0)
-    CycleTime = msg.get("CycleTime", 1000)
-    C.write("  &Com_IPduTxContext_%s,\n" % (msg["name"]))
+    CycleTime = msg.get("CycleTime", 0)
+    if network["network"] in ["LIN"]:
+        C.write("  NULL,\n")
+    else:
+        C.write("  &Com_IPduTxContext_%s,\n" % (msg["name"]))
+    C.write("  #ifdef COM_USE_TX_ERROR_NOTIFICATION\n")
     C.write("  %s, /* ErrorNotification */\n" % (ErrorNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_TX_NOTIFICATION\n")
     C.write("  %s, /* TxNotification */\n" % (TxNotification))
+    C.write("  #endif\n")
+    C.write("  #ifdef COM_USE_TX_IPDU_CALLOUT\n")
     C.write("  %s, /* TxIpduCallout */\n" % (TxIpduCallout))
+    C.write("  #endif\n")
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* FirstTime */\n" % (FirstTime))
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* CycleTime */\n" % (CycleTime))
     C.write("#ifdef USE_PDUR\n")
-    if msg.get("trigger", False):
+    if msg.get("trigger", False) or network["network"] in ["LIN"]:
         C.write("  (PduIdType)-1 /* trigger transmit */,\n")
     else:
         C.write("  PDUR_%s,\n" % (name.upper()))
@@ -212,10 +248,10 @@ def gen_msg(msg, C, network):
     C.write("    Com_IPduSignals_%s, /* signals */\n" % (msg["name"]))
     if isTx:
         C.write("    NULL, /* rxConfig */\n")
-        if network["network"] in ["LIN"]:
-            C.write("    NULL, /* txConfig */\n")
-        else:
-            C.write("    &Com_IPduTxConfig_%s, /* txConfig */\n" % (msg["name"]))
+        # if network["network"] in ["LIN"]:
+        #     C.write("    NULL, /* txConfig */\n")
+        # else:
+        C.write("    &Com_IPduTxConfig_%s, /* txConfig */\n" % (msg["name"]))
     else:
         C.write("    &Com_IPduRxConfig_%s, /* rxConfig */\n" % (msg["name"]))
         C.write("    NULL, /* txConfig */\n")
@@ -236,7 +272,7 @@ def Gen_Com(cfg, dir):
     H.write("#define COM_CONST\n")
     H.write("#endif\n\n")
     H.write("#ifndef COM_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define COM_MAIN_FUNCTION_PERIOD 10\n")
+    H.write("#define COM_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define COM_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + COM_MAIN_FUNCTION_PERIOD - 1) / COM_MAIN_FUNCTION_PERIOD)\n\n")
@@ -254,7 +290,10 @@ def Gen_Com(cfg, dir):
         IF = "if"
         for msg in network["messages"]:
             if msg["node"] != network["me"]:
-                name = "%s_%s" % (network["name"], toMacro(msg["name"]))
+                if msg["name"].startswith(network["name"]):
+                    name = toMacro(msg["name"])
+                else:
+                    name = toPduSymbol((network["name"], msg["name"]))
                 H.write("  %s (0x%X == id) { \\\n" % (IF, msg["id"]))
                 H.write("    Com_RxIndication(COM_%s, PduInfoPtr); \\\n" % (name.upper()))
                 H.write("  }")
@@ -273,7 +312,10 @@ def Gen_Com(cfg, dir):
         IF = "if"
         for msg in network["messages"]:
             if msg["node"] == network["me"]:
-                name = "%s_%s" % (network["name"], toMacro(msg["name"]))
+                if msg["name"].startswith(network["name"]):
+                    name = toMacro(msg["name"])
+                else:
+                    name = toPduSymbol((network["name"], msg["name"]))
                 H.write("  %s ((COM_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n" % (IF, name.upper()))
                 if network["network"] == "CAN":
                     H.write("    dlPdu.id = 0x%X; \\\n" % (msg["id"]))
@@ -289,7 +331,10 @@ def Gen_Com(cfg, dir):
     for network in cfg["networks"]:
         H.write("/* messages for network %s */\n" % (network["name"]))
         for msg in network["messages"]:
-            name = "%s_%s" % (network["name"], toMacro(msg["name"]))
+            if msg["name"].startswith(network["name"]):
+                name = toMacro(msg["name"])
+            else:
+                name = toPduSymbol((network["name"], msg["name"]))
             H.write("#define COM_%s %s\n" % (name.upper(), PDU_ID))
             PDU_ID += 1
         H.write("\n")
@@ -322,6 +367,78 @@ def Gen_Com(cfg, dir):
         for msg in network["messages"]:
             H.write("#define Com_IPdu%s_GroupRefMask (1<<COM_GROUP_ID_%s)\n" % (msg["name"], network["name"]))
     H.write("\n#define COM_USE_MAIN_FAST\n\n")
+    bHasTxErrorNotification = False
+    bHasTxNotification = False
+    bHasTxIpduCallout = False
+    bHasSignalTxErrorNotification = False
+    bHasSignalTxNotification = False
+    bHasRxNotification = False
+    bHasRxTOut = False
+    bHasRxIpduCallout = False
+    bHasSignalRxInvalidNotification = False
+    bHasSignalRxRxNotification = False
+    bHasSignalRxRxTOut = False
+    for network in cfg["networks"]:
+        for msg in network["messages"]:
+            if msg["node"] == network["me"]:
+                ErrorNotification = msg.get("ErrorNotification", "NULL")
+                TxNotification = msg.get("TxNotification", "NULL")
+                TxIpduCallout = msg.get("TxIpduCallout", "NULL")
+                if ErrorNotification != "NULL":
+                    bHasTxErrorNotification = True
+                if TxNotification != "NULL":
+                    bHasTxNotification = True
+                if TxIpduCallout != "NULL":
+                    bHasTxIpduCallout = True
+                for sig in msg["signals"]:
+                    ErrorNotification = sig.get("ErrorNotification", "NULL")
+                    TxNotification = sig.get("TxNotification", "NULL")
+                    if ErrorNotification != "NULL":
+                        bHasSignalTxErrorNotification = True
+                    if TxNotification != "NULL":
+                        bHasSignalTxNotification = True
+            else:
+                RxIpduCallout = msg.get("RxIpduCallout", "NULL")
+                RxNotification = msg.get("RxNotification", "NULL")
+                RxTOut = msg.get("RxTOut", "NULL")
+                if RxNotification != "NULL":
+                    bHasRxNotification = True
+                if RxTOut != "NULL":
+                    bHasRxTOut = True
+                if RxIpduCallout != "NULL":
+                    bHasRxIpduCallout = True
+                for sig in msg["signals"]:
+                    InvalidNotification = sig.get("InvalidNotification", "NULL")
+                    RxNotification = sig.get("RxNotification", "NULL")
+                    RxTOut = sig.get("RxTOut", "NULL")
+                    if InvalidNotification != "NULL":
+                        bHasSignalRxInvalidNotification = True
+                    if RxNotification != "NULL":
+                        bHasSignalRxRxNotification = True
+                    if RxTOut != "NULL":
+                        bHasSignalRxRxTOut = True
+    if bHasTxErrorNotification:
+        H.write("#define COM_USE_TX_ERROR_NOTIFICATION\n")
+    if bHasTxNotification:
+        H.write("#define COM_USE_TX_NOTIFICATION\n")
+    if bHasTxIpduCallout:
+        H.write("#define COM_USE_TX_IPDU_CALLOUT\n")
+    if bHasSignalTxErrorNotification:
+        H.write("#define COM_USE_SIGNAL_TX_ERROR_NOTIFICATION\n")
+    if bHasSignalTxNotification:
+        H.write("#define COM_USE_SIGNAL_TX_NOTIFICATION\n")
+    if bHasRxNotification:
+        H.write("#define COM_USE_RX_NOTIFICATION\n")
+    if bHasRxTOut:
+        H.write("#define COM_USE_RX_TIMEOUT\n")
+    if bHasRxIpduCallout:
+        H.write("#define COM_USE_RX_IPDU_CALLOUT\n")
+    if bHasSignalRxInvalidNotification:
+        H.write("#define COM_USE_SIGNAL_RX_INVALID_NOTIFICATION\n")
+    if bHasSignalRxRxNotification:
+        H.write("#define COM_USE_SIGNAL_RX_NOTIFICATION\n")
+    if bHasSignalRxRxTOut:
+        H.write("#define COM_USE_SIGNAL_RX_TIMEOUT\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -362,12 +479,15 @@ def Gen_Com(cfg, dir):
                     if TxNotification != "NULL":
                         C.write("extern void %s(void);\n" % (TxNotification))
             else:
+                RxIpduCallout = msg.get("RxIpduCallout", "NULL")
                 RxNotification = msg.get("RxNotification", "NULL")
                 RxTOut = msg.get("RxTOut", "NULL")
                 if RxNotification != "NULL":
                     C.write("extern void %s(void);\n" % (RxNotification))
                 if RxTOut != "NULL":
                     C.write("extern void %s(void);\n" % (RxTOut))
+                if RxIpduCallout != "NULL":
+                    C.write("extern boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr);\n" % (RxIpduCallout))
                 for sig in msg["signals"]:
                     InvalidNotification = sig.get("InvalidNotification", "NULL")
                     RxNotification = sig.get("RxNotification", "NULL")
@@ -403,7 +523,7 @@ def Gen_Com(cfg, dir):
         for msg in network["messages"]:
             dynLen = msg["signals"][-1].get("dyn", False)
             if dynLen:
-                C.write("static uint8_t %s_dynLen = %s;\n" % (msg["name"], msg["dlc"]))
+                C.write("static Com_DataLengthType %s_dynLen = %s;\n" % (msg["name"], msg["dlc"]))
             if msg["node"] == network["me"]:
                 if network["network"] in ["LIN"]:
                     continue
@@ -439,8 +559,8 @@ def Gen_Com(cfg, dir):
             gen_cfg = gen_rx_msg_cfg
             if msg["node"] == network["me"]:  # is Tx message
                 gen_cfg = gen_tx_msg_cfg
-                if network["network"] in ["LIN"]:
-                    continue
+                # if network["network"] in ["LIN"]:
+                #     continue
             gen_cfg(network, msg, C)
     C.write("static const Com_IPduConfigType Com_IPduConfigs[] = {\n")
     for network in cfg["networks"]:
@@ -545,10 +665,26 @@ def post(cfg):
         for msg in network["messages"]:
             msg["id"] = toNum(msg["id"])
             if msg["node"] == network["me"]:
+                if "TX" not in toMacro(msg["name"]):
+                    msg["name"] += "_TX"
                 txmsgs.append(msg)
             else:
+                if "RX" not in toMacro(msg["name"]):
+                    msg["name"] += "_RX"
                 rxmsgs.append(msg)
         network["messages"] = txmsgs + rxmsgs
+    messages = {}
+    # post process to ensure message has unique name
+    for network in cfg["networks"]:
+        for msg in network["messages"]:
+            if msg["name"] not in messages:
+                messages[msg["name"]] = [(network, msg)]
+            else:
+                messages[msg["name"]].append((network, msg))
+    for msgName, L in messages.items():
+        if len(L) > 1:
+            for network, msg in L:
+                msg["name"] = "_".join([network["name"], msg["name"]])
     # post process to ensure signal has unique name
     signals = {}
     for network in cfg["networks"]:
@@ -609,11 +745,14 @@ def post(cfg):
     # auto add message tx callout
     for network in cfg["networks"]:
         enabledTxCallout = network.get("enable_message_tx_callout", False)
+        enabledRxCallout = network.get("enable_message_rx_callout", False)
         for msg in network["messages"]:
             if msg["node"] != network["me"]:
-                continue  # do nothing for RxMsg
-            if enabledTxCallout and "TxIpduCallout" not in msg:
-                msg["TxIpduCallout"] = "%s_%s_TxIpduCallout" % (network["name"], msg["name"])
+                if enabledRxCallout and "RxIpduCallout" not in msg:
+                    msg["RxIpduCallout"] = "%s_%s_RxIpduCallout" % (network["name"], msg["name"])
+            else:
+                if enabledTxCallout and "TxIpduCallout" not in msg:
+                    msg["TxIpduCallout"] = "%s_%s_TxIpduCallout" % (network["name"], msg["name"])
 
 
 def ldf2dbc(ldfPath, dbcPath):

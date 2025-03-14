@@ -6,6 +6,9 @@
 #ifndef _STD_COMPILER_H
 #define _STD_COMPILER_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #if defined(__GNUC__)
 #elif defined(__CWCC__)
@@ -13,13 +16,28 @@
 #elif defined(__ICCHCS12__)
 #elif defined(__ICCARM__)
 #elif defined(__CC_ARM)
+#elif defined(__CSP__)
+#elif defined(__ghs__)
 #else
 #define __weak
 #define __naked
 #define __packed
 #define __constructor
 #endif
-
+#ifdef __cplusplus
+#define INITIALIZER(f)                                                                             \
+  static void f(void);                                                                             \
+  class f##Ctor {                                                                                  \
+  public:                                                                                          \
+    f##Ctor() {                                                                                    \
+      f();                                                                                         \
+    }                                                                                              \
+    ~f##Ctor() {                                                                                   \
+    }                                                                                              \
+  };                                                                                               \
+  static f##Ctor s_##f##Ctor;                                                                      \
+  static void f(void)
+#else
 #if defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
 #define INITIALIZER2_(f, p)                                                                        \
@@ -36,8 +54,9 @@
   static void f(void) __attribute__((constructor));                                                \
   static void f(void)
 #endif
+#endif /* __cplusplus */
 
-#if defined(__HIWARE__)
+#if defined(__HIWARE__) /* MC9S12 codewarrior compiler */
 #define inline
 #endif
 
@@ -129,4 +148,7 @@ typedef void *void_ptr_t;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+#ifdef __cplusplus
+}
+#endif
 #endif /* _STD_COMPILER_H */

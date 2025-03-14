@@ -13,10 +13,17 @@
 #define COM_SERVICE_NOT_AVAILABLE ((Std_ReturnType)0x80)
 #define COM_BUSY ((Std_ReturnType)0x81)
 
+/* @SWS_Com_91014 */
+#define COM_E_PARAM 0x01
+#define COM_E_UNINIT 0x02
+#define COM_E_PARAM_POINTER 0x03
+#define COM_E_INIT_FAILED 0x04
+#define COM_E_INVALID_SIGNALID 0x05
+#define COM_E_INVALID_RXPDUID 0x06
+#define COM_E_INVALID_TXPDUID 0x07
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Com_00819 */
-typedef enum
-{
+typedef enum {
   COM_INIT,
   COM_UNINIT
 } Com_StatusType;
@@ -137,4 +144,6 @@ void Com_MainFunctionTx(void);
 void Com_MainFunctionRouteSignals(void);
 
 void Com_MainFunction(void);
+
+void Com_MainFunction_Fast(void);
 #endif /* _COM_H */

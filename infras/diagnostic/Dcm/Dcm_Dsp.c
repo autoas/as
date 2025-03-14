@@ -7,12 +7,12 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Dcm.h"
 #include "Dcm_Cfg.h"
-#include "Dcm_Internal.h"
+#include "Dcm_Priv.h"
 #include "Std_Debug.h"
 #include "Dem.h"
 #include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_DCM 1
+#define AS_LOG_DCM 0
 #define AS_LOG_DCME 3
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -20,7 +20,8 @@
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
 Std_ReturnType Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
-                                          const Dcm_RoutineControlType *rtCtrl,
+                                          P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
+                                            rtCtrl,
                                           Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3;
@@ -39,7 +40,8 @@ Std_ReturnType Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_Op
 }
 
 Std_ReturnType Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
-                                         const Dcm_RoutineControlType *rtCtrl,
+                                         P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
+                                           rtCtrl,
                                          Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3;
@@ -52,7 +54,7 @@ Std_ReturnType Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpS
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x01;
+    msgContext->resData[0] = 0x02;
     msgContext->resData[1] = (rtCtrl->id >> 8) & 0xFF;
     msgContext->resData[2] = rtCtrl->id & 0xFF;
     msgContext->resDataLen = 3 + currentDataLength;
@@ -63,7 +65,8 @@ Std_ReturnType Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpS
 
 Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
                                            Dcm_OpStatusType OpStatus,
-                                           const Dcm_RoutineControlType *rtCtrl,
+                                           P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
+                                             rtCtrl,
                                            Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3;
@@ -74,7 +77,7 @@ Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
     *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
   }
   if (E_OK == r) {
-    msgContext->resData[0] = 0x01;
+    msgContext->resData[0] = 0x03;
     msgContext->resData[1] = (rtCtrl->id >> 8) & 0xFF;
     msgContext->resData[2] = rtCtrl->id & 0xFF;
     msgContext->resDataLen = 3 + currentDataLength;
@@ -87,8 +90,8 @@ Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
 #ifdef DCM_USE_SERVICE_DYNAMICALLY_DEFINE_DATA_IDENTIFIER
 void Dcm_DDDID_Init(void) {
   int i;
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_DDDIDConfigType *DDDID;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID;
   for (i = 0; i < config->numOfDDDIDs; i++) {
     DDDID = &config->DDDIDs[i];
     memset(DDDID->context, 0, sizeof(Dcm_DDDIDContextType));
@@ -100,7 +103,7 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
                                     Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   uint16_t defID;
   uint16_t srcID;
   uint8_t position;
@@ -108,8 +111,8 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
   uint16_t length = 0;
   int i, j;
   uint16_t numOfDIDs = (msgContext->reqDataLen - 3) / 4;
-  const Dcm_DDDIDConfigType *DDDID;
-  const Dcm_rDIDConfigType *rDID;
+  P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID;
+  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDID;
   Dcm_DDDIDEntryType *entry;
   Dcm_SesSecAccessType SesSecAccess = {0xFF,
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
@@ -265,8 +268,8 @@ Std_ReturnType Dcm_DspDefineDIDByMemoryAddress(Dcm_MsgContextType *msgContext,
 Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext, Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   uint16_t defID;
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_DDDIDConfigType *DDDID = NULL;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID = NULL;
   int i;
 
   if (msgContext->reqDataLen == 3) {
@@ -296,16 +299,16 @@ Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
   return r;
 }
 #endif
-/* ================================ [ FUNCTIONS ] ==============================================
- */
+/* ================================ [ FUNCTIONS ] ============================================== */
 Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc) {
 
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_SessionControlConfigType *sesCtrlConfig =
-    (const Dcm_SessionControlConfigType *)context->curService->config;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_SessionControlConfigType, AUTOMATIC, DCM_CONST)
+  sesCtrlConfig =
+    (P2CONST(Dcm_SessionControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   Dcm_SesCtrlType sesCtrl = msgContext->reqData[0];
   int i;
   uint16_t u16V;
@@ -328,6 +331,11 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     r = sesCtrlConfig->GetSesChgPermissionFnc(context->currentSession, sesCtrl, nrc);
+    if (E_OK == r) {
+      if (DCM_E_RESPONSE_PENDING == *nrc) {
+        r = DCM_E_PENDING; /* pending on session check */
+      }
+    }
   }
 
   if (E_OK == r) {
@@ -337,16 +345,15 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
     Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01111 */
 #endif
-    u16V = config->timing->S3Server * DCM_MAIN_FUNCTION_PERIOD;
+    u16V = config->timing->P2ServerMax * DCM_MAIN_FUNCTION_PERIOD;
     msgContext->resData[0] = sesCtrl;
-    msgContext->resData[1] = (u16V >> 8) & 0xFF;
+    msgContext->resData[1] = (u16V >> 8) & 0xFF; /* P2Server_max */
     msgContext->resData[2] = u16V & 0xFF;
-    u16V = config->timing->P2ServerMax * DCM_MAIN_FUNCTION_PERIOD / 10;
-    msgContext->resData[3] = (u16V >> 8) & 0xFF;
+    u16V = config->timing->P2StarServerMax * DCM_MAIN_FUNCTION_PERIOD / 10;
+    msgContext->resData[3] = (u16V >> 8) & 0xFF; /* P2*Server_max */
     msgContext->resData[4] = u16V & 0xFF;
     msgContext->resDataLen = 5;
     context->timerS3Server = config->timing->S3Server;
-    context->timerP2Server = config->timing->P2ServerMin;
   }
 
   return r;
@@ -356,9 +363,10 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_SecurityAccessConfigType *secAccConfig =
-    (const Dcm_SecurityAccessConfigType *)context->curService->config;
-  const Dcm_SecLevelConfigType *secLevelConfig = NULL;
+  P2CONST(Dcm_SecurityAccessConfigType, AUTOMATIC, DCM_CONST)
+  secAccConfig =
+    (P2CONST(Dcm_SecurityAccessConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_SecLevelConfigType, AUTOMATIC, DCM_CONST) secLevelConfig = NULL;
   Dcm_SecLevelType secLevel = (msgContext->reqData[0] + 1) / 2;
   int i;
 
@@ -369,17 +377,39 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
       }
     }
     if (NULL != secLevelConfig) {
-      r = Dcm_DslIsSessionSupported(context->currentSession, secLevelConfig->sessionMask);
-      if (E_OK != r) {
-        *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION;
+      if (msgContext->reqData[0] & 0x01) { /* request seed */
+        if (1 == msgContext->reqDataLen) {
+          r = E_OK;
+        } else {
+          *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+        }
+      } else {
+        if ((1 + secLevelConfig->keySize) == msgContext->reqDataLen) {
+          r = E_OK;
+        } else {
+          *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+        }
       }
-    } else {
+
+      if (E_OK == r) {
+        r = Dcm_DslIsSessionSupported(context->currentSession, secLevelConfig->sessionMask);
+        if (E_OK != r) {
+          *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION;
+        }
+      }
+    } else { /* @SWS_Dcm_00321 */
       *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
     }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
   }
 
   if (E_OK == r) {
-    if (context->securityDelayTimer > 0) { /* @SWS_Dcm_01350 */
+    if ((context->securityDelayTimer > 0)
+#ifdef DCM_USE_SECURITY_SEED_PROTECTION
+        && (msgContext->reqData[0] & 0x01) /* request seed */
+#endif
+    ) { /* @SWS_Dcm_01350 */
       *nrc = DCM_E_REQUIRED_TIME_DELAY_NOT_EXPIRED;
       r = E_NOT_OK;
     }
@@ -387,17 +417,9 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     if (msgContext->reqData[0] & 0x01) { /* request seed */
-      if (1 == msgContext->reqDataLen) {
-        r = Dcm_DslSecurityAccessRequestSeed(msgContext, secLevelConfig, nrc);
-      } else {
-        *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
-      }
+      r = Dcm_DslSecurityAccessRequestSeed(msgContext, secLevelConfig, nrc);
     } else {
-      if ((1 + secLevelConfig->keySize) == msgContext->reqDataLen) {
-        r = Dcm_DslSecurityAccessCompareKey(msgContext, secLevelConfig, nrc);
-      } else {
-        *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
-      }
+      r = Dcm_DslSecurityAccessCompareKey(msgContext, secLevelConfig, nrc);
     }
   }
   return r;
@@ -409,9 +431,10 @@ Std_ReturnType Dcm_DspRoutineControl(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_RoutineControlConfigType *rtCtrlConfig =
-    (const Dcm_RoutineControlConfigType *)context->curService->config;
-  const Dcm_RoutineControlType *rtCtrl = NULL;
+  P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST)
+  rtCtrlConfig =
+    (P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl = NULL;
   uint16_t id;
   int i;
 
@@ -457,9 +480,10 @@ Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
                                       Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_RequestDownloadConfigType *rdConfig =
-    (const Dcm_RequestDownloadConfigType *)context->curService->config;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_RequestDownloadConfigType, AUTOMATIC, DCM_CONST)
+  rdConfig =
+    (P2CONST(Dcm_RequestDownloadConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   uint8_t dataFormatIdentifier;
   uint8_t memorySizeLen;
   uint8_t memoryAddressLen;
@@ -530,9 +554,10 @@ Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
                                     Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_RequestUploadConfigType *ruConfig =
-    (const Dcm_RequestUploadConfigType *)context->curService->config;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_RequestUploadConfigType, AUTOMATIC, DCM_CONST)
+  ruConfig =
+    (P2CONST(Dcm_RequestUploadConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   uint8_t dataFormatIdentifier;
   uint8_t memorySizeLen;
   uint8_t memoryAddressLen;
@@ -603,8 +628,9 @@ Std_ReturnType Dcm_DspTransferData(Dcm_MsgContextType *msgContext,
                                    Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_TransferDataConfigType *tfdConfig =
-    (const Dcm_TransferDataConfigType *)context->curService->config;
+  P2CONST(Dcm_TransferDataConfigType, AUTOMATIC, DCM_CONST)
+  tfdConfig =
+    (P2CONST(Dcm_TransferDataConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   uint32_t memoryAddress = context->UDTData.memoryAddress + context->UDTData.offset;
   uint32_t memorySize = context->UDTData.memorySize - context->UDTData.offset;
   Dcm_ReturnWriteMemoryType retW;
@@ -695,6 +721,7 @@ Std_ReturnType Dcm_DspTransferData(Dcm_MsgContextType *msgContext,
       }
     }
   }
+
   return r;
 }
 #endif
@@ -704,8 +731,9 @@ Std_ReturnType Dcm_DspRequestTransferExit(Dcm_MsgContextType *msgContext,
                                           Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_TransferExitConfigType *tfeConfig =
-    (const Dcm_TransferExitConfigType *)context->curService->config;
+  P2CONST(Dcm_TransferExitConfigType, AUTOMATIC, DCM_CONST)
+  tfeConfig =
+    (P2CONST(Dcm_TransferExitConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
 
   if (0 == msgContext->reqDataLen) {
     r = E_OK;
@@ -739,8 +767,8 @@ Std_ReturnType Dcm_DspRequestTransferExit(Dcm_MsgContextType *msgContext,
 Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_EcuResetConfigType *rstConfig =
-    (const Dcm_EcuResetConfigType *)context->curService->config;
+  P2CONST(Dcm_EcuResetConfigType, AUTOMATIC, DCM_CONST)
+  rstConfig = (P2CONST(Dcm_EcuResetConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   if (1 == msgContext->reqDataLen) {
     r = E_OK;
   } else {
@@ -783,9 +811,9 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
                                            Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ReadDIDConfigType *rDidConfig =
-    (const Dcm_ReadDIDConfigType *)context->curService->config;
-  const Dcm_ReadDIDType *rDid = NULL;
+  P2CONST(Dcm_ReadDIDConfigType, AUTOMATIC, DCM_CONST)
+  rDidConfig = (P2CONST(Dcm_ReadDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_ReadDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   uint16_t id;
   uint16_t numOfDids = 0;
   Dcm_MsgLenType totalResLength = 0;
@@ -878,14 +906,56 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
 }
 #endif
 
+#ifdef DCM_USE_SERVICE_READ_SCALING_DATA_BY_IDENTIFIER
+Std_ReturnType Dcm_DspReadScalingDataByIdentifier(Dcm_MsgContextType *msgContext,
+                                                  Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+  P2CONST(Dcm_ReadScalingDIDConfigType, AUTOMATIC, DCM_CONST)
+  rDidConfig =
+    (P2CONST(Dcm_ReadScalingDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDid = NULL;
+  uint16_t id;
+  int i;
+
+  if (2 == msgContext->reqDataLen) {
+    id = ((uint16_t)msgContext->reqData[0] << 8) + msgContext->reqData[1];
+    for (i = 0; i < rDidConfig->numOfDIDs; i++) {
+      if (rDidConfig->DIDs[i].id == id) {
+        rDid = &rDidConfig->DIDs[i];
+        break;
+      }
+    }
+    if (NULL != rDid) {
+      r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->SesSecAccess, nrc);
+    } else {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+      r = E_NOT_OK;
+    }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+    r = E_NOT_OK;
+  }
+
+  if (E_OK == r) {
+    msgContext->resData[0] = (rDid->id >> 8) & 0xFF;
+    msgContext->resData[1] = rDid->id & 0xFF;
+    r = rDid->readDIdFnc(context->opStatus, &msgContext->resData[2], rDid->length, nrc);
+    msgContext->resDataLen = 2 + rDid->length;
+  }
+
+  return r;
+}
+#endif
+
 #ifdef DCM_USE_SERVICE_WRITE_DATA_BY_IDENTIFIER
 Std_ReturnType Dcm_DspWriteDataByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_WriteDIDConfigType *wDidConfig =
-    (const Dcm_WriteDIDConfigType *)context->curService->config;
-  const Dcm_WriteDIDType *wDid = NULL;
+  P2CONST(Dcm_WriteDIDConfigType, AUTOMATIC, DCM_CONST)
+  wDidConfig = (P2CONST(Dcm_WriteDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_WriteDIDType, AUTOMATIC, DCM_CONST) wDid = NULL;
   uint16_t id;
   int i;
 
@@ -908,6 +978,13 @@ Std_ReturnType Dcm_DspWriteDataByIdentifier(Dcm_MsgContextType *msgContext,
   } else {
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     r = E_NOT_OK;
+  }
+
+  if (E_OK == r) {
+    if ((wDid->length + 2) != msgContext->reqDataLen) {
+      *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      r = E_NOT_OK;
+    }
   }
 
   if (E_OK == r) {
@@ -1254,13 +1331,59 @@ Dem_DspReportMirrorMemoryDTCExtendedDataRecordByDTCNumber(Dcm_MsgContextType *ms
                                                             DEM_DTC_ORIGIN_MIRROR_MEMORY);
 }
 
+Std_ReturnType Dem_DspReportSupportedDTC(Dcm_MsgContextType *msgContext,
+                                         Dcm_NegativeResponseCodeType *nrc) {
+  Std_ReturnType r = E_NOT_OK;
+  uint16_t NumberOfFilteredDTC = 0;
+  uint32_t DTCNumber;
+  Dem_UdsStatusByteType udsStatus;
+  int i;
+
+  if (1 == msgContext->reqDataLen) {
+    r = Dem_SetDTCFilter(0, 0, DEM_DTC_FORMAT_UDS, DEM_DTC_ORIGIN_PRIMARY_MEMORY, FALSE, 0, FALSE);
+    if (E_OK == r) {
+      r = Dem_GetNumberOfFilteredDTC(0, &NumberOfFilteredDTC);
+    }
+
+    if (E_OK == r) {
+      if ((NumberOfFilteredDTC * 4 + 2) <= msgContext->resMaxDataLen) {
+        msgContext->resData[0] = msgContext->reqData[0];
+        msgContext->resData[1] = udsStatus;
+        for (i = 0; (i < NumberOfFilteredDTC) && (E_OK == r); i++) {
+          r = Dem_GetNextFilteredDTC(0, &DTCNumber, &udsStatus);
+          if (E_OK == r) {
+            msgContext->resData[2 + 4 * i] = (uint8_t)((DTCNumber >> 16) & 0xFF);
+            msgContext->resData[3 + 4 * i] = (uint8_t)((DTCNumber >> 8) & 0xFF);
+            msgContext->resData[4 + 4 * i] = (uint8_t)(DTCNumber & 0xFF);
+            msgContext->resData[5 + 4 * i] = udsStatus;
+          }
+        }
+        if (E_OK == r) {
+          msgContext->resDataLen = NumberOfFilteredDTC * 4 + 2;
+        } else {
+          *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+        }
+      } else {
+        *nrc = DCM_E_RESPONSE_TOO_LONG;
+        r = E_NOT_OK;
+      }
+    } else {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+    }
+  } else {
+    *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+  }
+
+  return r;
+}
+
 Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
                                          Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ReadDTCInfoConfigType *config =
-    (const Dcm_ReadDTCInfoConfigType *)context->curService->config;
-  const Dcm_ReadDTCSubFunctionConfigType *subFunction = NULL;
+  P2CONST(Dcm_ReadDTCInfoConfigType, AUTOMATIC, DCM_CONST)
+  config = (P2CONST(Dcm_ReadDTCInfoConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_ReadDTCSubFunctionConfigType, AUTOMATIC, DCM_CONST) subFunction = NULL;
   uint8_t type;
   int i;
 
@@ -1275,6 +1398,8 @@ Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
     }
     if (E_OK != r) {
       *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
+    } else {
+      r = Dcm_DslServiceSesSecPhyFuncCheck(context, &subFunction->SesSecAccess, nrc);
     }
   } else {
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
@@ -1292,9 +1417,10 @@ Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
 void Dcm_IOCtlByID_Init(void) {
   Dcm_NegativeResponseCodeType nrc = 0;
   uint16_t resDataLen = 0;
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_IOControlConfigType *IOCtlConfig = config->IOCtlConfig;
-  const Dcm_IOControlType *IOCtrl;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST)
+  IOCtlConfig = config->IOCtlConfig;
+  P2CONST(Dcm_IOControlType, AUTOMATIC, DCM_CONST) IOCtrl;
   int i;
   for (i = 0; i < IOCtlConfig->numOfIOCtrls; i++) {
     IOCtrl = &IOCtlConfig->IOCtrls[i];
@@ -1312,14 +1438,14 @@ Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
                                             Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_IOControlConfigType *config =
-    (const Dcm_IOControlConfigType *)context->curService->config;
-  const Dcm_IOControlType *IOCtrl = NULL;
+  P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST)
+  config = (P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_IOControlType, AUTOMATIC, DCM_CONST) IOCtrl = NULL;
   uint16_t id;
   uint8_t action;
   uint16_t resDataLen = msgContext->resMaxDataLen - 3;
   int i;
-  const Dcm_IOCtrlExecuteFncType *ExecuteFncs;
+  P2CONST(Dcm_IOCtrlExecuteFncType, AUTOMATIC, DCM_CONST) ExecuteFncs;
 
   if (msgContext->reqDataLen >= 3) {
     id = ((uint16_t)msgContext->reqData[0] << 8) + msgContext->reqData[1];
@@ -1378,16 +1504,18 @@ Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
                                            Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_CommunicationControlConfigType *config =
-    (const Dcm_CommunicationControlConfigType *)context->curService->config;
-  const Dcm_ComCtrlType *ComCtrl = NULL;
+  P2CONST(Dcm_CommunicationControlConfigType, AUTOMATIC, DCM_CONST)
+  config =
+    (P2CONST(Dcm_CommunicationControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_ComCtrlType, AUTOMATIC, DCM_CONST)
+  ComCtrl = NULL;
   uint8_t id;
   uint8_t comType;
   int i;
 
   if (2 == msgContext->reqDataLen) {
     id = msgContext->reqData[0];
-    comType = msgContext->reqData[2];
+    comType = msgContext->reqData[1];
     for (i = 0; i < config->numOfComCtrls; i++) {
       if (config->ComCtrls[i].id == id) {
         ComCtrl = &config->ComCtrls[i];
@@ -1423,9 +1551,9 @@ Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
 
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
 void Dcm_ReadPeriodicDID_Init(void) {
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = config->rPDIDConfig;
-  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) pDIDConfig = config->rPDIDConfig;
+  P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   int i;
   if (NULL != pDIDConfig) {
     for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
@@ -1437,9 +1565,9 @@ void Dcm_ReadPeriodicDID_Init(void) {
 }
 
 void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void) {
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = config->rPDIDConfig;
-  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) pDIDConfig = config->rPDIDConfig;
+  P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   Dcm_ContextType *context = Dcm_GetContext();
   Dcm_NegativeResponseCodeType nrc;
   bool stopIt;
@@ -1471,9 +1599,9 @@ void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void) {
 void Dcm_MainFunction_ReadPeriodicDID(void) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_ReadPeriodicDIDConfigType *pDIDConfig = config->rPDIDConfig;
-  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) pDIDConfig = config->rPDIDConfig;
+  P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   int i;
   Dcm_MsgType resData = config->txBuffer;
   Dcm_MsgLenType totalResLength;
@@ -1539,9 +1667,10 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
                                                    Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ReadPeriodicDIDConfigType *config =
-    (const Dcm_ReadPeriodicDIDConfigType *)context->curService->config;
-  const Dcm_ReadPeriodicDIDType *rDid = NULL;
+  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST)
+  config =
+    (P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   uint8_t id;
   uint8_t transmissionMode;
   uint16_t numOfDids = 0;
@@ -1570,7 +1699,6 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
       break;
     case DCM_TM_STOP_SENDING:
       reload = 0;
-      break;
       break;
     default:
       *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
@@ -1636,8 +1764,9 @@ Std_ReturnType Dcm_DspIsMemoryValid(uint8_t addressAndLengthFormat, uint8_t attr
                                     Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_DspMemoryConfigType *memoryConfig = config->MemoryConfig;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_DspMemoryConfigType, AUTOMATIC, DCM_CONST)
+  memoryConfig = config->MemoryConfig;
   int i;
 
   if (memoryConfig->AddressAndLengthFormatIdentifiers != NULL) {
@@ -1847,11 +1976,13 @@ Std_ReturnType Dcm_DspDynamicallyDefineDataIdentifier(Dcm_MsgContextType *msgCon
   return r;
 }
 
-Std_ReturnType Dcm_DspReadDDDID(const Dcm_DDDIDConfigType *DDConfig, Dcm_OpStatusType opStatus,
-                                uint8_t *data, uint16_t length, Dcm_NegativeResponseCodeType *nrc) {
+Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDConfig,
+                                Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
+                                Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
-  const Dcm_ConfigType *config = Dcm_GetConfig();
-  const Dcm_rDIDConfigType *rDID;
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST)
+  rDID;
   Dcm_DDDIDEntryType *entry;
   uint8_t *tmp;
   uint16_t offset = 0;
@@ -1929,9 +2060,10 @@ Std_ReturnType Dcm_DspAuthentication(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_AuthenticationConfigType *config =
-    (const Dcm_AuthenticationConfigType *)context->curService->config;
-  const Dcm_AuthenticationType *auth = NULL;
+  P2CONST(Dcm_AuthenticationConfigType, AUTOMATIC, DCM_CONST)
+  config = (P2CONST(Dcm_AuthenticationConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
+  P2CONST(Dcm_AuthenticationType, AUTOMATIC, DCM_CONST)
+  auth = NULL;
   uint8_t id;
   uint16_t len;
   int i;

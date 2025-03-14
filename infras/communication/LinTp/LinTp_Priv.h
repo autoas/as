@@ -6,6 +6,8 @@
 #define LINTP_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_LINTP
+
 #define CanTp_AddressingFormatType LinTp_AddressingFormatType
 #define CanTp_ChannelConfigType LinTp_ChannelConfigType
 #define CanTp_ChannelContextType LinTp_ChannelContextType
@@ -30,13 +32,15 @@
 #define PduR_CanTpCopyRxData PduR_LinTpCopyRxData
 #endif
 
+#define LINTP_PHYSICAL CANTP_PHYSICAL
+
 #define CANTP_MAIN_FUNCTION_PERIOD LINTP_MAIN_FUNCTION_PERIOD
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ ALIAS     ] ============================================== */
-#include "CanTp_Types.h"
+#include "CanTp_Priv.h"
 /* ================================ [ FUNCTIONS ] ============================================== */
 
 #endif /* LINTP_PRIV_H */

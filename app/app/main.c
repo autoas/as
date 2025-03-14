@@ -151,6 +151,7 @@ static void MainTask_10ms(void) {
 #ifdef USE_CAN
 #ifdef USE_CANTP
   CanTp_MainFunction();
+  CanTp_MainFunction_Fast();
 #endif
 #ifdef USE_OSEKNM
   OsekNm_MainFunction();
@@ -271,6 +272,9 @@ static void BSW_Init(void) {
 #ifdef USE_CAN
   Can_Init(NULL);
   Can_SetControllerMode(0, CAN_CS_STARTED);
+#ifdef USE_CANIF
+  CanIf_SetPduMode(0, CANIF_ONLINE);
+#endif
 #ifdef USE_CANTP
   CanTp_Init(NULL);
 #endif

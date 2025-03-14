@@ -1,33 +1,29 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  *
- * ref: Specification of PDU Router AUTOSAR CP Release 4.4.0
+ * ref: Specification of CAN Transceiver Driver AUTOSAR CP R23-11
  */
-#ifndef _PDUR_H
-#define _PDUR_H
+#ifndef CAN_TRCV_H
+#define CAN_TRCV_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "ComStack_Types.h"
+#include "Can_GeneralTypes.h"
 /* ================================ [ MACROS    ] ============================================== */
-/* @SWS_PduR_00100 */
-#define PDUR_E_PDU_ID_INVALID 0x02
-#define PDUR_E_ROUTING_PATH_GROUP_ID_INVALID 0x08
-#define PDUR_E_PARAM_POINTER 0x09
 /* ================================ [ TYPES     ] ============================================== */
-typedef struct PduR_Config_s PduR_ConfigType;
-
-/* @SWS_PduR_00654 */
-typedef uint16_t PduR_RoutingPathGroupIdType;
+typedef struct CanTrcv_Config_s CanTrcv_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-/* @SWS_PduR_00334 */
-void PduR_Init(const PduR_ConfigType *ConfigPtr);
+/* @SWS_CanTrcv_00001 */
+void CanTrcv_Init(const CanTrcv_ConfigType *ConfigPtr);
 
-/* @SWS_PduR_00615 */
-void PduR_EnableRouting(PduR_RoutingPathGroupIdType id);
+/* @SWS_CanTrcv_00002 */
+Std_ReturnType CanTrcv_SetOpMode(uint8_t Transceiver, CanTrcv_TrcvModeType OpMode);
 
-/* @SWS_PduR_00617 */
-void PduR_DisableRouting(PduR_RoutingPathGroupIdType id, boolean initialize);
-#endif /* _PDUR_H */
+/* @SWS_CanTrcv_00005 */
+Std_ReturnType CanTrcv_GetOpMode(uint8_t Transceiver, CanTrcv_TrcvModeType *OpMode);
+
+/* @SWS_CanTrcv_91001 */
+void CanTrcv_DeInit(void);
+#endif /* CAN_TRCV_H */

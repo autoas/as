@@ -47,6 +47,7 @@ static uint8_t u8P2PData[64];
 static LinTp_ChannelConfigType LinTpChannelConfigs[] = {
   {
     /* P2P */
+    u8P2PData,
     CANTP_EXTENDED,
     0,
     0 /* PduR_RxPduId */,
@@ -60,7 +61,7 @@ static LinTp_ChannelConfigType LinTpChannelConfigs[] = {
     LINTP_CFG_RX_WFT_MAX,
     LINTP_LL_DL,
     LINTP_CFG_PADDING,
-    u8P2PData,
+    LINTP_PHYSICAL
   },
 };
 

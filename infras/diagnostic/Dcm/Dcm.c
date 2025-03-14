@@ -7,10 +7,11 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Dcm.h"
 #include "Dcm_Cfg.h"
-#include "Dcm_Internal.h"
+#include "Dcm_Priv.h"
 #include "Std_Debug.h"
 #include "PduR_Dcm.h"
 #include <string.h>
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 0
 #define AS_LOG_DCME 1
@@ -19,20 +20,20 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static Dcm_ContextType Dcm_Context;
-extern const Dcm_ConfigType Dcm_Config;
+extern CONSTANT(Dcm_ConfigType, DCM_CONST) Dcm_Config;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 Dcm_ContextType *Dcm_GetContext(void) {
   return (&Dcm_Context);
 }
 
-const Dcm_ConfigType *Dcm_GetConfig(void) {
+P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) Dcm_GetConfig(void) {
   return (&Dcm_Config);
 }
 
-void Dcm_Init(const Dcm_ConfigType *ConfigPtr) {
+void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) ConfigPtr) {
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
   (void)ConfigPtr;
 
@@ -62,14 +63,14 @@ void Dcm_MainFunction_Response(void) {
   Std_ReturnType r;
   PduInfoType PduInfo;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
   if (DCM_RESPONSE_PENDING == context->responcePending) {
     PduInfo.MetaDataPtr = NULL;
     PduInfo.SduDataPtr = NULL;
     PduInfo.SduLength = 3;
     context->responcePending = DCM_RESPONSE_PENDING_PROVIDED;
-    r = PduR_DcmTransmit(context->curPduId, &PduInfo);
+    r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
     if (E_OK != r) {
       context->responcePending = DCM_RESPONSE_PENDING; /* try next time */
     }
@@ -79,41 +80,54 @@ void Dcm_MainFunction_Response(void) {
     PduInfo.SduLength = context->TxTpSduLength;
     context->txBufferState = DCM_BUFFER_PROVIDED;
     context->TxIndex = 0;
-    ASLOG(DCM, ("Tx %02X %02X ...\n", config->txBuffer[0], config->txBuffer[1]));
-    r = PduR_DcmTransmit(context->curPduId, &PduInfo);
+    ASLOG(DCM, ("Tx %02X %02X %02X ...\n", config->txBuffer[0], config->txBuffer[1],
+                config->txBuffer[2]));
+    r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
     if (E_OK != r) {
-      context->txBufferState = DCM_BUFFER_FULL; /* try next time */
+      /* This Dcm will ensure only 1 tx request, so if Transmit failed, it was a fatal error!*/
+      context->txBufferState = DCM_BUFFER_IDLE;
+      ASLOG(DCME, ("Tx Failed!\n"));
     }
   } else {
     /* do nothing */
   }
 }
 
+Std_ReturnType Dcm_GetRxPduId(PduIdType *PduId) {
+  Std_ReturnType ret = E_OK;
+  Dcm_ContextType *context = Dcm_GetContext();
+
+  DET_VALIDATE(NULL != PduId, 0xF1, DCM_E_PARAM_POINTER, return E_NOT_OK);
+
+  *PduId = context->msgContext.dcmRxPduId;
+
+  return ret;
+}
+
 BufReq_ReturnType Dcm_StartOfReception(PduIdType id, const PduInfoType *info,
                                        PduLengthType TpSduLength, PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+
+  DET_VALIDATE(id < config->numOfChls, 0x46, DCM_E_PARAM, return BUFREQ_E_NOT_OK);
+  DET_VALIDATE((NULL != info) && (NULL != info->SduDataPtr), 0x46, DCM_E_PARAM_POINTER,
+               return BUFREQ_E_NOT_OK);
+  DET_VALIDATE(NULL != bufferSizePtr, 0x46, DCM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
 
   if (DCM_BUFFER_IDLE == context->rxBufferState) {
-    /* only going to support P2P and P2A across all protocal(CAN/OBD/LIN/DOIP, etc)*/
-    if ((DCM_P2P_PDU == id) || (DCM_P2A_PDU == id)) {
-      if (TpSduLength > config->rxBufferSize) {
-        /* @SWS_Dcm_00444 */
-        ret = BUFREQ_E_OVFL;
-      } else if (0 == TpSduLength) {
-        /* @SWS_Dcm_00642 */
-        ret = BUFREQ_E_NOT_OK;
-      } else {
-        *bufferSizePtr = config->rxBufferSize;
-        context->curPduId = id;
-        context->RxIndex = 0;
-        context->RxTpSduLength = TpSduLength;
-        context->rxBufferState = DCM_BUFFER_PROVIDED;
-      }
-    } else {
-      /* @SWS_Dcm_00790 */
+    if (TpSduLength > config->rxBufferSize) {
+      /* @SWS_Dcm_00444 */
+      ret = BUFREQ_E_OVFL;
+    } else if (0 == TpSduLength) {
+      /* @SWS_Dcm_00642 */
       ret = BUFREQ_E_NOT_OK;
+    } else {
+      *bufferSizePtr = config->rxBufferSize;
+      context->curPduId = id;
+      context->RxIndex = 0;
+      context->RxTpSduLength = TpSduLength;
+      context->rxBufferState = DCM_BUFFER_PROVIDED;
     }
   } else {
     if ((2 == TpSduLength) && (0x3E == info->SduDataPtr[0]) && (0x80 == info->SduDataPtr[1]) &&
@@ -134,7 +148,12 @@ BufReq_ReturnType Dcm_CopyRxData(PduIdType id, const PduInfoType *info,
                                  PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+
+  DET_VALIDATE(id < config->numOfChls, 0x44, DCM_E_PARAM, return BUFREQ_E_NOT_OK);
+  DET_VALIDATE((NULL != info) && (NULL != info->SduDataPtr), 0x44, DCM_E_PARAM_POINTER,
+               return BUFREQ_E_NOT_OK);
+  DET_VALIDATE(NULL != bufferSizePtr, 0x44, DCM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
 
   if (DCM_BUFFER_PROVIDED == context->rxBufferState) {
     if (context->curPduId == id) {
@@ -157,19 +176,17 @@ BufReq_ReturnType Dcm_CopyRxData(PduIdType id, const PduInfoType *info,
 
 void Dcm_TpRxIndication(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+
+  DET_VALIDATE(id < config->numOfChls, 0x45, DCM_E_PARAM, return);
 
   if ((E_OK == result) && (DCM_BUFFER_PROVIDED == context->rxBufferState) &&
       (context->curPduId == id)) {
     if (context->RxIndex == context->RxTpSduLength) {
-      if (DCM_P2P_PDU == id) {
-        context->msgContext.msgAddInfo.reqType = DCM_PHYSICAL_REQUEST;
-      } else {
-        context->msgContext.msgAddInfo.reqType = DCM_FUNCTIONAL_REQUEST;
-      }
+      context->msgContext.msgAddInfo.reqType = config->channles[id].reqType;
       context->msgContext.msgAddInfo.suppressPosResponse = DCM_NOT_SUPRESS_POSITIVE_RESPONCE;
       context->msgContext.dcmRxPduId = id;
-      context->msgContext.idContext = 0;
+      /* context->msgContext.idContext = 0; */
       context->msgContext.reqData = &config->rxBuffer[1];
       context->msgContext.reqDataLen = context->RxTpSduLength - 1;
       context->msgContext.resData = &config->txBuffer[1];
@@ -177,7 +194,8 @@ void Dcm_TpRxIndication(PduIdType id, Std_ReturnType result) {
       context->msgContext.resMaxDataLen = config->txBufferSize - 1;
       context->opStatus = DCM_INITIAL;
       context->rxBufferState = DCM_BUFFER_FULL;
-      ASLOG(DCM, ("Rx %02X %02X ...\n", config->rxBuffer[0], config->rxBuffer[1]));
+      ASLOG(DCM, ("Rx %02X %02X %02X ...\n", config->rxBuffer[0], config->rxBuffer[1],
+                  config->rxBuffer[2]));
     } else {
       ASLOG(DCME, ("Fatal Error when do RxInd, reset to Idle\n"));
     }
@@ -191,7 +209,12 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
                                  PduLengthType *availableDataPtr) {
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
-  const Dcm_ConfigType *config = Dcm_GetConfig();
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+
+  DET_VALIDATE(id < config->numOfChls, 0x43, DCM_E_PARAM, return BUFREQ_E_NOT_OK);
+  DET_VALIDATE((NULL != info) && (NULL != info->SduDataPtr), 0x43, DCM_E_PARAM_POINTER,
+               return BUFREQ_E_NOT_OK);
+  DET_VALIDATE(NULL != availableDataPtr, 0x43, DCM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
 
   if (DCM_RESPONSE_PENDING_PROVIDED == context->responcePending) {
     info->SduDataPtr[0] = SID_NEGATIVE_RESPONSE;
@@ -219,6 +242,8 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
 
 void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
+
+  DET_VALIDATE(id < Dcm_GetConfig()->numOfChls, 0x48, DCM_E_PARAM, return);
 
   if (DCM_RESPONSE_PENDING_TXING == context->responcePending) {
     context->responcePending = DCM_NO_RESPONSE_PENDING;

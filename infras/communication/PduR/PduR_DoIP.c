@@ -33,7 +33,7 @@ BufReq_ReturnType PduR_DoIPGwStartOfReception(PduIdType id, const PduInfoType *i
 
 BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
                                         PduLengthType *bufferSizePtr) {
-  return PduR_GwCopyRxData(id , info, bufferSizePtr);
+  return PduR_GwCopyRxData(id, info, bufferSizePtr);
 }
 
 void PduR_DoIPGwRxIndication(PduIdType id, Std_ReturnType result) {

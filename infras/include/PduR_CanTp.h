@@ -11,6 +11,9 @@
 #ifdef PDUR_DCM_CANTP_ZERO_COST
 #include "Dcm.h"
 #endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #ifdef PDUR_DCM_CANTP_ZERO_COST
 #define PduR_CanTpCopyTxData Dcm_CopyTxData
@@ -42,5 +45,8 @@ BufReq_ReturnType PduR_CanTpStartOfReception(PduIdType id, const PduInfoType *in
 /* @SWS_PduR_00512 */
 BufReq_ReturnType PduR_CanTpCopyRxData(PduIdType id, const PduInfoType *info,
                                        PduLengthType *bufferSizePtr);
+#endif
+#ifdef __cplusplus
+}
 #endif
 #endif /* PDUR_CANTP_H */

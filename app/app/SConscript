@@ -1,84 +1,84 @@
 from building import *
 import json
 
-for sc in Glob('*/SConscript'):
+for sc in Glob("*/SConscript"):
     SConscript(sc)
 
 CWD = GetCurrentDir()
 
-generate(Glob('config/*/*.json'))
+generate(Glob("config/*/*.json"))
 
-objsApp = Glob('*.c') + Glob('src/*.c')
+objsApp = Glob("*.c") + Glob("src/*.c")
 
-LL_DL = os.getenv('LL_DL')
+LL_DL = os.getenv("LL_DL")
 
 
 class ApplicationApp(Application):
     def config(self):
         self.CPPDEFINES = []
-        self.CPPPATH = ['$INFRAS', '%s/include' % (CWD), CWD, '$Com_Cfg', '$StdTrace_Cfg']
-        self.LIBS = ['StdTimer']
+        self.CPPPATH = ["$INFRAS", "%s/include" % (CWD), CWD, "$Com_Cfg", "$StdTrace_Cfg"]
+        self.LIBS = ["StdTimer"]
         for libName, source in self.libsForApp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s' %
-                        (libName.split(':')[0].upper())])
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
         self.source = objsApp
 
 
-libsCommon = {'Dcm': Glob('config/Dcm/GEN/Dcm_Cfg.c'),
-              'Dem': Glob('config/Dcm/GEN/Dem_Cfg.c'),
-              'NvM': Glob('config/NvM/GEN/NvM_Cfg.c'),
-              }
+libsCommon = {
+    "Dcm": Glob("config/Dcm/GEN/Dcm_Cfg.c"),
+    "Dem": Glob("config/Dcm/GEN/Dem_Cfg.c"),
+    "NvM": Glob("config/NvM/GEN/NvM_Cfg.c"),
+}
 
-with open(Glob('config/NvM/NvM.json')[0].rstr()) as f:
+with open(Glob("config/NvM/NvM.json")[0].rstr()) as f:
     cfg = json.load(f)
-    nvmTarget = os.getenv('NVM_TARGET', cfg.get('target', 'Ea'))
-libsCommon[nvmTarget] = Glob('config/NvM/GEN/%s_Cfg.c' % (nvmTarget))
+    nvmTarget = os.getenv("NVM_TARGET", cfg.get("target", "Ea"))
+libsCommon[nvmTarget] = Glob("config/NvM/GEN/%s_Cfg.c" % (nvmTarget))
 
-if 'Fee' in libsCommon:
-    libsCommon['Fls'] = Glob('config/NvM/Fls_Cfg.c')
-if 'Ea' in libsCommon:
-    libsCommon['Eep'] = Glob('config/NvM/Eep_Cfg.c')
+if "Fee" in libsCommon:
+    libsCommon["Fls"] = Glob("config/NvM/Fls_Cfg.c")
+if "Ea" in libsCommon:
+    libsCommon["Eep"] = Glob("config/NvM/Eep_Cfg.c")
 
-libsForCanApp = {'OsekNm': Glob('config/OsekNm_Cfg.c'),
-                 'CanNm': Glob('config/CanNm_Cfg.c'),
-                 'Com': Glob('config/Com/GEN/Com_Cfg.c'),
-                 'CanTp': Glob('config/CanTp/GEN/CanTp_Cfg.c'),
-                 'PduR': Glob('config/Com/GEN/PduR_Cfg.c'),
-                 'CanIf': Glob('config/Com/GEN/CanIf_Cfg.c'),
-                 'CanTSyn': Glob('config/CanTSyn/master/CanTSyn_Cfg.c'),
-                 'StdTrace': Glob('config/Trace/GEN/TraceApp_Cfg.c'),
-                 }
+libsForCanApp = {
+    "OsekNm": Glob("config/OsekNm_Cfg.c"),
+    "CanNm": Glob("config/CanNm_Cfg.c"),
+    "Com": Glob("config/Com/GEN/Com_Cfg.c"),
+    "CanTp": Glob("config/CanTp/GEN/CanTp_Cfg.c"),
+    "PduR": Glob("config/Com/GEN/PduR_Cfg.c"),
+    "CanIf": Glob("config/Com/GEN/CanIf_Cfg.c"),
+    "CanTSyn": Glob("config/CanTSyn/master/CanTSyn_Cfg.c"),
+    "StdTrace": Glob("config/Trace/GEN/TraceApp_Cfg.c"),
+}
 libsForCanApp.update(libsCommon)
 
 
-objsTraceTestCfg = Glob('config/GEN/TraceTest_Cfg.c')
+objsTraceTestCfg = Glob("config/GEN/TraceTest_Cfg.c")
 
 
 @register_application
 class ApplicationCanApp(ApplicationApp):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_PLUGIN'])
-        self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK',
-                    'FLS_ERASED_VALUE=0xFF'])
-        self.Append(CPPDEFINES=['FLS_DIRECT_ACCESS'])
-        self.LIBS.append('Simulator')
-        self.LIBS.append('Plugin')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_PLUGIN"])
+        self.Append(CPPDEFINES=["FEE_USE_BLANK_CHECK", "FLS_ERASED_VALUE=0xFF"])
+        self.Append(CPPDEFINES=["FLS_DIRECT_ACCESS"])
+        self.LIBS.append("Simulator")
+        self.LIBS.append("Plugin")
         # self.Append(CPPDEFINES=['USE_SHELL'])
         # self.LIBS.append('Shell')
         # self.LIBS.append('VFS')
         # self.Append(CPPDEFINES=['USE_VFS'])
-        self.Append(CPPDEFINES=['USE_TRACE_APP'])
-        #self.LIBS += ['LibC']
-        #self.Append(CPPDEFINES=['USE_STDIO_CAN', 'USE_STD_PRINTF'])
+        # self.Append(CPPDEFINES=['USE_TRACE_APP'])
+        # self.LIBS += ['LibC']
+        # self.Append(CPPDEFINES=['USE_STDIO_CAN', 'USE_STD_PRINTF'])
 
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
+            self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
         self.libsForApp = libsForCanApp
         super().config()
-        self.Append(CPPDEFINES=['USE_CAN'])
+        self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
 
 
@@ -88,76 +88,75 @@ objsSwc = Glob("config/SWC/*/*.c")
 
 
 @register_application
-class ApplicationCanIC(query_application('CanApp')):
+class ApplicationCanIC(query_application("CanApp")):
     def config(self):
         super().config()
-        self.Append(CPPDEFINES=['USE_VIC'])
-        self.LIBS += ['VicServer']
+        self.Append(CPPDEFINES=["USE_VIC"])
+        self.LIBS += ["VicServer"]
         self.source += objsSwc
 
 
 @register_application
 class ApplicationCanNm(ApplicationApp):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.LIBS.append('Simulator')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
 
     def config(self):
-        self.libsForApp = {k: libsForCanApp[k] for k in ['CanNm']}
+        self.libsForApp = {k: libsForCanApp[k] for k in ["CanNm"]}
         super().config()
-        self.Append(CPPDEFINES=['USE_CAN'])
+        self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
 
 
 @register_application
 class ApplicationOsekNm(ApplicationApp):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.LIBS.append('Simulator')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
 
     def config(self):
-        self.libsForApp = {k: libsForCanApp[k] for k in ['OsekNm']}
+        self.libsForApp = {k: libsForCanApp[k] for k in ["OsekNm"]}
         super().config()
-        self.Append(CPPDEFINES=['USE_CAN'])
+        self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
 
 
-libsForLinApp = {'LinIf': Glob('../bootloader/config/LinIf_Cfg.c'),
-                 'LinTp': Glob('../bootloader/config/LinTp_Cfg.c')}
+libsForLinApp = {"LinIf": Glob("../bootloader/config/LinIf_Cfg.c"), "LinTp": Glob("../bootloader/config/LinTp_Cfg.c")}
 libsForLinApp.update(libsCommon)
 
 
 @register_application
 class ApplicationLinApp(ApplicationApp):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.LIBS.append('Simulator')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
 
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['LINTP_LL_DL=%s' % (LL_DL)])
-        self.Append(CPPDEFINES=['PDUR_DCM_LINTP_ZERO_COST'])
+            self.Append(CPPDEFINES=["LINTP_LL_DL=%s" % (LL_DL)])
+        self.Append(CPPDEFINES=["PDUR_DCM_LINTP_ZERO_COST"])
         self.libsForApp = libsForLinApp
         super().config()
         self.platform_config()
 
 
 libsForNetApp = {
-    'SoAd': Glob('config/Net/GEN/SoAd_*.c') + Glob('config/Net/GEN/NetMem.c'),
-    'DoIP': Glob('config/Net/GEN/DoIP_*.c'),
-    'Sd': Glob('config/Net/GEN/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GEN/SomeIp_*.c') + Glob('config/Net/GEN/SS_*.cpp') + Glob('config/Net/GEN/CS_*.cpp'),
-    'PduR': Glob('config/Net/GEN/PduR_Cfg.c'),
-    'CanTp': Glob('config/Net/GEN/CanTp_Cfg.c'),
-    'CanIf': Glob('config/Net/GEN/CanIf_Cfg.c'),
-    'UdpNm': Glob('config/Net/UdpNm_Cfg.c'),
+    "SoAd": Glob("config/Net/GEN/SoAd_*.c") + Glob("config/Net/GEN/NetMem.c"),
+    "DoIP": Glob("config/Net/GEN/DoIP_*.c"),
+    "Sd": Glob("config/Net/GEN/Sd_*.c"),
+    "SomeIp": Glob("config/Net/GEN/SomeIp_*.c") + Glob("config/Net/GEN/SS_*.cpp") + Glob("config/Net/GEN/CS_*.cpp"),
+    "PduR": Glob("config/Net/GEN/PduR_Cfg.c"),
+    "CanTp": Glob("config/Net/GEN/CanTp_Cfg.c"),
+    "CanIf": Glob("config/Net/GEN/CanIf_Cfg.c"),
+    "UdpNm": Glob("config/Net/UdpNm_Cfg.c"),
 }
 libsForNetApp.update(libsCommon)
 
 libsForNetAppT = {
-    'SoAd': Glob('config/Net/GENT/SoAd_*.c'),
-    'Sd': Glob('config/Net/GENT/Sd_*.c'),
-    'SomeIp': Glob('config/Net/GENT/SomeIp_*.c') + Glob('config/Net/GENT/SS_*.cpp') + Glob('config/Net/GENT/CS_*.cpp'),
+    "SoAd": Glob("config/Net/GENT/SoAd_*.c"),
+    "Sd": Glob("config/Net/GENT/Sd_*.c"),
+    "SomeIp": Glob("config/Net/GENT/SomeIp_*.c") + Glob("config/Net/GENT/SS_*.cpp") + Glob("config/Net/GENT/CS_*.cpp"),
 }
 
 
@@ -166,37 +165,35 @@ class ApplicationNetApp(Application):
     mylibs = libsForNetApp
 
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_PLUGIN'])
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_PLUGIN"])
         # self.Append(CPPDEFINES=['DISABLE_NET_MEM'])
         if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
-        self.Append(CPPDEFINES=['USE_CAN'])
-        self.LIBS += ['Simulator', 'Plugin']
+            self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
+        self.Append(CPPDEFINES=["USE_CAN"])
+        self.LIBS += ["Simulator", "Plugin"]
 
     def config(self):
-        self.CPPPATH = ['$INFRAS', '%s/include' % (CWD)]
+        self.CPPPATH = ["$INFRAS", "%s/include" % (CWD)]
         self.source = objsApp
-        self.LIBS = ['TcpIp', 'StdTimer']
-        self.Append(CPPDEFINES=['USE_TCPIP'])
-        self.Append(
-            CPPDEFINES=['DCM_DEFAULT_RXBUF_SIZE=4095', 'DCM_DEFAULT_TXBUF_SIZE=4095'])
+        self.LIBS = ["TcpIp", "StdTimer"]
+        self.Append(CPPDEFINES=["USE_TCPIP"])
+        self.Append(CPPDEFINES=["DCM_DEFAULT_RXBUF_SIZE=4095", "DCM_DEFAULT_TXBUF_SIZE=4095"])
         self.platform_config()
         for libName, source in self.mylibs.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s' %
-                        (libName.split(':')[0].upper())])
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
 
 
-netMemSrc = Glob('config/Net/GEN/NetMem.c')
+netMemSrc = Glob("config/Net/GEN/NetMem.c")
 
 
 @register_application
-class ApplicationNetAppT(query_application('NetApp')):
+class ApplicationNetAppT(query_application("NetApp")):
     mylibs = libsForNetAppT
 
     def config(self):
         super().config()
-        self.Append(CPPDEFINES=['LWIP_IPADDR_CFG_NR=1'])
-        self.Append(CPPPATH=['%s/config/Net/GEN' % (CWD)])
+        self.Append(CPPDEFINES=["LWIP_IPADDR_CFG_NR=1"])
+        self.Append(CPPPATH=["%s/config/Net/GEN" % (CWD)])
         self.source += netMemSrc

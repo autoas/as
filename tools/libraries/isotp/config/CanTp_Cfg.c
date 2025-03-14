@@ -5,7 +5,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "CanTp_Cfg.h"
 #include "CanTp.h"
-#include "CanTp_Types.h"
+#include "CanTp_Priv.h"
 #include "CanIf_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef CANTP_CFG_N_As

@@ -9,6 +9,8 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_COM
+
 #define COM_ACTION_NONE ((Com_DataActionType)0x00)
 #define COM_ACTION_NOTIFY ((Com_DataActionType)0x01)
 #define COM_ACTION_REPLACE ((Com_DataActionType)0x02)
@@ -56,15 +58,23 @@ typedef uint8_t Com_DataActionType;
 
 typedef uint8_t Com_SignalEndiannessType;
 
+typedef uint16_t Com_DataLengthType;
+
 typedef struct {
   uint16_t timer;
 } Com_SignalRxContextType;
 
 typedef struct {
   Com_SignalRxContextType *context;
+#ifdef COM_USE_SIGNAL_RX_INVALID_NOTIFICATION
   Com_CbkInvFncType InvalidNotification;
+#endif
+#ifdef COM_USE_SIGNAL_RX_NOTIFICATION
   Com_CbkRxAckFncType RxNotification;
+#endif
+#ifdef COM_USE_SIGNAL_RX_TIMEOUT
   Com_CbkRxTOutFncType RxTOut;
+#endif
   const uint8_t *TimeoutSubstitutionValue;
   uint16_t FirstTimeout;
   uint16_t Timeout;
@@ -73,8 +83,15 @@ typedef struct {
 } Com_SignalRxConfigType;
 
 typedef struct {
+#ifdef COM_USE_SIGNAL_TX_ERROR_NOTIFICATION
   Com_CbkTxErrFncType ErrorNotification;
+#endif
+#ifdef COM_USE_SIGNAL_TX_NOTIFICATION
   Com_CbkTxAckFncType TxNotification;
+#endif
+#if !defined(COM_USE_SIGNAL_TX_ERROR_NOTIFICATION) && !defined(COM_USE_SIGNAL_TX_NOTIFICATION)
+  uint8_t dummy;
+#endif
 } Com_SignalTxConfigType;
 
 /* @SWS_Com_00675 */
@@ -118,8 +135,15 @@ typedef struct {
 
 typedef struct {
   Com_IPduRxContextType *context;
+#ifdef COM_USE_RX_NOTIFICATION
   Com_CbkRxAckFncType RxNotification;
+#endif
+#ifdef COM_USE_RX_TIMEOUT
   Com_CbkRxTOutFncType RxTOut;
+#endif
+#ifdef COM_USE_RX_IPDU_CALLOUT
+  Com_RxIpduCalloutFncType RxIpduCallout;
+#endif
   uint16_t FirstTimeout;
   uint16_t Timeout;
 } Com_IPduRxConfigType;
@@ -132,10 +156,17 @@ typedef struct {
 } Com_IPduTxContextType;
 
 typedef struct {
+  /* For LIN, context is NULL */
   Com_IPduTxContextType *context;
+#ifdef COM_USE_TX_ERROR_NOTIFICATION
   Com_CbkTxErrFncType ErrorNotification;
+#endif
+#ifdef COM_USE_TX_NOTIFICATION
   Com_CbkTxAckFncType TxNotification;
+#endif
+#ifdef COM_USE_TX_IPDU_CALLOUT
   Com_TxIpduCalloutFncType TxIpduCallout;
+#endif
   uint16_t FirstTime;
   uint16_t CycleTime;
   PduIdType TxPduId;
@@ -146,12 +177,12 @@ typedef struct {
   char *name;
 #endif
   void *ptr;
-  uint8_t *dynLen;
+  Com_DataLengthType *dynLen;
   const Com_SignalConfigType **signals;
   const Com_IPduRxConfigType *rxConfig;
   const Com_IPduTxConfigType *txConfig;
   Com_GroupMaskType GroupRefMask;
-  uint8_t length;
+  Com_DataLengthType length;
   uint8_t numOfSignals;
 } Com_IPduConfigType;
 

@@ -32,16 +32,14 @@ typedef struct {
 typedef uint8_t PNCHandleType;
 
 /* @SWS_COMTYPE_00031 */
-typedef enum
-{
+typedef enum {
   TP_STMIN,
   TP_BS,
   TP_BC
 } TPParameterType;
 
 /* @SWS_COMTYPE_00012 */
-typedef enum
-{
+typedef enum {
   BUFREQ_OK,
   BUFREQ_E_NOT_OK,
   BUFREQ_E_BUSY,
@@ -49,8 +47,7 @@ typedef enum
 } BufReq_ReturnType;
 
 /* @SWS_COMTYPE_00027 */
-typedef enum
-{
+typedef enum {
   TP_DATACONF,
   TP_DATARETRY,
   TP_CONFPENDING

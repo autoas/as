@@ -4,9 +4,10 @@ CWD = GetCurrentDir()
 objs = Glob('*.c')
 
 @register_library
-class LibraryDcm(Library):
+class LibraryDet(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD, "$NvM_Cfg", "$PduR_Cfg", "$Dem_Cfg", "$CanTp_Cfg", "$LinTp_Cfg"]
+        self.include = CWD
+        self.CPPPATH = ['$INFRAS']
         self.source = objs
 
     

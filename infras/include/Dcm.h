@@ -8,24 +8,22 @@
 #define DCM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
-/* For DCM physical addressing */
-#define DCM_P2P_PDU 0
-#define DCM_P2P_RX 0
-#define DCM_P2P_TX 0
-/* For DCM functional addressing */
-#define DCM_P2A_PDU 1
-#define DCM_P2A_RX 1
-#define DCM_P2A_TX 1
-
 /* @SWS_Dcm_00976 */
-#define DCM_E_OK (Dcm_StatusType)0x00
-#define DCM_E_ROE_NOT_ACCEPTED (Dcm_StatusType)0x06
-#define DCM_E_PERIODICID_NOT_ACCEPTED (Dcm_StatusType)0x07
+#define DCM_E_OK ((Dcm_StatusType)0x00)
+#define DCM_E_ROE_NOT_ACCEPTED ((Dcm_StatusType)0x06)
+#define DCM_E_PERIODICID_NOT_ACCEPTED ((Dcm_StatusType)0x07)
+
+/* @SWS_Dcm_00694 */
+#define E_REQUEST_NOT_ACCEPTED ((Std_ReturnType)8)
+
 /* @SWS_Dcm_00769 */
-#define DCM_E_PENDING (Std_ReturnType)10
+#define DCM_E_PENDING ((Std_ReturnType)10)
 /* SWS_Dcm_00690 */
-#define DCM_E_FORCE_RCRRP (Std_ReturnType)12
+#define DCM_E_FORCE_RCRRP ((Std_ReturnType)12)
 
 /* @SWS_Dcm_91015 */
 #define DCM_INITIAL 0x00
@@ -99,6 +97,36 @@
 #define DCM_E_RESPONSE_PENDING ((Dcm_NegativeResponseCodeType)0x78)
 #define DCM_E_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION ((Dcm_NegativeResponseCodeType)0x7E)
 #define DCM_E_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION ((Dcm_NegativeResponseCodeType)0x7F)
+#define DCM_E_RPM_TOO_HIGH ((Dcm_NegativeResponseCodeType)0x81)
+#define DCM_E_RPM_TOO_LOW ((Dcm_NegativeResponseCodeType)0x82)
+#define DCM_E_ENGINE_IS_RUNNING ((Dcm_NegativeResponseCodeType)0x83)
+#define DCM_E_ENGINE_IS_NOT_RUNNING ((Dcm_NegativeResponseCodeType)0x84)
+#define DCM_E_ENGINE_RUNTIME_TOO_LOW ((Dcm_NegativeResponseCodeType)0x85)
+#define DCM_E_TEMPERATURE_TOO_HIGH ((Dcm_NegativeResponseCodeType)0x86)
+#define DCM_E_TEMPERATURE_TOO_LOW ((Dcm_NegativeResponseCodeType)0x87)
+#define DCM_E_VEHICLE_SPEED_TOO_HIGH ((Dcm_NegativeResponseCodeType)0x88)
+#define DCM_E_VEHICLE_SPEED_TOO_LOW ((Dcm_NegativeResponseCodeType)0x89)
+#define DCM_E_THROTTLE_PEDAL_TOO_HIGH ((Dcm_NegativeResponseCodeType)0x8A)
+#define DCM_E_THROTTLE_PEDAL_TOO_LOW ((Dcm_NegativeResponseCodeType)0x8B)
+#define DCM_E_TRANSMISSION_RANGE_NOT_IN_NEUTRAL ((Dcm_NegativeResponseCodeType)0x8C)
+#define DCM_E_TRANSMISSION_RANGE_NOT_IN_GEAR ((Dcm_NegativeResponseCodeType)0x8F)
+#define DCM_E_SHIFTER_LEVER_NOT_IN_PARK ((Dcm_NegativeResponseCodeType)0x90)
+#define DCM_E_TORQUE_CONVERTER_CLUTCH_LOCKED ((Dcm_NegativeResponseCodeType)0x91)
+#define DCM_E_VOLTAGE_TOO_HIGH ((Dcm_NegativeResponseCodeType)0x92)
+#define DCM_E_VOLTAGE_TOO_LOW ((Dcm_NegativeResponseCodeType)0x93)
+
+#ifndef DCM_CONST
+#define DCM_CONST
+#endif
+
+/* @SWS_Dcm_00040 */
+#define DCM_E_INVALID_VALUE 0x02
+#define DCM_E_INTERFACE_RETURN_VALUE 0x03
+#define DCM_E_UNINIT 0x05
+#define DCM_E_PARAM 0x06
+#define DCM_E_PARAM_POINTER 0x07
+#define DCM_E_INIT_FAILED 0x08
+#define DCM_E_SET_PROG_CONDITIONS_FAIL 0x09
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Dcm_00976 */
 typedef uint8_t Dcm_StatusType;
@@ -156,7 +184,7 @@ typedef struct {
   Dcm_MsgLenType resDataLen;
   Dcm_MsgAddInfoType msgAddInfo;
   Dcm_MsgLenType resMaxDataLen;
-  Dcm_IdContextType idContext;
+  /* Dcm_IdContextType idContext; */
   PduIdType dcmRxPduId;
 } Dcm_MsgContextType;
 
@@ -185,7 +213,7 @@ extern Dcm_Nvm_SecurityAccessType Dcm_NvmSecurityAccess_Ram;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Dcm_00037 */
-void Dcm_Init(const Dcm_ConfigType *ConfigPtr);
+void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) ConfigPtr);
 /* @SWS_Dcm_00053 */
 void Dcm_MainFunction(void);
 /* @SWS_Dcm_00094 */
@@ -247,4 +275,9 @@ Std_ReturnType Dcm_AuthenticationGetChallenge(uint8_t *challenge, uint16_t *leng
 Std_ReturnType Dcm_AuthenticationVerifyProofOfOwnership(const uint8_t *signature,
                                                         uint16_t signatureLen,
                                                         Dcm_NegativeResponseCodeType *ErrorCode);
+
+Std_ReturnType Dcm_GetRxPduId(PduIdType *PduId);
+#ifdef __cplusplus
+}
+#endif
 #endif /* DCM_H */

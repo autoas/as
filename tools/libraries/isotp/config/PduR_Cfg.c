@@ -8,13 +8,10 @@
 #include "PduR_Cfg.h"
 #include "CanTp.h"
 #include "CanTp_Cfg.h"
+#include "CanIf_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
-#ifndef CANTP_MAX_CHANNELS
-#define CANTP_MAX_CHANNELS 32
-#endif
-
 #define PDUR_DCM_TX_BASE_ID 0
-#define PDUR_CANTP_RX_BASE_ID 32
+#define PDUR_CANTP_RX_BASE_ID CANTP_MAX_CHANNELS
 #define PDUR_CANTP_TX_BASE_ID 0
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -22,20 +19,31 @@ BufReq_ReturnType IsoTp_CanTpStartOfReception(PduIdType id, const PduInfoType *i
                                               PduLengthType TpSduLength,
                                               PduLengthType *bufferSizePtr);
 BufReq_ReturnType IsoTp_CanTpCopyRxData(PduIdType id, const PduInfoType *info,
-                                      PduLengthType *bufferSizePtr);
+                                        PduLengthType *bufferSizePtr);
 BufReq_ReturnType IsoTp_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
                                         const RetryInfoType *retry,
                                         PduLengthType *availableDataPtr);
 void IsoTp_CanTpRxIndication(PduIdType id, Std_ReturnType result);
 void IsoTp_CanTpTxConfirmation(PduIdType id, Std_ReturnType result);
+
+BufReq_ReturnType IsoTp_J1939TpStartOfReception(PduIdType id, const PduInfoType *info,
+                                                PduLengthType TpSduLength,
+                                                PduLengthType *bufferSizePtr);
+BufReq_ReturnType IsoTp_J1939TpCopyRxData(PduIdType id, const PduInfoType *info,
+                                          PduLengthType *bufferSizePtr);
+BufReq_ReturnType IsoTp_J1939TpCopyTxData(PduIdType id, const PduInfoType *info,
+                                          const RetryInfoType *retry,
+                                          PduLengthType *availableDataPtr);
+void IsoTp_J1939TpRxIndication(PduIdType id, Std_ReturnType result);
+void IsoTp_J1939TpTxConfirmation(PduIdType id, Std_ReturnType result);
 /* ================================ [ DATAS     ] ============================================== */
 const PduR_ApiType PduR_IsoTpCanTpApi = {
-  IsoTp_CanTpStartOfReception, IsoTp_CanTpCopyRxData,       {(void *)IsoTp_CanTpRxIndication}, NULL,
+  IsoTp_CanTpStartOfReception, IsoTp_CanTpCopyRxData,     IsoTp_CanTpRxIndication, NULL, NULL,
   IsoTp_CanTpCopyTxData,       IsoTp_CanTpTxConfirmation,
 };
 
 const PduR_ApiType PduR_CanTpApi = {
-  NULL, NULL, {(void *)NULL}, CanTp_Transmit, NULL, NULL,
+  NULL, NULL, NULL, NULL, CanTp_Transmit, NULL, NULL,
 };
 
 static PduR_PduType PduR_SrcPdu[CANTP_MAX_CHANNELS * 2];
@@ -53,6 +61,8 @@ const PduR_ConfigType PduR_Config = {
   -1,
   PDUR_CANTP_RX_BASE_ID,
   PDUR_CANTP_TX_BASE_ID,
+  -1,
+  -1,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -84,7 +94,7 @@ void PduR_CanTpReConfig(uint8_t Channel) {
   }
 }
 
-static void __attribute__((constructor)) _pdur_config_init(void) {
+INITIALIZER(_pdur_config_init) {
   uint8_t i;
   for (i = 0; i < CANTP_MAX_CHANNELS; i++) {
     PduR_CanTpReConfig(i);

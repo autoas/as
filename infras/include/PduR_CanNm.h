@@ -1,33 +1,33 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  *
  * ref: Specification of PDU Router AUTOSAR CP Release 4.4.0
  */
-#ifndef _PDUR_H
-#define _PDUR_H
+#ifndef PDUR_CANNM_H
+#define PDUR_CANNM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
-/* ================================ [ MACROS    ] ============================================== */
-/* @SWS_PduR_00100 */
-#define PDUR_E_PDU_ID_INVALID 0x02
-#define PDUR_E_ROUTING_PATH_GROUP_ID_INVALID 0x08
-#define PDUR_E_PARAM_POINTER 0x09
-/* ================================ [ TYPES     ] ============================================== */
-typedef struct PduR_Config_s PduR_ConfigType;
+#ifdef PDUR_CANNM_COM_ZERO_COST
+#include "Com.h"
+#endif
 
-/* @SWS_PduR_00654 */
-typedef uint16_t PduR_RoutingPathGroupIdType;
+#ifdef PDUR_CANNM_COM_ZERO_COST
+#define PduR_CanNmTriggerTransmit Com_TriggerTransmit
+#define PduR_CanNmTxConfirmation Com_TxConfirmation
+#define PduR_CanNmRxIndication Com_RxIndication
+#endif
+/* ================================ [ MACROS    ] ============================================== */
+/* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-/* @SWS_PduR_00334 */
-void PduR_Init(const PduR_ConfigType *ConfigPtr);
+#ifndef PDUR_CANNM_COM_ZERO_COST
+Std_ReturnType PduR_CanNmTriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr);
 
-/* @SWS_PduR_00615 */
-void PduR_EnableRouting(PduR_RoutingPathGroupIdType id);
+void PduR_CanNmTxConfirmation(PduIdType TxPduId, Std_ReturnType result);
 
-/* @SWS_PduR_00617 */
-void PduR_DisableRouting(PduR_RoutingPathGroupIdType id, boolean initialize);
-#endif /* _PDUR_H */
+void PduR_CanNmRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+#endif
+#endif /* PDUR_CANNM_H */

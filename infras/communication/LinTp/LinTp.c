@@ -4,6 +4,7 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "LinTp_Cfg.h"
+#include "PduR_LinTp.h"
 #include "LinTp.h"
 #include "LinTp_Priv.h"
 #include "Std_Debug.h"

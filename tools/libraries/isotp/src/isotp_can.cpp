@@ -83,6 +83,7 @@ static void can_server_main(isotp_t *isotp) {
 
     {
       std::lock_guard<std::mutex> lg(isotp->mutex);
+      CanTp_MainFunction_ChannelFast(Channel);
       if (Std_IsTimerStarted(&isotp->timerErrorNotify)) {
         if (Std_GetTimerElapsedTime(&isotp->timerErrorNotify) >= isotp->errorTimeout) {
           isotp->result = -__LINE__;

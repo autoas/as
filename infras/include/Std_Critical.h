@@ -11,12 +11,16 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 /* spin lock need to be used for MCU with 2 or more CPUs */
 #ifndef DISABLE_STD_CRITICAL_DEF
-#define EnterCritical() do { imask_t imask = Std_EnterCritical()
+#define EnterCritical()                                                                            \
+  do {                                                                                             \
+  imask_t imask = Std_EnterCritical()
 #define InterLeaveCritical() Std_ExitCritical(imask)
 #define InterEnterCritical() imask = Std_EnterCritical()
-#define ExitCritical() Std_ExitCritical(imask); } while(0)
+#define ExitCritical()                                                                             \
+  Std_ExitCritical(imask);                                                                         \
+  }                                                                                                \
+  while (0)
 #endif
-
 
 /* ================================ [ TYPES     ] ============================================== */
 typedef unsigned int imask_t;

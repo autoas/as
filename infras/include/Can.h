@@ -35,6 +35,17 @@ extern "C" {
 #ifndef TRACE_TX_CAN_HANDLE
 #define TRACE_TX_CAN_HANDLE STDIO_TX_CAN_HANDLE
 #endif
+
+/* @SWS_Can_91019 */
+#define CAN_E_PARAM_POINTER 0x01
+#define CAN_E_PARAM_HANDLE 0x02
+#define CAN_E_PARAM_DATA_LENGTH 0x03
+#define CAN_E_PARAM_CONTROLLER 0x04
+#define CAN_E_UNINIT 0x05
+#define CAN_E_TRANSITION 0x06
+#define CAN_E_PARAM_BAUDRATE 0x07
+#define CAN_E_INIT_FAILED 0x09
+#define CAN_E_PARAM_LPDU 0x0A
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Can_Config_s Can_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -51,6 +62,10 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo);
 
 /* @SWS_Can_00230 */
 Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType Transition);
+
+/* @SWS_Can_91014 */
+Std_ReturnType Can_GetControllerMode(uint8_t Controller,
+                                     Can_ControllerStateType *ControllerModePtr);
 
 /* @SWS_Can_00225 */
 void Can_MainFunction_Write(void);

@@ -1,33 +1,22 @@
 /**
  * SSAS - Simple Smart Automotive Software
- * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
+ * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  *
- * ref: Specification of PDU Router AUTOSAR CP Release 4.4.0
+ * ref: Specification of Default Error Tracer AUTOSAR CP R21-11
  */
-#ifndef _PDUR_H
-#define _PDUR_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "ComStack_Types.h"
+#include "Std_Types.h"
+#include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
-/* @SWS_PduR_00100 */
-#define PDUR_E_PDU_ID_INVALID 0x02
-#define PDUR_E_ROUTING_PATH_GROUP_ID_INVALID 0x08
-#define PDUR_E_PARAM_POINTER 0x09
+#define AS_LOG_DET 3
 /* ================================ [ TYPES     ] ============================================== */
-typedef struct PduR_Config_s PduR_ConfigType;
-
-/* @SWS_PduR_00654 */
-typedef uint16_t PduR_RoutingPathGroupIdType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-/* @SWS_PduR_00334 */
-void PduR_Init(const PduR_ConfigType *ConfigPtr);
-
-/* @SWS_PduR_00615 */
-void PduR_EnableRouting(PduR_RoutingPathGroupIdType id);
-
-/* @SWS_PduR_00617 */
-void PduR_DisableRouting(PduR_RoutingPathGroupIdType id, boolean initialize);
-#endif /* _PDUR_H */
+Std_ReturnType Det_ReportError(uint16_t ModuleId, uint8_t InstanceId, uint8_t ApiId,
+                               uint8_t ErrorId) {
+  ASLOG(DET, ("Module %" PRIu16 " Instance %02" PRIx8 "h Api %02" PRIx8 "h Error %02" PRIx8 "h\n",
+              ModuleId, InstanceId, ApiId, ErrorId));
+  return E_OK;
+}

@@ -15,12 +15,14 @@ extern "C" {
 #define CanTp_TxConfirmation LinTp_TxConfirmation
 #define CanTp_Transmit LinTp_Transmit
 #define CanTp_MainFunction LinTp_MainFunction
+#define CanTp_MainFunction_Fast LinTp_MainFunction_Fast
 #define CanTp_ConfigType LinTp_ConfigType
 #define CanTp_Config_s LinTp_Config_s
 #define CanTp_GetTxPacketLength LinTp_GetTxPacketLength
 #define CanTp_GetRxLeftLength LinTp_GetRxLeftLength
 #define CanTp_TriggerTransmit LinTp_TriggerTransmit
 #define CanTp_MainFunction_Channel LinTp_MainFunction_Channel
+#define CanTp_MainFunction_ChannelFast LinTp_MainFunction_ChannelFast
 #define CanTp_InitChannel LinTp_InitChannel
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

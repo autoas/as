@@ -14,8 +14,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
+#ifndef STD_NO_ERRNO_H
 #include <errno.h>
+#endif
 #include "Std_Compiler.h"
+#include "Modules.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,7 +59,6 @@ typedef unsigned char StatusType; /* OSEK compliance */
 #define STD_OFF 0x00u
 #endif
 
-
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #endif
@@ -85,6 +87,15 @@ typedef uint_fast32_t uint32f;
 typedef int_fast8_t sint8f;
 typedef int_fast16_t sint16f;
 typedef int_fast32_t sint32f;
+
+/* @SWS_Std_00015 */
+typedef struct {
+  uint16_t vendorID;
+  uint16_t moduleID;
+  uint8_t sw_major_version;
+  uint8_t sw_minor_version;
+  uint8_t sw_patch_version;
+} Std_VersionInfoType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

@@ -17,7 +17,7 @@
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_PduR_00518 */
 BufReq_ReturnType PduR_DoIPCopyTxData(PduIdType id, const PduInfoType *info,
-                                       const RetryInfoType *retry, PduLengthType *availableDataPtr);
+                                      const RetryInfoType *retry, PduLengthType *availableDataPtr);
 /* @SWS_PduR_00375 */
 void PduR_DoIPRxIndication(PduIdType id, Std_ReturnType result);
 /* @SWS_PduR_00381 */
@@ -25,9 +25,9 @@ void PduR_DoIPTxConfirmation(PduIdType id, Std_ReturnType result);
 
 /* @SWS_PduR_00507 */
 BufReq_ReturnType PduR_DoIPStartOfReception(PduIdType id, const PduInfoType *info,
-                                             PduLengthType TpSduLength,
-                                             PduLengthType *bufferSizePtr);
+                                            PduLengthType TpSduLength,
+                                            PduLengthType *bufferSizePtr);
 /* @SWS_PduR_00512 */
 BufReq_ReturnType PduR_DoIPCopyRxData(PduIdType id, const PduInfoType *info,
-                                       PduLengthType *bufferSizePtr);
+                                      PduLengthType *bufferSizePtr);
 #endif /* PDUR_DOIP_H */

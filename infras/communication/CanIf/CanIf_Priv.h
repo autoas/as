@@ -10,6 +10,7 @@
 #include "ComStack_Types.h"
 #include "Can_GeneralTypes.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_CANIF
 /* ================================ [ TYPES     ] ============================================== */
 typedef void (*CanIf_RxIndicationFncType)(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 typedef void (*CanIf_TxConfirmationFncType)(PduIdType TxPduId, Std_ReturnType result);
@@ -28,13 +29,30 @@ typedef struct {
   Can_IdType canid;
   Can_IdType *p_canid;
   Can_HwHandleType hoh;
+  uint8_t ControllerId;
 } CanIf_TxPduType;
 
-struct CanIf_Config_s {
+typedef struct {
+  CanIf_PduModeType PduMode;
+#ifdef CANIF_USE_TX_TIMEOUT
+  uint16_t txTimeoutTimer;
+#endif
+} CanIf_CtrlContextType;
+
+typedef struct {
   const CanIf_RxPduType *rxPdus;
-  const CanIf_TxPduType *txPdus;
   uint16_t numOfRxPdus;
+#ifdef CANIF_USE_TX_TIMEOUT
+  uint16_t txTimerout;
+#endif
+} CanIf_CtrlConfigType;
+
+struct CanIf_Config_s {
+  const CanIf_TxPduType *txPdus;
+  CanIf_CtrlContextType *CtrlContexts;
+  const CanIf_CtrlConfigType *CtrlConfigs;
   uint16_t numOfTxPdus;
+  uint8_t numOfCtrls;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
