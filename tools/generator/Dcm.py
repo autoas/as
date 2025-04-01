@@ -4,6 +4,7 @@
 import os
 import json
 from .helper import *
+from .MemMap import *
 
 __all__ = ["Gen"]
 
