@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.c")
+
+
+@register_library
+class LibrarySecOC(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", "$PduR_Cfg", "$Csm_Cfg", CWD]
+        self.LIBS += ["StdBit"]
+        self.source = objs
