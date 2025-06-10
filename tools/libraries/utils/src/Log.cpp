@@ -346,8 +346,10 @@ extern "C" int std_get_as_log_level(const char *name) {
     if (pValue != nullptr) {
       level = atoi(pValue);
     } else {
-      if ("FEE" == name_) {
+      if (("FEE" == name_) || ("E2E" == name_)) {
         /* default debug */
+      } else if ("DET" == name_) {
+        level = Logger::ERROR;
       } else if ("INFO" == name_) {
         level = Logger::INFO;
       } else if ("WARN" == name_) {

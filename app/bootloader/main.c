@@ -15,7 +15,13 @@
 #include "PduR_CanTp.h"
 #endif
 
+#ifdef USE_DLL
+#include "Dll.h"
+#endif
 
+#ifdef USE_LIN_SLAVE
+#include "Lin_Slave.h"
+#endif
 
 #ifdef USE_LINIF
 #include "LinIf.h"
@@ -23,6 +29,16 @@
 
 #ifdef USE_LINTP
 #include "LinTp.h"
+#endif
+
+#ifdef USE_EEP
+#include "Eep.h"
+#endif
+#ifdef USE_EA
+#include "Ea.h"
+#endif
+#ifdef USE_NVM
+#include "NvM.h"
 #endif
 
 #include "Dcm.h"
@@ -42,16 +58,27 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
 
-#ifndef CAN_DIAG_RX
-#define CAN_DIAG_RX 0x731
+#ifndef CAN_DIAG_P2P_RX
+#define CAN_DIAG_P2P_RX 0x731
 #endif
 
-#ifndef CAN_DIAG_TX
-#define CAN_DIAG_TX 0x732
+#ifndef CAN_DIAG_P2P_TX
+#define CAN_DIAG_P2P_TX 0x732
+#endif
+
+#ifndef CAN_DIAG_P2A_RX
+#define CAN_DIAG_P2A_RX 0x7DF
+#endif
+
+#ifndef BL_NVM_TRY_FLUSH_MAX
+#define BL_NVM_TRY_FLUSH_MAX 100
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void BL_AliveIndicate(void);
+#ifdef USE_STDIO_CAN
+extern void stdio_main_function(void);
+#endif
 
 #if defined(_WIN32) || defined(linux)
 void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
@@ -60,9 +87,19 @@ void Can_ReConfig(uint8_t Controller, const char *device, int port, uint32_t bau
 static Std_TimerType timer10ms;
 static Std_TimerType timer500ms;
 
-static uint32_t lRxId = CAN_DIAG_RX;
-static uint32_t lTxId = CAN_DIAG_TX;
+#ifdef USE_CAN
+#if defined(_WIN32) || defined(linux)
+static uint32_t lP2PRxId = CAN_DIAG_P2P_RX;
+static uint32_t lP2PTxId = CAN_DIAG_P2P_TX;
+static uint32_t lP2ARxId = CAN_DIAG_P2A_RX;
 static uint8_t lController = 0;
+#else
+#define lP2PRxId CAN_DIAG_P2P_RX
+#define lP2PTxId CAN_DIAG_P2P_TX
+#define lP2ARxId CAN_DIAG_P2A_RX
+#define lController 0
+#endif
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static void MainTask_10ms(void) {
 #ifdef USE_CAN
@@ -80,11 +117,16 @@ static void Init(void) {
   Can_SetControllerMode(lController, CAN_CS_STARTED);
   CanTp_Init(NULL);
 #endif
-
+#ifdef USE_DLL
+  DLL_Init(NULL);
+  DLL_ScheduleRequest(0, 0);
+#endif
+#ifdef USE_LIN_SLAVE
+  Lin_Slave_Init(NULL);
+#endif
 #ifdef USE_LINIF
   Lin_Init(NULL);
   LinIf_Init(NULL);
-  LinIf_ScheduleRequest(0, 0);
 #endif
 #ifdef USE_LINTP
   LinTp_Init(NULL);
@@ -97,7 +139,51 @@ static void Init(void) {
   Shell_Init();
 #endif
 }
+
+#ifdef USE_NVM
+static void MemoryTask(void) {
+#ifdef USE_EEP
+  Eep_MainFunction();
+#endif
+#ifdef USE_EA
+  Ea_MainFunction();
+#endif
+#ifdef USE_NVM
+  NvM_MainFunction();
+#endif
+}
+#endif
+
+static void Memory_Init(void) {
+#ifdef USE_EEP
+  Eep_Init(NULL);
+#endif
+#ifdef USE_EA
+  Ea_Init(NULL);
+#endif
+#ifdef USE_NVM
+  NvM_Init(NULL);
+  BL_FlushNvM();
+  NvM_ReadAll();
+  BL_FlushNvM();
+#endif
+}
+
 /* ================================ [ FUNCTIONS ] ============================================== */
+void BL_FlushNvM(void) {
+#ifdef USE_NVM
+  uint16_t tryCnt = BL_NVM_TRY_FLUSH_MAX;
+  MemoryTask();
+  while ((MEMIF_IDLE != NvM_GetStatus()) && (tryCnt > 0)) {
+    MemoryTask();
+    tryCnt--;
+  }
+
+  if (MEMIF_IDLE != NvM_GetStatus()) {
+    ASLOG(BLE, ("NvM flush failed\n"));
+  }
+#endif
+}
 #ifdef USE_CAN
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   ASLOG(CANIF, ("RX bus=%d, canid=%X, dlc=%d, data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
@@ -106,9 +192,9 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
                 PduInfoPtr->SduDataPtr[3], PduInfoPtr->SduDataPtr[4], PduInfoPtr->SduDataPtr[5],
                 PduInfoPtr->SduDataPtr[6], PduInfoPtr->SduDataPtr[7]));
 
-  if (lRxId == Mailbox->CanId) {
+  if (lP2PRxId == (Mailbox->CanId & 0x1FFFFFFFul)) {
     CanTp_RxIndication((PduIdType)0, PduInfoPtr);
-  } else if (0x7DF == Mailbox->CanId) {
+  } else if (lP2ARxId == (Mailbox->CanId & 0x1FFFFFFFul)) {
     CanTp_RxIndication((PduIdType)1, PduInfoPtr);
   }
 }
@@ -129,11 +215,16 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
   canPdu.sdu = PduInfoPtr->SduDataPtr;
 
   if ((0 == TxPduId) || (1 == TxPduId)) {
-    canPdu.id = lTxId;
+    canPdu.id = lP2PTxId;
     ret = Can_Write(lController, &canPdu);
   }
 
   return ret;
+}
+
+void CanIf_ControllerBusOff(uint8_t ControllerId) {
+  Can_Init(NULL);
+  Can_SetControllerMode(ControllerId, CAN_CS_STARTED);
 }
 #endif
 
@@ -157,22 +248,31 @@ void Task_MainLoop(void) {
   Mcu_Init(NULL);
 #endif
   Init();
-  Std_TimerStart(&timer10ms);
-  Std_TimerStart(&timer500ms);
+  Std_TimerSet(&timer10ms, 10000);
+  Std_TimerSet(&timer500ms, 500000);
   for (;;) {
-    if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
+    if (TRUE == Std_IsTimerTimeout(&timer10ms)) {
+      Std_TimerSet(&timer10ms, 10000);
       MainTask_10ms();
-      Std_TimerStart(&timer10ms);
     }
-    if (Std_GetTimerElapsedTime(&timer500ms) >= 500000) {
+    if (TRUE == Std_IsTimerTimeout(&timer500ms)) {
+      Std_TimerSet(&timer500ms, 500000);
       BL_MainTask_500ms();
-      Std_TimerStart(&timer500ms);
     }
 
     Dcm_MainFunction_Request();
 #ifdef USE_CAN
+    CanTp_MainFunction_Fast();
     Can_MainFunction_Write();
     Can_MainFunction_Read();
+#endif
+#ifdef USE_DLL
+    DLL_MainFunction();
+    DLL_MainFunction_Read();
+#endif
+#ifdef USE_LIN_SLAVE
+    Lin_Slave_MainFunction();
+    Lin_Slave_MainFunction_Read();
 #endif
 #ifdef USE_LINIF
     Lin_MainFunction();
@@ -182,7 +282,7 @@ void Task_MainLoop(void) {
 #ifdef USE_SHELL
     Shell_MainFunction();
 #endif
-#ifdef USE_STDIO_CAN
+#if defined(USE_STDIO_CAN) || defined(USE_STDIO_OUT)
     stdio_main_function();
 #endif
   }
@@ -194,7 +294,7 @@ void TaskMainTaskIdle(void) {
     ;
 }
 void StartupHook(void) {
-  osal_thread_create((osal_thread_entry_t)Task_MainLoop, NULL);
+  OSAL_ThreadCreate((OSAL_ThreadEntryType)Task_MainLoop, NULL);
 }
 #endif
 
@@ -205,22 +305,31 @@ int main(int argc, char *argv[]) {
   {
     int ch;
     opterr = 0;
-    while ((ch = getopt(argc, argv, "c:d:r:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "c:d:r:t:F:v:")) != -1) {
       switch (ch) {
+#ifdef USE_CAN
       case 'c':
         lController = atoi(optarg);
         break;
       case 'd':
         Can_ReConfig(lController, optarg, 0, 500000);
         break;
+
       case 'r':
-        lRxId = strtoul(optarg, NULL, 16);
+        lP2PRxId = strtoul(optarg, NULL, 16);
         break;
       case 't':
-        lTxId = strtoul(optarg, NULL, 16);
+        lP2PTxId = strtoul(optarg, NULL, 16);
+        break;
+      case 'F':
+        lP2ARxId = strtoul(optarg, NULL, 16);
+        break;
+#endif
+      case 'v':
+        std_set_log_level(atoi(optarg));
         break;
       default:
-        printf("Usage: %s -c controller_id -r rx_id -t tx_id\n", argv[0]);
+        printf("Usage: %s -c controller_id -r rx_id -t tx_id -v level\n", argv[0]);
         return 0;
         break;
       }
@@ -231,6 +340,8 @@ int main(int argc, char *argv[]) {
 #ifndef USE_LATE_MCU_INIT
   Mcu_Init(NULL);
 #endif
+
+  Memory_Init();
 
   BL_CheckAndJump();
 

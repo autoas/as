@@ -26,7 +26,6 @@
 
 /* For more info and how to use this library, visit: http://www.teuniz.net/RS-232/ */
 
-
 #ifndef rs232_INCLUDED
 #define rs232_INCLUDED
 
@@ -36,8 +35,6 @@ extern "C" {
 
 #include <stdio.h>
 #include <string.h>
-
-
 
 #if defined(__linux__) || defined(__FreeBSD__)
 
@@ -81,5 +78,3 @@ int RS232_GetPortnr(const char *);
 #endif
 
 #endif
-
-

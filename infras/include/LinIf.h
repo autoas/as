@@ -18,6 +18,21 @@
 #define LINIF_R_RECEIVED_OK ((Std_ReturnType)0x10)
 #define LINIF_R_TRIGGER_TRANSMIT ((Std_ReturnType)0x12)
 #define LINIF_R_TX_COMPLETED ((Std_ReturnType)0x13)
+
+/* @SWS_LinIf_00376 */
+#define LINIF_E_UNINIT 0x00
+#define LINIF_E_INIT_FAILED 0x10
+#define LINIF_E_NONEXISTENT_CHANNEL 0x20
+#define LINIF_E_PARAMETER 0x30
+#define LINIF_E_PARAM_POINTER 0x40
+#define LINIF_E_SCHEDULE_REQUEST_ERROR 0x51
+#define LINIF_E_TRCV_INV_MODE 0x53
+#define LINIF_E_TRCV_NOT_NORMAL 0x54
+#define LINIF_E_PARAM_WAKEUPSOURCE 0x55
+
+#define LINIF_VARIANT_MASTER 0x01
+#define LINIF_VARIANT_SLAVE 0x02
+#define LINIF_VARIANT_BOTH (LINIF_VARIANT_MASTER | LINIF_VARIANT_SLAVE)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_LinIf_00197 */
 typedef uint8_t LinIf_SchHandleType;
@@ -35,13 +50,10 @@ typedef enum {
   LINTP_APPLICATIVE_SCHEDULE,
   LINTP_DIAG_REQUEST,
   LINTP_DIAG_RESPONSE
-} LinTp_Mode;
+} LinTp_ModeType;
 
 typedef Std_ReturnType (*LinIf_NotificationCallbackType)(uint8_t channel, Lin_PduType *frame,
                                                          Std_ReturnType notifyResult);
-
-typedef uint8_t LinIf_ChannelStatusType;
-
 /* @SWS_LinIf_00668 */
 typedef struct LinIf_Config_s LinIf_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -51,7 +63,7 @@ typedef struct LinIf_Config_s LinIf_ConfigType;
 /* @SWS_LinIf_00198 */
 void LinIf_Init(const LinIf_ConfigType *ConfigPtr);
 
-void LinIf_DeInit();
+void LinIf_DeInit(void);
 
 /* @SWS_LinIf_00201 */
 Std_ReturnType LinIf_Transmit(PduIdType LinTxPduId, const PduInfoType *PduInfoPtr);
@@ -67,6 +79,8 @@ Std_ReturnType LinIf_WakeUp(NetworkHandleType Channel);
 
 /* @SWS_LinIf_00384 */
 void LinIf_MainFunction(void);
+
+void LinIf_MainFunction_Read(void);
 
 /* for slave */
 /* @SWS_LinIf_91004 */

@@ -4,6 +4,7 @@
 import time
 import os
 import sys
+
 from .AsPy import isotp
 
 
@@ -35,9 +36,16 @@ class dcm():
     __sbr__ = [0x3E]
 
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         self.tp = isotp(**kwargs)
         self.last_error = None
         self.last_reponse = None
+        self.verbose = kwargs.get('verbose', True)
+
+    def reset(self):
+        del self.tp
+        self.tp = None
+        self.tp = isotp(**self.kwargs)
 
     def __get_service_name__(self, serviceid):
         try:
@@ -66,21 +74,23 @@ class dcm():
             print("unknown response")
 
     def __show_request__(self, req):
+        if False == self.verbose: return
         ss = "  >> dcm request %s = [" % (self.__get_service_name__(req[0]))
         ss += ','.join(['%02X' % (d) for d in req[:32]])
         if len(req) > 32:
             ss += ",..."
         ss += ']'
-        ss += " len = %d" % (len(req))
+        ss += " len = %d @%.3f" % (len(req), time.time())
         print(ss)
 
     def __show_response__(self, res):
+        if False == self.verbose: return
         ss = "  >> dcm response = ["
         ss += ','.join(['%02X' % (d) for d in res[:32]])
         if len(res) > 32:
             ss += ",..."
         ss += ']'
-        ss += " len = %d" % (len(res))
+        ss += " len = %d @%.3f" % (len(res), time.time())
         self.last_reponse = ss
         print(ss)
 

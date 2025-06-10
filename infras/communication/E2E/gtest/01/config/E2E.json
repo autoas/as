@@ -1,0 +1,35 @@
+{
+    "class": "E2E",
+    "ProtectP11": [
+        { "name": "P11_TST_BOTH", "DataID": "0x123", "DataIDMode": "BOTH" },
+        { "name": "P11_TST_NIBBLE", "DataID": "0x123", "DataIDMode": "NIBBLE" },
+        { "name": "P11_TST_NIBBLE_OF64", "DataID": "0x123", "DataIDMode": "NIBBLE", "CRCOffset": 64, "CounterOffset": 72, "DataIDNibbleOffset": 76 }
+    ],
+    "ProtectP22": [
+        { "name": "P22_EX0", "DataIDList": "[i+1 for i in range(16)]" },
+        { "name": "P22_EX1", "DataIDList": "[i+1 for i in range(16)]", "Offset": 64 }
+    ],
+    "ProtectP44": [
+        { "name": "P44_EX0", "DataID": "0x0a0b0c0d" }
+    ],
+    "ProtectP05": [
+        { "name": "P05_EX0", "DataID": "0x1234" },
+        { "name": "P05_EX1", "DataID": "0x1234", "Offset": 64 }
+    ],
+    "CheckP11": [
+        { "name": "P11_TST_BOTH", "DataID": "0x123", "DataIDMode": "BOTH" },
+        { "name": "P11_TST_NIBBLE", "DataID": "0x123", "DataIDMode": "NIBBLE" },
+        { "name": "P11_TST_NIBBLE_OF64", "DataID": "0x123", "DataIDMode": "NIBBLE", "CRCOffset": 64, "CounterOffset": 72, "DataIDNibbleOffset": 76 }
+    ],
+    "CheckP22": [
+        { "name": "P22_EX0", "DataIDList": "[i+1 for i in range(16)]" },
+        { "name": "P22_EX1", "DataIDList": "[i+1 for i in range(16)]", "Offset": 64 }
+    ],
+    "CheckP44": [
+        { "name": "P44_EX0", "DataID": "0x0a0b0c0d" }
+    ],
+    "CheckP05": [
+        { "name": "P05_EX0", "DataID": "0x1234" },
+        { "name": "P05_EX1", "DataID": "0x1234", "Offset": 64 }
+    ]
+}

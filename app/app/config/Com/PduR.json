@@ -14,12 +14,48 @@
     {
       "name": "P2A_RX",
       "from": "CanTp",
-      "to": "Dcm"
+      "to": "Dcm",
+      "destinations": [ { "name": "P2A_FW_TX", "to": "CanTp", "fake": "P2A_FW_RX" } ]
     },
     {
       "name": "P2A_TX",
       "from": "Dcm",
       "to": "CanTp"
+    },
+    {
+      "name": "CAN0_SECOC_MSG0_TX",
+      "from": "Com",
+      "to": "SecOC"
+    },
+    {
+      "name": "FW_CAN0_SECOC_MSG0_TX",
+      "from": "SecOC",
+      "to": "CanIf"
+    },
+    {
+      "name": "FW_CAN0_SECOC_MSG1_RX",
+      "from": "CanIf",
+      "to": "SecOC"
+    },
+    {
+      "name": "CAN0_SECOC_MSG1_RX",
+      "from": "SecOC",
+      "to": "Com"
+    }
+  ],
+  "backup-routines-secoc-test-over-cantp": [
+    {
+      "name": "FW_CAN0_SECOC_MSG0_TX",
+      "from": "SecOC",
+      "to": "CanTp",
+      "comments": "FW - forward the secured PDU from SecOC to CanIf or CanTp"
+    },
+    {
+      "name": "FW_CAN0_SECOC_MSG0_RX",
+      "from": "CanTp",
+      "to": "SecOC",
+      "dest": "CAN0_SECOC_MSG1_RX",
+      "comments": "FW - forward the secured PDU from CanIf to SecOC"
     }
   ],
   "networks": [
@@ -27,7 +63,22 @@
       "name": "CAN0",
       "network": "CAN",
       "me": "AS",
-      "dbc": "CAN0.dbc"
+      "dbc": "CAN0.dbc",
+      "ignore": ["CanNmUserData"]
+    },
+    {
+      "name": "CAN1",
+      "network": "CAN",
+      "me": "AS",
+      "dbc": "CAN0.dbc",
+      "ignore": ["CanNmUserData"]
+    }
+  ],
+  "memory": [
+    {
+      "name": "middle",
+      "size": 64,
+      "number": 2
     }
   ]
 }

@@ -28,10 +28,10 @@ Dcm_Nvm_SecurityAccessType Dcm_NvmSecurityAccess_Ram;
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 static uint8_t Dcm_DslSession2Mask(Dcm_SesCtrlType sesCtrl) {
-  uint8_t mask = 0;
+  uint8_t mask = 0u;
 
-  if (sesCtrl <= 4) {
-    mask = 1 << (sesCtrl - 1);
+  if (sesCtrl <= 4u) {
+    mask = (uint8_t)(1u << (sesCtrl - 1u));
   } else {
     Dcm_DslCustomerSession2Mask(mask, sesCtrl);
   }
@@ -78,7 +78,7 @@ void Dcm_DslProcessingDone(Dcm_ContextType *context,
       context->txBufferState = DCM_BUFFER_IDLE;
     } else {
       config->txBuffer[0] = config->rxBuffer[0] | SID_RESPONSE_BIT;
-      context->TxTpSduLength = context->msgContext.resDataLen + 1;
+      context->TxTpSduLength = context->msgContext.resDataLen + 1u;
       context->txBufferState = DCM_BUFFER_FULL;
     }
     context->opStatus = DCM_INITIAL;
@@ -114,7 +114,7 @@ Std_ReturnType Dcm_DslIsSessionSupported(Dcm_SesCtrlType sesCtrl, uint8_t sesMas
   Std_ReturnType r = E_NOT_OK;
   uint8_t mask = Dcm_DslSession2Mask(sesCtrl);
 
-  if (sesMask & mask) {
+  if (0u != (sesMask & mask)) {
     r = E_OK;
   }
 
@@ -131,9 +131,9 @@ Std_ReturnType Dcm_DslServiceSesSecPhyFuncCheck(Dcm_ContextType *context,
   if (E_OK == r) {
     r = E_NOT_OK;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-    if (sesSecAccess->securityMask & (1 << context->currentLevel)) {
+    if (0u != (sesSecAccess->securityMask & (1u << context->currentLevel))) {
 #endif
-      if (sesSecAccess->miscMask & (1 << context->msgContext.msgAddInfo.reqType)) {
+      if (0u != (sesSecAccess->miscMask & (1u << context->msgContext.msgAddInfo.reqType))) {
         r = E_OK;
       } else {
         *nrc = DCM_E_SERVICE_NOT_SUPPORTED;
@@ -175,6 +175,8 @@ Std_ReturnType Dcm_DslServiceDIDSesSecPhyFuncCheck(Dcm_ContextType *context,
       *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
     } else if (DCM_E_SERVICE_NOT_SUPPORTED == *nrc) {
       *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+    } else {
+      /* do nothing */
     }
   }
 
@@ -202,9 +204,9 @@ void Dcm_DslMainFunction(void) {
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
-  if (context->timerP2Server > 0) { /* @SWS_Dcm_00024 */
+  if (context->timerP2Server > 0u) { /* @SWS_Dcm_00024 */
     context->timerP2Server--;
-    if (0 == context->timerP2Server) {
+    if (0u == context->timerP2Server) {
       if (context->respPendCnt < config->dslDisgResp->MaxNumRespPend) {
         ASLOG(DCM, ("p2server timeout!\n"));
         Dcm_DslProcessingDone(context, config, DCM_E_RESPONSE_PENDING);
@@ -224,11 +226,11 @@ void Dcm_DslMainFunction(void) {
     }
   }
 
-  if (context->timerS3Server > 0) {
+  if (context->timerS3Server > 0u) {
     context->timerS3Server--;
-    if (0 == context->timerS3Server) {
+    if (0u == context->timerS3Server) {
       Dcm_SessionChangeIndication(context->currentSession, DCM_DEFAULT_SESSION, TRUE);
-      memset(context, 0, sizeof(Dcm_ContextType));
+      (void)memset(context, 0, sizeof(Dcm_ContextType));
       context->rxBufferState = DCM_BUFFER_IDLE;
       context->txBufferState = DCM_BUFFER_IDLE;
       context->curPduId = DCM_INVALID_PDU_ID;
@@ -239,18 +241,18 @@ void Dcm_DslMainFunction(void) {
   }
 
 #ifdef DCM_USE_SERVICE_ECU_RESET
-  if (context->timer2Reset > 0) {
+  if (context->timer2Reset > 0u) {
     context->timer2Reset--;
-    if (0 == context->timer2Reset) {
+    if (0u == context->timer2Reset) {
       Dcm_PerformReset(context->resetType);
     }
   }
 #endif
 
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-  if (context->securityDelayTimer > 0) {
+  if (context->securityDelayTimer > 0u) {
     context->securityDelayTimer--;
-    if (0 == context->securityDelayTimer) {
+    if (0u == context->securityDelayTimer) {
       ASLOG(DCM, ("DCM security timer timeout!\n"));
     }
   }
@@ -271,16 +273,16 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
   if (secLevelConfig->secLevel == context->currentLevel) {
     /* @SWS_Dcm_00323: already unlocked send 0 seed */
     r = E_OK;
-    memset(&msgContext->resData[1], 0, secLevelConfig->seedSize);
+    (void)memset(&msgContext->resData[1], 0, secLevelConfig->seedSize);
   } else {
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
     if (context->requestLevel != secLevelConfig->secLevel) {
       r = secLevelConfig->GetSeedFnc(&msgContext->resData[1], nrc);
       if (E_OK == r) {
-        memcpy(context->cachedSeed, &msgContext->resData[1], secLevelConfig->seedSize);
+        (void)memcpy(context->cachedSeed, &msgContext->resData[1], secLevelConfig->seedSize);
       }
     } else {
-      memcpy(&msgContext->resData[1], context->cachedSeed, secLevelConfig->seedSize);
+      (void)memcpy(&msgContext->resData[1], context->cachedSeed, secLevelConfig->seedSize);
       r = E_OK; /* given the same seed for seed protection purpose */
     }
 #else
@@ -290,24 +292,26 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     msgContext->resData[0] = msgContext->reqData[0];
-    msgContext->resDataLen = 1 + secLevelConfig->seedSize;
+    msgContext->resDataLen = 1u + secLevelConfig->seedSize;
     context->requestLevel = secLevelConfig->secLevel;
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
-    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter < (config->SecurityNumAttDelay + 2)) {
+    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter < (config->SecurityNumAttDelay + 2u)) {
       Dcm_NvmSecurityAccess_Ram.AttemptCounter++;
 #ifdef USE_NVM
-      NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
+      (void)NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
 #endif
       ASLOG(DCM, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
     }
-    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter > (config->SecurityNumAttDelay + 1)) {
+    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter > (config->SecurityNumAttDelay + 1u)) {
       context->securityDelayTimer = config->SecurityDelayTime;
-    } else if (Dcm_NvmSecurityAccess_Ram.AttemptCounter == (config->SecurityNumAttDelay + 1)) {
+    } else if (Dcm_NvmSecurityAccess_Ram.AttemptCounter == (config->SecurityNumAttDelay + 1u)) {
       context->securityDelayTimer = config->SecurityDelayTime;
       /* allow to generate a new seed if timer timeout */
       context->requestLevel = DCM_SEC_LEV_LOCKED;
       *nrc = DCM_E_EXCEED_NUMBER_OF_ATTEMPTS;
       r = E_NOT_OK;
+    } else {
+      /* do nothing */
     }
 #endif
   } else {
@@ -340,10 +344,10 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
     Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01112 */
 #endif
-    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter != 0) {
-      Dcm_NvmSecurityAccess_Ram.AttemptCounter = 0;
+    if (Dcm_NvmSecurityAccess_Ram.AttemptCounter != 0u) {
+      Dcm_NvmSecurityAccess_Ram.AttemptCounter = 0u;
 #ifdef USE_NVM
-      NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
+      (void)NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
 #endif
     }
   } else {
@@ -386,8 +390,8 @@ Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType SesCtrlType) {
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   uint8_t mask = Dcm_DslSession2Mask(SesCtrlType);
 
-  if (mask != 0) {
-    memset(context, 0, sizeof(Dcm_ContextType));
+  if (mask != 0u) {
+    (void)memset(context, 0, sizeof(Dcm_ContextType));
     context->rxBufferState = DCM_BUFFER_IDLE;
     context->txBufferState = DCM_BUFFER_IDLE;
     context->curPduId = DCM_INVALID_PDU_ID;

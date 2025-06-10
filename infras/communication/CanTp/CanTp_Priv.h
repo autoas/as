@@ -30,20 +30,20 @@
 #else
 #define CanTpSetAlarm(v)                                                                           \
   do {                                                                                             \
-    context->timer = 1 + (v);                                                                      \
+    context->timer = 1u + (v);                                                                     \
   } while (0)
 
 /* signal the alarm to process one step/tick forward */
 #define CanTpSignalAlarm()                                                                         \
   do {                                                                                             \
-    if (context->timer > 1) {                                                                      \
+    if (context->timer > 1u) {                                                                     \
       (context->timer)--;                                                                          \
     }                                                                                              \
   } while (0)
 
-#define CanTpIsAlarmTimeout() (1 == context->timer)
+#define CanTpIsAlarmTimeout() (1u == context->timer)
 
-#define CanTpIsAlarmStarted() (0 != context->timer)
+#define CanTpIsAlarmStarted() (0u != context->timer)
 
 #define CanTpCancelAlarm()                                                                         \
   do {                                                                                             \
@@ -115,6 +115,7 @@ typedef struct {
   uint16_t timer;
 #endif
   PduLengthType TpSduLength;
+  PduLengthType TpSduOffset; /* added for SecOC & Com */
   uint8_t cfgBS;
   uint8_t BS;
   uint8_t SN;

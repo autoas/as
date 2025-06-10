@@ -7,6 +7,9 @@
 #ifndef FLASH_H
 #define FLASH_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* software version information - only an example!!! */
 #define FLASH_DRIVER_VERSION_MAJOR 0x01 /* major version number / interface */
@@ -49,8 +52,8 @@
 #define kFlashAccerr 0x09
 
 #define FLASH_DRIVER_RELOCATABLE
-#ifndef FLASH_DRIVER_STARTADDRESS
-#define FLASH_DRIVER_STARTADDRESS ((unsigned long)(&FlashHeader))
+#ifndef FLASH_DRIVER_START_ADDRESS
+#define FLASH_DRIVER_START_ADDRESS ((unsigned long)(&FlashHeader))
 #endif
 #define FLASH_DRIVER_NUMBER_OF_MODULES 1
 
@@ -61,17 +64,22 @@
 #ifndef FLASH_IS_ERASE_ADDRESS_ALIGNED
 #define FLASH_IS_ERASE_ADDRESS_ALIGNED(a) (0 == ((FLASH_ERASE_SIZE - 1) & (a)))
 #endif
+
 /* must be n times of FLASH_WRITE_SIZE */
 #ifndef FLASH_WRITE_SIZE
 #define FLASH_WRITE_SIZE 8
 #endif
+#ifndef FLASH_IS_WRITE_ADDRESS_ALIGNED
 #define FLASH_IS_WRITE_ADDRESS_ALIGNED(a) (0 == ((FLASH_WRITE_SIZE - 1) & (a)))
+#endif
 
 /* must be 1 or 2 */
 #ifndef FLASH_READ_SIZE
 #define FLASH_READ_SIZE 2
 #endif
+#ifndef FLASH_IS_READ_ADDRESS_ALIGNED
 #define FLASH_IS_READ_ADDRESS_ALIGNED(a) (0 == ((FLASH_READ_SIZE - 1) & (a)))
+#endif
 
 #define FLASH_ALIGNED_ERASE_SIZE(s) (((s) + FLASH_ERASE_SIZE - 1) & (~(FLASH_ERASE_SIZE - 1)))
 #define FLASH_ALIGNED_WRITE_SIZE(s) (((s) + FLASH_WRITE_SIZE - 1) & (~(FLASH_WRITE_SIZE - 1)))
@@ -150,4 +158,7 @@ extern void FlashDeinit(tFlashParam *FlashParam);
 extern void FlashErase(tFlashParam *FlashParam);
 extern void FlashWrite(tFlashParam *FlashParam);
 extern void FlashRead(tFlashParam *FlashParam);
+#ifdef __cplusplus
+}
+#endif
 #endif /* FLASH_H */

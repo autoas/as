@@ -10,8 +10,9 @@
 
 /** This macro allows to use C defined address with the inline assembler */
 #define MAKE_HLI_ADDRESS(hli_name, c_expr) /*lint -e753 */                                         \
-  enum                                                                                             \
-  { hli_name = /*lint -e30*/ ((int)(c_expr)) /*lint -esym(749, hli_name) */ };
+  enum {                                                                                           \
+    hli_name = /*lint -e30*/ ((int)(c_expr)) /*lint -esym(749, hli_name) */                        \
+  };
 
 /** Address of the IACKR Interrupt Controller register. */
 MAKE_HLI_ADDRESS(INTC_IACKR, &INTC.IACKR.R)
@@ -245,8 +246,7 @@ int Os_PortInstallSignal(TaskVarType *pTaskVar, int sig, void *handler) {
 #endif
 
 __asm void Os_PortDispatch(void) {
-nofralloc
-  sc;
+  nofralloc sc;
   blr;
 }
 
@@ -257,9 +257,9 @@ __declspec(section ".__exception_handlers") extern long EXCEPTION_HANDLERS;
 #pragma function_align 16 /* We use 16 bytes alignment for Exception handlers */
 
 __asm void Os_PortStartDispatch(void) {
-nofralloc
-  /* Interrupt disable */
-  wrteei 0;
+  nofralloc
+    /* Interrupt disable */
+    wrteei 0;
   /* R10 = &ReadyVar */
   lis r10, ReadyVar @h;
   ori r10, r10, ReadyVar @l;
@@ -305,14 +305,12 @@ l_exit:
 }
 
 __asm void Os_PortResume(void) {
-nofralloc
-  OS_RESTORE_CONTEXT();
+  nofralloc OS_RESTORE_CONTEXT();
   rfi;
 }
 
 __asm void EnterISR(void) {
-nofralloc
-  lis r11, RunningVar @h;
+  nofralloc lis r11, RunningVar @h;
   lwz r10, RunningVar @l(r11);
   cmpwi r10, 0;
   beq l_nosave;
@@ -357,8 +355,7 @@ l_nosave:
 }
 
 __asm void LeaveISR(void) {
-nofralloc
-  wrteei 0;
+  nofralloc wrteei 0;
   lwz r12, 0(r1);
   addi r1, r1, 4;
   lis r11, CallLevel @h;
@@ -410,8 +407,7 @@ l_nodispatch:
 
 __declspec(interrupt) __declspec(section
                                  ".__exception_handlers") __asm void Os_PortDispatchEntry(void) {
-nofralloc
-  OS_SAVE_CONTEXT();
+  nofralloc OS_SAVE_CONTEXT();
 
   /* Save 'ssp' to TCB */
   lis r11, RunningVar @h;
@@ -436,8 +432,7 @@ nofralloc
 }
 
 __declspec(interrupt) __declspec(section ".__exception_handlers") __asm void Os_PortTickISR(void) {
-nofralloc
-  OS_SAVE_CONTEXT();
+  nofralloc OS_SAVE_CONTEXT();
 
   bl EnterISR;
 
@@ -454,8 +449,7 @@ nofralloc
 }
 
 __declspec(interrupt) __declspec(section ".__exception_handlers") __asm void Os_PortExtISR(void) {
-nofralloc
-  OS_SAVE_CONTEXT();
+  nofralloc OS_SAVE_CONTEXT();
 
   bl EnterISR;
 

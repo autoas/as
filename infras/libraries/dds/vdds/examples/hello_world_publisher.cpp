@@ -3,13 +3,16 @@
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "vdds.hpp"
-#include <unistd.h>
-#include <signal.h>
 #include "Std_Debug.h"
+#include "vdds.hpp"
+#include <signal.h>
+#include <unistd.h>
 
 using namespace as::vdds;
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef VRING_WRITER
+#define VRING_WRITER vring::spmc::Writer
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   char string[128];
@@ -40,7 +43,7 @@ int main(int argc, char *argv[]) {
 
   signal(SIGINT, signalHandler);
 
-  Publisher<HelloWorld_t> pub("/hello_wrold/xx");
+  Publisher<HelloWorld_t, VRING_WRITER> pub("/hello_wrold/xx");
   r = pub.init();
   while ((0 == r) && (false == lStopped)) {
     HelloWorld_t *sample = nullptr;
@@ -55,7 +58,7 @@ int main(int argc, char *argv[]) {
     } else {
       ASLOG(ERROR, ("exit as error %d\n", r));
     }
-    usleep(periodMs * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(periodMs));
   }
 
   return r;

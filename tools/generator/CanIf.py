@@ -26,22 +26,23 @@ def Gen_CanIf(cfg, dir):
     ID = 0
     for network in cfg["networks"]:
         for pdu in network["RxPdus"]:
-            H.write("#define CANIF_%s %s /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
+            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
             ID += 1
     ID = 0
     for network in cfg["networks"]:
         for pdu in network["TxPdus"]:
-            H.write("#define CANIF_%s %s /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
+            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
             ID += 1
     H.write("#ifndef CANIF_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define CANIF_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
+    H.write("#define CANIF_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define CANIF_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
-    H.write("  ((x + CANIF_MAIN_FUNCTION_PERIOD - 1) / CANIF_MAIN_FUNCTION_PERIOD)\n\n")
+    H.write("  ((x + CANIF_MAIN_FUNCTION_PERIOD - 1u) / CANIF_MAIN_FUNCTION_PERIOD)\n\n")
     for netId, network in enumerate(cfg["networks"]):
-        if network.get("TxTimeout", 0):
+        if network.get("TxTimeout", 100):
             H.write("#define CANIF_USE_TX_TIMEOUT\n\n")
             break
+    H.write("%s#define CANIF_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -136,8 +137,8 @@ def Gen_CanIf(cfg, dir):
         C.write("  {\n")
         C.write("    CanIf_RxPdus_%s,\n" % (network["name"]))
         C.write("    ARRAY_SIZE(CanIf_RxPdus_%s),\n" % (network["name"]))
-        C.write("    #ifdef CANIF_USE_TX_TIMEOUT\n")
-        C.write("    CANIF_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (network.get("TxTimeout", 100)))
+        C.write("    #if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)\n")
+        C.write("    CANIF_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (network.get("TxTimeout", 100)))
         C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n")
@@ -230,3 +231,4 @@ def Gen(cfg):
         cfg = json.load(f)
     cfg_ = extract(cfg, dir)
     Gen_CanIf(cfg_, dir)
+    return ["%s/CanIf_Cfg.c" % (dir)]

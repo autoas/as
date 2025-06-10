@@ -19,10 +19,10 @@
 /* ================================ [ LOCALS    ] ============================================== */
 static P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST)
   Dsd_FindService(P2CONST(Dcm_ServiceTableType, AUTOMATIC, DCM_CONST) servieTable, uint8_t SID) {
-  int i;
+  uint16_t i;
   P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) service = NULL;
 
-  for (i = 0; i < servieTable->numOfServices; i++) {
+  for (i = 0u; i < servieTable->numOfServices; i++) {
     if (servieTable->services[i].SID == SID) {
       service = &servieTable->services[i];
       break;
@@ -78,8 +78,8 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
           context->currentSID = config->rxBuffer[0];
           context->curService = service;
           context->msgContext.msgAddInfo.suppressPosResponse = DCM_NOT_SUPRESS_POSITIVE_RESPONCE;
-          if (service->SesSecAccess.miscMask & DCM_MISC_SUB_FUNCTION) {
-            if (SUPPRESS_POS_RESP_BIT & config->rxBuffer[1]) {
+          if (0u != (service->SesSecAccess.miscMask & DCM_MISC_SUB_FUNCTION)) {
+            if (0u != (SUPPRESS_POS_RESP_BIT & config->rxBuffer[1])) {
               context->msgContext.msgAddInfo.suppressPosResponse = DCM_SUPRESS_POSITIVE_RESPONCE;
               config->rxBuffer[1] &= ~SUPPRESS_POS_RESP_BIT;
             }
@@ -153,6 +153,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
 P2CONST(Dcm_ServiceTableType, AUTOMATIC, DCM_CONST)
 Dcm_GetActiveServiceTable(Dcm_ContextType *context,
                           P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config) {
+  (void)context;
   return config->serviceTables[0];
 }
 

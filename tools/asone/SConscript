@@ -1,77 +1,102 @@
 # How to build this, this is for windows
 # scons --lib=AsOne
 # scons --app=asone --prebuilt
+# scons --lib=UIFBL --prebuilt
+# scons --lib=UICan --prebuilt
+# scons --lib=UICom --prebuilt
+# scons --lib=UIDcm --prebuilt
 # scons --lib=UIVIC --os=OSAL --prebuilt
 
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('src/*.cpp') + Glob('src/*.hpp')
+objs = Glob("src/*.cpp") + Glob("src/*.hpp")
 
-SConscript('src/ui/vic/SConscript')
+SConscript("src/ui/vic/SConscript")
+SConscript("src/ui/figure/SConscript")
+SConscript("src/ui/common/SConscript")
 
-objsOne = Glob('src/one/*.cpp')
+objsOne = Glob("src/one/*.cpp")
+
+cfgE2E = Glob("src/one/config/E2E/E2E_Cfg.cpp")
+
+
 @register_library
 class LibraryAsOne(Library):
     shared = True
 
     def config(self):
-        pkg_json = Package('https://github.com/nlohmann/json.git')
-        self.include = ['%s/src/one/include' % (CWD), '%s/include' % (pkg_json)]
-        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils']
-        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
-        self.CPPPATH = ['$INFRAS']
+        pkg_json = Package("https://github.com/nlohmann/json.git")
+        self.include = ["%s/src/one/include" % (CWD)]
+        self.LIBS = ["LUA", "CanLib", "LinLib", "IsoTp", "DevLib", "Loader", "Utils", "StdBit", "E2E"]
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "LIN_USE_EXT_ID", "USE_STD_TOPIC", "USE_E2E"])
+        self.RegisterConfig("E2E", cfgE2E)
+        self.Append(CPPPATH=["%s/include" % (pkg_json)])
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsOne
-        self.Install('../prebuilt')
-        self.Install('../one')
+        self.Install("../prebuilt")
+        self.Install("../one")
 
 
 @register_application
 class Applicationasone(Application):
-    compiler = 'QMake'
+    compiler = "QMake"
 
     def config(self):
         self.source = objs
-        self.LIBS = ['dl', 'AsOne']
-        self.Install('../one')
+        self.LIBS = ["dl", "AsOne"]
+        self.Install("../one")
 
 
-objUIs = Glob('src/ui/*.cpp')
-
-
+objUIs = Glob("src/ui/*.cpp")
 extraInfos = {
-
-    'UIVIC': {'LIBS': ['AsOne', 'VicClient'], 'CPPPATH': ['$INFRAS']},
+    "UIFBL": {"LIBS": ["AsOne"], "CPPPATH": ["$INFRAS"]},
+    "UICan": {"LIBS": ["AsOne"], "CPPPATH": ["$INFRAS"]},
+    "UICom": {
+        "LIBS": ["AsOne", "Figure"],
+        "CPPPATH": [
+            "$INFRAS",
+        ],
+    },
+    "UIDcm": {"LIBS": ["AsOne", "UICommon", "dl"], "CPPPATH": ["$INFRAS"]},
+    "UIXcp": {"LIBS": ["AsOne", "UICommon"], "CPPPATH": ["$INFRAS"]},
+    "UIVIC": {"LIBS": ["AsOne", "VicClient"], "CPPPATH": ["$INFRAS"]},
+    "UITrace": {"LIBS": ["AsOne"], "CPPPATH": ["$INFRAS"]},
+    "UITester": {"LIBS": ["AsOne", "XLTester"], "CPPPATH": ["$INFRAS"]},
 }
 
 for ui in objUIs:
+
     @classmethod
     def config(self):
         b = self.ui.rstr()[:-4]
-        self.source = Glob(b + '.*pp')
+        self.source = Glob(b + ".*pp")
         if self.name in extraInfos:
             infos = extraInfos[self.name]
-            if 'LIBS' in infos:
-                self.LIBS = infos['LIBS']
-            if 'CPPDEFINES' in infos:
-                self.CPPDEFINES = infos['CPPDEFINES']
-            if 'CPPPATH' in infos:
-                self.CPPPATH = infos['CPPPATH']
+            if "LIBS" in infos:
+                self.LIBS = infos["LIBS"]
+            if "CPPDEFINES" in infos:
+                self.CPPDEFINES = infos["CPPDEFINES"]
+            if "CPPPATH" in infos:
+                self.CPPPATH = infos["CPPPATH"]
         if IsPlatformWindows():
-            cmd = 'cp -v {0}/{1}.dll {0}/../asone/debug'.format(
-                BUILD_DIR, self.name)
+            cmd = "cp -v {0}/{1}.dll {0}/../asone/debug".format(BUILD_DIR, self.name)
         else:
-            cmd = 'cp -v {0}/lib{1}.so {0}/../asone/debug'.format(
-                BUILD_DIR, self.name)
+            cmd = "cp -v {0}/lib{1}.so {0}/../asone/debug".format(BUILD_DIR, self.name)
         self.AddPostAction(self, cmd)
-        self.Install(self, '../one')
+        self.Install(self, "../one")
+
     libName = os.path.basename(ui.rstr()[:-4])
-    cls = type('Library%s' % (libName), (Library, ), {
-        'name': libName,
-        'ui': ui,
-        'compiler': 'QMake',
-        'shared': True,
-        'config': config,
-        'typed_class': True,
-    })
+    cls = type(
+        "Library%s" % (libName),
+        (Library,),
+        {
+            "name": libName,
+            "ui": ui,
+            "compiler": "QMake",
+            "shared": True,
+            "config": config,
+            "typed_class": True,
+        },
+    )
     register_library(cls)

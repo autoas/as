@@ -43,7 +43,6 @@
           ],
           "receive": [
             { "name": "ID", "type": "U16", "display": "hex", "default": "0xF15B", "visible": false },
-            { "name": "block ID", "type": "U8", "display": "dec", "default": 0 },
             { "name": "year", "type": "U8", "display": "hex", "default": 0 },
             { "name": "month", "type": "U8", "display": "hex", "default": 0 },
             { "name": "day", "type": "U8", "display": "hex", "default": 0 },
@@ -78,16 +77,13 @@
       "DataIdentifier" : [
         {
           "name": "Finger Print",
-          "ID": "0xFF01",
-          "attribute" : "rw",
+          "ID": "0xF15B",
+          "attribute" : "r",
           "data" : [
-            { "name": "vendor", "type": "U8Array", "size": 32, "display": "hex", "default": "text=as.by.parai@foxmail.com" },
             { "name": "year", "type": "U16", "display": "dec", "default": 2021 },
             { "name": "month", "type": "U8", "display": "dec", "default": 6 },
             { "name": "day", "type": "U8", "display": "dec", "default": 20 },
-            { "name": "hour", "type": "U8", "display": "dec", "default": 14 },
-            { "name": "minute", "type": "U8", "display": "dec", "default": 35 },
-            { "name": "second", "type": "U8", "display": "dec", "default": 30 }
+            { "name": "serial", "type": "U8Array", "size": 8, "display": "asc", "default": "text=#byas#" }
           ]
         }
       ],
@@ -187,6 +183,18 @@
             { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x02",
                "Select": [{ "name": "Primary", "value": "0x02" }, { "name": "Mirror", "value": "0x0F" }] },
             { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x02", "visible": false },
+            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_status", "datas": [] }
+          ]
+        },
+        {
+          "name": "Report Supported DTC",
+          "SID": "0x19",
+          "transmit": [
+            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0x0A", "visible": false }
           ],
           "receive": [
             { "name": "fnid", "type": "U8", "display": "hex", "default": "0x02", "visible": false },

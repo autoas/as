@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <unistd.h>
+#include "PAL.h"
 #include "Std_Debug.h"
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -37,7 +37,7 @@ static void _flash_init(void) {
   FILE *fp;
   static int checkFlag = 0;
   if (0 == checkFlag) {
-    if (0 != access(FLASH_IMG, F_OK | R_OK)) {
+    if (true == PAL_FileExists(FLASH_IMG)) {
       fp = fopen(FLASH_IMG, "wb+");
       for (int i = 0; i < FLS_TOTAL_SIZE; i++) {
         uint8_t data = 0xFF;
@@ -92,7 +92,7 @@ void FlashErase(tFlashParam *FlashParam) {
         FlashParam->errorcode = kFlashFailed;
       } else {
         fseek(fp, FlashParam->address, SEEK_SET);
-        for (int i = 0; i < (FlashParam->length); i++) {
+        for (tLength i = 0; i < (FlashParam->length); i++) {
           fwrite(EraseMask, 1, 1, fp);
         }
         fclose(fp);

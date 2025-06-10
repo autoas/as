@@ -389,9 +389,11 @@ loader_crc_t loader_crc_init(loader_t *loader) {
   loader_crc_t crc = 0;
   switch (loader->signType) {
   case SREC_SIGN_CRC16:
+  case SREC_SIGN_CRC16_V2:
     crc = 0xFFFF;
     break;
   case SREC_SIGN_CRC32:
+  case SREC_SIGN_CRC32_V2:
     crc = 0xFFFFFFFF;
     break;
   default:
@@ -405,9 +407,11 @@ loader_crc_t loader_calulate_crc(loader_t *loader, const uint8_t *DataPtr, uint3
   loader_crc_t crc;
   switch (loader->signType) {
   case SREC_SIGN_CRC16:
+  case SREC_SIGN_CRC16_V2:
     crc = Crc_CalculateCRC16(DataPtr, Length, (uint16_t)StartValue, IsFirstCall);
     break;
   case SREC_SIGN_CRC32:
+  case SREC_SIGN_CRC32_V2:
     crc = Crc_CalculateCRC32(DataPtr, Length, (uint32_t)StartValue, IsFirstCall);
     break;
   default:
@@ -420,11 +424,13 @@ uint32_t loader_set_crc(loader_t *loader, uint8_t *DataPtr, loader_crc_t Crc) {
   uint32_t len = 0;
   switch (loader->signType) {
   case SREC_SIGN_CRC16:
+  case SREC_SIGN_CRC16_V2:
     DataPtr[0] = (Crc >> 8) & 0xFF;
     DataPtr[1] = Crc & 0xFF;
     len = 2;
     break;
   case SREC_SIGN_CRC32:
+  case SREC_SIGN_CRC32_V2:
     DataPtr[0] = (Crc >> 24) & 0xFF;
     DataPtr[1] = (Crc >> 16) & 0xFF;
     DataPtr[2] = (Crc >> 8) & 0xFF;

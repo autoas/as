@@ -11,6 +11,8 @@
 #include "Eep.h"
 #include "Std_Critical.h"
 #include "Std_Debug.h"
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_EA 0
 #define AS_LOG_EAI 1
@@ -22,7 +24,7 @@
 #define EA_STATE_MASK ((Ea_StateType)0x0F)
 #define EA_JOB_MASK ((Ea_StateType)0xF0)
 
-#define EA_IDEL ((Ea_StateType)0)
+#define EA_IDLE ((Ea_StateType)0)
 #define EA_PENDING ((Ea_StateType)1)
 #define EA_WAITING ((Ea_StateType)2) /* Waiting Fls Job Finished or Error Exited */
 
@@ -30,7 +32,7 @@
 #define EA_JOB_READ ((Ea_StateType)0x10)
 #define EA_JOB_WRITE ((Ea_StateType)0x20)
 
-#define EA_STEP_IDEL ((Ea_StepType)0)
+#define EA_STEP_IDLE ((Ea_StepType)0)
 
 #define EA_READ_STEP1_READ ((Ea_StepType)0)
 
@@ -47,7 +49,7 @@
 #define EA_DOJOB_TEMPLATE(jobName, retryMax)                                                       \
   static void Ea_Do##jobName(Ea_StepType step, Ea_JobEventType event) {                            \
     Ea_ContextType *context = &Ea_Context;                                                         \
-    const Ea_ConfigType *config = EA_CONFIG;                                                       \
+    P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;                                \
     switch (event) {                                                                               \
     case EA_JOB_EVENT_START:                                                                       \
     case EA_JOB_EVENT_ERROR:                                                                       \
@@ -55,7 +57,7 @@
         context->retryCounter++;                                                                   \
         Ea_Do##jobName##_OnEventStart(step);                                                       \
       } else {                                                                                     \
-        context->state = EA_IDEL;                                                                  \
+        context->state = EA_IDLE;                                                                  \
         context->retryCounter = 0;                                                                 \
         ASLOG(EAE, ("Ea Do " #jobName " Job Failed\n"));                                           \
         config->JobErrorNotification();                                                            \
@@ -85,19 +87,19 @@ typedef struct {
   uint8_t retryCounter;
 } Ea_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
-extern const Ea_ConfigType Ea_Config;
+extern CONSTANT(Ea_ConfigType, EA_CONST) Ea_Config;
 /* ================================ [ DATAS     ] ============================================== */
 static Ea_ContextType Ea_Context;
 /* ================================ [ LOCALS    ] ============================================== */
 static void Ea_Panic(void) {
   Ea_ContextType *context = &Ea_Context;
   ASLOG(EAE, ("Ea panic in state 0x%X step %d\n", context->state, context->step));
-  context->state = EA_IDEL;
+  context->state = EA_IDLE;
   context->retryCounter = 0;
 }
 
 static void Ea_DoRead_OnEventStart(Ea_StepType step) {
-  const Ea_ConfigType *config = EA_CONFIG;
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
   Ea_ContextType *context = &Ea_Context;
   Std_ReturnType r;
   switch (step) {
@@ -117,11 +119,11 @@ static void Ea_DoRead_OnEventStart(Ea_StepType step) {
 }
 
 static void Ea_DoRead_OnEventEnd(Ea_StepType step) {
-  const Ea_ConfigType *config = EA_CONFIG;
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
   Ea_ContextType *context = &Ea_Context;
   switch (step) {
   case EA_READ_STEP1_READ:
-    context->state = EA_IDEL;
+    context->state = EA_IDLE;
     context->retryCounter = 0;
     config->JobEndNotification();
     break;
@@ -132,7 +134,7 @@ static void Ea_DoRead_OnEventEnd(Ea_StepType step) {
 }
 
 static void Ea_DoWrite_OnEventStart(Ea_StepType step) {
-  const Ea_ConfigType *config = EA_CONFIG;
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
   Ea_ContextType *context = &Ea_Context;
   Std_ReturnType r;
   switch (step) {
@@ -162,14 +164,14 @@ static void Ea_DoWrite_OnEventStart(Ea_StepType step) {
 }
 
 static void Ea_DoWrite_OnEventEnd(Ea_StepType step) {
-  const Ea_ConfigType *config = EA_CONFIG;
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
   Ea_ContextType *context = &Ea_Context;
   switch (step) {
   case EA_WRITE_STEP1_ERASE:
     Ea_DoWrite_OnEventStart(EA_WRITE_STEP2_WRITE);
     break;
   case EA_WRITE_STEP2_WRITE:
-    context->state = EA_IDEL;
+    context->state = EA_IDLE;
     context->retryCounter = 0;
     config->JobEndNotification();
     break;
@@ -182,12 +184,12 @@ static void Ea_DoWrite_OnEventEnd(Ea_StepType step) {
 EA_DOJOB_TEMPLATE(Read, 0)
 EA_DOJOB_TEMPLATE(Write, 0)
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Ea_Init(const Ea_ConfigType *ConfigPtr) {
+void Ea_Init(P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) ConfigPtr) {
   Ea_ContextType *context = &Ea_Context;
   (void)ConfigPtr;
 
-  context->state = EA_IDEL;
-  context->step = EA_STEP_IDEL;
+  context->state = EA_IDLE;
+  context->step = EA_STEP_IDLE;
   context->retryCounter = 0;
 }
 
@@ -197,28 +199,27 @@ void Ea_SetMode(MemIf_ModeType Mode) {
 
 Std_ReturnType Ea_Read(uint16_t BlockNumber, uint16_t BlockOffset, uint8_t *DataBufferPtr,
                        uint16_t Length) {
-  const Ea_ConfigType *config = EA_CONFIG;
+#if defined(USE_DET) && defined(DET_THIS_MODULE_ID)
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
+#endif
   Ea_ContextType *context = &Ea_Context;
-  Std_ReturnType r = E_NOT_OK;
+  Std_ReturnType r;
 
-  if (BlockNumber > 0 && ((BlockNumber - 1) < config->numOfBlocks)) {
-    if (config->Blocks[BlockNumber - 1].BlockSize >= ((uint32_t)BlockOffset + Length)) {
-      r = E_OK;
-    }
-  }
+  DET_VALIDATE((BlockNumber > 0) && ((BlockNumber - 1) < config->numOfBlocks), 0x02,
+               EA_E_INVALID_BLOCK_NO, return E_NOT_OK);
+  DET_VALIDATE(config->Blocks[BlockNumber - 1].BlockSize >= ((uint32_t)BlockOffset + Length), 0x02,
+               EA_E_INVALID_BLOCK_OFS, return E_NOT_OK);
 
-  if (E_OK == r) {
-    EnterCritical();
-    if (EA_IDEL == (EA_STATE_MASK & context->state)) {
-      context->state = EA_JOB_READ | EA_PENDING;
-      context->step = EA_STEP_IDEL;
-      context->retryCounter = 0;
-      r = E_OK;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  EnterCritical();
+  if (EA_IDLE == (EA_STATE_MASK & context->state)) {
+    context->state = EA_JOB_READ | EA_PENDING;
+    context->step = EA_STEP_IDLE;
+    context->retryCounter = 0;
+    r = E_OK;
+  } else {
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->job.BlockId = BlockNumber - 1;
@@ -231,26 +232,26 @@ Std_ReturnType Ea_Read(uint16_t BlockNumber, uint16_t BlockOffset, uint8_t *Data
 }
 
 Std_ReturnType Ea_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr) {
-  const Ea_ConfigType *config = EA_CONFIG;
+#if defined(USE_DET) && defined(DET_THIS_MODULE_ID)
+  P2CONST(Ea_ConfigType, AUTOMATIC, EA_CONST) config = EA_CONFIG;
+#endif
   Ea_ContextType *context = &Ea_Context;
-  Std_ReturnType r = E_NOT_OK;
+  Std_ReturnType r;
 
-  if (BlockNumber > 0 && ((BlockNumber - 1) < config->numOfBlocks)) {
+  DET_VALIDATE((BlockNumber > 0) && ((BlockNumber - 1) < config->numOfBlocks), 0x03,
+               EA_E_INVALID_BLOCK_NO, return E_NOT_OK);
+  DET_VALIDATE(NULL != DataBufferPtr, 0x03, EA_E_PARAM_POINTER, return E_NOT_OK);
+
+  EnterCritical();
+  if (EA_IDLE == (EA_STATE_MASK & context->state)) {
+    context->state = EA_JOB_WRITE | EA_PENDING;
+    context->step = EA_STEP_IDLE;
+    context->retryCounter = 0;
     r = E_OK;
+  } else {
+    r = E_NOT_OK;
   }
-
-  if (E_OK == r) {
-    EnterCritical();
-    if (EA_IDEL == (EA_STATE_MASK & context->state)) {
-      context->state = EA_JOB_WRITE | EA_PENDING;
-      context->step = EA_STEP_IDEL;
-      context->retryCounter = 0;
-      r = E_OK;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
-  }
+  ExitCritical();
 
   if (E_OK == r) {
     context->job.BlockId = BlockNumber - 1;
@@ -261,7 +262,7 @@ Std_ReturnType Ea_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr) {
 }
 
 void Ea_Cancel(void) {
-  return Eep_Cancel();
+  Eep_Cancel();
 }
 
 MemIf_StatusType Ea_GetStatus(void) {

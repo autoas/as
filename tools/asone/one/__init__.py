@@ -15,7 +15,7 @@ if(not os.path.exists('%s/AsPy.%s' % (CWD, 'pyd' if os.name == 'nt' else 'so')))
         cmd += ' && cp -v %s/AsPy.so %s/AsPy.so' % (AsPy, CWD)
     os.system(cmd)
 
-if os.name == 'nt' or sys.platform in ['msys', 'cygwin']:
+if hasattr(os, 'add_dll_directory'):
     # Python higher version is not supporting add PATH for windows
     PATH = os.getenv('PATH')
     for p in PATH.split(';'):

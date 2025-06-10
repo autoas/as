@@ -10,7 +10,7 @@ comments: true
 
 The building of my repository is based on python scons, it's very flexible and simple. Here I will introduce how to setup developement evnironment on Windows to evaluate and study [autoas/ssas-public ](https://github.com/autoas/ssas-public).
 
-Install below software on Windows：
+Install below software on Windows:
 
 
 | Package                                  | Installation Directory |
@@ -23,7 +23,7 @@ For msys2, we can use "pacman" to install what is needed as ssas building toolch
 
 For anaconda3, we can use "pip" to install what is needed for ssas, such as scons, and also, by default anaconda3 will install many python packages, such as pyQT.
 
-When those software has been installed on your Windows PC, you can double click the [Console.bat](https://github.com/autoas/ssas-public/blob/master/Console.bat) which is under ssas root directory. For the first launch of "Console.bat", it will automatically download and install [ConEmu](https://conemu.github.io/)(A very usefull Windows sheel command tool). If meet network issue that failed to download ConEmu, also, you can download this tool manually from[ConEmu Portable](https://www.fosshub.com/ConEmu.html), and install it as ssas-public/download/ConEmu, as below picture shows, and then double click [Console.bat](https://github.com/autoas/ssas-public/blob/master/Console.bat) to launch ssas development shell.
+When those software has been installed on your Windows PC, you can double click the [Console.bat](../../Console.bat) which is under ssas root directory. For the first launch of "Console.bat", it will automatically download and install [ConEmu](https://conemu.github.io/)(A very usefull Windows sheel command tool). If meet network issue that failed to download ConEmu, also, you can download this tool manually from[ConEmu Portable](https://www.fosshub.com/ConEmu.html), and install it as ssas-public/download/ConEmu, as below picture shows, and then double click [Console.bat](../../Console.bat) to launch ssas development shell.
 
 ![ConEum Install](../images/conemu-install.png)
 
@@ -98,4 +98,4 @@ RX: 50 01 13 88 00 32
 
 As above, we actually simulate a simple diagnostic session test, CanApp is equivalent to a CAN node, IsoTpSend is equivalent to another diagnostic node. As for the principle of simulation, please see the follow-up article.
 
-Now, basically, the development environment setup is done. Enjoy！
+Now, basically, the development environment setup is done. Enjoy�?

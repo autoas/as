@@ -12,6 +12,10 @@
 #define CANTP_CFG_H
 #define CANTP_NO_FC
 #define CANTP_USE_TRIGGER_TRANSMIT
+#ifdef LINTP_USE_PB_CONFIG
+#define CANTP_USE_PB_CONFIG
+#define cantpConfig lintpConfig
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

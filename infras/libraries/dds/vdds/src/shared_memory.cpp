@@ -66,7 +66,7 @@ int SharedMemory::create() {
   return ret;
 }
 
-int SharedMemory::release() {
+int SharedMemory::destroy() {
   int ret = 0;
 
   if (nullptr != m_Addr) {
@@ -89,14 +89,14 @@ int SharedMemory::release() {
   m_Handle = 0;
 
   if (0 != ret) {
-    ASLOG(MEMORYE, ("memory %s release failed %d\n", m_Name.c_str(), ret));
+    ASLOG(MEMORYE, ("memory %s destroy failed %d\n", m_Name.c_str(), ret));
   }
 
   return ret;
 }
 
 SharedMemory::~SharedMemory() {
-  release();
+  destroy();
 }
 
 /* ================================ [ DECLARES  ] ============================================== */

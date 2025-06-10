@@ -1,57 +1,58 @@
 from building import *
+
 CWD = GetCurrentDir()
 
 
-generate(Glob('Network.json'))
+SConscript("test/SConscript")
+# generate(Glob('Network.json'))
 # generate('msg.json')
-generate(Glob('Mempool.json'))
-
-
-libsForVicServer = {
-    'SoAd': Glob('GEN/SoAd_*.c') + Glob('GEN/NetMem.c'),
-    'Sd': Glob('GEN/Sd_*.c'),
-    'SomeIp': Glob('GEN/SomeIp_*.c') + Glob('server.cpp') + Glob('GEN/SS_VIC.cpp'), # + Glob('GEN/msg/*.pb.cc'),
-    'SomeIpXf': Glob('GEN/SomeIpXf_*.c'),
-}
+# generate(Glob('Mempool.json'))
 
 # ensure "pacman -S mingw-w64-x86_64-protobuf"
+
+objVicServer = Glob("server.cpp")
 
 
 @register_library
 class LibraryVicServer(Library):
-    mylibs = libsForVicServer
 
     def config(self):
-        for libName, source in self.mylibs.items():
+        source = self.Generate(["%s/config/Network.json" % (CWD), "%s/config/Mempool.json" % (CWD)])
+        mylibs = {
+            "SoAd": source["SoAd"] + source["MemCluster"],
+            "Sd": source["Sd"],
+            "SomeIp": source["SomeIp"] + objVicServer + source["SS_VICCpp"],  # + Glob('GEN/msg/*.pb.cc'),
+            "SomeIpXf": source["SomeIpXf"],
+        }
+        for libName, source in mylibs.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s' %
-                        (libName.split(':')[0].upper())])
-        #self.LIBS += ['protobuf']
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        # self.LIBS += ['protobuf']
         self.source = []
 
 
-libsForVicClient = {
-    'SoAd': Glob('GENT/SoAd_*.c') + Glob('GEN/NetMem.c'),
-    'Sd': Glob('GENT/Sd_*.c'),
-    'SomeIp': Glob('GENT/SomeIp_*.c') + Glob('client.cpp') + Glob('GENT/CS_VIC.cpp'), # + Glob('GEN/msg/*.pb.cc'),
-    'SomeIpXf': Glob('GENT/SomeIpXf_*.c'),
-}
+objVicClient = Glob("client.cpp")
 
 
 @register_library
 class LibraryVicClient(Library):
-    mylibs = libsForVicClient
 
     def config(self):
-        for libName, source in self.mylibs.items():
+        source = self.Generate(["%s/config/Network.json" % (CWD), "%s/config/Mempool.json" % (CWD)])
+        mylibs = {
+            "SoAd": source["MemCluster"] + source["SoAd_T"],
+            "Sd": source["Sd_T"],
+            "SomeIp": source["SomeIp_T"] + objVicClient + source["CS_VICCpp_T"],  # + Glob('GEN/msg/*.pb.cc'),
+            "SomeIpXf": source["SomeIpXf_T"],
+        }
+        for libName, source in mylibs.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s' %
-                        (libName.split(':')[0].upper())])
-        #self.LIBS += ['protobuf']
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        # self.LIBS += ['protobuf']
         self.source = []
-        files = ['%s/../../../examples/vic.json' % (CWD)]
-        pkg_uis = Package('https://github.com/autoas/static-gui.git')
-        files += ['%s/examples/cluster/pics' % (pkg_uis)]
-        self.Install('../one', files)
+        files = ["%s/../../../examples/vic.json" % (CWD)]
+        pkg_uis = Package("https://github.com/autoas/static-gui.git")
+        files += ["%s/examples/cluster/pics" % (pkg_uis)]
+        self.Install("../one", files)

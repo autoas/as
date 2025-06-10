@@ -11,6 +11,9 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef DET_THIS_MODULE_ID
+#define DET_THIS_MODULE_ID MODULE_ID_FLS
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* @ECUC_Fls_00202 */
 typedef struct {

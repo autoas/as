@@ -4,6 +4,9 @@ objs = Glob("src/*.c") + Glob("src/*.cpp")
 
 libsForSimulator = {
     "Can": Glob("src/config/Can_Cfg.c"),
+    "Lin:as": Glob("src/config/Lin_Cfg.c"),
+    "Dio": Glob("src/config/Dio*.c"),
+    "Port": Glob("src/config/Port*.c"),
 }
 
 
@@ -14,6 +17,7 @@ class LibrarySimulator(Library):
             self.LIBS = ["CanLib", "RS232", "Utils"]
         else:
             self.LIBS = ["CanLib", "DevLib", "Utils"]
+        self.Append(CPPDEFINES=["LIN_USE_EXT_ID"])
         self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer"]
         self.source = objs
         for libName, cfg in libsForSimulator.items():
@@ -25,19 +29,22 @@ class LibrarySimulator(Library):
             self.LIBS += ["User32"]
 
 
-objsFlsAc = Glob('src/FlsAc.c') + Glob('src/critical.c')
+objsFlsAc = Glob("src/FlsAc.cpp") + Glob("src/critical.cpp")
 
 
 @register_library
 class LibraryFlsAc(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["Utils"]
         self.source = objsFlsAc
 
-objsCritical = Glob('src/critical.c')
+
+objsCritical = Glob("src/critical.cpp")
+
 
 @register_library
 class LibraryCritical(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsCritical

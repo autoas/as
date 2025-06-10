@@ -1,0 +1,14 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.cpp")
+cfg = Glob("config/E2E.json")
+
+
+@register_application
+class Applicationgtest_E2E01(Application):
+    def config(self):
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["Utils", "gtest"]
+        self.RegisterConfig("E2E", cfg)
+        self.source = objs

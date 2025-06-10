@@ -10,10 +10,9 @@
 #define FILENAME_MAX 252
 #endif
 /* ================================ [ TYPES     ] ============================================== */
-struct dirent
-{
-	unsigned short	d_namlen;	/* Length of name in d_name. */
-	char		d_name[FILENAME_MAX]; /* [FILENAME_MAX] */ /* File name. */
+struct dirent {
+  unsigned short d_namlen;                        /* Length of name in d_name. */
+  char d_name[FILENAME_MAX]; /* [FILENAME_MAX] */ /* File name. */
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

@@ -46,6 +46,49 @@
 #define PINKIE_SSCANF_INT_T int64_t
 #define PINKIE_SSCANF_UINT_T uint64_t
 #endif
+
+/* memset/memcpy/memmove copied from newlib 4.1.0 */
+#define MEMSET_LBLOCKSIZE (sizeof(long))
+#define MEMSET_UNALIGNED(X) ((uintptr_t)X & (MEMSET_LBLOCKSIZE - 1))
+#define MEMSET_TOO_SMALL(LEN) ((LEN) < MEMSET_LBLOCKSIZE)
+
+/* Nonzero if either X or Y is not aligned on a "long" boundary.  */
+#define MEMCPY_UNALIGNED(X, Y)                                                                     \
+  (((uintptr_t)X & (sizeof(long) - 1)) | ((uintptr_t)Y & (sizeof(long) - 1)))
+
+/* How many bytes are copied each iteration of the 4X unrolled loop.  */
+#define MEMCPY_BIGBLOCKSIZE (sizeof(long) << 2)
+
+/* How many bytes are copied each iteration of the word copy loop.  */
+#define MEMCPY_LITTLEBLOCKSIZE (sizeof(long))
+
+/* Threshhold for punting to the byte copier.  */
+#define MEMCPY_TOO_SMALL(LEN) ((LEN) < MEMCPY_BIGBLOCKSIZE)
+
+/* Nonzero if either X or Y is not aligned on a "long" boundary.  */
+#define MEMMOVE_UNALIGNED(X, Y)                                                                    \
+  (((uintptr_t)X & (sizeof(long) - 1)) | ((uintptr_t)Y & (sizeof(long) - 1)))
+
+/* How many bytes are copied each iteration of the 4X unrolled loop.  */
+#define MEMMOVE_BIGBLOCKSIZE (sizeof(long) << 2)
+
+/* How many bytes are copied each iteration of the word copy loop.  */
+#define MEMMOVE_LITTLEBLOCKSIZE (sizeof(long))
+
+/* Threshhold for punting to the byte copier.  */
+#define MEMMOVE_TOO_SMALL(LEN) ((LEN) < MEMMOVE_BIGBLOCKSIZE)
+/*
+   Taken from glibc:
+   Add the compiler optimization to inhibit loop transformation to library
+   calls.  This is used to avoid recursive calls in memset and memmove
+   default implementations.
+*/
+#ifdef __GNUC__
+#define __inhibit_loop_to_libcall                                                                  \
+  __attribute__((__optimize__("-fno-tree-loop-distribute-patterns")))
+#else
+#define __inhibit_loop_to_libcall
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -174,45 +217,178 @@ size_t strlen(const char *s) {
   return sc - s;
 }
 
-void *memset(void *__s, int __c, size_t __n) {
-  size_t i;
-  char *ptr = (char *)__s;
+void *__inhibit_loop_to_libcall memset(void *m, int c, size_t n) {
+  char *s = (char *)m;
 
-  for (i = 0; i < __n; i++) {
-    ptr[i] = (char)(__c & 0xFFu);
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
+  unsigned int i;
+  unsigned long buffer;
+  unsigned long *aligned_addr;
+  unsigned int d = c & 0xff; /* To avoid sign extension, copy C to an
+          unsigned variable.  */
+
+  while (MEMSET_UNALIGNED(s)) {
+    if (n--)
+      *s++ = (char)c;
+    else
+      return m;
   }
 
-  return __s;
-}
+  if (!MEMSET_TOO_SMALL(n)) {
+    /* If we get this far, we know that n is large and s is word-aligned. */
+    aligned_addr = (unsigned long *)s;
 
-void *memcpy(void *__to, const void *__from, size_t __size) {
-  size_t i;
-  char *dst = (char *)__to;
-  const char *src = (const char *)__from;
+    /* Store D into each char sized location in BUFFER so that
+       we can set large blocks quickly.  */
+    buffer = (d << 8) | d;
+    buffer |= (buffer << 16);
+    for (i = 32; i < MEMSET_LBLOCKSIZE * 8; i <<= 1)
+      buffer = (buffer << i) | buffer;
 
-  for (i = 0; i < __size; i++) {
-    dst[i] = src[i];
+    /* Unroll the loop.  */
+    while (n >= MEMSET_LBLOCKSIZE * 4) {
+      *aligned_addr++ = buffer;
+      *aligned_addr++ = buffer;
+      *aligned_addr++ = buffer;
+      *aligned_addr++ = buffer;
+      n -= 4 * MEMSET_LBLOCKSIZE;
+    }
+
+    while (n >= MEMSET_LBLOCKSIZE) {
+      *aligned_addr++ = buffer;
+      n -= MEMSET_LBLOCKSIZE;
+    }
+    /* Pick up the remainder with a bytewise loop.  */
+    s = (char *)aligned_addr;
   }
 
-  return __to;
+#endif /* not PREFER_SIZE_OVER_SPEED */
+
+  while (n--)
+    *s++ = (char)c;
+
+  return m;
 }
 
-void *memmove(void *dest, const void *src, size_t len) {
-  char *d = dest;
-  const char *s = src;
+void *__inhibit_loop_to_libcall memcpy(void *dst0, const void *src0, size_t len0) {
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
+  char *dst = (char *)dst0;
+  char *src = (char *)src0;
 
-  if (d < s) {
-    while (len--) {
-      *d++ = *s++;
+  void *save = dst0;
+
+  while (len0--) {
+    *dst++ = *src++;
+  }
+
+  return save;
+#else
+  char *dst = dst0;
+  const char *src = src0;
+  long *aligned_dst;
+  const long *aligned_src;
+
+  /* If the size is small, or either SRC or DST is unaligned,
+     then punt into the byte copy loop.  This should be rare.  */
+  if (!MEMCPY_TOO_SMALL(len0) && !MEMCPY_UNALIGNED(src, dst)) {
+    aligned_dst = (long *)dst;
+    aligned_src = (long *)src;
+
+    /* Copy 4X long words at a time if possible.  */
+    while (len0 >= MEMCPY_BIGBLOCKSIZE) {
+      *aligned_dst++ = *aligned_src++;
+      *aligned_dst++ = *aligned_src++;
+      *aligned_dst++ = *aligned_src++;
+      *aligned_dst++ = *aligned_src++;
+      len0 -= MEMCPY_BIGBLOCKSIZE;
+    }
+
+    /* Copy one long word at a time if possible.  */
+    while (len0 >= MEMCPY_LITTLEBLOCKSIZE) {
+      *aligned_dst++ = *aligned_src++;
+      len0 -= MEMCPY_LITTLEBLOCKSIZE;
+    }
+
+    /* Pick up any residual with a byte copier.  */
+    dst = (char *)aligned_dst;
+    src = (char *)aligned_src;
+  }
+
+  while (len0--)
+    *dst++ = *src++;
+
+  return dst0;
+#endif /* not PREFER_SIZE_OVER_SPEED */
+}
+
+/*SUPPRESS 20*/
+void *__inhibit_loop_to_libcall memmove(void *dst_void, const void *src_void, size_t length) {
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
+  char *dst = dst_void;
+  const char *src = src_void;
+
+  if (src < dst && dst < src + length) {
+    /* Have to copy backwards */
+    src += length;
+    dst += length;
+    while (length--) {
+      *--dst = *--src;
     }
   } else {
-    const char *lasts = s + (len - 1);
-    char *lastd = d + (len - 1);
-    while (len--)
-      *lastd-- = *lasts--;
+    while (length--) {
+      *dst++ = *src++;
+    }
   }
 
-  return dest;
+  return dst_void;
+#else
+  char *dst = dst_void;
+  const char *src = src_void;
+  long *aligned_dst;
+  const long *aligned_src;
+
+  if (src < dst && dst < src + length) {
+    /* Destructive overlap...have to copy backwards */
+    src += length;
+    dst += length;
+    while (length--) {
+      *--dst = *--src;
+    }
+  } else {
+    /* Use optimizing algorithm for a non-destructive copy to closely
+       match memcpy. If the size is small or either SRC or DST is unaligned,
+       then punt into the byte copy loop.  This should be rare.  */
+    if (!MEMMOVE_TOO_SMALL(length) && !MEMMOVE_UNALIGNED(src, dst)) {
+      aligned_dst = (long *)dst;
+      aligned_src = (long *)src;
+
+      /* Copy 4X long words at a time if possible.  */
+      while (length >= MEMMOVE_BIGBLOCKSIZE) {
+        *aligned_dst++ = *aligned_src++;
+        *aligned_dst++ = *aligned_src++;
+        *aligned_dst++ = *aligned_src++;
+        *aligned_dst++ = *aligned_src++;
+        length -= MEMMOVE_BIGBLOCKSIZE;
+      }
+
+      /* Copy one long word at a time if possible.  */
+      while (length >= MEMMOVE_LITTLEBLOCKSIZE) {
+        *aligned_dst++ = *aligned_src++;
+        length -= MEMMOVE_LITTLEBLOCKSIZE;
+      }
+
+      /* Pick up any residual with a byte copier.  */
+      dst = (char *)aligned_dst;
+      src = (char *)aligned_src;
+    }
+
+    while (length--) {
+      *dst++ = *src++;
+    }
+  }
+
+  return dst_void;
+#endif /* not PREFER_SIZE_OVER_SPEED */
 }
 
 void *memchr(const void *s, int c, size_t n) {

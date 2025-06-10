@@ -13,7 +13,7 @@ comments: true
 
 但是对于FLASH就不那么简单了，最小可擦除单元太大，一个数据一个坑的话，呵呵，基本就不用玩了，因为有些MCU控制器，其内部可能就那么几个FLASH块，并且每个块要被擦的话是整个块被全部擦出，所以像EERPOM那样的那种使用方式已经变得不切实际的了。所以这个时候就要换一种玩法，一般被称作用FLASH来模拟EEPROM，所以在AUTOSAR里就有一个模块叫做Fee（Flash Emulation Eeprom）。这里提一下，有些MCU控制器会告诉你其片内带有EEPROM，同时会注明是用FLASH模拟的，个人觉得可能是MCU控制器实现了一个简单的算法来实现该功能，这里不研究了。
 
-本文将介绍[ssas-public/infras/memory/Fee](https://github.com/autoas/ssas-public/tree/master/infras/memory/Fee)的具体实现，首先介绍下FEE的基本原理，如下图所示：
+本文将介绍[ssas-public/infras/memory/Fee](../../infras/memory/Fee)的具体实现，首先介绍下FEE的基本原理，如下图所示：
 
 
 ![autosar-fee-mapping.png](../images/autosar-fee-mapping.png)
@@ -30,7 +30,7 @@ OK，以上只是基本原理，实际上要实现一个这样的模块可一点
 * 写数据（Fee_Write）
 * 数据备份（Backup）
 
-本FEE实现使用了自研[factory库](https://github.com/autoas/ssas-public/tree/master/infras/libraries/factory)来更好的管理这几种工作状态，[factory.json](https://github.com/autoas/ssas-public/blob/master/infras/memory/Fee/factory.json)详细的定义了各工作状态下的各工序。
+本FEE实现使用了自研[factory库](../../infras/libraries/factory)来更好的管理这几种工作状态，[factory.json](../../infras/memory/Fee/factory.json)详细的定义了各工作状态下的各工序。
 
 ## 1. 初始化（Fee_Init）
 
@@ -39,7 +39,7 @@ OK，以上只是基本原理，实际上要实现一个这样的模块可一点
 ![fee-init.png](../images/fee-init.png)
 <center> 图1 FEE 初始化 </center>
 
-参考[Fee_Priv.h](https://github.com/autoas/ssas-public/blob/master/infras/memory/NvM/NvM_Priv.h), 可知Fee_BankAdminType的定义，如下，其主要包含如下三个部分：
+参考[Fee_Priv.h](../../infras/memory/NvM/NvM_Priv.h), 可知Fee_BankAdminType的定义，如下，其主要包含如下三个部分：
 
 ```c
  High: | Full Magic | ~ Full Magic | <- Status -\

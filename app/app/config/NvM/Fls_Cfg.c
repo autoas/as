@@ -10,12 +10,32 @@
 #include "Fls_Priv.h"
 #include "Fee.h"
 /* ================================ [ MACROS    ] ============================================== */
-#ifndef FLS_BASE_ADDRESS
-#define FLS_BASE_ADDRESS 0
+#ifndef FLS_BANK0_ADDRESS
+#define FLS_BANK0_ADDRESS 0
+#endif
+
+#ifndef FLS_BANK0_SIZE
+#define FLS_BANK0_SIZE (512 * 1024)
+#endif
+
+#ifndef FLS_BANK1_ADDRESS
+#define FLS_BANK1_ADDRESS (FLS_BANK0_ADDRESS + FLS_BANK0_SIZE)
+#endif
+
+#ifndef FLS_BANK1_SIZE
+#define FLS_BANK1_SIZE (512 * 1024)
 #endif
 
 #ifndef FLS_MAX_READ_FAST
 #define FLS_MAX_READ_FAST 4096
+#endif
+
+#ifndef FLS_SECTOR_SIZE
+#define FLS_SECTOR_SIZE 512
+#endif
+
+#ifndef FLASH_PAGE_SIZE
+#define FLASH_PAGE_SIZE 8
 #endif
 
 #ifndef FLS_MAX_READ_NORM
@@ -42,18 +62,18 @@
 /* ================================ [ DATAS     ] ============================================== */
 static const Fls_SectorType Fls_SectorList[] = {
   {
-    FLS_BASE_ADDRESS,
-    FLS_BASE_ADDRESS + 512 * 1024,
-    512,
-    8,
-    1024,
+    FLS_BANK0_ADDRESS,
+    FLS_BANK0_ADDRESS + FLS_BANK0_SIZE,
+    FLS_SECTOR_SIZE,
+    FLASH_PAGE_SIZE,
+    FLS_BANK0_SIZE / FLS_SECTOR_SIZE,
   },
   {
-    FLS_BASE_ADDRESS + 512 * 1024,
-    FLS_BASE_ADDRESS + 1024 * 1024,
-    4096,
-    32,
-    128,
+    FLS_BANK1_ADDRESS,
+    FLS_BANK1_ADDRESS + FLS_BANK1_SIZE,
+    FLS_SECTOR_SIZE,
+    FLASH_PAGE_SIZE,
+    FLS_BANK1_SIZE / FLS_SECTOR_SIZE,
   },
 };
 

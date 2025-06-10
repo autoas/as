@@ -1,11 +1,19 @@
 # SSAS - Simple Smart Automotive Software
 # Copyright (C) 2021 Parai Wang <parai@foxmail.com>
 
-import PyFee
 import random
-import os
+import os,sys
 import pickle
 
+if hasattr(os, 'add_dll_directory'):
+    # Python higher version is not supporting add PATH for windows
+    PATH = os.getenv('PATH')
+    for p in PATH.split(';'):
+        p = p.strip()
+        if p != '':
+            os.add_dll_directory(p)
+
+import PyFee
 
 def format(s):
     return str(s).replace("'", "").replace(",", "")
@@ -17,7 +25,7 @@ def resume(**kwargs):
     print(blocks)
     with open('Fls.img', 'rb') as f:
         r = PyFee.img(f.read())
-        #assert(r)
+        # assert(r)
     NUM_BANKS = kwargs.get('NUM_BANKS', 2)
     BLOCK_SIZE = kwargs.get('BLOCK_SIZE', 0x10000)
     PyFee.config(blocks, bankSize=NUM_BANKS, blockSize=BLOCK_SIZE)
@@ -33,7 +41,7 @@ def normal(**kwargs):
     PyFee.erase()
     NUM_BLOCKS = kwargs.get('NUM_BLOCKS', 32)
     MIN_SIZE = kwargs.get('MIN_SIZE', 1)
-    MAX_SIZE = kwargs.get('MAX_SIZE', 32)
+    MAX_SIZE = kwargs.get('MAX_SIZE', 128)
     NUM_BANKS = kwargs.get('NUM_BANKS', 2)
     BLOCK_SIZE = kwargs.get('BLOCK_SIZE', 0x10000)
     nLoops = kwargs.get('loops', 10000)
@@ -73,7 +81,7 @@ def abnormal(**kwargs):
     PyFee.erase()
     NUM_BLOCKS = kwargs.get('NUM_BLOCKS', 32)
     MIN_SIZE = kwargs.get('MIN_SIZE', 1)
-    MAX_SIZE = kwargs.get('MAX_SIZE', 32)
+    MAX_SIZE = kwargs.get('MAX_SIZE', 128)
     NUM_BANKS = kwargs.get('NUM_BANKS', 2)
     BLOCK_SIZE = kwargs.get('BLOCK_SIZE', 0x10000)
     verbose = kwargs.get('verbose', False)

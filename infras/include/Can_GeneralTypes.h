@@ -15,10 +15,18 @@ extern "C" {
 /* @SWS_Can_00039 */
 #define CAN_BUSY 0x02
 
+#ifdef CAN_VERSION_422
+/* define this for the purpose to use RH850 v422 CAN */
+#define CAN_CS_UNINIT ((Can_ControllerStateType)0xFF)
+#define CAN_CS_STARTED ((Can_ControllerStateType)0)
+#define CAN_CS_STOPPED ((Can_ControllerStateType)1)
+#define CAN_CS_SLEEP ((Can_ControllerStateType)2)
+#else
 #define CAN_CS_UNINIT ((Can_ControllerStateType)0)
 #define CAN_CS_STARTED ((Can_ControllerStateType)1)
 #define CAN_CS_STOPPED ((Can_ControllerStateType)2)
 #define CAN_CS_SLEEP ((Can_ControllerStateType)3)
+#endif
 
 #define CANTRCV_TRCVMODE_SLEEP ((CanTrcv_TrcvModeType)0)
 #define CANTRCV_TRCVMODE_STANDBY ((CanTrcv_TrcvModeType)1)

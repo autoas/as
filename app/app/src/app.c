@@ -13,12 +13,20 @@
 #include "Com_Cfg.h"
 #include <time.h>
 #endif
+#if defined(USE_CANNM)
+#include "CanNm_Cfg.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_APP 0
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern void User_Init(void);
-extern void User_MainTask10ms(void);
+#if defined(__HIWARE__)
+#else
+void __weak User_Init(void) {
+}
+void __weak User_MainTask10ms(void) {
+}
+#endif
 extern void SomeIp_MainAppTask(void);
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
@@ -26,6 +34,7 @@ static Std_TimerType timer1s;
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(USE_COM) && defined(_WIN32)
 static void appUpdateComTxMsg(void) {
+#ifdef COM_SID_CAN0_TxMsgTime_year
   uint32_t year = 2021;
   uint8_t month = 7;
   uint8_t day = 21;
@@ -43,43 +52,46 @@ static void appUpdateComTxMsg(void) {
   second = lt->tm_sec;
 #endif
 
-  Com_SendSignal(COM_SID_year, &year);
-  Com_SendSignal(COM_SID_month, &month);
-  Com_SendSignal(COM_SID_day, &day);
-  Com_SendSignal(COM_SID_hour, &hour);
-  Com_SendSignal(COM_SID_minute, &minute);
-  Com_SendSignal(COM_SID_second, &second);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_year, &year);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_month, &month);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_day, &day);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_hour, &hour);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_minute, &minute);
+  Com_SendSignal(COM_SID_CAN0_TxMsgTime_second, &second);
   Com_SendSignalGroup(COM_GID_SystemTime);
+#endif
 }
 static void appCheckComRxMsg(void) {
+#ifdef COM_SID_CAN0_RxMsgAbsInfo_VehicleSpeed
   uint16_t VehicleSpeed, TachoSpeed;
   uint8_t Led1Sts, Led2Sts, Led3Sts;
 
-  Com_ReceiveSignal(COM_SID_VehicleSpeed, &VehicleSpeed);
-  Com_ReceiveSignal(COM_SID_TachoSpeed, &TachoSpeed);
-  Com_ReceiveSignal(COM_SID_Led1Sts, &Led1Sts);
-  Com_ReceiveSignal(COM_SID_Led2Sts, &Led2Sts);
-  Com_ReceiveSignal(COM_SID_Led3Sts, &Led3Sts);
+  Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_VehicleSpeed, &VehicleSpeed);
+  Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_TachoSpeed, &TachoSpeed);
+  Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_Led1Sts, &Led1Sts);
+  Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_Led2Sts, &Led2Sts);
+  Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_Led3Sts, &Led3Sts);
 
   ASLOG(APP, ("VehicleSpeed=%d, TachoSpeed=%d, Led1Sts=%d, Led2Sts=%d, Led3Sts=%d\n", VehicleSpeed,
               TachoSpeed, Led1Sts, Led2Sts, Led3Sts));
+#endif
 }
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void App_Init(void) {
   User_Init();
-  Std_TimerStart(&timer10ms);
-  Std_TimerStart(&timer1s);
+  Std_TimerInit(&timer10ms, 10000);
+  Std_TimerInit(&timer1s, 1000000);
 }
 
 void App_MainFunction(void) {
-  if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
+  if (TRUE == Std_IsTimerTimeout(&timer10ms)) {
     User_MainTask10ms();
-    Std_TimerStart(&timer10ms);
+    Std_TimerSet(&timer10ms, 10000);
   }
 
-  if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {
-    Std_TimerStart(&timer1s);
+  if (TRUE == Std_IsTimerTimeout(&timer1s)) {
+    Std_TimerSet(&timer1s, 1000000);
 #if defined(USE_COM) && defined(_WIN32)
     appUpdateComTxMsg();
     appCheckComRxMsg();
@@ -90,18 +102,15 @@ void App_MainFunction(void) {
   }
 }
 
-#if !defined(USE_NM) && (defined(USE_CANNM) || defined(USE_UDPNM))
+#if !defined(USE_COMM) && (defined(USE_CANNM) || defined(USE_UDPNM))
 void Nm_NetworkStartIndication(NetworkHandleType nmNetworkHandle) {
 #ifdef USE_CANNM
   CanNm_PassiveStartUp(nmNetworkHandle);
 #endif
 }
 void Nm_NetworkMode(NetworkHandleType nmNetworkHandle) {
-#ifdef USE_CANNM
+#if defined(USE_CANNM) && defined(CANNM_GLOBAL_PN_SUPPORT)
   CanNm_ConfirmPnAvailability(0);
-#ifdef USE_COM
-  Com_IpduGroupStart(0, TRUE);
-#endif
 #endif
 }
 void Nm_BusSleepMode(NetworkHandleType nmNetworkHandle) {
@@ -132,5 +141,17 @@ void Nm_CoordReadyToSleepIndication(NetworkHandleType nmChannelHandle) {
 }
 
 void Nm_CoordReadyToSleepCancellation(NetworkHandleType nmChannelHandle) {
+}
+
+void Nm_StateChangeNotification(NetworkHandleType nmNetworkHandle, Nm_StateType nmPreviousState,
+                                Nm_StateType nmCurrentState) {
+#ifdef USE_COM
+  if (NM_STATE_NORMAL_OPERATION == nmCurrentState) {
+    Com_IpduGroupStart(0, TRUE);
+  }
+#endif
+}
+
+void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle) {
 }
 #endif

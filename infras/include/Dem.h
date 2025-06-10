@@ -8,6 +8,9 @@
 #define DEM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* default supported operation cycle */
 #define DEM_OPERATION_CYCLE_POWER 0
@@ -90,6 +93,16 @@
 #define DEM_E_NO_FDC_AVAILABLE ((Std_ReturnType)14)
 #define DEM_BUSY ((Std_ReturnType)22)
 #define DEM_NO_SUCH_ELEMENT ((Std_ReturnType)48)
+
+/* @SWS_Dem_00173 */
+#define DEM_E_WRONG_CONFIGURATION 0x10
+#define DEM_E_PARAM_POINTER 0x11
+#define DEM_E_PARAM_DATA 0x12
+#define DEM_E_PARAM_LENGTH 0x13
+#define DEM_E_INIT_FAILED 0x14
+#define DEM_E_UNINIT 0x20
+#define DEM_E_WRONG_CONDITION 0x40
+#define DEM_E_INVALID_OBDMID 0x50
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Dem_00925 */
 typedef uint16_t Dem_EventIdType;
@@ -146,6 +159,11 @@ void Dem_PreInit(void);
 void Dem_Init(const Dem_ConfigType *ConfigPtr);
 /* @SWS_Dem_00182 */
 void Dem_Shutdown(void);
+
+/* @SWS_Dem_00213 */
+Std_ReturnType Dem_GetDTCStatusAvailabilityMask(uint8_t ClientId,
+                                                Dem_UdsStatusByteType *DTCStatusMask,
+                                                Dem_DTCOriginType DTCOrigin);
 
 /* @SWS_Dem_00208 */
 Std_ReturnType Dem_SetDTCFilter(uint8_t ClientId, uint8_t DTCStatusMask,
@@ -263,4 +281,7 @@ void Dem_MainFunction(void);
 
 /* @SWS_Dem_91008 */
 Std_ReturnType Dem_GetEventUdsStatus(Dem_EventIdType EventId, Dem_UdsStatusByteType *UDSStatusByte);
+#ifdef __cplusplus
+}
+#endif
 #endif /* DEM_H */

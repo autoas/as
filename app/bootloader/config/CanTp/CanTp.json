@@ -1,0 +1,12 @@
+{
+  "class": "CanTp",
+  "channels": [
+    {
+      "name": "P2P"
+    },
+    {
+      "name": "P2A",
+      "ComType": "FUNCTIONAL"
+    }
+  ]
+}

@@ -19,32 +19,32 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
-Std_ReturnType Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
-                                          P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
-                                            rtCtrl,
-                                          Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType
+Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
+                           P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl,
+                           Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
-  uint16_t currentDataLength = msgContext->reqDataLen - 3;
+  uint16_t currentDataLength = msgContext->reqDataLen - 3u;
 
   r = rtCtrl->StartRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
                               &currentDataLength, nrc);
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x01;
-    msgContext->resData[1] = (rtCtrl->id >> 8) & 0xFF;
-    msgContext->resData[2] = rtCtrl->id & 0xFF;
-    msgContext->resDataLen = 3 + currentDataLength;
+    msgContext->resData[0] = 0x01u;
+    msgContext->resData[1] = (rtCtrl->id >> 8u) & 0xFFu;
+    msgContext->resData[2] = rtCtrl->id & 0xFFu;
+    msgContext->resDataLen = (Dcm_MsgLenType)(3u + currentDataLength);
   }
 
   return r;
 }
 
-Std_ReturnType Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
-                                         P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
-                                           rtCtrl,
-                                         Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType
+Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
+                          P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl,
+                          Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
-  uint16_t currentDataLength = msgContext->reqDataLen - 3;
+  uint16_t currentDataLength = msgContext->reqDataLen - 3u;
 
   if (rtCtrl->StopRoutineFnc != NULL) {
     r = rtCtrl->StopRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
@@ -54,22 +54,21 @@ Std_ReturnType Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpS
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x02;
-    msgContext->resData[1] = (rtCtrl->id >> 8) & 0xFF;
-    msgContext->resData[2] = rtCtrl->id & 0xFF;
-    msgContext->resDataLen = 3 + currentDataLength;
+    msgContext->resData[0] = 0x02u;
+    msgContext->resData[1] = (rtCtrl->id >> 8u) & 0xFFu;
+    msgContext->resData[2] = rtCtrl->id & 0xFFu;
+    msgContext->resDataLen = (Dcm_MsgLenType)(3u + currentDataLength);
   }
 
   return r;
 }
 
-Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
-                                           Dcm_OpStatusType OpStatus,
-                                           P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST)
-                                             rtCtrl,
-                                           Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType
+Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
+                            P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl,
+                            Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
-  uint16_t currentDataLength = msgContext->reqDataLen - 3;
+  uint16_t currentDataLength = msgContext->reqDataLen - 3u;
   if (rtCtrl->RequestResultRoutineFnc != NULL) {
     r = rtCtrl->RequestResultRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
                                         &currentDataLength, nrc);
@@ -77,10 +76,10 @@ Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
     *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
   }
   if (E_OK == r) {
-    msgContext->resData[0] = 0x03;
-    msgContext->resData[1] = (rtCtrl->id >> 8) & 0xFF;
-    msgContext->resData[2] = rtCtrl->id & 0xFF;
-    msgContext->resDataLen = 3 + currentDataLength;
+    msgContext->resData[0] = 0x03u;
+    msgContext->resData[1] = (rtCtrl->id >> 8u) & 0xFFu;
+    msgContext->resData[2] = rtCtrl->id & 0xFFu;
+    msgContext->resDataLen = (Dcm_MsgLenType)(3u + currentDataLength);
   }
 
   return r;
@@ -88,29 +87,30 @@ Std_ReturnType Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext,
 #endif
 
 #ifdef DCM_USE_SERVICE_DYNAMICALLY_DEFINE_DATA_IDENTIFIER
-void Dcm_DDDID_Init(void) {
-  int i;
+static void Dcm_DDDID_Init(void) {
+  uint16_t i;
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID;
   for (i = 0; i < config->numOfDDDIDs; i++) {
     DDDID = &config->DDDIDs[i];
-    memset(DDDID->context, 0, sizeof(Dcm_DDDIDContextType));
-    memset(DDDID->rDID, 0, sizeof(Dcm_rDIDConfigType));
+    (void)memset(DDDID->context, 0, sizeof(Dcm_DDDIDContextType));
+    (void)memset(DDDID->rDID, 0, sizeof(Dcm_rDIDConfigType));
   }
 }
 
-Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
-                                    Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
+                                           Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
-  uint16_t defID;
+  uint16_t defID = 0xFFFFu;
   uint16_t srcID;
   uint8_t position;
   uint8_t size;
-  uint16_t length = 0;
-  int i, j;
-  uint16_t numOfDIDs = (msgContext->reqDataLen - 3) / 4;
+  uint16_t length = 0u;
+  uint16_t i;
+  uint16_t j;
+  uint16_t numOfDIDs = (msgContext->reqDataLen - 3u) / 4u;
   P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID;
   P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDID;
   Dcm_DDDIDEntryType *entry;
@@ -120,11 +120,11 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
 #endif
                                        0xFF};
 
-  if (msgContext->reqDataLen == (4 * numOfDIDs + 3)) {
-    defID = ((uint16_t)msgContext->reqData[1] << 8) + msgContext->reqData[2];
+  if (msgContext->reqDataLen == ((4u * numOfDIDs) + 3u)) {
+    defID = ((uint16_t)msgContext->reqData[1] << 8u) + msgContext->reqData[2];
     if (numOfDIDs > DCM_DDDID_MAX_ENTRY) {
       *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
-    } else if (0 == numOfDIDs) {
+    } else if (0u == numOfDIDs) {
       *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     } else {
       r = E_OK;
@@ -136,7 +136,7 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
   /* check that the DID never defined or exists */
   for (i = 0; (E_OK == r) && (i < config->numOfDDDIDs); i++) {
     DDDID = &config->DDDIDs[i];
-    if (DDDID->context->numOfEntry > 0) {
+    if (DDDID->context->numOfEntry > 0u) {
       if (DDDID->rDID->id == defID) {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
         r = E_NOT_OK;
@@ -152,13 +152,14 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    for (i = 0; (E_OK == r) && (i < numOfDIDs); i++) {
-      srcID = ((uint16_t)msgContext->reqData[3 + 4 * i] << 8) + msgContext->reqData[4 + 4 * i];
-      position = msgContext->reqData[5 + 4 * i];
-      size = msgContext->reqData[6 + 4 * i];
+    for (i = 0u; (E_OK == r) && (i < numOfDIDs); i++) {
+      srcID =
+        ((uint16_t)msgContext->reqData[3u + (4u * i)] << 8) + msgContext->reqData[4u + (4u * i)];
+      position = msgContext->reqData[5u + (4u * i)];
+      size = msgContext->reqData[6u + (4u * i)];
 
       rDID = NULL;
-      for (j = 0; (NULL == rDID) && (j < config->numOfrDIDs); j++) {
+      for (j = 0u; (NULL == rDID) && (j < config->numOfrDIDs); j++) {
         if (config->rDIDs[j].id == srcID) {
           rDID = &config->rDIDs[j];
         }
@@ -170,12 +171,12 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
         r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDID->SesSecAccess, nrc);
       }
       if (E_OK == r) {
-        if (0 == position) {
+        if (0u == position) {
           *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
           r = E_NOT_OK;
         } else {
           /* index start from 1 */
-          position -= 1;
+          position -= 1u;
         }
       }
 
@@ -187,7 +188,7 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
       }
 
       if (E_OK == r) {
-        if ((length + rDID->length + 2) > msgContext->resMaxDataLen) {
+        if ((length + rDID->length + 2u) > msgContext->resMaxDataLen) {
           *nrc = DCM_E_RESPONSE_TOO_LONG;
           r = E_NOT_OK;
         }
@@ -200,7 +201,7 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
   if (E_OK == r) {
     DDDID = NULL;
     for (i = 0; (NULL == DDDID) && (i < config->numOfDDDIDs); i++) {
-      if (config->DDDIDs[i].context->numOfEntry == 0) {
+      if (config->DDDIDs[i].context->numOfEntry == 0u) {
         DDDID = &config->DDDIDs[i];
       }
     }
@@ -212,17 +213,18 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     ASLOG(DCM, ("define DDDID=%X length=%d\n", defID, length));
-    for (i = 0; (E_OK == r) && (i < numOfDIDs); i++) {
-      srcID = ((uint16_t)msgContext->reqData[3 + 4 * i] << 8) + msgContext->reqData[4 + 4 * i];
-      position = msgContext->reqData[5 + 4 * i];
-      size = msgContext->reqData[6 + 4 * i];
+    for (i = 0u; (E_OK == r) && (i < numOfDIDs); i++) {
+      srcID =
+        ((uint16_t)msgContext->reqData[3u + (4u * i)] << 8) + msgContext->reqData[4u + (4u * i)];
+      position = msgContext->reqData[5u + (4u * i)];
+      size = msgContext->reqData[6u + (4u * i)];
       entry = &DDDID->context->entry[i];
       rDID = NULL;
-      for (j = 0; (NULL == rDID) && (j < config->numOfrDIDs); j++) {
+      for (j = 0u; (NULL == rDID) && (j < config->numOfrDIDs); j++) {
         if (config->rDIDs[j].id == srcID) {
           rDID = &config->rDIDs[j];
           entry->index = j;
-          entry->position = position - 1;
+          entry->position = position - 1u;
           entry->size = size;
           entry->opStatus = DCM_CANCEL;
           SesSecAccess.sessionMask &= rDID->SesSecAccess.sessionMask;
@@ -249,33 +251,35 @@ Std_ReturnType Dcm_DspDefineDIDById(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x01;
+    msgContext->resData[0] = 0x01u;
     msgContext->resData[1] = msgContext->reqData[1];
     msgContext->resData[2] = msgContext->reqData[2];
-    msgContext->resDataLen = 3;
+    msgContext->resDataLen = 3u;
   }
 
   return r;
 }
 
-Std_ReturnType Dcm_DspDefineDIDByMemoryAddress(Dcm_MsgContextType *msgContext,
-                                               Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType Dcm_DspDefineDIDByMemoryAddress(Dcm_MsgContextType *msgContext,
+                                                      Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
+  (void)msgContext;
   *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
   return r;
 }
 
-Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext, Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext,
+                                      Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
   uint16_t defID;
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDID = NULL;
-  int i;
+  uint16_t i;
 
-  if (msgContext->reqDataLen == 3) {
+  if (msgContext->reqDataLen == 3u) {
     defID = ((uint16_t)msgContext->reqData[1] << 8) + msgContext->reqData[2];
-    for (i = 0; i < config->numOfDDDIDs; i++) {
-      if (config->DDDIDs[i].context->numOfEntry > 0) {
+    for (i = 0u; i < config->numOfDDDIDs; i++) {
+      if (config->DDDIDs[i].context->numOfEntry > 0u) {
         if (config->DDDIDs[i].rDID->id == defID) {
           DDDID = &config->DDDIDs[i];
           r = E_OK;
@@ -288,12 +292,12 @@ Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
 
   if (E_OK == r) {
     ASLOG(DCM, ("clear DDDID=%X\n", defID));
-    memset(DDDID->context, 0, sizeof(Dcm_DDDIDContextType));
-    memset(DDDID->rDID, 0, sizeof(Dcm_rDIDConfigType));
-    msgContext->resData[0] = 0x03;
+    (void)memset(DDDID->context, 0, sizeof(Dcm_DDDIDContextType));
+    (void)memset(DDDID->rDID, 0, sizeof(Dcm_rDIDConfigType));
+    msgContext->resData[0] = 0x03u;
     msgContext->resData[1] = msgContext->reqData[1];
     msgContext->resData[2] = msgContext->reqData[2];
-    msgContext->resDataLen = 3;
+    msgContext->resDataLen = 3u;
   }
 
   return r;
@@ -310,11 +314,11 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
   sesCtrlConfig =
     (P2CONST(Dcm_SessionControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   Dcm_SesCtrlType sesCtrl = msgContext->reqData[0];
-  int i;
+  uint16_t i;
   uint16_t u16V;
 
-  if (1 == msgContext->reqDataLen) {
-    for (i = 0; i < sesCtrlConfig->numOfSesCtrls; i++) {
+  if (1u == msgContext->reqDataLen) {
+    for (i = 0u; i < sesCtrlConfig->numOfSesCtrls; i++) {
       if (sesCtrl == sesCtrlConfig->sesCtrls[i]) {
         break;
       }
@@ -347,12 +351,12 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
 #endif
     u16V = config->timing->P2ServerMax * DCM_MAIN_FUNCTION_PERIOD;
     msgContext->resData[0] = sesCtrl;
-    msgContext->resData[1] = (u16V >> 8) & 0xFF; /* P2Server_max */
-    msgContext->resData[2] = u16V & 0xFF;
-    u16V = config->timing->P2StarServerMax * DCM_MAIN_FUNCTION_PERIOD / 10;
-    msgContext->resData[3] = (u16V >> 8) & 0xFF; /* P2*Server_max */
-    msgContext->resData[4] = u16V & 0xFF;
-    msgContext->resDataLen = 5;
+    msgContext->resData[1] = (u16V >> 8) & 0xFFu; /* P2Server_max */
+    msgContext->resData[2] = u16V & 0xFFu;
+    u16V = config->timing->P2StarServerMax * DCM_MAIN_FUNCTION_PERIOD / 10u;
+    msgContext->resData[3] = (u16V >> 8) & 0xFFu; /* P2*Server_max */
+    msgContext->resData[4] = u16V & 0xFFu;
+    msgContext->resDataLen = 5u;
     context->timerS3Server = config->timing->S3Server;
   }
 
@@ -367,24 +371,24 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
   secAccConfig =
     (P2CONST(Dcm_SecurityAccessConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   P2CONST(Dcm_SecLevelConfigType, AUTOMATIC, DCM_CONST) secLevelConfig = NULL;
-  Dcm_SecLevelType secLevel = (msgContext->reqData[0] + 1) / 2;
-  int i;
+  Dcm_SecLevelType secLevel = (msgContext->reqData[0] + 1u) / 2u;
+  uint16_t i;
 
-  if (msgContext->reqDataLen >= 1) {
-    for (i = 0; i < secAccConfig->numOfSesLevels; i++) {
+  if (msgContext->reqDataLen >= 1u) {
+    for (i = 0u; i < secAccConfig->numOfSesLevels; i++) {
       if (secAccConfig->secLevelConfig[i].secLevel == secLevel) {
         secLevelConfig = &secAccConfig->secLevelConfig[i];
       }
     }
     if (NULL != secLevelConfig) {
-      if (msgContext->reqData[0] & 0x01) { /* request seed */
-        if (1 == msgContext->reqDataLen) {
+      if (0u != (msgContext->reqData[0] & 0x01u)) { /* request seed */
+        if (1u == msgContext->reqDataLen) {
           r = E_OK;
         } else {
           *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
         }
       } else {
-        if ((1 + secLevelConfig->keySize) == msgContext->reqDataLen) {
+        if ((1u + secLevelConfig->keySize) == msgContext->reqDataLen) {
           r = E_OK;
         } else {
           *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
@@ -405,9 +409,9 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    if ((context->securityDelayTimer > 0)
+    if ((context->securityDelayTimer > 0u)
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
-        && (msgContext->reqData[0] & 0x01) /* request seed */
+        && (0u != (msgContext->reqData[0] & 0x01u)) /* request seed */
 #endif
     ) { /* @SWS_Dcm_01350 */
       *nrc = DCM_E_REQUIRED_TIME_DELAY_NOT_EXPIRED;
@@ -416,7 +420,7 @@ Std_ReturnType Dcm_DspSecurityAccess(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    if (msgContext->reqData[0] & 0x01) { /* request seed */
+    if (0u != (msgContext->reqData[0] & 0x01u)) { /* request seed */
       r = Dcm_DslSecurityAccessRequestSeed(msgContext, secLevelConfig, nrc);
     } else {
       r = Dcm_DslSecurityAccessCompareKey(msgContext, secLevelConfig, nrc);
@@ -436,9 +440,9 @@ Std_ReturnType Dcm_DspRoutineControl(Dcm_MsgContextType *msgContext,
     (P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl = NULL;
   uint16_t id;
-  int i;
+  uint16_t i;
 
-  if (msgContext->reqDataLen >= 3) {
+  if (msgContext->reqDataLen >= 3u) {
     id = ((uint16_t)msgContext->reqData[1] << 8) + msgContext->reqData[2];
     for (i = 0; i < rtCtrlConfig->numOfRtCtrls; i++) {
       if (rtCtrlConfig->rtCtrls[i].id == id) {
@@ -457,13 +461,13 @@ Std_ReturnType Dcm_DspRoutineControl(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     switch (msgContext->reqData[0]) {
-    case 0x01:
+    case 0x01u:
       r = Dcm_DspRoutineControlStart(msgContext, context->opStatus, rtCtrl, nrc);
       break;
-    case 0x02:
+    case 0x02u:
       r = Dcm_DspRoutineControlStop(msgContext, context->opStatus, rtCtrl, nrc);
       break;
-    case 0x03:
+    case 0x03u:
       r = Dcm_DspRoutineControlResult(msgContext, context->opStatus, rtCtrl, nrc);
       break;
     default:
@@ -491,24 +495,24 @@ Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
   uint32_t memorySize;
   /* @SWS_Dcm_01420 */
   uint32_t BlockLength = config->rxBufferSize;
-  int i;
+  uint16_t i;
 
   if (msgContext->reqDataLen > 3) {
     dataFormatIdentifier = msgContext->reqData[0];
-    memorySizeLen = (msgContext->reqData[1] >> 4) & 0xF;
-    memoryAddressLen = msgContext->reqData[1] & 0xF;
-    if ((memorySizeLen >= 1) && (memorySizeLen <= 4) && (memoryAddressLen >= 1) &&
-        (memoryAddressLen <= 4)) {
+    memorySizeLen = (msgContext->reqData[1] >> 4) & 0xFu;
+    memoryAddressLen = msgContext->reqData[1] & 0xFu;
+    if ((memorySizeLen >= 1u) && (memorySizeLen <= 4u) && (memoryAddressLen >= 1u) &&
+        (memoryAddressLen <= 4u)) {
       if ((2 + memoryAddressLen + memorySizeLen) == msgContext->reqDataLen) {
         /* @SWS_Dcm_00856: support all possible case */
         r = E_OK;
-        memoryAddress = 0;
-        for (i = 0; i < memoryAddressLen; i++) {
-          memoryAddress = (memoryAddress << 8) + msgContext->reqData[2 + i];
+        memoryAddress = 0u;
+        for (i = 0u; i < memoryAddressLen; i++) {
+          memoryAddress = (memoryAddress << 8) + msgContext->reqData[2u + i];
         }
-        memorySize = 0;
-        for (i = 0; i < memorySizeLen; i++) {
-          memorySize = (memorySize << 8) + msgContext->reqData[2 + memoryAddressLen + i];
+        memorySize = 0u;
+        for (i = 0u; i < memorySizeLen; i++) {
+          memorySize = (memorySize << 8) + msgContext->reqData[2u + memoryAddressLen + i];
         }
       } else {
         *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
@@ -534,15 +538,15 @@ Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x20; /* lengthFormatIdentifier */
-    msgContext->resData[1] = (BlockLength >> 8) & 0xFF;
-    msgContext->resData[2] = BlockLength & 0xFF;
-    msgContext->resDataLen = 3;
+    msgContext->resData[0] = 0x20u; /* lengthFormatIdentifier */
+    msgContext->resData[1] = (BlockLength >> 8) & 0xFFu;
+    msgContext->resData[2] = BlockLength & 0xFFu;
+    msgContext->resDataLen = 3u;
     context->UDTData.state = DCM_UDT_DOWNLOAD_STATE;
     context->UDTData.memoryAddress = memoryAddress;
     context->UDTData.memorySize = memorySize;
-    context->UDTData.offset = 0;
-    context->UDTData.blockSequenceCounter = 1;
+    context->UDTData.offset = 0u;
+    context->UDTData.blockSequenceCounter = 1u;
   }
 
   return r;
@@ -565,23 +569,23 @@ Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
   uint32_t memorySize;
   /* @SWS_Dcm_01422 */
   uint32_t BlockLength = msgContext->resMaxDataLen + 1;
-  int i;
+  uint8_t i;
 
   if (msgContext->reqDataLen > 3) {
     dataFormatIdentifier = msgContext->reqData[0];
-    memorySizeLen = (msgContext->reqData[1] >> 4) & 0xF;
-    memoryAddressLen = msgContext->reqData[1] & 0xF;
-    if ((memorySizeLen >= 1) && (memorySizeLen <= 4) && (memoryAddressLen >= 1) &&
-        (memoryAddressLen <= 4)) {
+    memorySizeLen = (msgContext->reqData[1] >> 4) & 0xFu;
+    memoryAddressLen = msgContext->reqData[1] & 0xFu;
+    if ((memorySizeLen >= 1u) && (memorySizeLen <= 4u) && (memoryAddressLen >= 1u) &&
+        (memoryAddressLen <= 4u)) {
       if ((2 + memoryAddressLen + memorySizeLen) == msgContext->reqDataLen) {
         /* @SWS_Dcm_00857: support all possible case */
         r = E_OK;
-        memoryAddress = 0;
-        for (i = 0; i < memoryAddressLen; i++) {
+        memoryAddress = 0u;
+        for (i = 0u; i < memoryAddressLen; i++) {
           memoryAddress = (memoryAddress << 8) + msgContext->reqData[2 + i];
         }
-        memorySize = 0;
-        for (i = 0; i < memorySizeLen; i++) {
+        memorySize = 0u;
+        for (i = 0u; i < memorySizeLen; i++) {
           memorySize = (memorySize << 8) + msgContext->reqData[2 + memoryAddressLen + i];
         }
       } else {
@@ -608,15 +612,15 @@ Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x20; /* lengthFormatIdentifier */
-    msgContext->resData[1] = (BlockLength >> 8) & 0xFF;
-    msgContext->resData[2] = BlockLength & 0xFF;
-    msgContext->resDataLen = 3;
+    msgContext->resData[0] = 0x20u; /* lengthFormatIdentifier */
+    msgContext->resData[1] = (BlockLength >> 8) & 0xFFu;
+    msgContext->resData[2] = BlockLength & 0xFFu;
+    msgContext->resDataLen = 3u;
     context->UDTData.state = DCM_UDT_UPLOAD_STATE;
     context->UDTData.memoryAddress = memoryAddress;
     context->UDTData.memorySize = memorySize;
-    context->UDTData.offset = 0;
-    context->UDTData.blockSequenceCounter = 1;
+    context->UDTData.offset = 0u;
+    context->UDTData.blockSequenceCounter = 1u;
   }
 
   return r;
@@ -769,7 +773,7 @@ Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_EcuResetConfigType, AUTOMATIC, DCM_CONST)
   rstConfig = (P2CONST(Dcm_EcuResetConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
-  if (1 == msgContext->reqDataLen) {
+  if (1u == msgContext->reqDataLen) {
     r = E_OK;
   } else {
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
@@ -777,16 +781,16 @@ Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
 
   if (r == E_OK) {
     switch (msgContext->reqData[0]) {
-    case 0x01: /* hard reset */
-    case 0x03: /* soft reset */
+    case 0x01u: /* hard reset */
+    case 0x03u: /* soft reset */
       context->resetType = msgContext->reqData[0];
-      if (rstConfig->delay == 0) {
-        context->timer2Reset = 1;
+      if (rstConfig->delay == 0u) {
+        context->timer2Reset = 1u;
       } else {
         context->timer2Reset = rstConfig->delay;
       }
       msgContext->resData[0] = context->resetType;
-      msgContext->resDataLen = 1;
+      msgContext->resDataLen = 1u;
       break;
     default:
       r = E_NOT_OK;
@@ -818,21 +822,22 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
   uint16_t numOfDids = 0;
   Dcm_MsgLenType totalResLength = 0;
   boolean forceRCRRP = FALSE;
-  int i, j;
+  uint16_t i;
+  uint16_t j;
 
-  if ((msgContext->reqDataLen >= 2) && ((msgContext->reqDataLen & 0x01) == 0)) {
+  if ((msgContext->reqDataLen >= 2u) && ((msgContext->reqDataLen & 0x01u) == 0u)) {
     numOfDids = msgContext->reqDataLen >> 1;
-    for (i = 0; (i < numOfDids) && (E_OK == r) && (DCM_INITIAL == context->opStatus); i++) {
+    for (i = 0u; (i < numOfDids) && (E_OK == r) && (DCM_INITIAL == context->opStatus); i++) {
       rDid = NULL;
-      id = ((uint16_t)msgContext->reqData[i * 2] << 8) + msgContext->reqData[i * 2 + 1];
-      for (j = 0; j < rDidConfig->numOfDIDs; j++) {
+      id = ((uint16_t)msgContext->reqData[i * 2u] << 8) + msgContext->reqData[(i * 2u) + 1u];
+      for (j = 0u; j < rDidConfig->numOfDIDs; j++) {
         if (rDidConfig->DIDs[j].rDID->id == id) {
           rDid = &rDidConfig->DIDs[j];
           break;
         }
       }
       if (NULL != rDid) {
-        totalResLength += rDid->rDID->length + 2;
+        totalResLength += rDid->rDID->length + 2u;
         r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->rDID->SesSecAccess, nrc);
       } else {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
@@ -852,23 +857,23 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    totalResLength = 0;
-    for (i = 0; (i < numOfDids) && (E_OK == r); i++) {
+    totalResLength = 0u;
+    for (i = 0u; (i < numOfDids) && (E_OK == r); i++) {
       rDid = NULL;
-      id = ((uint16_t)msgContext->reqData[i * 2] << 8) + msgContext->reqData[i * 2 + 1];
-      for (j = 0; j < rDidConfig->numOfDIDs; j++) {
+      id = ((uint16_t)msgContext->reqData[i * 2u] << 8) + msgContext->reqData[(i * 2u) + 1u];
+      for (j = 0u; j < rDidConfig->numOfDIDs; j++) {
         if (rDidConfig->DIDs[j].rDID->id == id) {
           rDid = &rDidConfig->DIDs[j];
           break;
         }
       }
       if (NULL != rDid) {
-        msgContext->resData[totalResLength] = (id >> 8) & 0xFF;
-        msgContext->resData[totalResLength + 1] = id & 0xFF;
+        msgContext->resData[totalResLength] = (id >> 8) & 0xFFu;
+        msgContext->resData[totalResLength + 1u] = id & 0xFFu;
         if ((DCM_INITIAL == context->opStatus) || (DCM_CANCEL == context->opStatus) ||
             (DCM_PENDING == rDid->context->opStatus)) {
           rDid->context->opStatus = DCM_CANCEL; /* set to invalid */
-          r = rDid->rDID->readDIdFnc(context->opStatus, &msgContext->resData[totalResLength + 2],
+          r = rDid->rDID->readDIdFnc(context->opStatus, &msgContext->resData[totalResLength + 2u],
                                      rDid->rDID->length, nrc);
           if (DCM_E_PENDING == r) {
             r = E_OK;
@@ -887,7 +892,7 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
             }
           }
         }
-        totalResLength += rDid->rDID->length + 2;
+        totalResLength += rDid->rDID->length + 2u;
       } else {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
         r = E_NOT_OK;
@@ -916,9 +921,9 @@ Std_ReturnType Dcm_DspReadScalingDataByIdentifier(Dcm_MsgContextType *msgContext
     (P2CONST(Dcm_ReadScalingDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDid = NULL;
   uint16_t id;
-  int i;
+  uint16_t i;
 
-  if (2 == msgContext->reqDataLen) {
+  if (2u == msgContext->reqDataLen) {
     id = ((uint16_t)msgContext->reqData[0] << 8) + msgContext->reqData[1];
     for (i = 0; i < rDidConfig->numOfDIDs; i++) {
       if (rDidConfig->DIDs[i].id == id) {
@@ -957,7 +962,7 @@ Std_ReturnType Dcm_DspWriteDataByIdentifier(Dcm_MsgContextType *msgContext,
   wDidConfig = (P2CONST(Dcm_WriteDIDConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   P2CONST(Dcm_WriteDIDType, AUTOMATIC, DCM_CONST) wDid = NULL;
   uint16_t id;
-  int i;
+  uint16_t i;
 
   if (msgContext->reqDataLen > 2) {
     wDid = NULL;
@@ -1002,10 +1007,10 @@ Std_ReturnType Dcm_DspTesterPresent(Dcm_MsgContextType *msgContext,
                                     Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
 
-  if (1 == msgContext->reqDataLen) {
-    if (0x00 == msgContext->reqData[0]) {
-      msgContext->resData[0] = 0x00;
-      msgContext->resDataLen = 1;
+  if (1u == msgContext->reqDataLen) {
+    if (0x00u == msgContext->reqData[0]) {
+      msgContext->resData[0] = 0x00u;
+      msgContext->resDataLen = 1u;
       r = E_OK;
     } else {
       *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
@@ -1025,14 +1030,14 @@ Std_ReturnType Dcm_DspControlDTCSetting(Dcm_MsgContextType *msgContext,
 
   if (1 == msgContext->reqDataLen) {
     switch (msgContext->reqData[0]) {
-    case 0x01: /* ON */
-      r = Dem_EnableDTCSetting(0);
+    case 0x01u: /* ON */
+      r = Dem_EnableDTCSetting(0u);
       if (E_OK != r) {
         *nrc = DCM_E_CONDITIONS_NOT_CORRECT;
       }
       break;
-    case 0x02: /* OFF */
-      r = Dem_DisableDTCSetting(0);
+    case 0x02u: /* OFF */
+      r = Dem_DisableDTCSetting(0u);
       if (E_OK != r) {
         *nrc = DCM_E_CONDITIONS_NOT_CORRECT;
       }
@@ -1047,7 +1052,7 @@ Std_ReturnType Dcm_DspControlDTCSetting(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     msgContext->resData[0] = msgContext->reqData[0];
-    msgContext->resDataLen = 1;
+    msgContext->resDataLen = 1u;
   }
 
   return r;
@@ -1109,6 +1114,9 @@ Std_ReturnType Dem_DspReportNumberOfDTCByStatusMask_Impl(Dcm_MsgContextType *msg
     r = Dem_SetDTCFilter(0, statusMask, DEM_DTC_FORMAT_UDS, DTCOrigin, FALSE, 0, FALSE);
     if (E_OK == r) {
       r = Dem_GetNumberOfFilteredDTC(0, &NumberOfFilteredDTC);
+      if (E_OK == r) {
+        r = Dem_GetDTCStatusAvailabilityMask(0, &statusMask, DTCOrigin);
+      }
     }
 
     if (E_OK == r) {
@@ -1146,7 +1154,7 @@ Std_ReturnType Dem_DspReportDTCByStatusMask_Impl(Dcm_MsgContextType *msgContext,
   uint16_t NumberOfFilteredDTC = 0;
   uint32_t DTCNumber;
   Dem_UdsStatusByteType udsStatus;
-  int i;
+  uint16_t i;
 
   if (2 == msgContext->reqDataLen) {
     statusMask = msgContext->reqData[1];
@@ -1155,6 +1163,9 @@ Std_ReturnType Dem_DspReportDTCByStatusMask_Impl(Dcm_MsgContextType *msgContext,
                          FALSE);
     if (E_OK == r) {
       r = Dem_GetNumberOfFilteredDTC(0, &NumberOfFilteredDTC);
+      if (E_OK == r) {
+        r = Dem_GetDTCStatusAvailabilityMask(0, &statusMask, DTCOrigin);
+      }
     }
 
     if (E_OK == r) {
@@ -1205,7 +1216,7 @@ Std_ReturnType Dem_DspReportDTCSnapshotIdentification(Dcm_MsgContextType *msgCon
   uint16_t NumberOfFilteredRecords = 0;
   uint32_t DTCNumber;
   uint8_t RecordNumber;
-  int i;
+  uint16_t i;
 
   if (1 == msgContext->reqDataLen) {
     r = Dem_SelectDTC(0, 0xFFFFFF, DEM_DTC_FORMAT_UDS, DEM_DTC_ORIGIN_PRIMARY_MEMORY);
@@ -1337,12 +1348,15 @@ Std_ReturnType Dem_DspReportSupportedDTC(Dcm_MsgContextType *msgContext,
   uint16_t NumberOfFilteredDTC = 0;
   uint32_t DTCNumber;
   Dem_UdsStatusByteType udsStatus;
-  int i;
+  uint16_t i;
 
   if (1 == msgContext->reqDataLen) {
     r = Dem_SetDTCFilter(0, 0, DEM_DTC_FORMAT_UDS, DEM_DTC_ORIGIN_PRIMARY_MEMORY, FALSE, 0, FALSE);
     if (E_OK == r) {
       r = Dem_GetNumberOfFilteredDTC(0, &NumberOfFilteredDTC);
+      if (E_OK == r) {
+        r = Dem_GetDTCStatusAvailabilityMask(0, &udsStatus, DEM_DTC_ORIGIN_PRIMARY_MEMORY);
+      }
     }
 
     if (E_OK == r) {
@@ -1385,7 +1399,7 @@ Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
   config = (P2CONST(Dcm_ReadDTCInfoConfigType, AUTOMATIC, DCM_CONST))context->curService->config;
   P2CONST(Dcm_ReadDTCSubFunctionConfigType, AUTOMATIC, DCM_CONST) subFunction = NULL;
   uint8_t type;
-  int i;
+  uint16_t i;
 
   if (msgContext->reqDataLen >= 1) {
     type = msgContext->reqData[0];
@@ -1414,17 +1428,17 @@ Std_ReturnType Dcm_DspReadDTCInformation(Dcm_MsgContextType *msgContext,
 #endif
 
 #ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
-void Dcm_IOCtlByID_Init(void) {
+static void Dcm_IOCtlByID_Init(void) {
   Dcm_NegativeResponseCodeType nrc = 0;
   uint16_t resDataLen = 0;
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST)
   IOCtlConfig = config->IOCtlConfig;
   P2CONST(Dcm_IOControlType, AUTOMATIC, DCM_CONST) IOCtrl;
-  int i;
+  uint16_t i;
   for (i = 0; i < IOCtlConfig->numOfIOCtrls; i++) {
     IOCtrl = &IOCtlConfig->IOCtrls[i];
-    if (IOCtrl->context->requestMask != 0) {
+    if (IOCtrl->context->requestMask != 0u) {
       if (IOCtrl->ReturnControlToEcuFnc != NULL) {
         ASLOG(DCM, ("IOCTL %X return to ECU\n", IOCtrl->id));
         (void)IOCtrl->ReturnControlToEcuFnc(NULL, 0, config->txBuffer, &resDataLen, &nrc);
@@ -1443,11 +1457,11 @@ Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
   P2CONST(Dcm_IOControlType, AUTOMATIC, DCM_CONST) IOCtrl = NULL;
   uint16_t id;
   uint8_t action;
-  uint16_t resDataLen = msgContext->resMaxDataLen - 3;
-  int i;
+  uint16_t resDataLen = msgContext->resMaxDataLen - 3u;
+  uint16_t i;
   P2CONST(Dcm_IOCtrlExecuteFncType, AUTOMATIC, DCM_CONST) ExecuteFncs;
 
-  if (msgContext->reqDataLen >= 3) {
+  if (msgContext->reqDataLen >= 3u) {
     id = ((uint16_t)msgContext->reqData[0] << 8) + msgContext->reqData[1];
     action = msgContext->reqData[2];
     for (i = 0; i < config->numOfIOCtrls; i++) {
@@ -1471,7 +1485,7 @@ Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
     ExecuteFncs = &(IOCtrl->ReturnControlToEcuFnc);
     if (action <= DCM_IOCTRL_SHORT_TERM_ADJUSTMENT) {
       if (ExecuteFncs[action] != NULL) {
-        r = ExecuteFncs[action](&msgContext->reqData[3], msgContext->reqDataLen - 3,
+        r = ExecuteFncs[action](&msgContext->reqData[3], msgContext->reqDataLen - 3u,
                                 &msgContext->resData[3], &resDataLen, nrc);
       } else {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
@@ -1485,14 +1499,14 @@ Std_ReturnType Dcm_DspIOControlByIdentifier(Dcm_MsgContextType *msgContext,
 
   if (E_OK == r) {
     if (action != DCM_IOCTRL_RETURN_CTRL_TO_ECU) {
-      IOCtrl->context->requestMask |= (1 << action);
+      IOCtrl->context->requestMask |= ((uint8_t)1 << action);
     } else {
-      IOCtrl->context->requestMask = 0;
+      IOCtrl->context->requestMask = 0u;
     }
-    msgContext->resData[0] = (IOCtrl->id >> 8) & 0xFF;
-    msgContext->resData[1] = IOCtrl->id & 0xFF;
+    msgContext->resData[0] = (IOCtrl->id >> 8) & 0xFFu;
+    msgContext->resData[1] = IOCtrl->id & 0xFFu;
     msgContext->resData[2] = action;
-    msgContext->resDataLen = 3 + resDataLen;
+    msgContext->resDataLen = 3u + resDataLen;
   }
 
   return r;
@@ -1511,7 +1525,7 @@ Std_ReturnType Dcm_DspCommunicationControl(Dcm_MsgContextType *msgContext,
   ComCtrl = NULL;
   uint8_t id;
   uint8_t comType;
-  int i;
+  uint16_t i;
 
   if (2 == msgContext->reqDataLen) {
     id = msgContext->reqData[0];
@@ -1554,11 +1568,11 @@ void Dcm_ReadPeriodicDID_Init(void) {
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) pDIDConfig = config->rPDIDConfig;
   P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
-  int i;
+  uint16_t i;
   if (NULL != pDIDConfig) {
     for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
       rDid = &pDIDConfig->DIDs[i];
-      memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
+      (void)memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
       rDid->context->opStatus = DCM_CANCEL;
     }
   }
@@ -1570,8 +1584,8 @@ void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void) {
   P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
   Dcm_ContextType *context = Dcm_GetContext();
   Dcm_NegativeResponseCodeType nrc;
-  bool stopIt;
-  int i;
+  boolean stopIt;
+  uint16_t i;
   Std_ReturnType r;
 
   if (NULL != pDIDConfig) {
@@ -1589,7 +1603,7 @@ void Dcm_ReadPeriodicDID_OnSessionSecurityChange(void) {
         }
       }
       if (TRUE == stopIt) {
-        memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
+        (void)memset(rDid->context, 0, sizeof(Dcm_ReadPeriodicDIDContextType));
         rDid->context->opStatus = DCM_CANCEL;
       }
     }
@@ -1602,7 +1616,7 @@ void Dcm_MainFunction_ReadPeriodicDID(void) {
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) pDIDConfig = config->rPDIDConfig;
   P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) rDid = NULL;
-  int i;
+  uint16_t i;
   Dcm_MsgType resData = config->txBuffer;
   Dcm_MsgLenType totalResLength;
   Dcm_NegativeResponseCodeType nrc;
@@ -1610,10 +1624,10 @@ void Dcm_MainFunction_ReadPeriodicDID(void) {
   if (NULL != pDIDConfig) {
     for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
       rDid = &pDIDConfig->DIDs[i];
-      if (rDid->context->reload > 0) {
-        if (rDid->context->timer > 0) {
+      if (rDid->context->reload > 0u) {
+        if (rDid->context->timer > 0u) {
           rDid->context->timer--;
-          if (0 == rDid->context->timer) {
+          if (0u == rDid->context->timer) {
             rDid->context->opStatus = DCM_INITIAL;
             rDid->context->timer = rDid->context->reload;
           }
@@ -1626,16 +1640,16 @@ void Dcm_MainFunction_ReadPeriodicDID(void) {
   }
 
   if ((NULL != pDIDConfig) && (DCM_BUFFER_IDLE == context->txBufferState)) {
-    resData[0] = 0x6A;
-    totalResLength = 1;
-    for (i = 0; i < pDIDConfig->numOfDIDs; i++) {
+    resData[0] = 0x6Au;
+    totalResLength = 1u;
+    for (i = 0u; i < pDIDConfig->numOfDIDs; i++) {
       rDid = &pDIDConfig->DIDs[i];
       if (rDid->context->opStatus != DCM_CANCEL) {
-        if ((totalResLength + 1 + rDid->DID->length) > config->txBufferSize) {
+        if ((totalResLength + 1u + rDid->DID->length) > config->txBufferSize) {
           break;
         }
         nrc = DCM_POS_RESP;
-        r = rDid->DID->readDIdFnc(rDid->context->opStatus, &resData[totalResLength + 1],
+        r = rDid->DID->readDIdFnc(rDid->context->opStatus, &resData[totalResLength + 1u],
                                   rDid->DID->length, &nrc);
         if ((DCM_E_PENDING == r) || (DCM_E_FORCE_RCRRP == r)) {
           r = E_OK;
@@ -1645,8 +1659,8 @@ void Dcm_MainFunction_ReadPeriodicDID(void) {
           ASLOG(DCME, ("read periodic DID FAILED\n"));
           rDid->context->opStatus = DCM_CANCEL;
         } else if (DCM_POS_RESP == nrc) { /* reading is done */
-          resData[totalResLength] = rDid->DID->id & 0xFF;
-          totalResLength += 1 + rDid->DID->length;
+          resData[totalResLength] = rDid->DID->id & 0xFFu;
+          totalResLength += 1u + rDid->DID->length;
           rDid->context->opStatus = DCM_CANCEL;
         } else if (DCM_E_RESPONSE_PENDING == nrc) {
           rDid->context->opStatus = DCM_PENDING;
@@ -1656,7 +1670,7 @@ void Dcm_MainFunction_ReadPeriodicDID(void) {
         }
       }
     }
-    if (totalResLength > 1) {
+    if (totalResLength > 1u) {
       context->TxTpSduLength = totalResLength;
       context->txBufferState = DCM_BUFFER_FULL;
     }
@@ -1676,11 +1690,12 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
   uint16_t numOfDids = 0;
   Dcm_MsgLenType totalResLength = 0;
   uint16_t reload = 0;
-  int i, j;
+  uint16_t i;
+  uint16_t j;
 
-  if (msgContext->reqDataLen >= 2) {
+  if (msgContext->reqDataLen >= 2u) {
     transmissionMode = msgContext->reqData[0];
-    numOfDids = msgContext->reqDataLen - 1;
+    numOfDids = msgContext->reqDataLen - 1u;
   } else {
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     r = E_NOT_OK;
@@ -1710,15 +1725,15 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
   if (E_OK == r) {
     for (i = 0; (i < numOfDids) && (E_OK == r); i++) {
       rDid = NULL;
-      id = msgContext->reqData[i + 1];
+      id = msgContext->reqData[i + 1u];
       for (j = 0; j < config->numOfDIDs; j++) {
-        if (config->DIDs[j].DID->id == ((uint16_t)id + 0xF200)) {
+        if (config->DIDs[j].DID->id == ((uint16_t)id + 0xF200u)) {
           rDid = &config->DIDs[j];
           break;
         }
       }
       if (NULL != rDid) {
-        totalResLength += rDid->DID->length + 1;
+        totalResLength += rDid->DID->length + 1u;
         r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->DID->SesSecAccess, nrc);
       } else {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
@@ -1735,13 +1750,13 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
   }
 
   if (E_OK == r) {
-    for (i = 0; i < numOfDids; i++) {
+    for (i = 0u; i < numOfDids; i++) {
       rDid = NULL;
-      id = msgContext->reqData[i + 1];
-      for (j = 0; j < config->numOfDIDs; j++) {
-        if (config->DIDs[j].DID->id == ((uint16_t)id + 0xF200)) {
+      id = msgContext->reqData[i + 1u];
+      for (j = 0u; j < config->numOfDIDs; j++) {
+        if (config->DIDs[j].DID->id == ((uint16_t)id + 0xF200u)) {
           rDid = &config->DIDs[j];
-          if (0 == rDid->context->reload) {
+          if (0u == rDid->context->reload) {
             rDid->context->opStatus = DCM_CANCEL;
           }
           rDid->context->reload = reload;
@@ -1759,15 +1774,15 @@ Std_ReturnType Dcm_DspReadDataByPeriodicIdentifier(Dcm_MsgContextType *msgContex
 #endif
 
 #ifdef DCM_USE_SERVICE_READ_MEMORY_BY_ADDRESS
-Std_ReturnType Dcm_DspIsMemoryValid(uint8_t addressAndLengthFormat, uint8_t attr,
-                                    uint32_t memoryAddress, uint32_t memorySize,
-                                    Dcm_NegativeResponseCodeType *nrc) {
+static Std_ReturnType Dcm_DspIsMemoryValid(uint8_t addressAndLengthFormat, uint8_t attr,
+                                           uint32_t memoryAddress, uint32_t memorySize,
+                                           Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
   P2CONST(Dcm_DspMemoryConfigType, AUTOMATIC, DCM_CONST)
   memoryConfig = config->MemoryConfig;
-  int i;
+  uint16_t i;
 
   if (memoryConfig->AddressAndLengthFormatIdentifiers != NULL) {
     r = E_NOT_OK;
@@ -1783,8 +1798,8 @@ Std_ReturnType Dcm_DspIsMemoryValid(uint8_t addressAndLengthFormat, uint8_t attr
 
   if (E_OK == r) {
     r = E_NOT_OK;
-    for (i = 0; (E_NOT_OK == r) && (i < memoryConfig->numOfMems); i++) {
-      if ((0 != (attr & memoryConfig->Mems[i].attr)) &&
+    for (i = 0u; (E_NOT_OK == r) && (i < memoryConfig->numOfMems); i++) {
+      if ((0u != (attr & memoryConfig->Mems[i].attr)) &&
           (memoryAddress >= memoryConfig->Mems[i].low) &&
           ((memoryAddress + memorySize) <= memoryConfig->Mems[i].high)) {
         r = Dcm_DslServiceSesSecPhyFuncCheck(context, &memoryConfig->Mems[i].SesSecAccess, nrc);
@@ -1808,21 +1823,21 @@ Std_ReturnType Dcm_DspReadMemoryByAddress(Dcm_MsgContextType *msgContext,
   uint8_t memoryAddressLen;
   uint32_t memoryAddress;
   uint32_t memorySize;
-  int i;
+  uint16_t i;
 
-  if (msgContext->reqDataLen > 3) {
-    memorySizeLen = (msgContext->reqData[0] >> 4) & 0xF;
-    memoryAddressLen = msgContext->reqData[0] & 0xF;
-    if ((memorySizeLen >= 1) && (memorySizeLen <= 4) && (memoryAddressLen >= 1) &&
-        (memoryAddressLen <= 4)) {
-      if ((1 + memoryAddressLen + memorySizeLen) == msgContext->reqDataLen) {
+  if (msgContext->reqDataLen > 3u) {
+    memorySizeLen = (msgContext->reqData[0] >> 4) & 0xFu;
+    memoryAddressLen = msgContext->reqData[0] & 0xFu;
+    if ((memorySizeLen >= 1u) && (memorySizeLen <= 4u) && (memoryAddressLen >= 1u) &&
+        (memoryAddressLen <= 4u)) {
+      if ((1u + memoryAddressLen + memorySizeLen) == msgContext->reqDataLen) {
         memoryAddress = 0;
         for (i = 0; i < memoryAddressLen; i++) {
-          memoryAddress = (memoryAddress << 8) + msgContext->reqData[1 + i];
+          memoryAddress = (memoryAddress << 8) + msgContext->reqData[1u + i];
         }
         memorySize = 0;
         for (i = 0; i < memorySizeLen; i++) {
-          memorySize = (memorySize << 8) + msgContext->reqData[1 + memoryAddressLen + i];
+          memorySize = (memorySize << 8) + msgContext->reqData[1u + memoryAddressLen + i];
         }
         r = E_OK;
       } else {
@@ -1882,7 +1897,7 @@ Std_ReturnType Dcm_DspWriteMemoryByAddress(Dcm_MsgContextType *msgContext,
   uint8_t memoryAddressLen;
   uint32_t memoryAddress;
   uint32_t memorySize;
-  int i;
+  uint16_t i;
 
   if (msgContext->reqDataLen > 3) {
     memorySizeLen = (msgContext->reqData[0] >> 4) & 0xF;
@@ -1955,15 +1970,15 @@ Std_ReturnType Dcm_DspWriteMemoryByAddress(Dcm_MsgContextType *msgContext,
 Std_ReturnType Dcm_DspDynamicallyDefineDataIdentifier(Dcm_MsgContextType *msgContext,
                                                       Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
-  if (msgContext->reqDataLen >= 3) {
+  if (msgContext->reqDataLen >= 3u) {
     switch (msgContext->reqData[0]) {
-    case 0x01:
+    case 0x01u:
       r = Dcm_DspDefineDIDById(msgContext, nrc);
       break;
-    case 0x02:
+    case 0x02u:
       r = Dcm_DspDefineDIDByMemoryAddress(msgContext, nrc);
       break;
-    case 0x03:
+    case 0x03u:
       r = Dcm_DspClearDID(msgContext, nrc);
       break;
     default:
@@ -1986,8 +2001,10 @@ Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONS
   Dcm_DDDIDEntryType *entry;
   uint8_t *tmp;
   uint16_t offset = 0;
-  int i;
+  uint16_t i;
   boolean forceRCRRP = FALSE;
+
+  (void)length;
 
   ASLOG(DCM, ("read DDDID=%X length=%d\n", DDConfig->rDID->id, length));
   for (i = 0; (i < DDConfig->context->numOfEntry) && (E_OK == r); i++) {
@@ -2018,7 +2035,7 @@ Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONS
           (DCM_PENDING == entry->opStatus)) {
         entry->opStatus = DCM_CANCEL; /* set to invalid */
         /* NOTE: use the end of TX buffer to saving the whole DID data */
-        tmp = config->txBuffer + config->txBufferSize - rDID->length;
+        tmp = &config->txBuffer[config->txBufferSize - rDID->length];
         r = rDID->readDIdFnc(opStatus, tmp, rDID->length, nrc);
         if (DCM_E_PENDING == r) {
           r = E_OK;
@@ -2037,7 +2054,7 @@ Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONS
           } else {
             ASLOG(DCM, ("  read entry ID=%X(%d) position=%d size=%d\n", rDID->id, entry->index,
                         entry->position, entry->size));
-            memcpy(&data[offset], &tmp[entry->position], entry->size);
+            (void)memcpy(&data[offset], &tmp[entry->position], entry->size);
           }
         }
       }
@@ -2066,7 +2083,7 @@ Std_ReturnType Dcm_DspAuthentication(Dcm_MsgContextType *msgContext,
   auth = NULL;
   uint8_t id;
   uint16_t len;
-  int i;
+  uint16_t i;
 
   if (msgContext->reqDataLen >= 1) {
     id = msgContext->reqData[0];

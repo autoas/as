@@ -1,0 +1,46 @@
+{
+  "class": "LinIf",
+  "networks": [
+    {
+      "name": "LIN0",
+      "me": "AS",
+      "timeout": 100,
+      "mode": "slave",
+      "TxPdus": [
+        {
+          "name": "LIN0_DIAG_RES_TX",
+          "id": "0x3d",
+          "type": "DIAG_SRF",
+          "checksum": "enhanced",
+          "dlc": 8,
+          "up": "LinTp"
+        }
+      ],
+      "RxPdus": [
+        {
+          "name": "LIN0_DIAG_REQ_RX",
+          "id": "0x3c",
+          "type": "DIAG_MRF",
+          "checksum": "enhanced",
+          "dlc": 8,
+          "up": "LinTp"
+        }
+      ],
+      "ScheduleTables": [
+        {
+          "name": "DIAG_TBL",
+          "tables": [
+            {
+              "name": "LIN0_DIAG_RES_TX",
+              "delay": "10"
+            },
+            {
+              "name": "LIN0_DIAG_REQ_RX",
+              "delay": "10"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,17 @@
 #define _DIO_H_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
+#define DIO_INVALID_CHANNEL ((Dio_ChannelType)0xFFFF)
+
+/* @SWS_Dio_00175 */
+#define DIO_E_PARAM_INVALID_CHANNEL_ID 0x0A
+#define DIO_E_PARAM_INVALID_PORT_ID 0x14
+#define DIO_E_PARAM_INVALID_GROUP 0x1F
+#define DIO_E_PARAM_POINTER 0x20
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Dio_00182 */
 typedef uint16_t Dio_ChannelType;
@@ -47,4 +57,7 @@ void Dio_WritePort(Dio_PortType PortId, Dio_PortLevelType Level);
 Dio_PortLevelType Dio_ReadChannelGroup(const Dio_ChannelGroupType *ChannelGroupIdPtr);
 /* @SWS_Dio_00138 */
 void Dio_WriteChannelGroup(const Dio_ChannelGroupType *ChannelGroupIdPtr, Dio_PortLevelType Level);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _DIO_H_ */

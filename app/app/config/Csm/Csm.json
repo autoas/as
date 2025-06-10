@@ -1,0 +1,21 @@
+{
+    "class": "Csm",
+    "MacGen": [
+        { "name": "MACGEN0", 
+          "Key": ["0x00","0x01","0x02","0x03","0x04","0x05","0x06","0x07","0x08","0x09","0x0a","0x0b","0x0c","0x0d","0x0e","0x0f"],
+          "Family": "AES",
+          "Mode": "ECB",
+          "Verify": true
+        }
+    ],
+    "Jobs" : [
+        { "name": "SECOC_MACGEN_0",
+          "ServiceType": "MAC_GENERATE",
+          "AlgoRef": "MACGEN0"
+        },
+        { "name": "SECOC_MACVER_0",
+          "ServiceType": "MAC_VERIFY",
+          "AlgoRef": "MACGEN0"
+        }
+    ]
+}

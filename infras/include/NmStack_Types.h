@@ -4,8 +4,8 @@
  *
  * ref:  Specification of NetworkManagement Interface AUTOSAR CP Release 4.4.0
  */
-#ifndef _NM_STACK_TYPES_H
-#define _NM_STACK_TYPES_H
+#ifndef NM_STACK_TYPES_H
+#define NM_STACK_TYPES_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #ifdef __cplusplus
@@ -41,4 +41,4 @@ typedef enum
 #ifdef __cplusplus
 }
 #endif
-#endif /* _NM_STACK_TYPES_H */
+#endif /* NM_STACK_TYPES_H */

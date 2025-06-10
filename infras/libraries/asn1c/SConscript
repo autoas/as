@@ -1,0 +1,47 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+
+@register_application
+class ApplicationASN1C(Application):
+    def config(self):
+        asn1c = Package(
+            url="https://github.com/vlm/asn1c.git",
+            version="v0.9.28",
+            cmd="patch -p1 < %s/asn1c-0.9.28.patch && sh autoreconf -iv && sh ./configure" % (CWD),
+        )
+        objs = PkgGlob(asn1c, ["lib*/*.c", "asn1c/asn1c.c"])
+        SrcRemove(objs, ["check_compiler.c", "check_fixer.c", "check_asn1p_integer.c"])
+        self.source = objs
+        self.CPPPATH = [
+            asn1c,
+            "%s/libasn1common" % (asn1c),
+            "%s/libasn1fix" % (asn1c),
+            "%s/libasn1print" % (asn1c),
+            "%s/libasn1compiler" % (asn1c),
+            "%s/libasn1parser" % (asn1c),
+        ]
+        self.CPPDEFINES = ["HAVE_CONFIG_H", 'DATADIR=\\"/share/asn1c\\"']
+
+
+@register_library
+class LibraryASN1C(Library):
+    def config(self):
+        asn1c = Package(
+            url="https://github.com/vlm/asn1c.git",
+            version="v0.9.28",
+            cmd="patch -p1 < %s/asn1c-0.9.28.patch  && sh autoreconf -iv && sh ./configure" % (CWD),
+        )
+        objs = PkgGlob(asn1c, ["skeletons/*.c"])
+        SrcRemove(objs, ["converter-sample.c"])
+        self.source = objs
+        self.include = ["%s/skeletons" % (asn1c)]
+        if IsBuildForWindows():
+            self.CPPDEFINES = ["setenv(a,b,c)", "unsetenv(a)"]
+        if IsBuildForWindows():
+            self.LIBS = ["ws2_32"]
+
+
+for sc in Glob("*/SConscript"):
+    SConscript(sc)

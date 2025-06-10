@@ -1,0 +1,15 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+objs = Glob("*.c")
+objsCfg = Glob("config/*.c")
+
+
+@register_library
+class LibraryEcuM(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", CWD, "%s/config" % (CWD), "$StdTrace_Cfg"]
+        self.LIBS += ["RingBuffer"]
+        self.source = objs
+        self.RegisterConfig("EcuM", objsCfg)

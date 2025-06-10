@@ -14,7 +14,7 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANTSYN 0
 #define AS_LOG_CANTSYNI 0
-#define AS_LOG_CANTSYNE 2
+#define AS_LOG_CANTSYNE 0
 
 #define CANTSYNC_SC_UNKNOWN 0xFF
 

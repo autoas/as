@@ -1,0 +1,38 @@
+{
+    "class": "SecOC",
+    "comment": "length in bits",
+    "FreshnessValueManager": [
+        {
+            "name": "FreshnessValue0",
+            "GenDummy": true,
+            "length": 32
+        }
+    ],
+    "TxProc": [
+        {
+            "name": "CAN0_SECOC_MSG0_TX",
+            "DataId": "0x1234",
+            "AuthInfoLength": 128,
+            "AuthInfoTruncLength": 64,
+            "AuthPduHeaderLength": 3,
+            "TxAuthServiceConfigRef": "SECOC_MACGEN_0",
+            "FreshnessValueId": "FreshnessValue0",
+            "FreshnessValueTruncLength": 8,
+            "AuthenticIPduLength": 64
+        }
+    ],
+    "RxProc": [
+        {
+            "name": "CAN0_SECOC_MSG1_RX",
+            "DataId": "0x1234",
+            "AuthInfoLength": 128,
+            "AuthInfoTruncLength": 64,
+            "AuthPduHeaderLength": 3,
+            "RxAuthServiceConfigRef": "SECOC_MACGEN_0",
+            "FreshnessValueId": "FreshnessValue0",
+            "FreshnessValueTruncLength": 8,
+            "AuthenticIPduLength": 64,
+            "UseAuthDataFreshness": false
+        }
+    ]
+}

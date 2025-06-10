@@ -13,13 +13,24 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
+static boolean s_reset = FALSE;
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Mcu_Init(const Mcu_ConfigType *ConfigPtr) {
   (void)ConfigPtr;
 }
 
 void Dcm_PerformReset(uint8_t resetType) {
-  ASLOG(INFO, ("dummy perform reset %d\n", resetType));
+  s_reset = TRUE;
+}
+
+void Xcp_PerformReset(void) {
+  s_reset = TRUE;
+}
+
+boolean Mcu_IsResetRequested(void) {
+  boolean rv = s_reset;
+  s_reset = FALSE;
+  return rv;
 }
 
 boolean BL_IsUpdateRequested(void) {
@@ -32,18 +43,9 @@ void BL_JumpToApp(void) {
 void BL_AliveIndicate(void) {
 }
 
-void App_AliveIndicate(void) {
-}
-
 void App_EnterProgramSession(void) {
 }
 
 Std_ReturnType BL_GetProgramCondition(Dcm_ProgConditionsType **cond) {
   return E_NOT_OK;
-}
-
-void User_Init(void) {
-}
-
-void User_MainTask10ms(void) {
 }

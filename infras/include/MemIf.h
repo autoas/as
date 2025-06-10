@@ -30,8 +30,7 @@ extern "C" {
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* @SWS_MemIf_00064 */
-typedef enum
-{
+typedef enum {
   MEMIF_UNINIT,
   MEMIF_IDLE,
   MEMIF_BUSY,
@@ -39,8 +38,7 @@ typedef enum
 } MemIf_StatusType;
 
 /* @SWS_MemIf_00065 */
-typedef enum
-{
+typedef enum {
   MEMIF_JOB_OK,
   MEMIF_JOB_FAILED,
   MEMIF_JOB_PENDING,
@@ -50,8 +48,7 @@ typedef enum
 } MemIf_JobResultType;
 
 /* @SWS_MemIf_00066 */
-typedef enum
-{
+typedef enum {
   MEMIF_MODE_SLOW,
   MEMIF_MODE_FAST
 } MemIf_ModeType;

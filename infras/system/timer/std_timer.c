@@ -11,9 +11,12 @@
 #include <mmsystem.h>
 #include <synchapi.h>
 #endif
+
+#if !defined(_MSC_VER)
 #include <sys/time.h>
-#include <time.h>
 #include <unistd.h>
+#endif
+#include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #endif
@@ -48,7 +51,7 @@ static void __std_timer_deinit(void) {
   }
 }
 
-static void __attribute__((constructor)) __std_timer_init(void) {
+INITIALIZER(__std_timer_init) {
   TIMECAPS xTimeCaps;
   if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
     timeBeginPeriod(xTimeCaps.wPeriodMin);
@@ -67,6 +70,14 @@ static void __attribute__((constructor)) __std_timer_init(void) {
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 #if defined(linux) || defined(_WIN32)
+#if defined(_MSC_VER)
+std_time_t Std_GetTime(void) {
+  std_time_t tm;
+  tm = timeGetTime();
+  tm = tm * 1000;
+  return tm;
+}
+#else
 std_time_t Std_GetTime(void) {
   struct timeval now;
   std_time_t tm;
@@ -76,6 +87,7 @@ std_time_t Std_GetTime(void) {
 
   return tm;
 }
+#endif
 #endif
 
 #ifdef USE_STBM_DFT
@@ -151,7 +163,7 @@ void Std_GetDateTime(char *ts, size_t sz) {
   second = lt->tm_sec;
 #endif
 
-  snprintf(ts, sz, "%d-%02d-%02d %02d:%02d:%02d:%d", year, month, day, hour, minute, second,
+  snprintf(ts, sz, "%d-%02d-%02d %02d:%02d:%02d:%03d", year, month, day, hour, minute, second,
            miniseconds);
 }
 #endif
@@ -214,6 +226,11 @@ void Std_TimerSet(Std_TimerType *timer, std_time_t timeout) {
     timer->time = timeout - 1 - (STD_TIME_MAX - curTime);
     timer->status = STD_TIMER_SET_OVERFLOW;
   }
+}
+
+void Std_TimerInit(Std_TimerType *timer, std_time_t timeout) {
+  Std_TimerStop(timer);
+  Std_TimerSet(timer, timeout);
 }
 
 bool Std_IsTimerTimeout(Std_TimerType *timer) {

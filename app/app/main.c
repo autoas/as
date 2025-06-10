@@ -12,86 +12,13 @@
 #include <unistd.h>
 #endif
 
-#ifdef USE_CAN
-#include "Can.h"
-#include "CanIf.h"
-#include "CanIf_Can.h"
-#include "CanTp.h"
-#include "PduR_CanTp.h"
-#ifdef USE_OSEKNM
-#include "OsekNm.h"
-#endif
-#ifdef USE_CANNM
-#include "CanNm.h"
-#endif
-#ifdef USE_CANTSYN
-#include "CanTSyn.h"
-#endif
-#endif
-
-#ifdef USE_PDUR
-#include "PduR.h"
-#endif
-
-#ifdef USE_COM
-#include "Com.h"
-#include "./config/Com/GEN/Com_Cfg.h"
-#include "PduR_Com.h"
-#endif
-
-
-
 #ifdef USE_LINIF
-#include "LinIf.h"
+#include "LinIf_Cfg.h"
 #endif
 
-#ifdef USE_LINTP
-#include "LinTp.h"
-#endif
-
-#include "Dcm.h"
-#ifdef USE_DEM
-#include "Dem.h"
-#endif
-#ifdef USE_FLS
-#include "Fls.h"
-#endif
-#ifdef USE_FEE
-#include "Fee.h"
-#endif
-#ifdef USE_EEP
-#include "Eep.h"
-#endif
-#ifdef USE_EA
-#include "Ea.h"
-#endif
-#ifdef USE_NVM
-#include "NvM.h"
-#endif
-
-#ifdef USE_TCPIP
-#include "TcpIp.h"
-#endif
-
-#ifdef USE_SOAD
-#include "SoAd.h"
-#endif
-
-#ifdef USE_DOIP
-#include "DoIP.h"
-#endif
-
-#ifdef USE_SD
-#include "Sd.h"
-#endif
-
-#ifdef USE_SOMEIP
-#include "SomeIp.h"
-#endif
-
-#ifdef USE_UDPNM
-#include "UdpNm.h"
-#endif
+#include "EcuM.h"
+#include "EcuM_Externals.h"
+#include "EcuM_Cfg.h"
 
 #ifdef USE_PLUGIN
 #include "plugin.h"
@@ -100,7 +27,6 @@
 #ifdef USE_OSAL
 #include "osal.h"
 #endif
-
 
 #ifdef USE_SHELL
 #include "shell.h"
@@ -121,112 +47,112 @@
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern void App_AliveIndicate(void);
+#if defined(__HIWARE__)
+#else
+void __weak App_AliveIndicate(void) {
+}
+
+boolean __weak App_IsIgOn(void) {
+  return TRUE;
+}
+
+#if defined(_WIN32) || defined(linux)
+boolean __weak Mcu_IsResetRequested(void) {
+  return FALSE;
+}
+#endif
+
+extern boolean Can_WakeupCheck();
+void __weak Mcu_EnterSleepMode(void) {
+  boolean bWakeup = FALSE;
+  ASLOG(INFO, ("Enter Sleep Mode!!!\n"));
+  Can_SetControllerMode(0, CAN_CS_STARTED); /* ensure can online */
+  while (FALSE == bWakeup) {
+    if (TRUE == App_IsIgOn()) {
+      bWakeup = TRUE;
+    }
+#if defined(_WIN32) || defined(linux)
+    if (TRUE == Can_WakeupCheck()) {
+      bWakeup = TRUE;
+    }
+#ifdef USE_SHELL
+    Shell_MainFunction();
+#endif
+    usleep(1000);
+#endif
+  }
+  ASLOG(INFO, ("Exit Sleep Mode!!!\n"));
+}
+#endif
 #ifdef USE_STDIO_CAN
 extern void stdio_main_function(void);
 #endif
 /* ================================ [ DATAS     ] ============================================== */
-static Std_TimerType timer10ms;
-static Std_TimerType timer100ms;
+static Std_TimerType timer1ms;
+static uint8_t timer10ms;
+static uint8_t timer100ms;
 /* ================================ [ LOCALS    ] ============================================== */
-static void MemoryTask(void) {
-#ifdef USE_EEP
-  Eep_MainFunction();
+static boolean IsSleepAllowed(void) {
+  boolean bAllowed = TRUE;
+  boolean bIgOn = App_IsIgOn();
+#if defined(USE_CANNM) || defined(USE_OSEKNM)
+  Nm_StateType nmState;
+  Nm_ModeType nmMode;
 #endif
-#ifdef USE_EA
-  Ea_MainFunction();
+  if (bIgOn) {
+    bAllowed = FALSE;
+  }
+
+#ifdef USE_CANNM
+  CanNm_GetState(0, &nmState, &nmMode);
+  if (NM_MODE_BUS_SLEEP != nmMode) {
+    bAllowed = FALSE;
+  }
 #endif
-#ifdef USE_FLS
-  Fls_MainFunction();
+
+#ifdef USE_OSEKNM
+  OsekNm_GetState(0, &nmMode);
+  if (NM_MODE_BUS_SLEEP != nmMode) {
+    bAllowed = FALSE;
+  }
 #endif
-#ifdef USE_FEE
-  Fee_MainFunction();
-#endif
-#ifdef USE_NVM
-  NvM_MainFunction();
-#endif
+
+  return bAllowed;
 }
 
 static void MainTask_10ms(void) {
-#ifdef USE_CAN
-#ifdef USE_CANTP
-  CanTp_MainFunction();
-  CanTp_MainFunction_Fast();
-#endif
-#ifdef USE_OSEKNM
-  OsekNm_MainFunction();
-#endif
-#ifdef USE_CANNM
-  CanNm_MainFunction();
-#endif
-#ifdef USE_CANTSYN
-  CanTSyn_MainFunction();
-#endif
-#endif
-#ifdef USE_LINTP
-  LinTp_MainFunction();
-#endif
-#ifdef USE_COM
-  Com_MainFunction();
-#endif
+  EcuM_BswService();
 
-  MemoryTask();
-#ifdef USE_DCM
-  Dcm_MainFunction();
-#endif
+  if (FALSE == App_IsIgOn()) {
+    EcuM_ReleaseRUN(0);
+  } else {
+    EcuM_RequestRUN(0);
+  }
 
-#ifdef USE_DEM
-  Dem_MainFunction();
-#endif
+  if (IsSleepAllowed()) {
+    EcuM_ReleasePOST_RUN(0);
+  } else {
+    EcuM_RequestPOST_RUN(0);
+  }
 
-#ifdef USE_DOIP
-  DoIP_MainFunction();
-#endif
-#ifdef USE_SD
-  Sd_MainFunction();
-#endif
-#ifdef USE_SOMEIP
-  SomeIp_MainFunction();
-#endif
-
-#ifdef USE_UDPNM
-  UdpNm_MainFunction();
-#endif
+  EcuM_MainFunction();
 
 #ifdef USE_PLUGIN
   plugin_main();
 #endif
 }
 
-static void Net_Init(void) {
+static void Cdd_VFS_Init(void) {
+#if defined(_WIN32) || defined(linux)
+  static boolean bCddInitialized = FALSE;
+  if (TRUE == bCddInitialized) {
+    return; /* CDD VFS only support init once for the simulator reset simulation */
+  }
+  bCddInitialized = TRUE;
+#endif
 #ifdef USE_VFS
   int ercd;
-#endif
-#ifdef USE_TCPIP
-  TcpIp_Init(NULL);
-#endif
-#ifdef USE_SOAD
-  SoAd_Init(NULL);
-#endif
-#ifdef USE_DOIP
-  DoIP_Init(NULL);
-#endif
-#ifdef USE_SD
-  Sd_Init(NULL);
-#endif
-#ifdef USE_SOMEIP
-  SomeIp_Init(NULL);
-#endif
 
-#ifdef USE_UDPNM
-  UdpNm_Init(NULL);
-#endif
-
-#ifdef USE_PLUGIN
-  plugin_init();
-#endif
-
-#ifdef USE_VFS
   vfs_init();
 #ifdef USE_LWEXT4
   extern const device_t dev_sd1;
@@ -262,122 +188,59 @@ static void Net_Init(void) {
   vfs_mount(&dev_host, "host", "/share");
 #endif
 #endif
+}
+
+static void Cdd_Init(void) {
+  Cdd_VFS_Init();
+
+#ifdef USE_PLUGIN
+  plugin_init();
+#endif
 
 #ifdef USE_SHELL
   Shell_Init();
 #endif
 }
 
-static void BSW_Init(void) {
-#ifdef USE_CAN
-  Can_Init(NULL);
-  Can_SetControllerMode(0, CAN_CS_STARTED);
-#ifdef USE_CANIF
-  CanIf_SetPduMode(0, CANIF_ONLINE);
-#endif
-#ifdef USE_CANTP
-  CanTp_Init(NULL);
-#endif
-#ifdef USE_OSEKNM
-  OsekNm_Init(NULL);
-  TalkNM(0);
-  StartNM(0);
-  GotoMode(0, NM_BusSleep);
-#endif
-#ifdef USE_CANNM
-  CanNm_Init(NULL);
-#endif
-#ifdef USE_CANTSYN
-  CanTSyn_Init(NULL);
-#endif
-#endif
+void TaskIdleHook(void) {
+}
 
-#ifdef USE_LINIF
-  Lin_Init(NULL);
-  LinIf_Init(NULL);
-  LinIf_ScheduleRequest(0, 0);
-#endif
-#ifdef USE_LINTP
-  LinTp_Init(NULL);
-#endif
-
-#ifdef USE_PDUR
-  PduR_Init(NULL);
-#endif
-
-#ifdef USE_COM
-  Com_Init(NULL);
-#endif
-
-#ifdef USE_EEP
-  Eep_Init(NULL);
-#endif
-#ifdef USE_EA
-  Ea_Init(NULL);
-#endif
-#ifdef USE_FLS
-  Fls_Init(NULL);
-#endif
-#ifdef USE_FEE
-  Fee_Init(NULL);
-#endif
-#ifdef USE_NVM
-  NvM_Init(NULL);
-  while (MEMIF_IDLE != NvM_GetStatus()) {
-    MemoryTask();
-  }
-  NvM_ReadAll();
-  while (MEMIF_IDLE != NvM_GetStatus()) {
-    MemoryTask();
-  }
-#endif
-
-#ifdef USE_DEM
-  Dem_PreInit();
-  Dem_Init(NULL);
-#endif
-#ifdef USE_DCM
-  Dcm_Init(NULL);
-#endif
+void Task_MainInitTwo(void) {
+  Cdd_Init();
+  App_Init();
+  Std_TimerInit(&timer1ms, 1000);
+  timer10ms = 0;
+  timer100ms = 0;
 }
 
 void Task_MainLoop(void) {
-  BSW_Init();
-  Net_Init();
-  App_Init();
-  Std_TimerStart(&timer10ms);
-  Std_TimerStart(&timer100ms);
-  for (;;) {
-    if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
-      Std_TimerStart(&timer10ms);
-      STD_TRACE_APP(MAIN_TASK_10MS_B);
-      MainTask_10ms();
-      STD_TRACE_APP(MAIN_TASK_10MS_E);
+  EcuM_StartupTwo();
+  Task_MainInitTwo();
+  for (;
+#if defined(_WIN32) || defined(linux)
+       FALSE == Mcu_IsResetRequested()
+#endif
+         ;) {
+    if (TRUE == Std_IsTimerTimeout(&timer1ms)) {
+      Std_TimerSet(&timer1ms, 1000);
+      timer10ms++;
+      if (timer10ms >= 10) {
+        timer10ms = 0;
+        STD_TRACE_APP(MAIN_TASK_10MS_B);
+        MainTask_10ms();
+        STD_TRACE_APP(MAIN_TASK_10MS_E);
+      }
+      timer100ms++;
+      if (timer100ms >= 100) {
+        timer100ms = 0;
+        App_AliveIndicate();
+        /* below to do profile EcuM_BswServiceFast each 100ms */
+        // STD_TRACE_APP(MAIN_TASK_FAST_B);
+        // EcuM_BswServiceFast();
+        // STD_TRACE_APP(MAIN_TASK_FAST_E);
+      }
+      EcuM_BswServiceFast();
     }
-
-    if (Std_GetTimerElapsedTime(&timer100ms) >= 100000) {
-      Std_TimerStart(&timer100ms);
-      App_AliveIndicate();
-    }
-#ifdef USE_DCM
-    Dcm_MainFunction_Request();
-#endif
-#ifdef USE_CAN
-    Can_MainFunction_Write();
-    Can_MainFunction_Read();
-#endif
-
-#ifdef USE_LINIF
-    Lin_MainFunction();
-    Lin_MainFunction_Read();
-    LinIf_MainFunction();
-#endif
-#ifdef USE_TCPIP
-    TcpIp_MainFunction();
-#endif
-#ifdef USE_SOAD
-    SoAd_MainFunction();
-#endif
 #ifdef USE_SHELL
     Shell_MainFunction();
 #endif
@@ -385,17 +248,21 @@ void Task_MainLoop(void) {
 #if defined(USE_STDIO_CAN) || defined(USE_STDIO_OUT)
     stdio_main_function();
 #endif
-    STD_TRACE_APP_MAIN();
 #ifdef USE_OSAL
     OSAL_SleepUs(1000);
+#else
+    TaskIdleHook();
 #endif
+
+    STD_TRACE_APP_MAIN();
   }
 }
 
 #ifdef USE_OSAL
 void TaskMainTaskIdle(void) {
-  while (1)
-    ;
+  while (1) {
+    TaskIdleHook();
+  }
 }
 void StartupHook(void) {
   OSAL_ThreadCreate((OSAL_ThreadEntryType)Task_MainLoop, NULL);
@@ -429,14 +296,147 @@ int main(int argc, char *argv[]) {
     }
   }
 #endif
-
-  Mcu_Init(NULL);
+#if defined(_WIN32) || defined(linux)
+  while (TRUE) {
+#endif
+    EcuM_Init();
 
 #ifdef USE_OSAL
-  OSAL_Start();
+    OSAL_Start();
 #else
   Task_MainLoop();
 #endif
-
+#if defined(_WIN32) || defined(linux)
+    usleep(1000000);
+    ASLOG(INFO, ("reset...\n"));
+  }
+#endif
   return 0;
+}
+
+void EcuM_AL_EnterRUN(void) {
+#ifdef USE_COMM
+  ComM_RequestComMode(0, COMM_FULL_COMMUNICATION);
+  ComM_CommunicationAllowed(0, TRUE);
+  ComM_CommunicationAllowed(1, TRUE);
+#else
+#ifdef USE_CANSM
+  CanSM_RequestComMode(0, COMM_FULL_COMMUNICATION);
+#else
+#ifdef USE_CAN
+  Can_SetControllerMode(0, CAN_CS_STARTED);
+#endif
+#ifdef USE_CANIF
+  CanIf_SetPduMode(0, CANIF_ONLINE);
+#endif
+#endif
+#endif /* USE_COMM */
+
+#ifdef USE_OSEKNM
+  OsekNm_Talk(0);
+  OsekNm_Start(0);
+  OsekNm_GotoMode(0, OSEKNM_AWAKE);
+#endif
+
+#if defined(USE_CANNM) && !defined(USE_COMM)
+  CanNm_NetworkRequest(0);
+#endif
+
+#if defined(USE_COM) && !defined(USE_CANNM)
+  Com_IpduGroupStart(0, TRUE);
+#endif
+
+#ifdef USE_UDPNM
+  UdpNm_NetworkRequest(0);
+#endif
+
+#ifdef USE_LINIF
+  LinIf_WakeUp(0);
+#if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
+  LinIf_ScheduleRequest(0, 0);
+#endif
+
+#ifdef LINIF_SCHTBL_LIN1
+  LinIf_WakeUp(1);
+#if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
+  LinIf_ScheduleRequest(1, LINIF_SCHTBL_LIN1);
+#endif
+#endif
+#endif
+}
+
+void EcuM_AL_EnterPOST_RUN(void) {
+#ifdef USE_UDPNM
+  UdpNm_NetworkRelease(0);
+#endif
+
+#ifdef USE_COMM
+  ComM_CommunicationAllowed(0, FALSE);
+  ComM_CommunicationAllowed(1, FALSE);
+  ComM_RequestComMode(0, COMM_NO_COMMUNICATION);
+#else
+#ifdef USE_COM
+  Com_IpduGroupStop(0);
+#endif
+
+#ifdef USE_CANNM
+  CanNm_NetworkRelease(0);
+#endif
+#endif /* USE_COMM */
+
+#ifdef USE_OSEKNM
+  OsekNm_GotoMode(0, OSEKNM_BUS_SLEEP);
+#endif
+
+#ifdef USE_LINIF
+  LinIf_GotoSleep(0);
+#endif
+}
+
+void EcuM_AL_EnterSLEEP(void) {
+  Mcu_EnterSleepMode(); /* with this to simulate sleep mode */
+  /* Here wakeup */
+  EcuM_AL_DriverInitZero();
+  EcuM_AL_DriverInitOne();
+  /* EcuM_AL_DriverInitTwo(); */
+  /* skip NvM stack initialization as it time consuming */
+
+#ifdef USE_DEM
+  Dem_Init(NULL);
+#endif
+#ifdef USE_DCM
+  Dcm_Init(NULL);
+#endif
+
+  Task_MainInitTwo();
+
+/* wakeup, at least to ensure CAN RX OK */
+#ifdef USE_CANSM
+  CanSM_StartWakeupSource(0);
+  CanSM_StartWakeupSource(1);
+  CanSM_MainFunction();
+#endif
+#ifdef USE_CAN
+  Can_SetControllerMode(0, CAN_CS_STARTED);
+  Can_SetControllerMode(1, CAN_CS_STARTED);
+#endif
+#ifdef USE_CANIF
+  CanIf_SetPduMode(0, CANIF_ONLINE);
+  CanIf_SetPduMode(1, CANIF_ONLINE);
+#endif
+#ifdef USE_COMM
+  ComM_CommunicationAllowed(0, TRUE);
+  ComM_CommunicationAllowed(1, TRUE);
+  ComM_MainFunction();
+#endif
+#ifdef USE_CANNM
+  if (App_IsIgOn()) {
+    CanNm_NetworkRequest(0);
+    CanNm_NetworkRequest(1);
+  } else {
+    CanNm_PassiveStartUp(0);
+    CanNm_PassiveStartUp(1);
+  }
+  CanNm_MainFunction();
+#endif
 }

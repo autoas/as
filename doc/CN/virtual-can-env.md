@@ -54,7 +54,7 @@ bool can_close(int busid);
 * [Peak CAN](https://www.peak-system.com/): device_name = "peak"
 * [ZLG CAN](https://www.zlg.cn/can/can/index.html): device_name = "zlg"
 
-总共也没有几个API，同样的为了和AUTOSAR兼容，我同样在canlib的基础上封装了符合AUTOSAR CAN驱动的接口，代码为[Simulator CAN](https://github.com/autoas/ssas-public/tree/master/app/platform/simulator/src/Can.c)，API接口如下：
+总共也没有几个API，同样的为了和AUTOSAR兼容，我同样在canlib的基础上封装了符合AUTOSAR CAN驱动的接口，代码为[Simulator CAN](../../app/platform/simulator/src/Can.cpp)，API接口如下：
 
 ```c
 void Can_Init(const Can_ConfigType *Config);

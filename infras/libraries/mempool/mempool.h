@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <sys/queue.h>
 /* ================================ [ MACROS    ] ============================================== */
+#ifdef USE_LTM
+#define mp_init mempool_init
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct mp_pool_s {
   SLIST_ENTRY(mp_pool_s) entry;

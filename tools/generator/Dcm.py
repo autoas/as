@@ -83,7 +83,7 @@ def gen_ecu_reset_api(C, service, cfg):
 def gen_ecu_reset_config(C, service, cfg):
     C.write("static CONSTANT(Dcm_EcuResetConfigType, DCM_CONST) Dcm_EcuResetConfig = {\n")
     C.write("  %s,\n" % (service["API"]))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (service.get("delay", 100)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (service.get("delay", 100)))
     C.write("};\n\n")
 
 
@@ -659,28 +659,28 @@ def Gen_Dcm(cfg, dir):
     H.write("#endif\n\n")
     chls = cfg.get("channels", [{"name": "P2P"}, {"name": "P2A"}])
     for idx, chl in enumerate(chls):
-        H.write("#define DCM_%s_PDU %s\n" % (chl["name"], idx))
-        H.write("#define DCM_%s_RX %s\n" % (chl["name"], idx))
-        H.write("#define DCM_%s_TX %s\n" % (chl["name"], idx))
+        H.write("#define DCM_%s_PDU %su\n" % (chl["name"], idx))
+        H.write("#define DCM_%s_RX %su\n" % (chl["name"], idx))
+        H.write("#define DCM_%s_TX %su\n" % (chl["name"], idx))
     iMask = 4
     for session in cfg["sessions"]:
         H.write("#ifndef DCM_%s_SESSION\n" % (toMacro(session["name"])))
-        H.write("#define DCM_%s_SESSION %s\n" % (toMacro(session["name"]), hex(session["id"])))
+        H.write("#define DCM_%s_SESSION %su\n" % (toMacro(session["name"]), hex(session["id"])))
         H.write("#endif\n")
         H.write("#ifndef DCM_%s_MASK\n" % (toMacro(session["name"])))
         if session["id"] > 4:
-            H.write("#define DCM_%s_MASK %s\n" % (toMacro(session["name"]), hex(1 << iMask)))
+            H.write("#define DCM_%s_MASK %su\n" % (toMacro(session["name"]), hex(1 << iMask)))
             iMask += 1
         else:
-            H.write("#define DCM_%s_MASK %s\n" % (toMacro(session["name"]), hex(1 << (session["id"] - 1))))
+            H.write("#define DCM_%s_MASK %su\n" % (toMacro(session["name"]), hex(1 << (session["id"] - 1))))
         H.write("#endif\n")
     H.write("\n")
 
     H.write("#ifndef DCM_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define DCM_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
+    H.write("#define DCM_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define DCM_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
-    H.write("  ((x + DCM_MAIN_FUNCTION_PERIOD - 1) / DCM_MAIN_FUNCTION_PERIOD)\n\n")
+    H.write("  ((x + DCM_MAIN_FUNCTION_PERIOD - 1u) / DCM_MAIN_FUNCTION_PERIOD)\n\n")
 
     H.write("#define Dcm_DslCustomerSession2Mask(mask, sesCtrl) \\\n")
     for i, session in enumerate(cfg["sessions"]):
@@ -712,6 +712,7 @@ def Gen_Dcm(cfg, dir):
         if s > maxSeedSize:
             maxSeedSize = s
     H.write("#define DCM_MAX_SEED_SIZE %s\n" % (maxSeedSize))
+    H.write("%s#define DCM_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -877,11 +878,11 @@ def Gen_Dcm(cfg, dir):
 
     C.write("static CONSTANT(Dcm_TimingConfigType, DCM_CONST) Dcm_TimingConfig = {\n")
     timings = cfg.get("timings", {})
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (timings.get("S3Server", 5000)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (timings.get("P2ServerAjust", 20)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (timings.get("P2StarServerAdjust", 100)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (timings.get("P2ServerMax", 50)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (timings.get("P2StarServerMax", 5000)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("S3Server", 5000)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2ServerAjust", 20)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerAdjust", 100)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2ServerMax", 50)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerMax", 5000)))
     C.write("};\n\n")
 
     C.write("static CONSTANT(Dcm_DslDiagRespConfigType, DCM_CONST) Dcm_DslDiagRespConfig = {\n")
@@ -930,7 +931,7 @@ def Gen_Dcm(cfg, dir):
     C.write("  #endif\n")
     C.write("  #ifdef DCM_USE_SERVICE_SECURITY_ACCESS\n")
     C.write("  %s,\n" % (sec.get("NumAtt", 3)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (sec.get("DelayTime", 3000)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (sec.get("DelayTime", 3000)))
     C.write("  #ifdef USE_NVM\n")
     C.write("  NVM_BLOCKID_Dcm_NvmSecurityAccess\n")
     C.write("  #endif\n")
@@ -1288,3 +1289,4 @@ def Gen(cfg):
     process(cfg, dir)
     Gen_Dcm(cfg, dir)
     GenMemMap("Dcm", dir)
+    return ["%s/Dcm_Cfg.c" % (dir)]

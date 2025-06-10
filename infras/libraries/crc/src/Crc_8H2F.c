@@ -20,11 +20,13 @@ uint8_t Crc_CalculateCRC8H2F(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
                              uint8_t Crc_StartValue8H2F, boolean Crc_IsFirstCall) {
   uint8_t u8Crc = Crc_StartValue8H2F;
 
-  if (Crc_IsFirstCall) {
-    Crc_StartValue8H2F = crc_init();
+  if (TRUE != Crc_IsFirstCall) {
+    u8Crc = crc_finalize(u8Crc);
   }
 
-  u8Crc = crc_update(Crc_StartValue8H2F, Crc_DataPtr, Crc_Length);
+  u8Crc = crc_update(u8Crc, Crc_DataPtr, Crc_Length);
+
+  u8Crc = crc_finalize(u8Crc);
 
   return u8Crc;
 }

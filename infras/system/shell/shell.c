@@ -19,7 +19,7 @@
 #endif
 
 #ifndef SHELL_CMDLINE_MAX
-#define SHELL_CMDLINE_MAX 1024
+#define SHELL_CMDLINE_MAX 256
 #endif
 
 #if defined(_WIN32) || defined(linux)
@@ -29,6 +29,9 @@
 /* ================================ [ DECLARES  ] ============================================== */
 extern void stdio_can_putc(char chr);
 /* ================================ [ DATAS     ] ============================================== */
+#if defined(USE_SHELL_CONFIG)
+extern const Shell_ConfigType Shell_Config;
+#else
 #if defined(_WIN32) || defined(linux)
 Shell_CmdType __ssymtab_start[1024];
 Shell_CmdType *__ssymtab_end = &__ssymtab_start[0];
@@ -44,6 +47,7 @@ extern const Shell_CmdType __ssymtab_start[];
 extern const Shell_CmdType __ssymtab_end[];
 #endif
 #endif
+#endif /* USE_SHELL_CONFIG */
 
 static char lCmdLine[SHELL_CMDLINE_MAX];
 static const char *lCmdArgv[SHELL_MAX_ARGS];
@@ -63,22 +67,41 @@ static void ProcessStdio(void *arg) {
 
 static int Shell_Help(int argc, const char *argv[]) {
   int r = 0;
+#ifdef USE_SHELL_CONFIG
+  uint32_t cmdIt;
+#else
   const Shell_CmdType *cmdIt;
+#endif
   const Shell_CmdType *cmd;
   int i;
 
   if (1 == argc) {
+#ifdef USE_SHELL_CONFIG
+    for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
+      PRINTF("%s - %s\n", Shell_Config.cmds[cmdIt]->cmdName, Shell_Config.cmds[cmdIt]->cmdDesc);
+    }
+#else
     for (cmdIt = __ssymtab_start; cmdIt < __ssymtab_end; cmdIt++) {
       PRINTF("%s - %s\n", cmdIt->cmdName, cmdIt->cmdDesc);
     }
+#endif
   } else {
     for (i = 1; i < argc; i++) {
       cmd = NULL;
+#ifdef USE_SHELL_CONFIG
+      for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
+        if (0 == strcmp(Shell_Config.cmds[cmdIt]->cmdName, argv[i])) {
+          cmd = Shell_Config.cmds[cmdIt];
+        }
+      }
+#else
       for (cmdIt = __ssymtab_start; (cmdIt < __ssymtab_end) && (NULL == cmd); cmdIt++) {
         if (0 == strcmp(cmdIt->cmdName, argv[i])) {
           cmd = cmdIt;
         }
       }
+
+#endif
       if (cmd) {
         PRINTF("%s - %s\n", cmd->cmdName, cmd->cmdDesc);
       } else {
@@ -91,11 +114,7 @@ static int Shell_Help(int argc, const char *argv[]) {
 SHELL_REGISTER(help, "help [cmd]\n", Shell_Help)
 
 static void Shell_PutC(char ch) {
-#ifdef SHELL_DISABLE_ECHO_BACK
-#ifdef USE_STDIO_CAN
-  stdio_can_putc(ch);
-#endif
-#else
+#ifndef SHELL_DISABLE_ECHO_BACK
   PRINTF("%c", ch);
 #endif
 }
@@ -110,7 +129,11 @@ static void Shell_RunCmd(void) {
   char ch;
   boolean isArg;
   boolean isEol = FALSE;
+#ifdef USE_SHELL_CONFIG
+  uint32_t cmdIt;
+#else
   const Shell_CmdType *cmdIt;
+#endif
   const Shell_CmdType *cmd = NULL;
 
   while ((argc < SHELL_MAX_ARGS) && (FALSE == isEol)) {
@@ -146,11 +169,19 @@ static void Shell_RunCmd(void) {
   }
 
   if (argc > 0) {
+#ifdef USE_SHELL_CONFIG
+    for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
+      if (0 == strcmp(Shell_Config.cmds[cmdIt]->cmdName, lCmdArgv[0])) {
+        cmd = Shell_Config.cmds[cmdIt];
+      }
+    }
+#else
     for (cmdIt = __ssymtab_start; (cmdIt < __ssymtab_end) && (NULL == cmd); cmdIt++) {
       if (0 == strcmp(cmdIt->cmdName, lCmdArgv[0])) {
         cmd = cmdIt;
       }
     }
+#endif
 
     if (cmd) {
       i = cmd->cmdFunc(argc, lCmdArgv);

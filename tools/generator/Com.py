@@ -101,7 +101,7 @@ def gen_signal_init_value(sig, C):
         if type(values) not in [list, tuple]:
             values = [values]
         for x in values:
-            cstr += "%x, " % (x)
+            cstr += "0x%x, " % (x)
         C.write("static const %s %s_InitialValue[%s] = { %s };\n" % (t1, sig["name"], nBytes, cstr))
     else:
         InitialValue = sig.get("InitialValue", 0)
@@ -117,7 +117,7 @@ def gen_signal_timeout_value(sig, C):
             TimeoutSubstitutionValue = sig.get("TimeoutSubstitutionValue", "[0]")
             cstr = ""
             for x in eval(TimeoutSubstitutionValue):
-                cstr += "%x, " % (x)
+                cstr += "0x%x, " % (x)
             C.write("static const %s %s_TimeoutSubstitutionValue[%s] = { %s };\n" % (t1, sig["name"], nBytes, cstr))
         else:
             TimeoutSubstitutionValue = sig.get("TimeoutSubstitutionValue", 0)
@@ -144,21 +144,6 @@ def gen_sig(network, sig, msg, C, isTx):
         C.write("    Com_GrpsData_%s, /* shadowPtr */\n" % (sig["name"]))
     else:
         C.write("    %s%s_InitialValue, /* initPtr */\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["name"]))
-    if sig.get("dyn", False):
-        t0 = "UINT8_DYN"
-    C.write("    COM_%s, /* type */\n" % (t0))
-    C.write("    COM_%sID_%s, /* HandleId */\n" % ("G" if sig.get("isGroup", False) else "S", sig["name"]))
-    C.write("    COM_%s, /* PduId */\n" % (name))
-    C.write("    %s, /* BitPosition */\n" % (sig["start"] & 7))
-    C.write("    %s, /* BitSize */\n" % (sig["size"]))
-    C.write("#ifdef COM_USE_SIGNAL_UPDATE_BIT\n")
-    UpdateBit = sig.get("UpdateBit", "COM_UPDATE_BIT_NOT_USED")
-    if type(UpdateBit) is int:
-        assert UpdateBit > sig["start"]
-        UpdateBit = UpdateBit - int(sig["start"] / 8) * 8
-    C.write("    %s, /* UpdateBit */\n" % (UpdateBit))
-    C.write("#endif\n")
-    C.write("    %s, /* Endianness */\n" % (sig["endian"].upper()))
     C.write("#ifdef COM_USE_SIGNAL_CONFIG\n")
     if "group" in sig:
         C.write("    NULL, /* rxConfig */\n")
@@ -170,6 +155,21 @@ def gen_sig(network, sig, msg, C, isTx):
         C.write("    &Com_SignalRxConfig_%s, /* rxConfig */\n" % (sig["name"]))
         C.write("    NULL, /* txConfig */\n")
     C.write("#endif\n")
+    C.write("    COM_%sID_%s, /* HandleId */\n" % ("G" if sig.get("isGroup", False) else "S", sig["name"]))
+    C.write("    COM_%s, /* PduId */\n" % (name))
+    C.write("    %s, /* BitPosition */\n" % (sig["start"] & 7))
+    C.write("    %s, /* BitSize */\n" % (sig["size"]))
+    C.write("#ifdef COM_USE_SIGNAL_UPDATE_BIT\n")
+    UpdateBit = sig.get("UpdateBit", "COM_UPDATE_BIT_NOT_USED")
+    if type(UpdateBit) is int:
+        assert UpdateBit > sig["start"]
+        UpdateBit = UpdateBit - int(sig["start"] / 8) * 8
+    C.write("    %s, /* UpdateBit */\n" % (UpdateBit))
+    C.write("#endif\n")
+    if sig.get("dyn", False):
+        t0 = "UINT8_DYN"
+    C.write("    COM_%s, /* type */\n" % (t0))
+    C.write("    COM_%s_ENDIAN, /* Endianness */\n" % (sig["endian"].upper()))
     C.write("    %s,\n" % (str(sig.get("isGroup", False)).upper()))
     C.write("  },\n")
 
@@ -191,8 +191,8 @@ def gen_rx_msg_cfg(network, msg, C):
     C.write("  #ifdef COM_USE_RX_IPDU_CALLOUT\n")
     C.write("  %s, /* RxIpduCallout */\n" % (RxIpduCallout))
     C.write("  #endif\n")
-    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* FirstTimeout */\n" % (FirstTimeout))
-    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* Timeout */\n" % (Timeout))
+    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* FirstTimeout */\n" % (FirstTimeout))
+    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* Timeout */\n" % (Timeout))
     C.write("};\n\n")
 
 
@@ -220,8 +220,8 @@ def gen_tx_msg_cfg(network, msg, C):
     C.write("  #ifdef COM_USE_TX_IPDU_CALLOUT\n")
     C.write("  %s, /* TxIpduCallout */\n" % (TxIpduCallout))
     C.write("  #endif\n")
-    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* FirstTime */\n" % (FirstTime))
-    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* CycleTime */\n" % (CycleTime))
+    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* FirstTime */\n" % (FirstTime))
+    C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* CycleTime */\n" % (CycleTime))
     C.write("#ifdef USE_PDUR\n")
     if msg.get("trigger", False) or network["network"] in ["LIN"]:
         C.write("  (PduIdType)-1 /* trigger transmit */,\n")
@@ -272,10 +272,10 @@ def Gen_Com(cfg, dir):
     H.write("#define COM_CONST\n")
     H.write("#endif\n\n")
     H.write("#ifndef COM_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define COM_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
+    H.write("#define COM_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define COM_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
-    H.write("  ((x + COM_MAIN_FUNCTION_PERIOD - 1) / COM_MAIN_FUNCTION_PERIOD)\n\n")
+    H.write("  ((x + COM_MAIN_FUNCTION_PERIOD - 1u) / COM_MAIN_FUNCTION_PERIOD)\n\n")
     NTs = []
     for network in cfg["networks"]:
         if network["network"] not in NTs:
@@ -303,7 +303,7 @@ def Gen_Com(cfg, dir):
     H.write("#define COM_ECUC_PDUID_OFFSET 0\n")
     H.write("#endif\n\n")
     last_end = "COM_ECUC_PDUID_OFFSET"
-    for network in cfg["networks"]:
+    for idx, network in enumerate(cfg["networks"]):
         H.write("/* NOTE: manually modify to fix it to the right HTH */\n")
         H.write("#define COM_ECUC_%s_PDUID_MIN %s\n" % (network["name"], last_end))
         H.write("#define COM_ECUC_%s_PDUID_MAX %s + %s\n" % (network["name"], last_end, len(network["messages"])))
@@ -319,7 +319,7 @@ def Gen_Com(cfg, dir):
                 H.write("  %s ((COM_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n" % (IF, name.upper()))
                 if network["network"] == "CAN":
                     H.write("    dlPdu.id = 0x%X; \\\n" % (msg["id"]))
-                    H.write("    ret = Can_Write(0, &dlPdu); \\\n")
+                    H.write("    ret = Can_Write(%s, &dlPdu); \\\n" % (idx))
                 elif network["network"] == "LIN":
                     pass
                 else:
@@ -439,6 +439,7 @@ def Gen_Com(cfg, dir):
         H.write("#define COM_USE_SIGNAL_RX_NOTIFICATION\n")
     if bHasSignalRxRxTOut:
         H.write("#define COM_USE_SIGNAL_RX_TIMEOUT\n")
+    H.write("%s#define COM_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -578,6 +579,38 @@ def Gen_Com(cfg, dir):
     C.write("};\n\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
+    C.write("#ifdef USE_E2E\n")
+    C.write('#include "E2E.h"\n')
+    C.write('#include "E2E_Cfg.h"\n')
+    for network in cfg["networks"]:
+        for msg in network["messages"]:
+            if "E2E" not in msg:
+                continue
+            name = msg["E2E"]["name"]
+            profile = msg["E2E"]["profile"]
+            if msg["node"] == network["me"]:
+                TxIpduCallout = msg.get("TxIpduCallout", "NULL")
+                if TxIpduCallout != "NULL":
+                    C.write("boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr) {\n" % (TxIpduCallout))
+                    C.write("  Std_ReturnType ret;\n")
+                    C.write(
+                        "  ret = E2E_%sProtect(E2E_PROTECT_%s_%s, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);\n"
+                        % (profile, profile, toMacro(name))
+                    )
+                    C.write("  return (E_OK == ret);\n")
+                    C.write("}\n\n")
+            else:
+                RxIpduCallout = msg.get("RxIpduCallout", "NULL")
+                if RxIpduCallout != "NULL":
+                    C.write("boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr) {\n" % (RxIpduCallout))
+                    C.write("  Std_ReturnType ret;\n")
+                    C.write(
+                        "  ret = E2E_%sCheck(E2E_CHECK_%s_%s, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);\n"
+                        % (profile, profile, toMacro(name))
+                    )
+                    C.write("  return ( (E_OK == ret) || (E2E_E_OK_SOME_LOST == ret));\n")
+                    C.write("}\n\n")
+    C.write("#endif /* USE_E2E */\n\n")
     C.close()
 
 
@@ -651,7 +684,7 @@ def add_group_signal(msg):
     msg["signals"].extend([sig for _, sig in group_signals.items()])
 
 
-def post(cfg):
+def post(cfg, e2eCfg={}):
     for network in cfg["networks"]:
         trigger = network.get("trigger", [])
         for msg in network["messages"]:
@@ -659,6 +692,27 @@ def post(cfg):
                 msg["trigger"] = True
             if any("group" in sig for sig in msg["signals"]):
                 add_group_signal(msg)
+        E2E = network.get("E2E", [])
+        for e2e in E2E:
+            for msg in network["messages"]:
+                if msg["name"] == e2e["name"]:
+                    if msg["node"] == network["me"]:
+                        typ = 'Protect'
+                    else:
+                        typ = 'Check'
+                    name, profile = e2e["name"], e2e["profile"]
+                    ecfg = None
+                    for ec in e2eCfg.get('%s%s'%(typ, profile), []):
+                        if name == ec['name']:
+                            ecfg = ec
+                    if ecfg == None:
+                        raise Exception("E2E profile %s %s for %s is not configured"%(typ, profile, name))
+                    for key,value in ecfg.items():
+                        if key in ["DataID", "DataIDList"]:
+                            e2e[key] = eval(str(value))
+                        else:
+                            e2e[key] = value
+                    msg["E2E"] = e2e
     # make sure TX fist then RX
     for network in cfg["networks"]:
         txmsgs, rxmsgs = [], []
@@ -726,9 +780,13 @@ def post(cfg):
                 continue  # do nothing for TxMsg
             CycleTime = msg.get("CycleTime", 0)
             if enabledTOut and "RxTOut" not in msg and 0 != CycleTime:
-                msg["RxTOut"] = "%s_%s_RxTimeout" % (network["name"], msg["name"])
+                msg["RxTOut"] = "%s_RxTimeout" % (msg["name"])
+                if network["name"] not in msg["name"]:
+                    msg["RxTOut"] = "%s_%s" % (network["name"], msg["RxTOut"])
             if enabledRx and "RxNotification" not in msg:
-                msg["RxNotification"] = "%s_%s_RxNotification" % (network["name"], msg["name"])
+                msg["RxNotification"] = "%s_RxNotification" % (msg["name"])
+                if network["name"] not in msg["name"]:
+                    msg["RxNotification"] = "%s_%s" % (network["name"], msg["RxNotification"])
             for signal in msg["signals"]:
                 if enabledSigTOut and "RxTOut" not in signal and 0 != CycleTime:
                     signal["RxTOut"] = "%s_RxTimeout" % (signal["name"])
@@ -749,10 +807,14 @@ def post(cfg):
         for msg in network["messages"]:
             if msg["node"] != network["me"]:
                 if enabledRxCallout and "RxIpduCallout" not in msg:
-                    msg["RxIpduCallout"] = "%s_%s_RxIpduCallout" % (network["name"], msg["name"])
+                    msg["RxIpduCallout"] = "%s_RxIpduCallout" % (msg["name"])
+                    if network["name"] not in msg["name"]:
+                        msg["RxIpduCallout"] = "%s_%s" % (network["name"], msg["RxIpduCallout"])
             else:
                 if enabledTxCallout and "TxIpduCallout" not in msg:
-                    msg["TxIpduCallout"] = "%s_%s_TxIpduCallout" % (network["name"], msg["name"])
+                    msg["TxIpduCallout"] = "%s_TxIpduCallout" % (msg["name"])
+                    if network["name"] not in msg["name"]:
+                        msg["TxIpduCallout"] = "%s_%s" % (network["name"], msg["TxIpduCallout"])
 
 
 def ldf2dbc(ldfPath, dbcPath):
@@ -762,6 +824,15 @@ def ldf2dbc(ldfPath, dbcPath):
 
 
 def extract(cfg, dir):
+    e2eCfg = {}
+    if "E2E" in cfg:
+        path = cfg["E2E"]
+        if not os.path.isfile(path):
+            path = os.path.abspath(os.path.join(dir, "..", path))
+            if not os.path.isfile(path):
+                raise Exception("File %s not exists" % (path))
+        with open(path) as f:
+            e2eCfg = json.load(f)
     cfg_ = {"class": "Com", "networks": []}
     for network in cfg["networks"]:
         if "ldf" in network:
@@ -789,7 +860,7 @@ def extract(cfg, dir):
             cfg_["networks"].append(network_)
         else:
             cfg_["networks"].append(network)
-    post(cfg_)
+    post(cfg_, e2eCfg)
     with open("%s/Com.json" % (dir), "w") as f:
         json.dump(cfg_, f, indent=2)
     return cfg_
@@ -808,6 +879,7 @@ def GenRTE(cfg, dir):
                 sig[".type"] = t0
                 if t0 in ["UINT8N", "SINT8N"]:
                     InitialValue = sig.get("InitialValue", [0])
+                    continue # TODO: has issue
                 else:
                     InitialValue = sig.get("InitialValue", 0)
                 sig[".init"] = InitialValue
@@ -842,3 +914,4 @@ def Gen(cfg):
     cfg_ = extract(cfg, dir)
     Gen_Com(cfg_, dir)
     GenRTE(cfg_, dir)
+    return ["%s/Com_Cfg.c" % (dir)]

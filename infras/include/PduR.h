@@ -4,8 +4,8 @@
  *
  * ref: Specification of PDU Router AUTOSAR CP Release 4.4.0
  */
-#ifndef _PDUR_H
-#define _PDUR_H
+#ifndef PDUR_H
+#define PDUR_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -30,4 +30,4 @@ void PduR_EnableRouting(PduR_RoutingPathGroupIdType id);
 
 /* @SWS_PduR_00617 */
 void PduR_DisableRouting(PduR_RoutingPathGroupIdType id, boolean initialize);
-#endif /* _PDUR_H */
+#endif /* PDUR_H */

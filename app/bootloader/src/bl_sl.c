@@ -20,6 +20,7 @@ Std_ReturnType BL_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
   ASLOG(BL, ("BL_GetSessionChangePermission(%d --> %d)\n", (int)sesCtrlTypeActive,
              (int)sesCtrlTypeNew));
 
+#ifndef DCM_DISABLE_PROGRAM_SESSION_PROTECTION
   /* program session can only be entered through EXTDS session */
   if ((DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) &&
       (DCM_EXTENDED_DIAGNOSTIC_SESSION != sesCtrlTypeActive)) {
@@ -36,17 +37,17 @@ Std_ReturnType BL_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
       ercd = E_NOT_OK;
     }
   }
-
+#endif
   return ercd;
 }
 
-Std_ReturnType BL_GetProgramSessionSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType BL_GetProgramLevelSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
   uint32_t u32Seed; /* intentional not initialized to use the stack random value */
   uint32_t u32Time = Std_GetTime();
 
   bl_prgs_seed = bl_prgs_seed ^ u32Seed ^ u32Time ^ 0xfeedbeef;
 
-  ASLOG(BL, ("BL_GetProgramSessionSeed(seed = %X)\n", bl_prgs_seed));
+  ASLOG(BL, ("BL_GetProgramLevelSeed(seed = %X)\n", bl_prgs_seed));
 
   seed[0] = (uint8_t)(bl_prgs_seed >> 24);
   seed[1] = (uint8_t)(bl_prgs_seed >> 16);
@@ -55,13 +56,13 @@ Std_ReturnType BL_GetProgramSessionSeed(uint8_t *seed, Dcm_NegativeResponseCodeT
   return E_OK;
 }
 
-Std_ReturnType BL_CompareProgramSessionKey(uint8_t *key, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType BL_CompareProgramLevelKey(uint8_t *key, Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ercd;
   uint32_t u32Key = ((uint32_t)key[0] << 24) + ((uint32_t)key[1] << 16) + ((uint32_t)key[2] << 8) +
                     ((uint32_t)key[3]);
   uint32_t u32KeyExpected = bl_prgs_seed ^ 0x94586792;
 
-  ASLOG(BL, ("BL_CompareProgramSessionKey(key = %X(%X))\n", u32Key, u32KeyExpected));
+  ASLOG(BL, ("BL_CompareProgramLevelKey(key = %X(%X))\n", u32Key, u32KeyExpected));
 
   if (u32KeyExpected == u32Key) {
     ercd = E_OK;
@@ -72,13 +73,13 @@ Std_ReturnType BL_CompareProgramSessionKey(uint8_t *key, Dcm_NegativeResponseCod
   return ercd;
 }
 
-Std_ReturnType BL_GetExtendedSessionSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType BL_GetExtendedLevelSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
   uint32_t u32Seed; /* intentional not initialized to use the stack random value */
   uint32_t u32Time = Std_GetTime();
 
   bl_extds_seed = bl_extds_seed ^ u32Seed ^ u32Time ^ 0x95774321;
 
-  ASLOG(BL, ("BL_GetExtendedSessionSeed(seed = %X)\n", bl_extds_seed));
+  ASLOG(BL, ("BL_GetExtendedLevelSeed(seed = %X)\n", bl_extds_seed));
 
   seed[0] = (uint8_t)(bl_extds_seed >> 24);
   seed[1] = (uint8_t)(bl_extds_seed >> 16);
@@ -88,13 +89,13 @@ Std_ReturnType BL_GetExtendedSessionSeed(uint8_t *seed, Dcm_NegativeResponseCode
   return E_OK;
 }
 
-Std_ReturnType BL_CompareExtendedSessionKey(uint8_t *key, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType BL_CompareExtendedLevelKey(uint8_t *key, Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ercd;
   uint32_t u32Key = ((uint32_t)key[0] << 24) + ((uint32_t)key[1] << 16) + ((uint32_t)key[2] << 8) +
                     ((uint32_t)key[3]);
   uint32_t u32KeyExpected = bl_extds_seed ^ 0x78934673;
 
-  ASLOG(BL, ("BL_CompareExtendedSessionKey(key = %X(%X))\n", u32Key, u32KeyExpected));
+  ASLOG(BL, ("BL_CompareExtendedLevelKey(key = %X(%X))\n", u32Key, u32KeyExpected));
 
   if (u32KeyExpected == u32Key) {
     ercd = E_OK;

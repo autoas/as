@@ -10,7 +10,7 @@ comments: true
 Below 2 are examples:
 
 * [bootloader/Dcm.json](../../app/bootloader/config/Dcm.json)
-* [applocation/Dcm.json](../../app/app/config/Dcm.json)
+* [application/Dcm.json](../../app/app/config/Dcm/Dcm.json)
 
 
 ## Session definitions
@@ -116,4 +116,7 @@ Common things for memory definition, please note it can also has attributes "ses
     "sessions":[...], "securities": [...], "access": [...] },
 ```
 
+## Genetator
+
+* [Genetator Dcm.py](../../tools/generator/Dcm.py)
 

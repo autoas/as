@@ -1,0 +1,13 @@
+{
+    "class": "Nm",
+    "networks": [
+      {
+        "name": "CANNM0",
+        "type": "CANNM"
+      },
+      {
+        "name": "CANNM1",
+        "type": "CANNM"
+      }
+    ]
+  }

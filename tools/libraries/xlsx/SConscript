@@ -1,0 +1,55 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+def GetOpenXLSXPackage():
+    pkg = Package(
+        "https://github.com/troldal/OpenXLSX.git",
+        version="v0.3.2",
+        cmd='mkdir -p build && cd build && cmake .. && sed -i "4c #include <stdint.h>" OpenXLSX/OpenXLSX-Exports.hpp',
+    )
+    return pkg
+
+
+@register_library
+class LibraryOpenXLSX(Library):
+    def config(self):
+        pkg = GetOpenXLSXPackage()
+        self.include = [
+            "%s/OpenXLSX" % (pkg),
+            "%s/OpenXLSX/headers" % (pkg),
+            "%s/build/OpenXLSX" % (pkg),
+            "%s/OpenXLSX/external/nowide" % (pkg),
+            "%s/OpenXLSX/external/pugixml" % (pkg),
+            "%s/OpenXLSX/external/zippy" % (pkg),
+            "%s/OpenXLSX/sources/utilities" % (pkg),
+        ]
+        self.source = PkgGlob(pkg, ["OpenXLSX/sources/*.cpp"])
+
+
+@register_application
+class ApplicationOpenXLSXDemo(Application):
+    def config(self):
+        pkg = GetOpenXLSXPackage()
+        self.LIBS = ["OpenXLSX"]
+        self.source = PkgGlob(pkg, ["Examples/Demo1.cpp"])
+
+
+objsXLT = Glob("xltester/*.cpp")
+
+
+@register_library
+class LibraryXLTester(Library):
+    def config(self):
+        self.include = ["%s/xltester" % (CWD)]
+        self.LIBS = ["OpenXLSX", "AsOne"]
+        self.source = objsXLT
+
+objsXLTester = Glob("utils/main.cpp")
+
+@register_application
+class ApplicationXLTester(Application):
+    def config(self):
+        self.LIBS = ["XLTester"]
+        self.source = objsXLTester
+        self.Install('../one')

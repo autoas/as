@@ -12,6 +12,7 @@
 #include "Dem.h"
 #include "Dem_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_DEM
 
 #ifdef DEM_STATUS_BIT_STORAGE_TEST_FAILED /* @SWS_Dem_00525 @ECUC_Dem_00784 */
 #define DEM_NVM_STORE_TEST_FAILED DEM_UDS_STATUS_TF
@@ -39,8 +40,9 @@
 #define DEM_DISPLACEMENT_NONE ((Dem_EventDisplacementStrategyType)0x01)
 #define DEM_DISPLACEMENT_PRIO_OCC ((Dem_EventDisplacementStrategyType)0x02)
 
-#define DEM_PROCESS_OCCCTR_CDTC ((Dem_OccurrenceCounterProcessingType)0x01)
-#define DEM_PROCESS_OCCCTR_TF ((Dem_OccurrenceCounterProcessingType)0x00)
+#define DEM_PROCESS_OCCCTR_CDTC ((Dem_OccurrenceCounterProcessingType)0x00)
+#define DEM_PROCESS_OCCCTR_TF ((Dem_OccurrenceCounterProcessingType)0x01)
+#define DEM_PROCESS_OCCCTR_TFTOC ((Dem_OccurrenceCounterProcessingType)0x02)
 
 #define DEM_DEBOUNCE_COUNTER_BASED ((Dem_DebounceAlgorithmClassType)0x00)
 #define DEM_DEBOUNCE_MONITOR_INTERNAL ((Dem_DebounceAlgorithmClassType)0x01)
@@ -181,18 +183,18 @@ typedef struct {
 } Dem_DebounceCounterBasedConfigType;
 
 typedef struct {
-  const uint16_t *freezeFrameDataIndex;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) freezeFrameDataIndex;
   uint8_t numOfFreezeFrameData;
 } Dem_FreezeFrameRecordClassType;
 
 typedef struct {
-  const uint8_t *ExtendedDataNumberIndex;
+  P2CONST(uint8_t, AUTOMATIC, DEM_CONST) ExtendedDataNumberIndex;
   uint8_t numOfExtendedData;
   uint8_t ExtendedDataRecordNumber;
 } Dem_ExtendedDataRecordClassType;
 
 typedef struct {
-  const Dem_ExtendedDataRecordClassType *const *ExtendedDataRecordClassRef;
+  P2CONST(Dem_ExtendedDataRecordClassType *const, AUTOMATIC, DEM_CONST) ExtendedDataRecordClassRef;
   uint8_t numOfExtendedDataRecordClassRef;
 } Dem_ExtendedDataClassType;
 
@@ -201,17 +203,18 @@ typedef uint8_t Dem_TypeOfFreezeFrameRecordNumerationType;
 
 /* @ECUC_Dem_00776 */
 typedef struct {
-  const uint8_t *FreezeFrameRecNums; /* 1..254, 0xFF reserved for read all records */
+  /* 1..254, 0xFF reserved for read all records */
+  P2CONST(uint8_t, AUTOMATIC, DEM_CONST) FreezeFrameRecNums;
   uint8_t numOfFreezeFrameRecNums;
 } Dem_FreezeFrameRecNumClassType;
 
 typedef struct {
-  Dem_DtcStatusRecordType *const *const StatusRecords;
+  CONSTP2VAR(Dem_DtcStatusRecordType *const, AUTOMATIC, DEM_CONST) StatusRecords;
   /* A FreezeFrame pool to be used to store the most important DTCs'
    * snapshot when the DTC occurred. */
-  Dem_FreezeFrameRecordType *const *const FreezeFrameRecords;
+  CONSTP2VAR(Dem_FreezeFrameRecordType *const, AUTOMATIC, DEM_CONST) FreezeFrameRecords;
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-  Dem_ExtendedDataRecordType *const *const ExtendedDataRecords;
+  CONSTP2VAR(Dem_ExtendedDataRecordType *const, AUTOMATIC, DEM_CONST) ExtendedDataRecords;
 #endif
 #ifndef DEM_USE_NVM
   uint8_t *StatusRecordsDirty;
@@ -220,10 +223,10 @@ typedef struct {
   uint8_t *ExtendedDataRecordsDirty;
 #endif
 #else
-  const uint16_t *StatusNvmBlockIds;
-  const uint16_t *FreezeFrameNvmBlockIds;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) StatusNvmBlockIds;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) FreezeFrameNvmBlockIds;
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-  const uint16_t *ExtendedDataNvmBlockIds;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) ExtendedDataNvmBlockIds;
 #endif
 #endif
   uint16_t numOfStatusRecords;
@@ -236,12 +239,13 @@ typedef struct {
 
 /* @ECUC_Dem_00641 */
 typedef struct {
-  const Dem_ExtendedDataClassType *ExtendedDataClass;
-  const Dem_FreezeFrameRecordClassType *FreezeFrameRecordClass;
-  const Dem_FreezeFrameRecNumClassType *FreezeFrameRecNumClass;
-  const Dem_MemoryDestinationType *const *MemoryDestination; /* @ECUC_Dem_00890 */
-  uint8_t numOfMemoryDestination;                            /* 1 or 2 */
-  uint8_t Priority; /* A lower value means higher priority. @ECUC_Dem_00662 */
+  P2CONST(Dem_ExtendedDataClassType, AUTOMATIC, DEM_CONST) ExtendedDataClass;
+  P2CONST(Dem_FreezeFrameRecordClassType, AUTOMATIC, DEM_CONST) FreezeFrameRecordClass;
+  P2CONST(Dem_FreezeFrameRecNumClassType, AUTOMATIC, DEM_CONST) FreezeFrameRecNumClass;
+  /* @ECUC_Dem_00890 */
+  P2CONST(Dem_MemoryDestinationType *const, AUTOMATIC, DEM_CONST) MemoryDestination;
+  uint8_t numOfMemoryDestination; /* 1 or 2 */
+  uint8_t Priority;               /* A lower value means higher priority. @ECUC_Dem_00662 */
   boolean AgingAllowed;
   uint8_t AgingCycleCounterThreshold;
   Dem_OccurrenceCounterProcessingType OccurrenceCounterProcessing;
@@ -259,8 +263,8 @@ typedef Std_ReturnType (*Dem_CallbackInitMonitorForEventFncType)(
 
 /* @ECUC_Dem_00886 */
 typedef struct {
-  const Dem_DTCAttributesType *DTCAttributes;
-  const Dem_EventIdType *EventIdRefs;
+  P2CONST(Dem_DTCAttributesType, AUTOMATIC, DEM_CONST) DTCAttributes;
+  P2CONST(Dem_EventIdType, AUTOMATIC, DEM_CONST) EventIdRefs;
   uint32_t DtcNumber; /* @ECUC_Dem_00887 */
   Dem_DtcIdType DtcId;
   uint8_t numOfEvents;
@@ -273,9 +277,9 @@ typedef struct {
 
 /* @ECUC_Dem_00661 */
 typedef struct {
-  const Dem_DTCType *DTCRef;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef;
   Dem_CallbackInitMonitorForEventFncType DemCallbackInitMForE;
-  const Dem_DebounceCounterBasedConfigType *DebounceCounterBased;
+  P2CONST(Dem_DebounceCounterBasedConfigType, AUTOMATIC, DEM_CONST) DebounceCounterBased;
 #ifdef DEM_USE_ENABLE_CONDITION
   uint32_t ConditionRefMask; /* @ECUC_Dem_00746 */
 #endif
@@ -298,18 +302,18 @@ typedef struct {
 } Dem_EventStatusRecordType;
 
 struct Dem_Config_s {
-  const Dem_FreeFrameDataConfigType *FreeFrameDataConfigs;
-  const Dem_ExtendedDataConfigType *ExtendedDataConfigs;
-  const Dem_EventConfigType *EventConfigs;
+  P2CONST(Dem_FreeFrameDataConfigType, AUTOMATIC, DEM_CONST) FreeFrameDataConfigs;
+  P2CONST(Dem_ExtendedDataConfigType, AUTOMATIC, DEM_CONST) ExtendedDataConfigs;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfigs;
   Dem_EventContextType *EventContexts;
-  Dem_EventStatusRecordType *const *const EventStatusRecords;
+  CONSTP2VAR(Dem_EventStatusRecordType *const, AUTOMATIC, DEM_CONST) EventStatusRecords;
 #ifdef DEM_USE_NVM
-  const uint16_t *EventStatusNvmBlockIds;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) EventStatusNvmBlockIds;
 #else
   uint8_t *EventStatusDirty; /* to indicate the Event status record has updates */
 #endif
-  const Dem_DTCType *Dtcs;
-  const Dem_MemoryDestinationType *MemoryDestination;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtcs;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) MemoryDestination;
   Dem_OperationCycleStateType *OperationCycleStates;
   uint16_t numOfFreeFrameDataConfigs;
   uint16_t numOfEvents;
@@ -318,6 +322,7 @@ struct Dem_Config_s {
   uint8_t numOfExtendedDataConfigs;
   uint8_t numOfOperationCycles;
   Dem_TypeOfFreezeFrameRecordNumerationType TypeOfFreezeFrameRecordNumeration;
+  uint8_t StatusAvailabilityMask;
 };
 
 /* ================================ [ DECLARES  ] ============================================== */

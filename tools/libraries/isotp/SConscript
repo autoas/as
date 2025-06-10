@@ -4,7 +4,7 @@ CWD = GetCurrentDir()
 objs = Glob("src/*.c") + Glob("src/*.cpp")
 
 libsForIsoTp = {}
-for libName in ["CanTp", "LinTp", "CanIf", "PduR"]:
+for libName in ["CanTp", "LinTp", "CanIf", "PduR", "J1939Tp"]:
     libsForIsoTp[libName] = Glob("config/%s_Cfg.c" % (libName))
 
 

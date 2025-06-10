@@ -4,14 +4,13 @@
  */
 #if defined(_WIN32) || defined(linux)
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <io.h>
 #include <unistd.h>
 #include <dirent.h>
 #include "vfs.h"
 #include "Std_Debug.h"
 #include "heap.h"
 #include <stdlib.h>
-
+#include <string.h>
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_HOFS 0
 #define TO_HOFS_PATH(f)                                                                            \
@@ -160,7 +159,7 @@ static vfs_dirent_t *host_readdir(VFS_DIR *dirstream) {
   rentry = readdir((DIR *)(dirstream->priv));
 
   if (NULL != rentry) {
-#if defined(__LINUX__)
+#if defined(linux)
     dirent.d_namlen = rentry->d_reclen;
 #else
     dirent.d_namlen = rentry->d_namlen;
@@ -212,7 +211,7 @@ static int host_mkdir(const vfs_mount_t *mnt, const char *filename, uint32_t mod
 
   ASLOG(HOFS, ("mkdir(%s,  0x%x)\n", filename, mode));
 
-#if defined(__LINUX__)
+#if defined(linux)
   r = mkdir(TO_HOFS_PATH(filename), mode);
 #else
   r = mkdir(TO_HOFS_PATH(filename));

@@ -6,8 +6,8 @@
 #define _VRING_DDS_NAMED_SEMAPHORE_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <semaphore.h>
-#include <string>
 #include <stdint.h>
+#include <string>
 
 namespace as {
 namespace vdds {

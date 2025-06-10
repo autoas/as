@@ -2,13 +2,45 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibraryLibC(Library):
     def config(self):
         self.source = objs
-        self.CPPPATH = ['$INFRAS']
-        self.LIBS = ['RingBuffer']
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["RingBuffer"]
 
-    
+
+objsStdio = Glob("stdio_*.c")
+
+
+@register_library
+class LibraryLibStdio(Library):
+    def config(self):
+        self.source = objsStdio
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["RingBuffer"]
+
+
+objsMisc = Glob("misclib.c")
+
+
+@register_library
+class LibraryLibMisC(Library):
+    def config(self):
+        self.source = objsMisc
+        self.CPPPATH = ["$INFRAS"]
+
+
+@register_library
+class LibraryNewlib(Library):
+    def get_objs(self, pkg):
+        objs = ["newlib/libc/search/*.c"]
+        return PkgGlob(pkg, objs)
+
+    def config(self):
+        pkg = Package("https://gitee.com/mirrors/newlib-cygwin.git", version="newlib-4.3.0")
+        self.include = ["%s/newlib/libc/include" % (pkg)]
+        self.source = self.get_objs(pkg)

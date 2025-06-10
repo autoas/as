@@ -283,7 +283,7 @@ void SecOC_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
   TxPduProc = &SECOC_CONFIG->TxPduProcs[TxPduId];
   if (SECOC_TXPDU_PROC_STATE_WAIT_TX_DONE == TxPduProc->context->state) {
     TxPduProc->context->state = SECOC_TXPDU_PROC_STATE_IDLE;
-    ASLOG(SECOCE, ("[%u] Tx Confirm result=%u\n", TxPduId, result));
+    ASLOG(SECOC, ("[%u] Tx Confirm result=%u\n", TxPduId, result));
     PduR_SecOCTxConfirmation(TxPduProc->UpTxPduId, result);
   } else {
     ASLOG(SECOCE, ("[%u] TxPdu in state %u\n", TxPduId, TxPduProc->context->state));

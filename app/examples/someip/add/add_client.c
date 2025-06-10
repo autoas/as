@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {
-      Std_TimerStart(&timer1s);
+      // Std_TimerStart(&timer1s);
       Math_add_request();
     }
   }

@@ -5,10 +5,11 @@
 #ifndef _VRING_DDS_PUBLISHER_HPP_
 #define _VRING_DDS_PUBLISHER_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "vring.hpp"
-#include <string>
+#include "vring/spmc/writer.hpp"
+#include "vring/spsc/writer.hpp"
 #include <map>
 #include <mutex>
+#include <string>
 
 #include "Std_Debug.h"
 
@@ -26,7 +27,7 @@ public:
   uint32_t queueDepth = 8;
 } PublisherOptions_t;
 
-template <typename T> class Publisher {
+template <typename T, typename VRingWriter = vring::spmc::Writer> class Publisher {
 public:
   Publisher(std::string topicName, const PublisherOptions_t &publisherOptions = PublisherOptions());
   ~Publisher();
@@ -50,19 +51,21 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-template <typename T>
-Publisher<T>::Publisher(std::string topicName, const PublisherOptions_t &publisherOptions)
+template <typename T, typename VRingWriter>
+Publisher<T, VRingWriter>::Publisher(std::string topicName,
+                                     const PublisherOptions_t &publisherOptions)
   : m_TopicName(topicName), m_Writer(topicName, sizeof(T), publisherOptions.queueDepth) {
 }
 
-template <typename T> Publisher<T>::~Publisher() {
+template <typename T, typename VRingWriter> Publisher<T, VRingWriter>::~Publisher() {
 }
 
-template <typename T> int Publisher<T>::init() {
+template <typename T, typename VRingWriter> int Publisher<T, VRingWriter>::init() {
   return m_Writer.init();
 }
 
-template <typename T> int Publisher<T>::load(T *&sample, uint32_t timeoutMs) {
+template <typename T, typename VRingWriter>
+int Publisher<T, VRingWriter>::load(T *&sample, uint32_t timeoutMs) {
   uint32_t idx;
   uint32_t len;
   int ret = 0;
@@ -76,7 +79,7 @@ template <typename T> int Publisher<T>::load(T *&sample, uint32_t timeoutMs) {
   return ret;
 }
 
-template <typename T> int Publisher<T>::publish(T *sample) {
+template <typename T, typename VRingWriter> int Publisher<T, VRingWriter>::publish(T *sample) {
   int ret = 0;
   uint32_t idx;
 
@@ -93,7 +96,8 @@ template <typename T> int Publisher<T>::publish(T *sample) {
   return ret;
 }
 
-template <typename T> int Publisher<T>::publish(T *sample, size_t size) {
+template <typename T, typename VRingWriter>
+int Publisher<T, VRingWriter>::publish(T *sample, size_t size) {
   int ret = 0;
   uint32_t idx;
 
@@ -111,7 +115,7 @@ template <typename T> int Publisher<T>::publish(T *sample, size_t size) {
   return ret;
 }
 
-template <typename T> uint32_t Publisher<T>::idx(T *sample) {
+template <typename T, typename VRingWriter> uint32_t Publisher<T, VRingWriter>::idx(T *sample) {
   uint32_t idx_ = -1;
   std::unique_lock<std::mutex> lck(m_Mutex);
   auto it = m_IdxMap.find(sample);

@@ -34,7 +34,7 @@ typedef struct {
 
 typedef struct {
   CanIf_PduModeType PduMode;
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   uint16_t txTimeoutTimer;
 #endif
 } CanIf_CtrlContextType;
@@ -42,7 +42,7 @@ typedef struct {
 typedef struct {
   const CanIf_RxPduType *rxPdus;
   uint16_t numOfRxPdus;
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   uint16_t txTimerout;
 #endif
 } CanIf_CtrlConfigType;

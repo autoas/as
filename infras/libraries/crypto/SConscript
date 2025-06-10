@@ -1,0 +1,90 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+objs = Glob("src/*.c")
+
+
+@register_library
+class LibraryTomMath(Library):
+    def config(self):
+        libtommath = Package(url="https://gitee.com/mirrors/libtommath.git", version="v1.2.1")
+        objs = PkgGlob(libtommath, ["*.c"])
+        self.include += [libtommath]
+        if not IsBuildForHost(self.GetCompiler()):
+            self.CPPDEFINES += ["MP_NO_DEV_URANDOM", "MP_LOW_MEM"]
+        # for RSA, need to use up to 8KB(malloc) for rsa_import
+        self.source = objs
+
+
+@register_library
+class LibraryTomCrypt(Library):
+    def config(self):
+        libtomcrypt = Package(url="https://gitee.com/mirrors/libtomcrypt.git", version="v1.18.2")
+        objs = PkgGlob(libtomcrypt, ["src/*/*.c", "src/*/*/*.c", "src/*/*/*/*.c", "src/*/*/*/*/*.c"])
+        self.include += ["%s/src/headers" % (libtomcrypt)]
+        self.Append(CPPDEFINES=["USE_LTC", "USE_LTM", "LTM_DESC", "LTC_SOURCE", "ARGTYPE=3"])
+        if not IsBuildForHost(self.GetCompiler()):
+            self.Append(CPPDEFINES=["LTC_PRNG_ENABLE_LTC_RNG"])
+        self.LIBS += ["TomMath"]
+        self.source = objs
+
+
+@register_library
+class LibraryMbedTls(Library):
+    def config(self):
+        version = os.getenv("MBEDTSL_VERSION", "v3.6.0")
+        mbedtls = Package(
+            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+        )
+        objs = PkgGlob(mbedtls, ["library/*.c"])
+        self.include += ["%s/include" % (mbedtls), "%s/tests/include/alt-dummy" % (mbedtls)]
+        self.Append(CPPDEFINES=["USE_MBEDTLS"])
+        if version[:3] == "v2.":
+            self.Append(CPPDEFINES=["USE_MBEDTLS_V2"])
+        else:
+            self.Append(CPPDEFINES=["USE_MBEDTLS_V3"])
+        if IsBuildForWindows(self.GetCompiler()):
+            self.LIBS += ["bcrypt"]
+        else:
+            SrcRemove(objs, ["ssl_.*.c", "psa_crypto_storage.c", "entropy_poll.c", "platform_util.c", "timing.c"])
+        self.source = objs
+
+
+"""
+# For user of MbedTls with special config, in the Applicaiton config, add code as below shows
+# ensure also has config/mbedtls_config.h
+cfgMbedTls = Glob("config/mbedtls_config.c")
+self.LIBS += ["MbedTls"]
+self.RegisterConfig("MbedTls", cfgMbedTls, force=True)
+self.Append(CPPDEFINES='MBEDTLS_CONFIG_FILE="<mbedtls_config.h>"')
+self.CPPPATH += ["$MbedTls_Cfg"]
+"""
+
+
+@register_library
+class LibraryCryptoIf(Library):
+    def add_openssl(self):
+        # NOTE: use msys2-64 to build the openssl:
+        openssl = Package(
+            url="https://gitee.com/mirrors/openssl.git", version="openssl-3.0.11", cmd="perl ./Configure && make"
+        )
+        self.include += ["%s/include" % (openssl)]
+        self.Append(LIBPATH=[openssl])
+        self.Append(CPPDEFINES=["USE_OPENSSL"])
+        self.LIBS += ["ssl", "crypto", "ws2_32", "wsock32", "gdi32"]
+
+    def config(self):
+        self.include = ["%s/include" % (CWD)]
+        self.source = objs
+        self.CPPPATH += ["$INFRAS"]
+        self.LIBS += ["StdTimer"]
+        be = os.getenv("CRYPTOIF_BACKEND", "mbedtls")
+        if be == "libtomcrypto":
+            self.LIBS += ["TomCrypt"]
+        elif be == "openssl":
+            self.add_openssl()
+        elif be == "mbedtls":
+            self.LIBS += ["MbedTls"]
+        else:
+            raise

@@ -1,0 +1,9 @@
+{
+    "class": "E2E",
+    "ProtectP11": [
+        { "name": "TxMsgTime", "DataID": "0x1234", "DataIDMode": "ALT", "CRCOffset": 48, "CounterOffset": 56, "DataIDNibbleOffset": 60 }
+    ],
+    "CheckP11": [
+        { "name": "RxMsgAbsInfo", "DataID": "0x5678", "DataIDMode": "NIBBLE", "CRCOffset": 48, "CounterOffset": 56, "DataIDNibbleOffset": 60 }
+    ]
+}

@@ -7,6 +7,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "PduR.h"
 #include "PduR_Priv.h"
+#include "PduR_LinTp.h"
 #ifdef USE_LINTP
 #include "LinTp_Cfg.h"
 #endif
@@ -53,26 +54,26 @@ void PduR_LinTpGwRxIndication(PduIdType id, Std_ReturnType result) {
 BufReq_ReturnType PduR_LinTpCopyTxData(PduIdType id, const PduInfoType *info,
                                        const RetryInfoType *retry,
                                        PduLengthType *availableDataPtr) {
-  return PduR_CopyTxData(id + PDUR_CONFIG->LINTP_TX_BASE_ID, info, retry, availableDataPtr);
+  return PduR_CopyTxData(id + PDUR_CONFIG->lintpTxBaseID, info, retry, availableDataPtr);
 }
 
 void PduR_LinTpRxIndication(PduIdType id, Std_ReturnType result) {
-  PduR_TpRxIndication(id + PDUR_CONFIG->LINTP_RX_BASE_ID, result);
+  PduR_TpRxIndication(id + PDUR_CONFIG->lintpRxBaseID, result);
 }
 
 void PduR_LinTpTxConfirmation(PduIdType id, Std_ReturnType result) {
-  LINTP_GW_USER_HOOK_TX_CONFIRM(id + PDUR_CONFIG->LINTP_TX_BASE_ID, result);
-  PduR_TxConfirmation(id + PDUR_CONFIG->LINTP_TX_BASE_ID, result);
+  LINTP_GW_USER_HOOK_TX_CONFIRM(id + PDUR_CONFIG->lintpTxBaseID, result);
+  PduR_TxConfirmation(id + PDUR_CONFIG->lintpTxBaseID, result);
 }
 
 BufReq_ReturnType PduR_LinTpStartOfReception(PduIdType id, const PduInfoType *info,
                                              PduLengthType TpSduLength,
                                              PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id + PDUR_CONFIG->LINTP_RX_BASE_ID, info, TpSduLength,
+  return PduR_StartOfReception(id + PDUR_CONFIG->lintpRxBaseID, info, TpSduLength,
                                bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_LinTpCopyRxData(PduIdType id, const PduInfoType *info,
                                        PduLengthType *bufferSizePtr) {
-  return PduR_CopyRxData(id + PDUR_CONFIG->LINTP_RX_BASE_ID, info, bufferSizePtr);
+  return PduR_CopyRxData(id + PDUR_CONFIG->lintpRxBaseID, info, bufferSizePtr);
 }

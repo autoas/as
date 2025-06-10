@@ -13,18 +13,20 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-#include "crc8h2f/crc8h2f.h"
-#include "crc8h2f/crc8h2f.c"
+#include "crc8/crc8.h"
+#include "crc8/crc8.c"
 /* ================================ [ FUNCTIONS ] ============================================== */
 uint8_t Crc_CalculateCRC8(const uint8_t *Crc_DataPtr, uint32_t Crc_Length, uint8_t Crc_StartValue8,
                           boolean Crc_IsFirstCall) {
   uint8_t u8Crc = Crc_StartValue8;
 
-  if (Crc_IsFirstCall) {
-    Crc_StartValue8 = crc_init();
+  if (TRUE != Crc_IsFirstCall) {
+    u8Crc = crc_finalize(u8Crc);
   }
 
-  u8Crc = crc_update(Crc_StartValue8, Crc_DataPtr, Crc_Length);
+  u8Crc = crc_update(u8Crc, Crc_DataPtr, Crc_Length);
+
+  u8Crc = crc_finalize(u8Crc);
 
   return u8Crc;
 }

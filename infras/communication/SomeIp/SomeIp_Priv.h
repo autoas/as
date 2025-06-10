@@ -14,7 +14,6 @@
 typedef void (*SomeIp_OnAvailabilityFncType)(boolean isAvailable);
 typedef void (*SomeIp_OnConnectFncType)(uint16_t condId, boolean isConnected);
 
-
 /* for events */
 typedef void (*SomeIp_OnSubscribeFncType)(boolean isSubscribe);
 

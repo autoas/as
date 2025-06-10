@@ -37,7 +37,7 @@ void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) ConfigPtr) {
 
   (void)ConfigPtr;
 
-  memset(context, 0, sizeof(Dcm_ContextType));
+  (void)memset(context, 0, sizeof(Dcm_ContextType));
   context->rxBufferState = DCM_BUFFER_IDLE;
   context->txBufferState = DCM_BUFFER_IDLE;
   context->curPduId = DCM_INVALID_PDU_ID;
@@ -119,18 +119,18 @@ BufReq_ReturnType Dcm_StartOfReception(PduIdType id, const PduInfoType *info,
     if (TpSduLength > config->rxBufferSize) {
       /* @SWS_Dcm_00444 */
       ret = BUFREQ_E_OVFL;
-    } else if (0 == TpSduLength) {
+    } else if (0u == TpSduLength) {
       /* @SWS_Dcm_00642 */
       ret = BUFREQ_E_NOT_OK;
     } else {
       *bufferSizePtr = config->rxBufferSize;
       context->curPduId = id;
-      context->RxIndex = 0;
+      context->RxIndex = 0u;
       context->RxTpSduLength = TpSduLength;
       context->rxBufferState = DCM_BUFFER_PROVIDED;
     }
   } else {
-    if ((2 == TpSduLength) && (0x3E == info->SduDataPtr[0]) && (0x80 == info->SduDataPtr[1]) &&
+    if ((2u == TpSduLength) && (0x3Eu == info->SduDataPtr[0]) && (0x80u == info->SduDataPtr[1]) &&
         ((DCM_P2P_PDU == id) || (DCM_P2A_PDU == id))) {
       /* @SWS_Dcm_00557, @SWS_Dcm_01145
        * Only support 3E request without positive response */
@@ -157,10 +157,10 @@ BufReq_ReturnType Dcm_CopyRxData(PduIdType id, const PduInfoType *info,
 
   if (DCM_BUFFER_PROVIDED == context->rxBufferState) {
     if (context->curPduId == id) {
-      if (0 == info->SduLength) {
+      if (0u == info->SduLength) {
         /* @SWS_Dcm_00996 */
       } else {
-        memcpy(&config->rxBuffer[context->RxIndex], info->SduDataPtr, info->SduLength);
+        (void)memcpy(&config->rxBuffer[context->RxIndex], info->SduDataPtr, info->SduLength);
         context->RxIndex += info->SduLength;
       }
       /* @SWS_Dcm_00443 */
@@ -178,7 +178,7 @@ void Dcm_TpRxIndication(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
-  DET_VALIDATE(id < config->numOfChls, 0x45, DCM_E_PARAM, return);
+  DET_VALIDATE(id < config->numOfChls, 0x45, DCM_E_PARAM, return );
 
   if ((E_OK == result) && (DCM_BUFFER_PROVIDED == context->rxBufferState) &&
       (context->curPduId == id)) {
@@ -188,10 +188,10 @@ void Dcm_TpRxIndication(PduIdType id, Std_ReturnType result) {
       context->msgContext.dcmRxPduId = id;
       /* context->msgContext.idContext = 0; */
       context->msgContext.reqData = &config->rxBuffer[1];
-      context->msgContext.reqDataLen = context->RxTpSduLength - 1;
+      context->msgContext.reqDataLen = context->RxTpSduLength - 1u;
       context->msgContext.resData = &config->txBuffer[1];
       context->msgContext.resDataLen = 0;
-      context->msgContext.resMaxDataLen = config->txBufferSize - 1;
+      context->msgContext.resMaxDataLen = config->txBufferSize - 1u;
       context->opStatus = DCM_INITIAL;
       context->rxBufferState = DCM_BUFFER_FULL;
       ASLOG(DCM, ("Rx %02X %02X %02X ...\n", config->rxBuffer[0], config->rxBuffer[1],
@@ -210,6 +210,7 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  (void)retry;
 
   DET_VALIDATE(id < config->numOfChls, 0x43, DCM_E_PARAM, return BUFREQ_E_NOT_OK);
   DET_VALIDATE((NULL != info) && (NULL != info->SduDataPtr), 0x43, DCM_E_PARAM_POINTER,
@@ -221,11 +222,11 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
     info->SduDataPtr[1] = context->currentSID;
     info->SduDataPtr[2] = DCM_E_RESPONSE_PENDING;
     context->responcePending = DCM_RESPONSE_PENDING_TXING;
-    *availableDataPtr = 0;
+    *availableDataPtr = 0u;
     ret = BUFREQ_OK;
   } else if (DCM_BUFFER_PROVIDED == context->txBufferState) {
     if (context->curPduId == id) {
-      memcpy(info->SduDataPtr, &config->txBuffer[context->TxIndex], info->SduLength);
+      (void)memcpy(info->SduDataPtr, &config->txBuffer[context->TxIndex], info->SduLength);
       context->TxIndex += info->SduLength;
       *availableDataPtr = context->TxTpSduLength - context->TxIndex;
       ret = BUFREQ_OK;
@@ -243,7 +244,7 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
 void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
 
-  DET_VALIDATE(id < Dcm_GetConfig()->numOfChls, 0x48, DCM_E_PARAM, return);
+  DET_VALIDATE(id < Dcm_GetConfig()->numOfChls, 0x48, DCM_E_PARAM, return );
 
   if (DCM_RESPONSE_PENDING_TXING == context->responcePending) {
     context->responcePending = DCM_NO_RESPONSE_PENDING;

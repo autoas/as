@@ -4,78 +4,69 @@
  *
  * ref: nm253
  */
-#ifndef _OSEK_NM_H
-#define _OSEK_NM_H
+#ifndef OSEK_NM_H
+#define OSEK_NM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
+/* @ nm253.pdf 4.4.3.1 P98 */
+#define OSEKNM_BUS_SLEEP ((OsekNm_ModeNameType)1)
+#define OSEKNM_AWAKE ((OsekNm_ModeNameType)2)
+/* ================================ [ TYPES     ] ============================================== */
 /* @ nm253.pdf 4.3 P89 */
-typedef uint8_t NodeIdType;
-typedef uint8_t NetIdType;
+typedef uint8_t OsekNm_NodeIdType;
 
 /* @ nm253.pdf 4.4.5.3.1 P103 */
-typedef uint8_t RingDataType[6];
-typedef RingDataType *RingDataRefType;
+typedef uint8_t OsekNm_RingDataType[6];
+
+typedef OsekNm_RingDataType *OsekNm_RingDataRefType;
 
 typedef struct {
   uint8_t Source;
   uint8_t Destination;
-  union {
-    uint8_t b;
-    struct {
-      uint8_t Alive : 1;
-      uint8_t Ring : 1;
-      uint8_t Limphome : 1;
-      uint8_t reserved1 : 1;
-      uint8_t SleepInd : 1;
-      uint8_t SleepAck : 1;
-      uint8_t reserved2 : 2;
-    } B;
-  } OpCode;
-  RingDataType RingData;
-} NMPduType;
+  uint8_t OpCode;
+  OsekNm_RingDataType RingData;
+} OsekNm_PduType;
 
-/* @ nm253.pdf 4.4.3.1 P98 */
-typedef enum
-{
-  NM_BusSleep = 1,
-  NM_Awake
-} NMModeName;
+typedef uint8_t OsekNm_ModeNameType;
 
 typedef enum
 {
-  BusInit,
-  BusShutDown,
-  BusRestart,
-  BusSleep,
-  BusAwake
-} RoutineRefType;
+  OSEKNM_ROUTINE_BUS_INIT,
+  OSEKNM_ROUTINE_BUS_SHUTDOWN,
+  OSEKNM_ROUTINE_BUS_RESTART,
+  OSEKNM_ROUTINE_BUS_SLEEP,
+  OSEKNM_ROUTINE_BUS_AWAKE
+} OsekNm_RoutineRefType;
 
 typedef struct OsekNm_Config_s OsekNm_ConfigType;
-/* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void OsekNm_Init(const OsekNm_ConfigType *ConfigPtr);
-StatusType StartNM(NetIdType NetId);
-StatusType SilentNM(NetIdType);
-StatusType TalkNM(NetIdType);
-StatusType GotoMode(NetIdType NetId, NMModeName NewMode);
+Std_ReturnType OsekNm_Start(NetworkHandleType NetId);
+Std_ReturnType OsekNm_Silent(NetworkHandleType NetId);
+Std_ReturnType OsekNm_Talk(NetworkHandleType NetId);
+Std_ReturnType OsekNm_GotoMode(NetworkHandleType NetId, OsekNm_ModeNameType NewMode);
+Std_ReturnType OsekNm_Stop(NetworkHandleType NetId);
 
+Std_ReturnType OsekNm_NetworkRequest(NetworkHandleType nmChannelHandle);
+Std_ReturnType OsekNm_NetworkRelease(NetworkHandleType nmChannelHandle);
 
-StatusType OsekNm_GetState(NetIdType NetId, Nm_ModeType *nmModePtr);
+Std_ReturnType OsekNm_GetState(NetworkHandleType NetId, Nm_ModeType *nmModePtr);
 
 void OsekNm_TxConfirmation(PduIdType NetId, Std_ReturnType result);
 void OsekNm_RxIndication(PduIdType NetId, const PduInfoType *PduInfoPtr);
-void OsekNm_WakeupIndication(NetIdType NetId);
-void OsekNm_BusErrorIndication(NetIdType NetId);
+void OsekNm_WakeupIndication(NetworkHandleType NetId);
+void OsekNm_BusErrorIndication(NetworkHandleType NetId);
 
 void OsekNm_MainFunction(void);
 
-void D_Init(NetIdType NetId, RoutineRefType Routine);
-void D_Offline(NetIdType NetId);
-void D_Online(NetIdType NetId);
-StatusType D_WindowDataReq(NetIdType NetId, NMPduType *nmPdu, uint8_t DataLengthTx);
-#endif /* _OSEK_NM_H */
+void OsekNm_D_Init(NetworkHandleType NetId, OsekNm_RoutineRefType Routine);
+void OsekNm_D_Offline(NetworkHandleType NetId);
+void OsekNm_D_Online(NetworkHandleType NetId);
+Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *nmPdu,
+                                      uint8_t DataLengthTx);
+#endif /* OSEK_NM_H */

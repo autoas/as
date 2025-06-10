@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.c')
+
+@register_library
+class LibraryXcp(Library):
+    def config(self):
+        self.CPPPATH = ['$INFRAS', '$CanIf_Cfg', CWD]
+        self.LIBS = ['MemPool']
+        self.source = objs
+

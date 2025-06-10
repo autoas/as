@@ -9,6 +9,8 @@
 #include "Fls_Priv.h"
 #include "Std_Debug.h"
 #include "Std_Critical.h"
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_FLS 0
 #define AS_LOG_FLSI 1
@@ -20,7 +22,7 @@
 #define FLS_STATE_MASK ((Fls_StateType)0x0F)
 #define FLS_JOB_MASK ((Fls_StateType)0xF0)
 
-#define FLS_IDEL ((Fls_StateType)0x00)
+#define FLS_IDLE ((Fls_StateType)0x00)
 #define FLS_PENDING ((Fls_StateType)0x01)
 #define FLS_CANCELED ((Fls_StateType)0x02)
 #define FLS_DONE ((Fls_StateType)0x03)
@@ -36,8 +38,7 @@
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t Fls_StateType;
 
-typedef enum
-{
+typedef enum {
   FLS_ERASE_CHECK,
   FLS_WRITE_CHECK,
   FLS_READ_CHECK
@@ -57,7 +58,7 @@ extern const Fls_ConfigType Fls_Config;
 static Fls_ContextType Fls_Context;
 /* ================================ [ LOCALS    ] ============================================== */
 static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType TargetAddress) {
-  int i = 0;
+  uint8_t i = 0;
   const Fls_SectorType *sector = NULL;
   const Fls_ConfigType *config = FLS_CONFIG;
 
@@ -71,6 +72,7 @@ static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType TargetAddres
   return sector;
 }
 
+#ifdef USE_DET
 static Std_ReturnType Fls_IsOffsetFineInSector(const Fls_SectorType *sector, Fls_LengthType offset,
                                                Fls_CheckType check) {
   Fls_LengthType aligned;
@@ -85,10 +87,10 @@ static Std_ReturnType Fls_IsOffsetFineInSector(const Fls_SectorType *sector, Fls
   default:
     /* TODO: get the read minimum size according to configuration,
      * but for most the case, it was one */
-    aligned = 1;
+    aligned = 1u;
     break;
   }
-  if (0 != (offset & (aligned - 1))) {
+  if (0u != (offset & (aligned - 1u))) {
     r = E_NOT_OK;
   }
   return r;
@@ -118,6 +120,7 @@ static Std_ReturnType Fls_IsAddressLengthFine(Fls_AddressType TargetAddress, Fls
 
   return r;
 }
+#endif
 
 static Fls_LengthType Fls_GetMaxWorkingSize(Fls_StateType jobType) {
   const Fls_ConfigType *config = FLS_CONFIG;
@@ -194,20 +197,21 @@ static void Fls_DoJob(Fls_AddressType address, uint8_t *data, Fls_LengthType len
   const Fls_ConfigType *config = FLS_CONFIG;
   Fls_ContextType *context = &Fls_Context;
   const Fls_SectorType *sector;
+  Fls_LengthType off = offset;
 
   maxSize = Fls_GetMaxWorkingSize(jobType);
 
-  while ((offset < length) && (maxSize > 0) && (E_OK == r)) {
-    sector = Fls_GetSectorByAddress(address + offset);
+  while ((off < length) && (maxSize > 0u) && (E_OK == r)) {
+    sector = Fls_GetSectorByAddress(address + off);
     if (NULL == sector) {
       /* Terminate as FATAL memory error */
-      ASLOG(FLSE, ("Invalid Address 0x%X when do job %d\n", address + offset, jobType));
+      ASLOG(FLSE, ("Invalid Address 0x%X when do job %d\n", address + off, jobType));
       config->JobErrorNotification();
-      context->state = FLS_IDEL;
+      context->state = FLS_IDLE;
       r = E_NOT_OK;
     }
 
-    doSize = length - offset;
+    doSize = length - off;
     if (doSize > maxSize) {
       doSize = maxSize;
     }
@@ -216,20 +220,20 @@ static void Fls_DoJob(Fls_AddressType address, uint8_t *data, Fls_LengthType len
       switch (jobType) {
       case FLS_JOB_ERASE:
         doSize = sector->SectorSize;
-        r = Fls_AcErase(address + offset, doSize);
+        r = Fls_AcErase(address + off, doSize);
         break;
       case FLS_JOB_WRITE:
         doSize = sector->PageSize;
-        r = Fls_AcWrite(address + offset, &data[offset], doSize);
+        r = Fls_AcWrite(address + off, &data[off], doSize);
         break;
       case FLS_JOB_READ:
-        r = Fls_AcRead(address + offset, &data[offset], doSize);
+        r = Fls_AcRead(address + off, &data[off], doSize);
         break;
       case FLS_JOB_COMPARE:
-        r = Fls_AcCompare(address + offset, &data[offset], doSize);
+        r = Fls_AcCompare(address + off, &data[off], doSize);
         break;
       case FLS_JOB_BLANK_CHECK:
-        r = Fls_AcBlankCheck(address + offset, doSize);
+        r = Fls_AcBlankCheck(address + off, doSize);
         break;
       default:
         break;
@@ -237,7 +241,7 @@ static void Fls_DoJob(Fls_AddressType address, uint8_t *data, Fls_LengthType len
     }
 
     if (E_OK == r) {
-      offset += doSize;
+      off += doSize;
       if (maxSize > doSize) {
         maxSize -= doSize;
       } else {
@@ -246,34 +250,34 @@ static void Fls_DoJob(Fls_AddressType address, uint8_t *data, Fls_LengthType len
     }
   }
 
-  Fls_DoJobPostUpdate(address, data, length, offset, jobType, r);
+  Fls_DoJobPostUpdate(address, data, length, off, jobType, r);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Fls_Init(const Fls_ConfigType *ConfigPtr) {
-  (void)ConfigPtr;
   const Fls_ConfigType *config = FLS_CONFIG;
   Fls_ContextType *context = &Fls_Context;
+
+  (void)ConfigPtr;
+
   Fls_AcInit();
-  context->state = FLS_IDEL;
+  context->state = FLS_IDLE;
   context->mode = config->defaultMode;
 }
 
 Std_ReturnType Fls_Erase(Fls_AddressType TargetAddress, Fls_LengthType Length) {
   Fls_ContextType *context = &Fls_Context;
-  Std_ReturnType r;
+  Std_ReturnType r = E_OK;
 
-  r = Fls_IsAddressLengthFine(TargetAddress, Length, FLS_ERASE_CHECK);
-  if (E_OK == r) {
-    EnterCritical();
-    if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
-      context->state = FLS_PENDING | FLS_JOB_ERASE;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_ERASE_CHECK), 0x01,
+               FLS_E_PARAM_ADDRESS, return E_NOT_OK);
+
+  EnterCritical();
+  if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
+    context->state = FLS_PENDING | FLS_JOB_ERASE;
   } else {
-    ASLOG(FLSE, ("Address 0x%X Length=0x%X not okay for erase\n", TargetAddress, Length));
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->data = NULL;
@@ -288,20 +292,20 @@ Std_ReturnType Fls_Erase(Fls_AddressType TargetAddress, Fls_LengthType Length) {
 Std_ReturnType Fls_Write(Fls_AddressType TargetAddress, const uint8_t *SourceAddressPtr,
                          Fls_LengthType Length) {
   Fls_ContextType *context = &Fls_Context;
-  Std_ReturnType r;
+  Std_ReturnType r = E_OK;
 
-  r = Fls_IsAddressLengthFine(TargetAddress, Length, FLS_WRITE_CHECK);
-  if (E_OK == r) {
-    EnterCritical();
-    if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
-      context->state = FLS_PENDING | FLS_JOB_WRITE;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_WRITE_CHECK), 0x02,
+               FLS_E_PARAM_ADDRESS, return E_NOT_OK);
+
+  DET_VALIDATE(NULL != SourceAddressPtr, 0x02, FLS_E_PARAM_POINTER, return E_NOT_OK);
+
+  EnterCritical();
+  if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
+    context->state = FLS_PENDING | FLS_JOB_WRITE;
   } else {
-    ASLOG(FLSE, ("Address 0x%X Length=0x%X not okay for write\n", TargetAddress, Length));
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->data = (uint8_t *)SourceAddressPtr;
@@ -324,7 +328,7 @@ void Fls_Cancel(void) {
     /* @SWS_Fls_00033 */
     context->state = FLS_CANCELED;
   } else {
-    context->state = FLS_IDEL;
+    context->state = FLS_IDLE;
   }
   ExitCritical();
 
@@ -374,20 +378,20 @@ MemIf_JobResultType Fls_GetJobResult(void) {
 Std_ReturnType Fls_Read(Fls_AddressType SourceAddress, uint8_t *TargetAddressPtr,
                         Fls_LengthType Length) {
   Fls_ContextType *context = &Fls_Context;
-  Std_ReturnType r;
+  Std_ReturnType r = E_OK;
 
-  r = Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK);
-  if (E_OK == r) {
-    EnterCritical();
-    if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
-      context->state = FLS_PENDING | FLS_JOB_READ;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK), 0x07,
+               FLS_E_PARAM_ADDRESS, return E_NOT_OK);
+
+  DET_VALIDATE(NULL != TargetAddressPtr, 0x07, FLS_E_PARAM_POINTER, return E_NOT_OK);
+
+  EnterCritical();
+  if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
+    context->state = FLS_PENDING | FLS_JOB_READ;
   } else {
-    ASLOG(FLSE, ("Address 0x%X Length=0x%X not okay for read\n", SourceAddress, Length));
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->data = TargetAddressPtr;
@@ -401,20 +405,20 @@ Std_ReturnType Fls_Read(Fls_AddressType SourceAddress, uint8_t *TargetAddressPtr
 Std_ReturnType Fls_Compare(Fls_AddressType SourceAddress, const uint8_t *TargetAddressPtr,
                            Fls_LengthType Length) {
   Fls_ContextType *context = &Fls_Context;
-  Std_ReturnType r;
+  Std_ReturnType r = E_OK;
 
-  r = Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK);
-  if (E_OK == r) {
-    EnterCritical();
-    if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
-      context->state = FLS_PENDING | FLS_JOB_COMPARE;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK), 0x08,
+               FLS_E_PARAM_ADDRESS, return E_NOT_OK);
+
+  DET_VALIDATE(NULL != TargetAddressPtr, 0x08, FLS_E_PARAM_POINTER, return E_NOT_OK);
+
+  EnterCritical();
+  if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
+    context->state = FLS_PENDING | FLS_JOB_COMPARE;
   } else {
-    ASLOG(FLSE, ("Address 0x%X Length=0x%X not okay for compare\n", SourceAddress, Length));
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->data = (uint8_t *)TargetAddressPtr;
@@ -434,20 +438,18 @@ void Fls_SetMode(MemIf_ModeType Mode) {
 
 Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Length) {
   Fls_ContextType *context = &Fls_Context;
-  Std_ReturnType r;
+  Std_ReturnType r = E_OK;
 
-  r = Fls_IsAddressLengthFine(TargetAddress, Length, FLS_READ_CHECK);
-  if (E_OK == r) {
-    EnterCritical();
-    if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
-      context->state = FLS_PENDING | FLS_JOB_BLANK_CHECK;
-    } else {
-      r = E_NOT_OK;
-    }
-    ExitCritical();
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_READ_CHECK), 0x0A,
+               FLS_E_PARAM_ADDRESS, return E_NOT_OK);
+
+  EnterCritical();
+  if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
+    context->state = FLS_PENDING | FLS_JOB_BLANK_CHECK;
   } else {
-    ASLOG(FLSE, ("Address 0x%X Length=0x%X not okay for blank check\n", TargetAddress, Length));
+    r = E_NOT_OK;
   }
+  ExitCritical();
 
   if (E_OK == r) {
     context->data = NULL;
@@ -461,10 +463,10 @@ Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Leng
 
 void Fls_MainFunction(void) {
   Fls_ContextType *context = &Fls_Context;
-  uint8_t *data;
-  Fls_AddressType address;
-  Fls_LengthType length;
-  Fls_LengthType offset;
+  uint8_t *data = NULL;
+  Fls_AddressType address = 0;
+  Fls_LengthType length = 0;
+  Fls_LengthType offset = 0;
   Fls_StateType jobType = FLS_JOB_NONE;
 
   EnterCritical();

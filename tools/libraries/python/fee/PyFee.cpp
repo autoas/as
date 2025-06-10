@@ -12,7 +12,6 @@
 #include <thread>
 
 #include <stdio.h>
-#include <unistd.h>
 #include <stdarg.h>
 
 #include "Fee.h"
@@ -22,6 +21,9 @@
 #define WEAK_ALIAS_PRINTF
 #include "Std_Debug.h"
 
+#include "Log.hpp"
+
+using namespace as;
 namespace py = pybind11;
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef FLS_TOTAL_SIZE
@@ -30,21 +32,17 @@ namespace py = pybind11;
 
 #define LOG_FILE_MAX_SIZE (10 * 1024 * 1024)
 #define LOG_FILE_MAX_NUMBER 2
+
+#define ALIGNED(sz, alignsz) ((sz + alignsz - 1) & (~(alignsz - 1)))
+#define FEE_ALIGNED(sz) ALIGNED(sz, FEE_PAGE_SIZE)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern "C" {
-Std_ReturnType Fls_AcErase(Fls_AddressType address, Fls_LengthType length);
-Std_ReturnType Fls_AcWrite(Fls_AddressType address, const uint8_t *data, Fls_LengthType length);
-boolean Fls_AcIsIdle(void);
-}
 /* ================================ [ DATAS     ] ============================================== */
-FILE *_stddebug = NULL;
-int lLogIndex = 0;
 extern "C" {
 Fls_ConfigType Fls_Config;
 Fee_ConfigType Fee_Config;
-extern uint8_t g_FlsAcMirror[];
 }
+extern uint8_t g_FlsAcMirror[];
 
 static Fls_SectorType *Fls_Sectors = nullptr;
 static Fee_BankType *Fee_Banks = nullptr;
@@ -55,17 +53,6 @@ static bool lPowerOn = false;
 static bool lResult = false;
 static uint8_t *lDataPtr = nullptr;
 /* ================================ [ LOCALS    ] ============================================== */
-static void AsPyExit(void) {
-  if (_stddebug) {
-    fclose(_stddebug);
-  }
-}
-
-static void __attribute__((constructor)) AsPyInit(void) {
-  _stddebug = fopen(".Fee0.log", "w");
-  atexit(AsPyExit);
-}
-
 static void JobEndNotification(void) {
   lResult = true;
 }
@@ -84,31 +71,6 @@ static void precheck(void) {
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-extern "C" int std_printf(const char *fmt, ...) {
-  va_list args;
-  int length;
-  char logP[128];
-
-  if (_stddebug) {
-    va_start(args, fmt);
-    length = vfprintf(_stddebug, fmt, args);
-    // vprintf(fmt, args);
-    va_end(args);
-
-    if (ftell(_stddebug) > LOG_FILE_MAX_SIZE) {
-      lLogIndex++;
-      if (lLogIndex >= LOG_FILE_MAX_NUMBER) {
-        lLogIndex = 0;
-      }
-      snprintf(logP, sizeof(logP), ".Fee%d.log", lLogIndex);
-      fclose(_stddebug);
-      _stddebug = fopen(logP, "w");
-    }
-  }
-
-  return length;
-}
-
 template <typename To, typename Ti> To get(py::kwargs &kwargs, std::string key, To dft) {
   To r = dft;
   try {
@@ -194,7 +156,7 @@ bool PyFee_Config(py::dict blocks, py::kwargs kwargs) {
     BlockNumber++;
   };
 
-  uint32_t *Fee_BlockDataAddress = new uint32_t[BlockNumber - 1];
+  Fee_BlockContextType *Fee_BlockContexts = new Fee_BlockContextType[BlockNumber - 1];
 
   if (Fee_Banks)
     delete[] Fee_Banks;
@@ -216,13 +178,19 @@ bool PyFee_Config(py::dict blocks, py::kwargs kwargs) {
     workingAreaSize = scratchSize;
   }
   workingAreaSize = ((workingAreaSize + 31) / 32) * 32;
+
+  if (sizeof(Fee_BankAdminType) * (bankSize + 1) > workingAreaSize) {
+    workingAreaSize = sizeof(Fee_BankAdminType) * (bankSize + 1);
+  }
+
+  printf("FEE working area size = %u\n", workingAreaSize);
   uint32_t *Fee_WorkingArea = new uint32_t[workingAreaSize / sizeof(uint32_t)];
 
   Fee_Config.JobEndNotification = JobEndNotification;
   Fee_Config.JobErrorNotification = JobErrorNotification;
-  if (Fee_Config.blockAddress)
-    delete[] Fee_Config.blockAddress;
-  Fee_Config.blockAddress = Fee_BlockDataAddress;
+  if (Fee_Config.blockContexts)
+    delete[] Fee_Config.blockContexts;
+  Fee_Config.blockContexts = Fee_BlockContexts;
   Fee_Config.Blocks = Fee_BlockConfig.data();
   Fee_Config.numOfBlocks = Fee_BlockConfig.size();
   Fee_Config.Banks = Fee_Banks;
@@ -231,7 +199,7 @@ bool PyFee_Config(py::dict blocks, py::kwargs kwargs) {
     delete[] Fee_Config.workingArea;
   Fee_Config.workingArea = (uint8_t *)Fee_WorkingArea;
   Fee_Config.sizeOfWorkingArea = workingAreaSize;
-  Fee_Config.maxJobRetry = 0;
+  Fee_Config.maxJobRetry = 1;
   Fee_Config.maxDataSize = maxDataSize;
   Fee_Config.NumberOfErasedCycles = NumberOfErasedCycles;
 
@@ -377,6 +345,8 @@ py::object PyFee_Read(std::string name, bool blocking = true) {
 }
 
 PYBIND11_MODULE(PyFee, m) {
+  Log::setName("PyFee");
+
   m.doc() = "pybind11 PyFee library";
   m.def("erase", &PyFee_Erase, "\tErase Flash\n");
   m.def("config", &PyFee_Config,

@@ -43,4 +43,7 @@ Std_ReturnType Det_ReportRuntimeError(uint16_t ModuleId, uint8_t InstanceId, uin
 /* @SWS_Det_01003 */
 Std_ReturnType Det_ReportTransientFault(uint16_t ModuleId, uint8_t InstanceId, uint8_t ApiId,
                                         uint8_t FaultId);
+
+/* @SWS_Det_00011 */
+void Det_GetVersionInfo(Std_VersionInfoType *versioninfo);
 #endif /* DET_H */

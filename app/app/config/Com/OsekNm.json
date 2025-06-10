@@ -1,0 +1,17 @@
+{
+    "class": "OsekNm",
+    "networks": [
+      {
+        "name": "OSEKNM0",
+        "tTx": 20,
+        "tTyp": 1000,
+        "tMax": 1500,
+        "tError": 1000,
+        "tWbs": 5000,
+        "NodeMask": "0xFF",
+        "NodeId": 0,
+        "rx_limit": 4,
+        "tx_limit": 8
+      }
+    ]
+  }

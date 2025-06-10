@@ -7,6 +7,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "PduR.h"
 #include "PduR_Priv.h"
+#include "PduR_Dcm.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -14,5 +15,5 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
-  return PduR_TpTransmit(TxPduId + PDUR_CONFIG->DCM_TX_BASE_ID, PduInfoPtr);
+  return PduR_TpTransmit(TxPduId + PDUR_CONFIG->dcmTxBaseID, PduInfoPtr);
 }

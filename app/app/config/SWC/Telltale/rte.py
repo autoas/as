@@ -5,6 +5,10 @@ import autosar
 from bswcom import *
 
 
+Led1Sts = CAN0_RxMsgAbsInfo_Led1Sts
+Led2Sts = CAN0_RxMsgAbsInfo_Led2Sts
+Led3Sts = CAN0_RxMsgAbsInfo_Led3Sts
+
 class InactiveActive_T(autosar.Template):
     valueTable = ['InactiveActive_Inactive',
                   'InactiveActive_Active',

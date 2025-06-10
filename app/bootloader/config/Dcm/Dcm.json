@@ -1,0 +1,112 @@
+{
+  "class": "Dcm",
+  "timings":{ "S3Server": 5000, "P2ServerMax": 50, "P2StarServerMax": 5000 },
+  "buffer": { "rx": 514, "tx": 514 },
+  "channels": [
+    {"name": "P2P" },
+    {"name": "P2A" }
+  ],
+  "sessions": [
+    { "name": "Default", "id": "0x01" },
+    { "name": "Program", "id": "0x02" },
+    { "name": "Extended", "id": "0x03" }
+  ],
+  "securities": [
+    { "name": "Extended", "level": 1, "size": 4, "sessions": ["Extended"],
+      "API": { "seed": "BL_GetExtendedLevelSeed", "key": "BL_CompareExtendedLevelKey"} },
+    { "name": "Program", "level": 2, "size": 4, "sessions": ["Program"], 
+      "API": { "seed": "BL_GetProgramLevelSeed", "key": "BL_CompareProgramLevelKey"} }
+  ],
+  "services": [
+    {
+      "name": "session control", "id": "0x10",
+      "access": ["physical", "functional"],
+      "API": "BL_GetSessionChangePermission"
+    },
+    {
+      "name": "ecu reset", "id": "0x11", "API": "BL_GetEcuResetPermission",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "access": ["physical", "functional"]
+    },
+    {
+      "name": "read did", "id": "0x22",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "DIDs":[
+        {
+          "name": "FingerPrint", "id":"0xF15B", "size": 10,
+          "API": "BL_ReadFingerPrint",
+          "sessions":["Program", "Extended"],
+          "securities": ["Program", "Extended"]
+        }
+      ]
+    },
+    {
+      "name": "security access", "id": "0x27",
+      "sessions":["Default", "Program", "Extended"]
+    },
+    {
+      "name": "communication control", "id": "0x28",
+      "functions": [ { "id": 0, "API": "BL_ComCtrlEnableRxAndTx" },
+                     { "id": 3, "API": "BL_ComCtrlDisableRxAndTx" }
+                   ],
+      "access": ["physical", "functional"]
+    },
+    {
+      "name": "write did", "id": "0x2E",
+      "sessions":["Program", "Extended"],
+      "securities": ["Program", "Extended"],
+      "DIDs":[
+        {
+          "name": "FingerPrint", "id":"0xF15A", "size": 9,
+          "API": "BL_WriteFingerPrint",
+          "sessions":["Program", "Extended"],
+          "securities": ["Program", "Extended"]
+        }
+      ]
+    },
+    {
+      "name": "routine control", "id": "0x31", "sessions":["Program", "Extended"], "securities": ["Program", "Extended"],
+      "routines":[
+        {
+          "name": "EraseFlash", "id":"0xFF00", "API": { "start": "BL_StartEraseFlash" },
+          "sessions":["Program"], "securities": ["Program"]
+        },
+        {
+          "name": "CheckProgrammingDependencies", "id":"0xFF01", "API": { "start": "BL_CheckProgrammingDependencies"},
+          "sessions":["Program"], "securities": ["Program"]
+        },
+        {
+          "name": "CheckIntegrity", "id":"0xFF02", "API": { "start": "BL_CheckIntegrity" },
+          "sessions":["Program"], "securities": ["Program"]
+        },
+        {
+          "name": "CheckProgrammingPreconditions", "id":"0x0203", "API": { "start": "BL_CheckProgrammingPreconditions" },
+          "sessions":["Program", "Extended"], "securities": ["Program", "Extended"]
+        },
+        {
+          "name": "CheckProgrammingIntegrity", "id":"0x0202", "API": { "start": "BL_CheckProgrammingIntegrity" },
+          "sessions":["Program"], "securities": ["Program"]
+        }
+      ]
+    },
+    {
+      "name": "request download", "id": "0x34",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": "BL_ProcessRequestDownload"
+    },
+    {
+      "name": "transfer data", "id": "0x36",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": { "write": "BL_ProcessTransferDataWrite", "read": "BL_ProcessTransferDataRead" }
+    },
+    {
+      "name": "transfer exit", "id": "0x37",
+      "sessions":["Program"], "securities": ["Program"],
+      "API": "BL_ProcessRequestTransferExit"
+    },
+    { "name": "tester present", "id": "0x3E" },
+    { "name": "control dtc setting", "id": "0x85", "access": ["physical", "functional"] }
+  ]
+}

@@ -5,7 +5,7 @@
 #ifndef RING_BUFFER_V2_H
 #define RING_BUFFER_V2_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include <stdint.h>
+#include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef RB_SIZE_TYPE
 #define RB_SIZE_TYPE uint16_t

@@ -8,6 +8,7 @@
 #include "CanIf.h"
 #include "CanIf_Cfg.h"
 #include "CanIf_Priv.h"
+#include "CanIf_Can.h"
 #include "Can.h"
 #include "Std_Debug.h"
 #ifdef USE_CANSM
@@ -31,7 +32,11 @@
 #define CANIF_PATCKET_MAX_SIZE 8
 #endif
 
+#ifdef CANIF_USE_PB_CONFIG
+#define CANIF_CONFIG canifConfig
+#else
 #define CANIF_CONFIG (&CanIf_Config)
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct CanIf_Packet_s {
   STAILQ_ENTRY(CanIf_Packet_s) entry;
@@ -49,12 +54,18 @@ static CanIf_PacketListType canIfRxPackets;
 static CanIf_PacketType canIfRxPacketSlots[CANIF_PACKET_RX_POOL_SIZE];
 static mempool_t canIfRxPacketPool;
 #endif
+
+#ifdef CANIF_USE_PB_CONFIG
+static const CanIf_ConfigType *canifConfig = NULL;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   const CanIf_RxPduType *var;
   const CanIf_RxPduType *rxPdu = NULL;
   const CanIf_CtrlConfigType *config;
-  uint16_t l, h, m;
+  uint16_t l;
+  uint16_t h;
+  uint16_t m;
   uint32_t canid;
 
   DET_VALIDATE((NULL != Mailbox) && (NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0xFF,
@@ -69,12 +80,12 @@ static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduIn
 
   config = &CANIF_CONFIG->CtrlConfigs[Mailbox->ControllerId];
   l = 0;
-  h = config->numOfRxPdus - 1;
+  h = config->numOfRxPdus - 1u;
 
   canid = Mailbox->CanId & 0x1FFFFFFFul;
 
   if (canid < config->rxPdus[0].canid) {
-    l = h + 1; /* avoid the underflow of "m - 1" */
+    l = h + 1u; /* avoid the underflow of "m - 1" */
   }
   while ((NULL == rxPdu) && (l <= h)) {
     m = l + ((h - l) >> 1);
@@ -82,19 +93,23 @@ static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduIn
     if (var->canid == (canid & var->mask)) {
       rxPdu = var;
     } else if (var->canid > canid) {
-      h = m - 1;
+      h = m - 1u;
     } else if (var->canid < canid) {
-      l = m + 1;
+      l = m + 1u;
     } else {
       /* A case that has message with the same IDs: impossible!!! */
-      for (h = m + 1, var = &config->rxPdus[h];
-           (NULL == rxPdu) && (h < config->numOfRxPdus) && (var->canid == canid); h++) {
-        rxPdu = var;
+      for (h = m + 1u; (NULL == rxPdu) && (h < config->numOfRxPdus); h++) {
+        var = &config->rxPdus[h];
+        if (var->canid == canid) {
+          rxPdu = var;
+        }
       }
-      for (l = m - 1, var = &config->rxPdus[l];
-           (NULL == rxPdu) && (l < config->numOfRxPdus) && (var->canid == canid); l--) {
+      for (l = m - 1u; (NULL == rxPdu) && (l < config->numOfRxPdus); l--) {
         /* NOTE: l-- underflow then to be UINT16_MAX */
-        rxPdu = var;
+        var = &config->rxPdus[l];
+        if (var->canid == canid) {
+          rxPdu = var;
+        }
       }
       break;
     }
@@ -123,7 +138,7 @@ static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduIn
   }
 }
 
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
 static void CanIf_MainFunction_TxTimeout(void) {
   uint8_t i;
   CanIf_CtrlContextType *context;
@@ -133,14 +148,14 @@ static void CanIf_MainFunction_TxTimeout(void) {
     context = &CANIF_CONFIG->CtrlContexts[i];
     bTxTimeout = FALSE;
     EnterCritical();
-    if (context->txTimeoutTimer > 0) {
+    if (context->txTimeoutTimer > 0u) {
       context->txTimeoutTimer--;
-      if (0 == context->txTimeoutTimer) {
+      if (0u == context->txTimeoutTimer) {
         bTxTimeout = TRUE;
       }
     }
     ExitCritical();
-    if (bTxTimeout) {
+    if (TRUE == bTxTimeout) {
       CanSM_TxTimeoutException(i);
     }
   }
@@ -148,8 +163,16 @@ static void CanIf_MainFunction_TxTimeout(void) {
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void CanIf_Init(const CanIf_ConfigType *ConfigPtr) {
-  int i;
-
+  uint8_t i;
+#ifdef CANIF_USE_PB_CONFIG
+  if (NULL != ConfigPtr) {
+    CANIF_CONFIG = ConfigPtr;
+  } else {
+    CANIF_CONFIG = &CanIf_Config;
+  }
+#else
+  (void)ConfigPtr;
+#endif
   for (i = 0; i < CANIF_CONFIG->numOfCtrls; i++) {
     CANIF_CONFIG->CtrlContexts[i].PduMode = CANIF_OFFLINE;
   }
@@ -162,6 +185,8 @@ void CanIf_Init(const CanIf_ConfigType *ConfigPtr) {
 
 Std_ReturnType CanIf_SetControllerMode(uint8_t ControllerId,
                                        Can_ControllerStateType ControllerMode) {
+
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x03, CANIF_E_UNINIT, return E_NOT_OK);
   /* @SWS_CANIF_00311 */
   DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x03, CANIF_E_PARAM_CONTROLLERID,
                return E_NOT_OK);
@@ -175,6 +200,7 @@ Std_ReturnType CanIf_SetControllerMode(uint8_t ControllerId,
 
 Std_ReturnType CanIf_GetControllerMode(uint8_t ControllerId,
                                        Can_ControllerStateType *ControllerModePtr) {
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x04, CANIF_E_UNINIT, return E_NOT_OK);
   /* @SWS_CANIF_00313 */
   DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x04, CANIF_E_PARAM_CONTROLLERID,
                return E_NOT_OK);
@@ -186,7 +212,7 @@ Std_ReturnType CanIf_GetControllerMode(uint8_t ControllerId,
 
 Std_ReturnType CanIf_SetPduMode(uint8_t ControllerId, CanIf_PduModeType PduModeRequest) {
   Std_ReturnType ret = E_OK;
-
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x09, CANIF_E_UNINIT, return E_NOT_OK);
   /* @SWS_CANIF_00341 */
   DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x09, CANIF_E_PARAM_CONTROLLERID,
                return E_NOT_OK);
@@ -195,7 +221,7 @@ Std_ReturnType CanIf_SetPduMode(uint8_t ControllerId, CanIf_PduModeType PduModeR
   DET_VALIDATE(PduModeRequest <= CANIF_ONLINE, 0x09, CANIF_E_PARAM_PDU_MODE, return E_NOT_OK);
 
   CANIF_CONFIG->CtrlContexts[ControllerId].PduMode = PduModeRequest;
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   if (CANIF_ONLINE != PduModeRequest) {
     CANIF_CONFIG->CtrlContexts[ControllerId].txTimeoutTimer = 0;
   }
@@ -206,7 +232,7 @@ Std_ReturnType CanIf_SetPduMode(uint8_t ControllerId, CanIf_PduModeType PduModeR
 
 Std_ReturnType CanIf_GetPduMode(uint8_t ControllerId, CanIf_PduModeType *PduModePtr) {
   Std_ReturnType ret = E_OK;
-
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x0A, CANIF_E_UNINIT, return E_NOT_OK);
   /* @SWS_CANIF_00346 */
   DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x0A, CANIF_E_PARAM_CONTROLLERID,
                return E_NOT_OK);
@@ -224,16 +250,17 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
   Can_PduType canPdu;
   const CanIf_TxPduType *txPdu;
   CanIf_CtrlContextType *context;
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   const CanIf_CtrlConfigType *ctrlCfg;
 #endif
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x49, CANIF_E_UNINIT, return E_NOT_OK);
   /* @SWS_CANIF_00319 */
   DET_VALIDATE(TxPduId < CANIF_CONFIG->numOfTxPdus, 0x49, CANIF_E_INVALID_TXPDUID, return E_NOT_OK);
   /* @SWS_CANIF_00320 */
   DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x49,
                CANIF_E_PARAM_POINTER, return E_NOT_OK);
   context = &CANIF_CONFIG->CtrlContexts[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   ctrlCfg = &CANIF_CONFIG->CtrlConfigs[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
 #endif
   if (CANIF_ONLINE == context->PduMode) {
@@ -248,9 +275,9 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
     }
 
     ret = Can_Write(txPdu->hoh, &canPdu);
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
     if (E_OK == ret) {
-      if (0 == context->txTimeoutTimer) {
+      if (0u == context->txTimeoutTimer) {
         context->txTimeoutTimer = ctrlCfg->txTimerout;
       }
     }
@@ -262,6 +289,7 @@ Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
 
 void CanIf_SetDynamicTxId(PduIdType CanIfTxSduId, Can_IdType CanId) {
   const CanIf_TxPduType *txPdu;
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x0C, CANIF_E_UNINIT, return);
   /* @SWS_CANIF_00352 */
   DET_VALIDATE(CanIfTxSduId < CANIF_CONFIG->numOfTxPdus, 0x0C, CANIF_E_INVALID_TXPDUID, return);
 
@@ -275,15 +303,16 @@ void CanIf_SetDynamicTxId(PduIdType CanIfTxSduId, Can_IdType CanId) {
 
 void CanIf_TxConfirmation(PduIdType CanTxPduId) {
   const CanIf_TxPduType *txPdu;
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   CanIf_CtrlContextType *context;
 #endif
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x13, CANIF_E_UNINIT, return);
   /* @SWS_CANIF_00410 */
   DET_VALIDATE(CanTxPduId < CANIF_CONFIG->numOfTxPdus, 0x13, CANIF_E_PARAM_LPDU, return);
   txPdu = &CANIF_CONFIG->txPdus[CanTxPduId];
   txPdu->txConfirm(txPdu->txPduId, E_OK);
 
-#ifdef CANIF_USE_TX_TIMEOUT
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   context = &CANIF_CONFIG->CtrlContexts[txPdu->ControllerId];
   context->txTimeoutTimer = 0; /* cancel the timer */
 #endif
@@ -291,6 +320,7 @@ void CanIf_TxConfirmation(PduIdType CanTxPduId) {
 
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   /* @SWS_CANIF_00419 */
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x14, CANIF_E_UNINIT, return);
   DET_VALIDATE((NULL != Mailbox) && (NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x14,
                CANIF_E_PARAM_POINTER, return);
 
@@ -316,6 +346,7 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
 }
 
 void CanIf_ControllerBusOff(uint8_t ControllerId) {
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x16, CANIF_E_UNINIT, return);
   /* SWS_CANIF_00429 */
   DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x16, CANIF_E_PARAM_CONTROLLERID, return);
 #ifdef USE_CANSM
@@ -328,6 +359,8 @@ void CanIf_MainFunction_Fast(void) {
   CanIf_PacketType *packet = NULL;
   PduInfoType pduInfo;
 #endif
+
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0xF1, CANIF_E_UNINIT, return);
 
 #if CANIF_PACKET_RX_POOL_SIZE > 0
   EnterCritical();
@@ -346,13 +379,14 @@ void CanIf_MainFunction_Fast(void) {
   ExitCritical();
 #endif
 
-#if defined(CANIF_USE_TX_TIMEOUT) && (1 == CANIF_MAIN_FUNCTION_PERIOD)
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM) && (1 == CANIF_MAIN_FUNCTION_PERIOD)
   CanIf_MainFunction_TxTimeout();
 #endif
 }
 
 void CanIf_MainFunction(void) {
-#if defined(CANIF_USE_TX_TIMEOUT) && (1 != CANIF_MAIN_FUNCTION_PERIOD)
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0xF2, CANIF_E_UNINIT, return);
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM) && (1 != CANIF_MAIN_FUNCTION_PERIOD)
   CanIf_MainFunction_TxTimeout();
 #endif
 }

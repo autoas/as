@@ -16,11 +16,20 @@
 #define COM_ACTION_REPLACE ((Com_DataActionType)0x02)
 #define COM_ACTION_SUBSTITUTE ((Com_DataActionType)0x03)
 
-#define BIG ((Com_SignalEndiannessType)0x00)
-#define LITTLE ((Com_SignalEndiannessType)0x01)
-#define OPAQUE ((Com_SignalEndiannessType)0x02)
+#define COM_BIG_ENDIAN ((Com_SignalEndiannessType)0x00)
+#define COM_LITTLE_ENDIAN ((Com_SignalEndiannessType)0x01)
+#define COM_OPAQUE ((Com_SignalEndiannessType)0x02)
 
 #define COM_SINT8N COM_UINT8N
+
+#define COM_SINT8 ((Com_SignalTypeType)0)
+#define COM_UINT8 ((Com_SignalTypeType)1)
+#define COM_SINT16 ((Com_SignalTypeType)2)
+#define COM_UINT16 ((Com_SignalTypeType)3)
+#define COM_SINT32 ((Com_SignalTypeType)4)
+#define COM_UINT32 ((Com_SignalTypeType)5)
+#define COM_UINT8N ((Com_SignalTypeType)6)
+#define COM_UINT8_DYN ((Com_SignalTypeType)7)
 
 #define COM_UPDATE_BIT_NOT_USED ((uint16_t)0xFFFF)
 /* ================================ [ TYPES     ] ============================================== */
@@ -95,16 +104,7 @@ typedef struct {
 } Com_SignalTxConfigType;
 
 /* @SWS_Com_00675 */
-typedef enum {
-  COM_SINT8,
-  COM_UINT8,
-  COM_SINT16,
-  COM_UINT16,
-  COM_SINT32,
-  COM_UINT32,
-  COM_UINT8N,
-  COM_UINT8_DYN,
-} Com_SignalTypeType;
+typedef uint8_t Com_SignalTypeType;
 
 /* @ECUC_Com_00344 */
 typedef struct {
@@ -113,7 +113,10 @@ typedef struct {
 #endif
   void *ptr;
   const void *initPtr; /* or shadowPtr for group signal */
-  Com_SignalTypeType type;
+#ifdef COM_USE_SIGNAL_CONFIG
+  const Com_SignalRxConfigType *rxConfig;
+  const Com_SignalTxConfigType *txConfig;
+#endif
   Com_SignalIdType HandleId;
   PduIdType PduId;
   uint16_t BitPosition;
@@ -121,12 +124,9 @@ typedef struct {
 #ifdef COM_USE_SIGNAL_UPDATE_BIT
   uint16_t UpdateBit;
 #endif
+  Com_SignalTypeType type;
   Com_SignalEndiannessType Endianness;
-#ifdef COM_USE_SIGNAL_CONFIG
-  const Com_SignalRxConfigType *rxConfig;
-  const Com_SignalTxConfigType *txConfig;
-#endif
-  bool isGroupSignal;
+  boolean isGroupSignal;
 } Com_SignalConfigType;
 
 typedef struct {

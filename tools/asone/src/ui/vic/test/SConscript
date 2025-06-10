@@ -1,0 +1,22 @@
+from building import *
+CWD = GetCurrentDir()
+
+testxf = Glob('test_someipxf.cpp')
+
+libsForTestXf = {
+    'SomeIpXf': Glob('../GEN/SomeIpXf_*.c')
+}
+
+
+@register_application
+class ApplicationTestXf(Application):
+    mylibs = libsForTestXf
+
+    def config(self):
+        for libName, source in self.mylibs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=['USE_%s' % (libName.split(':')[0].upper())])
+        self.CPPPATH = ['$INFRAS']
+        self.LIBS += ['Utils']
+        self.source = testxf

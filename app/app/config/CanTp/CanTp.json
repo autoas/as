@@ -5,7 +5,17 @@
       "name": "P2P"
     },
     {
-      "name": "P2A"
+      "name": "P2A",
+      "ComType": "FUNCTIONAL"
+    },
+    {
+      "name": "P2A_FW",
+      "ComType": "FUNCTIONAL"
+    }
+  ],
+  "backup-channels": [
+    {
+      "name": "FW_CAN0_SECOC_MSG0"
     }
   ]
 }

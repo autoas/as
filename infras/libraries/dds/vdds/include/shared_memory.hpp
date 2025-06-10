@@ -30,7 +30,6 @@ public:
   ~SharedMemory();
 
   int create();
-  int release();
 
   uint64_t getHandle() {
     return m_Handle;
@@ -43,6 +42,9 @@ public:
   uint32_t getSize() {
     return m_Size;
   }
+
+private:
+  int destroy();
 
 private:
   std::string m_Name;

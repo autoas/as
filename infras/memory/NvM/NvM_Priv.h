@@ -10,6 +10,8 @@
 #include "Std_Types.h"
 #include "NvM.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_NVM
+
 #define NVM_CRC16 ((NvM_BlockCrcType)0)
 #define NVM_CRC32 ((NvM_BlockCrcType)1)
 #define NVM_CRC8 ((NvM_BlockCrcType)2)
@@ -25,6 +27,10 @@
 #define NVM_INIT_FIRST_INIT_ALL ((NvM_InitBlockRequestType)3)
 
 #ifdef NVM_ZERO_COST_FEE
+#endif
+
+#ifndef NVM_CONST
+#define NVM_CONST
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t NvM_BlockCrcType;
@@ -53,7 +59,7 @@ typedef struct {
 #endif
 #ifdef NVM_BLOCK_USE_CRC
   NvM_BlockCrcType CrcType;
-  const void *Rom;
+  P2CONST(void, AUTOMATIC, NVM_CONST) Rom;
 #endif
 #if 0
   uint8_t JobPriority; /* 0 = Immediate priority */
@@ -63,11 +69,14 @@ typedef struct {
 } NvM_BlockDescriptorType;
 
 struct NvM_Config_s {
-  const NvM_BlockDescriptorType *Blocks;
+  P2CONST(NvM_BlockDescriptorType, AUTOMATIC, NVM_CONST) Blocks;
   uint16_t numOfBlocks;
   /* If NVM builtin Job Queue is FULL, use this masks to request read/write */
   uint16_t *readMasks;
   uint16_t *writeMasks;
+#ifdef NVM_BLOCK_USE_STATUS
+  NvM_RequestResultType *blockStatus;
+#endif
 #ifdef NVM_BLOCK_USE_CRC
   uint8_t *workingArea;
 #endif

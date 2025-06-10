@@ -67,14 +67,12 @@ typedef Std_ReturnType (*DoIP_GetEIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetGIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetPowerModeStatusFncType)(uint8_t *PowerState);
 
-typedef enum
-{
+typedef enum {
   DOIP_CON_CLOSED,
   DOIP_CON_OPEN,
 } DoIP_ConnectionStateType;
 
-typedef enum
-{
+typedef enum {
   DOIP_MSG_IDLE,
   DOIP_MSG_RX,
   DOIP_MSG_TX,
@@ -108,8 +106,7 @@ typedef struct {
   DoIP_RoutingActivationConfirmationCallbackType ConfirmationCallback;
 } DoIP_RoutingActivationType;
 
-typedef enum
-{
+typedef enum {
   DOIP_RA_IDLE,
   DOIP_RA_SOCKET_HANDLER,
   DOIP_RA_SOCKET_HANDLER_2,
@@ -177,8 +174,7 @@ typedef struct {
 } DoIP_UdpVehicleAnnouncementConnectionType;
 
 /* @SWS_DoIP_00271 */
-typedef enum
-{
+typedef enum {
   DOIP_ACTIVATION_LINE_INACTIVE,
   DOIP_ACTIVATION_LINE_ACTIVE,
 } DoIP_ActivationLineType;

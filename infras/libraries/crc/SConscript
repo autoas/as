@@ -50,6 +50,15 @@ class LibraryCrc(Library):
             cmd = '{0} {1}/pycrc.py --model crc-32 --poly 0x04C11DB7 --reflect-in True --reflect-out True --algorithm table-driven --generate c -o {2}/src/crc32/crc32.c'.format(
                 sys.executable, pkg, CWD)
             RunCommand(cmd)
+        if (not os.path.exists('%s/src/crc32p4/crc32p4.c' % (CWD))):
+            # @SWS_Crc_00058
+            MKDir('%s/src/crc32p4' % (CWD))
+            cmd = '{0} {1}/pycrc.py --model crc-32 --poly 0xF4ACFB13 --reflect-in True --reflect-out True --algorithm table-driven --generate h -o {2}/src/crc32p4/crc32p4.h'.format(
+                sys.executable, pkg, CWD)
+            RunCommand(cmd)
+            cmd = '{0} {1}/pycrc.py --model crc-32 --poly 0xF4ACFB13 --reflect-in True --reflect-out True --algorithm table-driven --generate c -o {2}/src/crc32p4/crc32p4.c'.format(
+                sys.executable, pkg, CWD)
+            RunCommand(cmd)
 
     def config(self):
         self.gen()

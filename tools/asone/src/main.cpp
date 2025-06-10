@@ -25,6 +25,7 @@ using namespace as;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
+static std::vector<std::string> s_UIs;
 /* ================================ [ FUNCTIONS ] ============================================== */
 Action::Action(std::string name, QWidget *parent)
   : QAction(tr(name.c_str()), parent), m_Name(name) {
@@ -77,11 +78,19 @@ void Window::creGui(void) {
   wid->setLayout(grid);
   setCentralWidget(wid);
   creMenu();
-  setMinimumSize(1000, 800);
-
-  for (size_t i = 0; i < m_UINum; i++) {
-    auto &uinfo = m_UIs[i];
-    onAction(uinfo.name);
+  // setMinimumSize(1000, 800);
+  if (s_UIs.size() > 0) {
+    for (auto &name : s_UIs) {
+      onAction(name);
+    }
+  } else {
+    onAction("Trace");
+    for (size_t i = 0; i < m_UINum; i++) {
+      auto &uinfo = m_UIs[i];
+      if (uinfo.name != "VIC") {
+        onAction(uinfo.name);
+      }
+    }
   }
 }
 
@@ -116,13 +125,16 @@ int main(int argc, char *argv[]) {
   int ch;
   opterr = 0;
   int d = 1;
-  while ((ch = getopt(argc, argv, "dsv")) != -1) {
+  while ((ch = getopt(argc, argv, "dsu:v")) != -1) {
     switch (ch) {
     case 'd':
       d = 0;
       break;
     case 'v':
       Log::setLogLevel(Logger::DEBUG);
+      break;
+    case 'u':
+      s_UIs.push_back(optarg);
       break;
     case 's':
       /* https://doc.qt.io/archives/qt-5.6/highdpi.html */

@@ -14,6 +14,13 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* @SWS_CanNm_00316 */
+#define CANNM_E_UNINIT 0x01
+#define CANNM_E_INVALID_CHANNEL 0x02
+#define CANNM_E_INVALID_PDUID 0x03
+#define CANNM_E_INIT_FAILED 0x05
+#define CANNM_E_PARAM_POINTER 0x12
+#define CANNM_E_NOT_IN_BUS_SLEEP 0x13
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct CanNm_Config_s CanNm_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -54,7 +61,8 @@ Std_ReturnType CanNm_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
 Std_ReturnType CanNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_t *nmNodeIdPtr);
 
 /* @SWS_CanNm_00220 */
-Std_ReturnType CanNm_GetLocalNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_t *nmNodeIdPtr);
+Std_ReturnType CanNm_GetLocalNodeIdentifier(NetworkHandleType nmChannelHandle,
+                                            uint8_t *nmNodeIdPtr);
 
 /* @SWS_CanNm_00221 */
 Std_ReturnType CanNm_RepeatMessageRequest(NetworkHandleType nmChannelHandle);

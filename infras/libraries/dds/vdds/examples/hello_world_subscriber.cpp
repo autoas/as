@@ -4,14 +4,16 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "vdds.hpp"
-#include "vring.hpp"
-#include <unistd.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "Std_Debug.h"
 
 using namespace as::vdds;
 /* ================================ [ MACROS    ] ============================================== */
+#ifndef VRING_READER
+#define VRING_READER vring::spmc::Reader
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   char string[128];
@@ -29,8 +31,16 @@ int main(int argc, char *argv[]) {
 
   signal(SIGINT, signalHandler);
 
-  Subscriber<HelloWorld_t> sub("/hello_wrold/xx");
+  Subscriber<HelloWorld_t, VRING_READER> sub("/hello_wrold/xx");
+
   r = sub.init();
+  while (EEXIST == r) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    r = sub.init();
+    if (0 == r) {
+      ASLOG(INFO, ("online\n"));
+    }
+  }
   while ((0 == r) && (false == lStopped)) {
     size_t size = 0;
     HelloWorld_t *sample = nullptr;

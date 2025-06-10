@@ -62,14 +62,15 @@ typedef HEAP_SYSTEM_BASE_TYPE heap_base_t;
 /* a heap block is a memory that is free */
 typedef struct heap_block_s {
   SLIST_ENTRY(heap_block_s) entry;
-  size_t size;
+  uint32_t size;
 } heap_block_t;
 
 typedef struct heap_magic_s {
 #ifdef HEAP_TRACK
   SLIST_ENTRY(heap_magic_s) entry;
 #endif
-  size_t size;
+  uint32_t size;
+  uint32_t rsz; /* real size for realloc */
 } heap_magic_t;
 
 typedef struct {
@@ -124,13 +125,13 @@ static int freeFunc(int argc, const char *argv[]) {
   heap_magic_t *m;
 #endif
   size_t free_size = heap_free_size();
-  printf("free %u%%(%ub)\n", (uint32_t)(free_size * 100 / sizeof(lHeapMem)), (uint32_t)free_size);
+  PRINTF("free %u%%(%ub)\n", (uint32_t)(free_size * 100 / sizeof(lHeapMem)), (uint32_t)free_size);
   SLIST_FOREACH(b, &lHeap.free, entry) {
-    printf("  free: %u@%p\n", (uint32_t)b->size, b);
+    PRINTF("  free: %u@%p\n", (uint32_t)b->size, b);
   }
 #ifdef HEAP_TRACK
   SLIST_FOREACH(m, &lHeap.used, entry) {
-    printf("  used: %u@%p\n", (uint32_t)m->size, m);
+    PRINTF("  used: %u@%p\n", (uint32_t)m->size, m);
   }
 #endif
   return 0;
@@ -155,11 +156,11 @@ void heap_init(void) {
   }
 }
 
-void *heap_malloc(size_t size) {
+void *heap_malloc(uint32_t size) {
   heap_magic_t *pMagic;
   void *pMem = NULL;
-  size_t aligned_size = HEAP_ALIGN(size) + HEAP_MAGIC_SIZE;
-  size_t left_size;
+  uint32_t aligned_size = HEAP_ALIGN(size) + HEAP_MAGIC_SIZE;
+  uint32_t left_size;
   heap_block_t *b;
   heap_block_t *prev = NULL;
   heap_block_t *best = NULL;
@@ -197,6 +198,7 @@ void *heap_malloc(size_t size) {
     } else {
       pMagic->size = aligned_size + left_size;
     }
+    pMagic->rsz = size;
     ASLOG(HEAP, ("  malloc(%u@%p)\n", (uint32_t)pMagic->size, HEAP_ADDR(pMem, -HEAP_MAGIC_SIZE)));
 #ifdef HEAP_TRACK
     SLIST_INSERT_HEAD(&lHeap.used, pMagic, entry);
@@ -209,9 +211,29 @@ void *heap_malloc(size_t size) {
   return pMem;
 }
 
+void *heap_realloc(void *pMem, uint32_t size) {
+  heap_magic_t *pMagic = (heap_magic_t *)HEAP_ADDR(pMem, -HEAP_MAGIC_SIZE);
+  uint32_t sz = pMagic->rsz;
+  void *newPtr = NULL;
+
+  if (size > sz) {
+    newPtr = heap_malloc(size);
+    if (NULL != newPtr) {
+      memcpy(newPtr, pMem, sz);
+      heap_free(pMem);
+    } else {
+      ASLOG(HEAPE, ("  realloc OoM for %u\n", (uint32_t)size));
+    }
+  } else {
+    newPtr = pMem;
+  }
+
+  return newPtr;
+}
+
 void heap_free(void *pMem) {
   heap_magic_t *pMagic = (heap_magic_t *)HEAP_ADDR(pMem, -HEAP_MAGIC_SIZE);
-  size_t size = pMagic->size;
+  uint32_t size = pMagic->size;
   heap_block_t *block = (heap_block_t *)pMagic;
   heap_block_t *b;
   heap_block_t *prev = NULL;
@@ -294,8 +316,8 @@ void heap_free(void *pMem) {
   HEAP_UNLOCK();
 }
 
-size_t heap_free_size(void) {
-  size_t sz = 0;
+uint32_t heap_free_size(void) {
+  uint32_t sz = 0;
   heap_block_t *b;
 
   HEAP_LOCK();
@@ -310,12 +332,12 @@ size_t heap_free_size(void) {
   return sz;
 }
 
-void *heap_memalign(size_t alignment, size_t size) {
+void *heap_memalign(uint32_t alignment, uint32_t size) {
   heap_magic_t *pMagic;
   void *pMem;
-  size_t aligned_size = HEAP_ALIGN(size) + HEAP_MAGIC_SIZE;
-  size_t offset;
-  size_t left_size;
+  uint32_t aligned_size = HEAP_ALIGN(size) + HEAP_MAGIC_SIZE;
+  uint32_t offset;
+  uint32_t left_size;
   heap_block_t *b;
   heap_block_t *prev = NULL;
   heap_block_t *best = NULL;
@@ -387,16 +409,7 @@ void *heap_memalign(size_t alignment, size_t size) {
   return pMem;
 }
 
-#if !defined(linux) && !defined(_WIN32)
-void *malloc(size_t sz) {
-  return heap_malloc(sz);
-}
-
-void free(void *ptr) {
-  return heap_free(ptr);
-}
-
-void *calloc(size_t nitems, size_t size) {
+void *heap_calloc(uint32_t nitems, uint32_t size) {
   void *ptr = heap_malloc(nitems * size);
   if (NULL != ptr) {
     memset(ptr, 0, nitems * size);
@@ -404,9 +417,24 @@ void *calloc(size_t nitems, size_t size) {
   return ptr;
 }
 
+#if !defined(linux) && !defined(_WIN32)
+void *malloc(size_t sz) {
+  return heap_malloc((uint32_t)sz);
+}
+
+void free(void *ptr) {
+  if (ptr != NULL) {
+    heap_free(ptr);
+  }
+}
+
+void *calloc(size_t nitems, size_t size) {
+  return heap_calloc((uint32_t)nitems, (uint32_t)size);
+}
+
 void *kzmalloc(size_t size) {
 
-  void *p = heap_malloc(size);
+  void *p = heap_malloc((uint32_t)size);
   if (NULL != p) {
     memset(p, 0, size);
   }
@@ -415,7 +443,11 @@ void *kzmalloc(size_t size) {
 }
 
 void *memalign(size_t alignment, size_t size) {
-  return heap_memalign(alignment, size);
+  return heap_memalign((uint32_t)alignment, (uint32_t)size);
+}
+
+void *realloc(void *ptr, size_t size) {
+  return heap_realloc(ptr, (uint32_t)size);
 }
 #endif
 
@@ -476,7 +508,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  printf("Test Done\n");
+  PRINTF("Test Done\n");
   SLIST_FOREACH(b, &lHeap.free, entry) {
     ASLOG(HEAP, ("Heap: %u@%p\n", (uint32_t)b->size, b));
   }

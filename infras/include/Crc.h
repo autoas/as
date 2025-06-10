@@ -34,6 +34,9 @@ uint16_t Crc_CalculateCRC16(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
 uint32_t Crc_CalculateCRC32(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
                             uint32_t Crc_StartValue32, boolean Crc_IsFirstCall);
 
+/* @SWS_Crc_00058 */
+uint32_t Crc_CalculateCRC32P4(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
+                              uint32_t Crc_StartValue32, boolean Crc_IsFirstCall);
 #ifdef __cplusplus
 }
 #endif

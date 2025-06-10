@@ -36,6 +36,11 @@
 #define MODULE_ID_TCPIP ((uint16_t)170)
 #define MODULE_ID_PORT ((uint16_t)124)
 #define MODULE_ID_LINTP ((uint16_t)1001)
+#define MODULE_ID_CSM ((uint16_t)110)
+#define MODULE_ID_CRYPTO ((uint16_t)114)
+#define MODULE_ID_SECOC ((uint16_t)150)
+#define MODULE_ID_J1939TP ((uint16_t)37)
+#define MODULE_ID_E2E ((uint16_t)207)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

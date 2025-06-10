@@ -12,7 +12,12 @@
 #define SREC_MAX_ONE_LINE 512
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+void ihex_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, uint32_t crc,
+                   uint32_t crcLen);
 /* ================================ [ DATAS     ] ============================================== */
+static const char *const signTypeName[] = {
+  "CRC16", "CRC32", "CRC16_V2", "CRC32_V2", "CRC16_V3", "CRC32_V3",
+};
 /* ================================ [ LOCALS    ] ============================================== */
 static uint8_t srec_hex(char *str) {
   char hexs[3];
@@ -66,6 +71,13 @@ static int srec_decode(srec_t *srec, char *sline, int slen, int addrLen) {
   size_t offset;
   sblk_t *curBlk = NULL;
   uint8_t v;
+  uint32_t gap;
+  uint32_t gapThresh = 8;
+
+  char *str = getenv("FLASH_WRITE_SIZE");
+  if (str != NULL) {
+    gapThresh = strtoul(str, NULL, 10);
+  }
 
   if (slen > 6) {
     dataLen = srec_hex(&sline[2]);
@@ -96,6 +108,11 @@ static int srec_decode(srec_t *srec, char *sline, int slen, int addrLen) {
       srec->numOfBlks++;
     } else {
       curBlk = &srec->blks[srec->numOfBlks - 1];
+      gap = address - (curBlk->address + curBlk->length);
+      if (gap < gapThresh) {
+        memset(&curBlk->data[curBlk->length], 0xFF, gap);
+        curBlk->length += gap;
+      }
       if ((curBlk->address + curBlk->length) != address) {
         offset = curBlk->offset + curBlk->length;
         srec->numOfBlks++;
@@ -132,6 +149,7 @@ static int srec_decode(srec_t *srec, char *sline, int slen, int addrLen) {
 
   return err;
 }
+
 static void srec_parse(srec_t *srec, FILE *fp) {
   int err = 0;
   char sline[SREC_MAX_ONE_LINE];
@@ -165,8 +183,8 @@ static void srec_parse(srec_t *srec, FILE *fp) {
     linno++;
   }
 }
-/* ================================ [ FUNCTIONS ] ============================================== */
-srec_t *srec_open(const char *path) {
+
+srec_t *srec_open_impl(const char *path) {
   srec_t *srec = NULL;
   FILE *fp;
   size_t sz;
@@ -186,6 +204,8 @@ srec_t *srec_open(const char *path) {
       if (0 == srec->numOfBlks) {
         free(srec);
         srec = NULL;
+      } else {
+        srec->type = SREC_SRECORD;
       }
     } else {
       printf("no enough memory for %d bytes\n", (int)sz / 2);
@@ -197,7 +217,51 @@ srec_t *srec_open(const char *path) {
   return srec;
 }
 
-int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
+static void srec_add_line(FILE *fpS, uint32_t saddr, uint8_t *data, uint32_t len) {
+  uint8_t checksum;
+  char sline[SREC_MAX_ONE_LINE];
+  uint32_t i = 0;
+  int ls;
+
+  checksum = 5 + len;
+  checksum +=
+    ((saddr >> 24) & 0xFF) + ((saddr >> 16) & 0xFF) + ((saddr >> 8) & 0xFF) + (saddr & 0xFF);
+
+  for (i = 0; i < len; i++) {
+    checksum += data[i];
+  }
+  checksum = ~checksum;
+
+  ls = snprintf(sline, sizeof(sline), "S3%02X%08X", 4 + len + 1, saddr);
+  for (i = 0; i < len; i++) {
+    ls += snprintf(&sline[ls], sizeof(sline) - ls, "%02X", data[i]);
+  }
+  ls += snprintf(&sline[ls], sizeof(sline) - ls, "%02X\n", checksum);
+
+  fputs(sline, fpS);
+}
+
+static void srec_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, uint32_t crc,
+                          uint32_t crcLen) {
+  uint8_t data[4];
+  uint32_t len;
+
+  if (SREC_SIGN_CRC32 == signType) {
+    data[0] = (crc >> 24) & 0xFF;
+    data[1] = (crc >> 16) & 0xFF;
+    data[2] = (crc >> 8) & 0xFF;
+    data[3] = crc & 0xFF;
+    len = 4;
+  } else {
+    data[0] = (crc >> 8) & 0xFF;
+    data[1] = crc & 0xFF;
+    len = 2;
+  }
+
+  srec_add_line(fpS, saddr, data, len);
+}
+
+static int srec_sign_v1(const char *path, size_t total, srec_sign_type_t signType) {
   srec_t *srec;
   int r = 0;
   uint8_t *buffer = NULL;
@@ -208,14 +272,7 @@ int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
   int i;
   uint32_t crc;
   uint32_t crcLen = 2;
-  uint8_t checksum;
   char sline[SREC_MAX_ONE_LINE];
-  static const char *signTypeName[] = {"CRC16", "CRC32"};
-
-  if (signType >= SREC_SIGN_MAX) {
-    printf("invalid sign type %d\n", signType);
-    return -11;
-  }
 
   if (SREC_SIGN_CRC32 == signType) {
     crcLen = 4;
@@ -223,24 +280,24 @@ int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
 
   memset(sline, 0, sizeof(sline));
 
-  printf("sign %s by %s:", path, signTypeName[signType]);
+  printf("sign %s by %s:\n", path, signTypeName[signType]);
 
   srec = srec_open(path);
   if (NULL == srec) {
-    r = -1;
+    r = EEXIST;
   } else {
+    srec_print(srec);
     saddr = srec_range(srec, &length);
     if ((total - crcLen) < length) {
       printf(" range=0x%X not correct\n", (uint32_t)total);
-      srec_print(srec);
-      r = -2;
+      r = EINVAL;
     }
   }
 
   if (0 == r) {
     buffer = malloc(total);
     if (NULL == buffer) {
-      r = -3;
+      r = ENOMEM;
     }
   }
 
@@ -278,32 +335,26 @@ int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
     snprintf(sline, sizeof(sline), "%s.sign", path);
     fpS = fopen(sline, "w");
     if (NULL == fpS) {
-      r = -4;
+      r = EACCES;
     } else {
       fpO = fopen(path, "r");
       if (NULL == fpO) {
-        r = -5;
+        r = EACCES;
       }
     }
   }
 
   if (0 == r) {
     saddr += total - crcLen;
-    checksum = 5 + crcLen;
-    checksum +=
-      ((saddr >> 24) & 0xFF) + ((saddr >> 16) & 0xFF) + ((saddr >> 8) & 0xFF) + (saddr & 0xFF);
-    if (SREC_SIGN_CRC32 == signType) {
-      checksum += ((crc >> 24) & 0xFF) + ((crc >> 16) & 0xFF) + ((crc >> 8) & 0xFF) + (crc & 0xFF);
-    } else {
-      checksum += ((crc >> 8) & 0xFF) + (crc & 0xFF);
-    }
-    checksum = ~checksum;
     while ((0 == r) && fgets(sline, sizeof(sline), fpO)) {
       fputs(sline, fpS);
     }
 
-    snprintf(sline, sizeof(sline), "S3%02X%08X%04X%02X\n", 5 + crcLen, saddr, crc, checksum);
-    fputs(sline, fpS);
+    if (srec->type == SREC_SRECORD) {
+      srec_add_sign(fpS, signType, saddr, crc, crcLen);
+    } else {
+      ihex_add_sign(fpS, signType, saddr, crc, crcLen);
+    }
   }
 
   if (0 != r) {
@@ -324,7 +375,319 @@ int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
     fclose(fpO);
   }
 
-  return 0;
+  return r;
+}
+
+static int srec_sign_v2(const char *path, size_t signAddr, srec_sign_type_t signType) {
+  int r = 0;
+  srec_t *srec;
+  int i;
+  uint32_t saddr, length;
+  uint32_t crc = 0xFFFFFFFFUL;
+  FILE *fpO = NULL;
+  FILE *fpS = NULL;
+  char sline[SREC_MAX_ONE_LINE];
+  uint8_t *data = (uint8_t *)sline;
+
+  printf("sign %s by %s:\n", path, signTypeName[signType]);
+
+  srec = srec_open(path);
+  if (NULL == srec) {
+    r = EEXIST;
+  } else {
+    srec_print(srec);
+    saddr = srec_range(srec, &length);
+    if (signAddr < (saddr + length)) {
+      printf(" sign address=0x%X not correct\n", (uint32_t)signAddr);
+      r = EINVAL;
+    }
+  }
+
+  if (0 == r) {
+    for (i = 0; i < srec->numOfBlks; i++) {
+      if (SREC_SIGN_CRC32_V2 == signType) {
+        crc = Crc_CalculateCRC32(srec->blks[i].data, srec->blks[i].length, crc, FALSE);
+      } else {
+        crc = Crc_CalculateCRC16(srec->blks[i].data, srec->blks[i].length,
+                                 (uint16_t)(crc & 0xFFFFUL), FALSE);
+      }
+    }
+  }
+
+  if (0 == r) {
+    snprintf(sline, sizeof(sline), "%s.sign", path);
+    fpS = fopen(sline, "w");
+    if (NULL == fpS) {
+      r = EACCES;
+    } else {
+      fpO = fopen(path, "r");
+      if (NULL == fpO) {
+        r = EACCES;
+      }
+    }
+  }
+
+  if (0 == r) {
+    while ((0 == r) && fgets(sline, sizeof(sline), fpO)) {
+      fputs(sline, fpS);
+    }
+
+    if (srec->type == SREC_SRECORD) {
+      saddr = signAddr;
+      data[0] = (srec->numOfBlks >> 24) & 0xFF;
+      data[1] = (srec->numOfBlks >> 16) & 0xFF;
+      data[2] = (srec->numOfBlks >> 8) & 0xFF;
+      data[3] = srec->numOfBlks & 0xFF;
+      if (SREC_SIGN_CRC32_V2 == signType) {
+        data[4] = (crc >> 24) & 0xFF;
+        data[5] = (crc >> 16) & 0xFF;
+        data[6] = (crc >> 8) & 0xFF;
+        data[7] = crc & 0xFF;
+      } else {
+        data[4] = (crc >> 8) & 0xFF;
+        data[5] = crc & 0xFF;
+        data[6] = 0xFF;
+        data[7] = 0xFF;
+      }
+      srec_add_line(fpS, saddr, data, 8);
+      saddr += 8;
+
+      for (i = 0; i < srec->numOfBlks; i++) {
+        data[0] = (srec->blks[i].address >> 24) & 0xFF;
+        data[1] = (srec->blks[i].address >> 16) & 0xFF;
+        data[2] = (srec->blks[i].address >> 8) & 0xFF;
+        data[3] = srec->blks[i].address & 0xFF;
+        data[4] = (srec->blks[i].length >> 24) & 0xFF;
+        data[5] = (srec->blks[i].length >> 16) & 0xFF;
+        data[6] = (srec->blks[i].length >> 8) & 0xFF;
+        data[7] = srec->blks[i].length & 0xFF;
+        srec_add_line(fpS, saddr, data, 8);
+        saddr += 8;
+      }
+    } else {
+      r = ENOTSUP;
+    }
+  }
+
+  if (0 != r) {
+    printf(" failed with error %d\n", r);
+  } else {
+    printf(" okay\n");
+  }
+
+  if (fpS) {
+    fclose(fpS);
+  }
+
+  if (fpO) {
+    fclose(fpO);
+  }
+
+  return r;
+}
+
+static int srec_sign_v3(const char *path, srec_sign_type_t signType) {
+  int r = 0;
+  srec_t *srec;
+  int i;
+  uint32_t saddr, signAddr = 0, length;
+  uint32_t crc = 0xFFFFFFFFUL;
+  FILE *fpO = NULL;
+  FILE *fpS = NULL;
+  char sline[SREC_MAX_ONE_LINE];
+  uint8_t *data = (uint8_t *)sline;
+
+  printf("sign %s by %s:\n", path, signTypeName[signType]);
+
+  srec = srec_open(path);
+  if (NULL == srec) {
+    r = EEXIST;
+  } else {
+    srec_print(srec);
+    saddr = srec_range(srec, &length);
+    if (signAddr < (saddr + length)) {
+      signAddr = saddr + length;
+    }
+  }
+
+  if (0 == r) {
+    for (i = 0; i < srec->numOfBlks; i++) {
+      if (SREC_SIGN_CRC32_V3 == signType) {
+        crc = Crc_CalculateCRC32(srec->blks[i].data, srec->blks[i].length, crc, FALSE);
+      } else {
+        crc = Crc_CalculateCRC16(srec->blks[i].data, srec->blks[i].length,
+                                 (uint16_t)(crc & 0xFFFFUL), FALSE);
+      }
+    }
+  }
+
+  if (0 == r) {
+    snprintf(sline, sizeof(sline), "%s.sign", path);
+    fpS = fopen(sline, "w");
+    if (NULL == fpS) {
+      r = EACCES;
+    } else {
+      fpO = fopen(path, "r");
+      if (NULL == fpO) {
+        r = EACCES;
+      }
+    }
+  }
+
+  if (0 == r) {
+    while ((0 == r) && fgets(sline, sizeof(sline), fpO)) {
+      fputs(sline, fpS);
+    }
+
+    if (srec->type == SREC_SRECORD) {
+      saddr = signAddr;
+      for (i = 0; i < srec->numOfBlks; i++) {
+        data[0] = (srec->blks[i].address >> 24) & 0xFF;
+        data[1] = (srec->blks[i].address >> 16) & 0xFF;
+        data[2] = (srec->blks[i].address >> 8) & 0xFF;
+        data[3] = srec->blks[i].address & 0xFF;
+        data[4] = (srec->blks[i].length >> 24) & 0xFF;
+        data[5] = (srec->blks[i].length >> 16) & 0xFF;
+        data[6] = (srec->blks[i].length >> 8) & 0xFF;
+        data[7] = srec->blks[i].length & 0xFF;
+        srec_add_line(fpS, saddr, data, 8);
+        saddr += 8;
+      }
+      data[0] = (srec->numOfBlks >> 24) & 0xFF;
+      data[1] = (srec->numOfBlks >> 16) & 0xFF;
+      data[2] = (srec->numOfBlks >> 8) & 0xFF;
+      data[3] = srec->numOfBlks & 0xFF;
+      if (SREC_SIGN_CRC32_V3 == signType) {
+        data[4] = (crc >> 24) & 0xFF;
+        data[5] = (crc >> 16) & 0xFF;
+        data[6] = (crc >> 8) & 0xFF;
+        data[7] = crc & 0xFF;
+      } else {
+        data[4] = (crc >> 8) & 0xFF;
+        data[5] = crc & 0xFF;
+        data[6] = 0xFF;
+        data[7] = 0xFF;
+      }
+      memcpy(&data[8], "$BYASV3#", 8);
+      srec_add_line(fpS, saddr, data, 16);
+      saddr += 8;
+    } else {
+      r = ENOTSUP;
+    }
+  }
+
+  if (0 != r) {
+    printf(" failed with error %d\n", r);
+  } else {
+    printf(" okay\n");
+  }
+
+  if (fpS) {
+    fclose(fpS);
+  }
+
+  if (fpO) {
+    fclose(fpO);
+  }
+
+  return r;
+}
+
+static uint32_t toU32(const char *strV) {
+  uint32_t u32V = 0;
+
+  if ((0 == strncmp("0x", strV, 2)) || (0 == strncmp("0X", strV, 2))) {
+    u32V = strtoul(strV, NULL, 16);
+  } else {
+    u32V = strtoul(strV, NULL, 10);
+  }
+
+  return u32V;
+}
+
+/* path: in pattern file_path.bin:address */
+static srec_t *bin_open_impl(const char *path) {
+  srec_t *srec = NULL;
+  FILE *fp;
+  uint32_t addr;
+  size_t sz;
+  char filePath[256] = {0};
+  char address[128] = {0};
+
+  sscanf(path, "%255[^:]:%127s", filePath, address);
+
+  addr = toU32(address);
+  fp = fopen(filePath, "rb");
+  if (NULL != fp) {
+    printf("binary: %s @ 0x%x\n", filePath, addr);
+    fseek(fp, 0, SEEK_END);
+    sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    srec = (srec_t *)malloc(sz + sizeof(srec_t));
+    if (NULL != srec) {
+      srec->data = (uint8_t *)&srec[1];
+      srec->numOfBlks = 1;
+      srec->totalSize = sz;
+      srec->type = SREAC_BIN;
+      srec->blks[0].data = srec->data;
+      srec->blks[0].address = addr;
+      srec->blks[0].offset = 0;
+      srec->blks[0].length = sz;
+      fread(srec->data, sz, 1, fp);
+    } else {
+      printf("no enough memory for %d bytes\n", (int)sz);
+    }
+  } else {
+    printf("binary %s not exists\n", filePath);
+  }
+
+  return srec;
+}
+/* ================================ [ FUNCTIONS ] ============================================== */
+srec_t *srec_open(const char *path) {
+  srec_t *srec;
+
+  if (NULL != strstr(path, ".s19")) {
+    srec = srec_open_impl(path);
+  } else if (NULL != strstr(path, ".hex")) {
+    srec = ihex_open(path);
+  } else if (NULL != strstr(path, ".bin")) {
+    srec = bin_open_impl(path);
+  } else {
+    srec = srec_open_impl(path);
+    if (NULL == srec) {
+      srec = ihex_open(path);
+    }
+    if (NULL == srec) {
+      srec = bin_open_impl(path);
+    }
+  }
+  return srec;
+}
+
+int srec_sign(const char *path, size_t total, srec_sign_type_t signType) {
+  int r = 0;
+
+  switch (signType) {
+  case SREC_SIGN_CRC16:
+  case SREC_SIGN_CRC32:
+    r = srec_sign_v1(path, total, signType);
+    break;
+  case SREC_SIGN_CRC16_V2:
+  case SREC_SIGN_CRC32_V2:
+    r = srec_sign_v2(path, total, signType);
+    break;
+  case SREC_SIGN_CRC16_V3:
+  case SREC_SIGN_CRC32_V3:
+    r = srec_sign_v3(path, signType);
+    break;
+  default:
+    printf("invalid sign type %d\n", signType);
+    r = EINVAL;
+    break;
+  }
+
+  return r;
 }
 
 void srec_print(srec_t *srec) {

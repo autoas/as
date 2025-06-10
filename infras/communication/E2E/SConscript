@@ -1,0 +1,16 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.c")
+
+
+@register_library
+class LibraryE2E(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", CWD]
+        self.LIBS = ["Crc"]
+        self.source = objs
+
+
+for sc in Glob('*/SConscript'):
+    SConscript(sc)

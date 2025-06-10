@@ -43,24 +43,24 @@ void PduR_DoIPGwRxIndication(PduIdType id, Std_ReturnType result) {
 
 BufReq_ReturnType PduR_DoIPCopyTxData(PduIdType id, const PduInfoType *info,
                                       const RetryInfoType *retry, PduLengthType *availableDataPtr) {
-  return PduR_CopyTxData(id + PDUR_CONFIG->DOIP_TX_BASE_ID, info, retry, availableDataPtr);
+  return PduR_CopyTxData(id + PDUR_CONFIG->doipTxBaseID, info, retry, availableDataPtr);
 }
 
 void PduR_DoIPRxIndication(PduIdType id, Std_ReturnType result) {
-  PduR_TpRxIndication(id + PDUR_CONFIG->DOIP_RX_BASE_ID, result);
+  PduR_TpRxIndication(id + PDUR_CONFIG->doipTxBaseID, result);
 }
 
 void PduR_DoIPTxConfirmation(PduIdType id, Std_ReturnType result) {
-  PduR_TxConfirmation(id + PDUR_CONFIG->DOIP_TX_BASE_ID, result);
+  PduR_TxConfirmation(id + PDUR_CONFIG->doipTxBaseID, result);
 }
 
 BufReq_ReturnType PduR_DoIPStartOfReception(PduIdType id, const PduInfoType *info,
                                             PduLengthType TpSduLength,
                                             PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id + PDUR_CONFIG->DOIP_RX_BASE_ID, info, TpSduLength, bufferSizePtr);
+  return PduR_StartOfReception(id + PDUR_CONFIG->doipTxBaseID, info, TpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_DoIPCopyRxData(PduIdType id, const PduInfoType *info,
                                       PduLengthType *bufferSizePtr) {
-  return PduR_CopyRxData(id + PDUR_CONFIG->DOIP_RX_BASE_ID, info, bufferSizePtr);
+  return PduR_CopyRxData(id + PDUR_CONFIG->doipTxBaseID, info, bufferSizePtr);
 }

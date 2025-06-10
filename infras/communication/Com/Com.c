@@ -18,46 +18,55 @@
 
 #include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
+#ifdef COM_USE_PB_CONFIG
+#define COM_CONFIG comConfig
+#else
 #define COM_CONFIG (&Com_Config)
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const Com_ConfigType Com_Config;
 /* ================================ [ DATAS     ] ============================================== */
+#ifdef COM_USE_PB_CONFIG
+static const Com_ConfigType *comConfig = NULL;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
-Std_ReturnType comStoreSignalValue(const Com_SignalConfigType *signal, uint32_t sigV,
-                                   void *SignalDataPtr) {
+static Std_ReturnType comStoreSignalValue(const Com_SignalConfigType *signal, uint32_t sigV,
+                                          void *SignalDataPtr) {
   Std_ReturnType ret = E_OK;
-  uint32_t mask, signmask;
-  mask = 0xFFFFFFFFu >> (32 - signal->BitSize); /* calculate mask for SigVal */
-  sigV &= mask;                                 /* clear bit out of range */
-  signmask = ~(mask >> 1);
+  uint32_t mask;
+  uint32_t signmask;
+  uint32_t u32V = sigV;
+  mask = 0xFFFFFFFFul >> (32u - signal->BitSize); /* calculate mask for SigVal */
+  u32V &= mask;                                   /* clear bit out of range */
+  signmask = ~(mask >> 1);                        /* @SWS_Com_00008 */
   switch (signal->type) {
   case COM_SINT8:
-    if (sigV & signmask) {
-      sigV |= signmask; /* add sign bits */
+    if (0u != (u32V & signmask)) {
+      u32V |= signmask; /* add sign bits */
     }
-    *(int8_t *)SignalDataPtr = (int8_t)sigV;
+    *(int8_t *)SignalDataPtr = (int8_t)u32V;
     break;
   case COM_UINT8:
-    *(uint8_t *)SignalDataPtr = (uint8_t)sigV;
+    *(uint8_t *)SignalDataPtr = (uint8_t)u32V;
     break;
   case COM_SINT16:
-    if (sigV & signmask) {
-      sigV |= signmask; /* add sign bits */
+    if (0u != (u32V & signmask)) {
+      u32V |= signmask; /* add sign bits */
     }
-    *(int16_t *)SignalDataPtr = (int16_t)sigV;
+    *(int16_t *)SignalDataPtr = (int16_t)u32V;
     break;
   case COM_UINT16:
-    *(uint16_t *)SignalDataPtr = (uint16_t)sigV;
+    *(uint16_t *)SignalDataPtr = (uint16_t)u32V;
     break;
   case COM_SINT32:
-    if (sigV & signmask) {
-      sigV |= signmask; /* add sign bits */
+    if (0u != (u32V & signmask)) {
+      u32V |= signmask; /* add sign bits */
     }
-    *(int32_t *)SignalDataPtr = (int32_t)sigV;
+    *(int32_t *)SignalDataPtr = (int32_t)u32V;
     break;
   case COM_UINT32:
-    *(uint32_t *)SignalDataPtr = (uint32_t)sigV;
+    *(uint32_t *)SignalDataPtr = (uint32_t)u32V;
     break;
   default:
     ret = E_NOT_OK;
@@ -66,21 +75,21 @@ Std_ReturnType comStoreSignalValue(const Com_SignalConfigType *signal, uint32_t 
   return ret;
 }
 
-Std_ReturnType comGetSignalValue(const Com_SignalConfigType *signal, uint32_t *sigV,
-                                 const void *SignalDataPtr) {
+static Std_ReturnType comGetSignalValue(const Com_SignalConfigType *signal, uint32_t *sigV,
+                                        const void *SignalDataPtr) {
   Std_ReturnType ret = E_OK;
   switch (signal->type) {
   case COM_SINT8:
   case COM_UINT8:
-    *sigV = *(uint8_t *)SignalDataPtr;
+    *sigV = *(const uint8_t *)SignalDataPtr;
     break;
   case COM_SINT16:
   case COM_UINT16:
-    *sigV = *(uint16_t *)SignalDataPtr;
+    *sigV = *(const uint16_t *)SignalDataPtr;
     break;
   case COM_SINT32:
   case COM_UINT32:
-    *sigV = *(uint32_t *)SignalDataPtr;
+    *sigV = *(const uint32_t *)SignalDataPtr;
     break;
   default:
     ret = E_NOT_OK;
@@ -90,12 +99,13 @@ Std_ReturnType comGetSignalValue(const Com_SignalConfigType *signal, uint32_t *s
   return ret;
 }
 
-Std_ReturnType comReceiveSignalBig(const Com_SignalConfigType *signal, void *SignalDataPtr) {
+static Std_ReturnType comReceiveSignalBig(const Com_SignalConfigType *signal, void *SignalDataPtr) {
   uint32_t sigV = Std_BitGetBigEndian(signal->ptr, signal->BitPosition, signal->BitSize);
   return comStoreSignalValue(signal, sigV, SignalDataPtr);
 }
 
-Std_ReturnType comSendSignalBig(const Com_SignalConfigType *signal, const void *SignalDataPtr) {
+static Std_ReturnType comSendSignalBig(const Com_SignalConfigType *signal,
+                                       const void *SignalDataPtr) {
   uint32_t sigV;
   Std_ReturnType ret = comGetSignalValue(signal, &sigV, SignalDataPtr);
 
@@ -106,12 +116,14 @@ Std_ReturnType comSendSignalBig(const Com_SignalConfigType *signal, const void *
   return ret;
 }
 
-Std_ReturnType comReceiveSignalLittle(const Com_SignalConfigType *signal, void *SignalDataPtr) {
+static Std_ReturnType comReceiveSignalLittle(const Com_SignalConfigType *signal,
+                                             void *SignalDataPtr) {
   uint32_t sigV = Std_BitGetLittleEndian(signal->ptr, signal->BitPosition, signal->BitSize);
   return comStoreSignalValue(signal, sigV, SignalDataPtr);
 }
 
-Std_ReturnType comSendSignalLittle(const Com_SignalConfigType *signal, const void *SignalDataPtr) {
+static Std_ReturnType comSendSignalLittle(const Com_SignalConfigType *signal,
+                                          const void *SignalDataPtr) {
   uint32_t sigV;
   Std_ReturnType ret = comGetSignalValue(signal, &sigV, SignalDataPtr);
 
@@ -122,50 +134,55 @@ Std_ReturnType comSendSignalLittle(const Com_SignalConfigType *signal, const voi
   return ret;
 }
 
-Std_ReturnType comReceiveSignal(const Com_SignalConfigType *signal, void *SignalDataPtr) {
-  Std_ReturnType ret = E_NOT_OK;
+static Std_ReturnType comReceiveSignal(const Com_SignalConfigType *signal, void *SignalDataPtr) {
+  Std_ReturnType ret = E_OK;
 #ifdef COM_USE_SIGNAL_UPDATE_BIT
   boolean isUpdated;
   if (signal->UpdateBit != COM_UPDATE_BIT_NOT_USED) {
     isUpdated = Std_BitGet(signal->ptr, signal->UpdateBit);
     if (FALSE == isUpdated) {
-      return E_NOT_OK;
+      ret = E_NOT_OK;
     } else {
       Std_BitClear(signal->ptr, signal->UpdateBit);
     }
   }
+  if (E_OK == ret) {
 #endif
-  if ((COM_UINT8N == signal->type) || (OPAQUE == signal->Endianness)) {
-    /* @SWS_Com_00472 */
-    memcpy(SignalDataPtr, signal->ptr, (signal->BitSize >> 3));
-    ret = E_OK;
-  } else {
-    switch (signal->Endianness) {
-    case BIG:
-      ret = comReceiveSignalBig(signal, SignalDataPtr);
-      break;
-    case LITTLE:
-      ret = comReceiveSignalLittle(signal, SignalDataPtr);
-      break;
-    default:
-      break;
+    if ((COM_UINT8N == signal->type) || (COM_OPAQUE == signal->Endianness)) {
+      /* @SWS_Com_00472 */
+      (void)memcpy(SignalDataPtr, signal->ptr, (signal->BitSize >> 3));
+      ret = E_OK;
+    } else {
+      switch (signal->Endianness) {
+      case COM_BIG_ENDIAN:
+        ret = comReceiveSignalBig(signal, SignalDataPtr);
+        break;
+      case COM_LITTLE_ENDIAN:
+        ret = comReceiveSignalLittle(signal, SignalDataPtr);
+        break;
+      default:
+        ret = E_NOT_OK;
+        break;
+      }
     }
+#ifdef COM_USE_SIGNAL_UPDATE_BIT
   }
+#endif
   return ret;
 }
 
-Std_ReturnType comSendSignal(const Com_SignalConfigType *signal, const void *SignalDataPtr) {
+static Std_ReturnType comSendSignal(const Com_SignalConfigType *signal, const void *SignalDataPtr) {
   Std_ReturnType ret = E_NOT_OK;
-  if ((COM_UINT8N == signal->type) || (OPAQUE == signal->Endianness)) {
+  if ((COM_UINT8N == signal->type) || (COM_OPAQUE == signal->Endianness)) {
     /* @SWS_Com_00472 */
-    memcpy(signal->ptr, SignalDataPtr, (signal->BitSize >> 3));
+    (void)memcpy(signal->ptr, SignalDataPtr, (signal->BitSize >> 3));
     ret = E_OK;
   } else {
     switch (signal->Endianness) {
-    case BIG:
+    case COM_BIG_ENDIAN:
       ret = comSendSignalBig(signal, SignalDataPtr);
       break;
-    case LITTLE:
+    case COM_LITTLE_ENDIAN:
       ret = comSendSignalLittle(signal, SignalDataPtr);
       break;
     default:
@@ -179,18 +196,20 @@ Std_ReturnType comSendSignal(const Com_SignalConfigType *signal, const void *Sig
 #endif
   return ret;
 }
-void comIPduDataInit(const Com_IPduConfigType *IPduConfig) {
+
+static void comIPduDataInit(const Com_IPduConfigType *IPduConfig) {
   const Com_SignalConfigType *signal;
-  int i;
+  uint16_t i;
   for (i = 0; i < IPduConfig->numOfSignals; i++) {
     signal = IPduConfig->signals[i];
-    comSendSignal(signal, signal->initPtr);
+    (void)comSendSignal(signal, signal->initPtr);
   }
 }
+
 #ifdef COM_USE_SIGNAL_UPDATE_BIT
-void comTxClearUpdateBit(const Com_IPduConfigType *IPduConfig) {
+static void comTxClearUpdateBit(const Com_IPduConfigType *IPduConfig) {
   const Com_SignalConfigType *signal;
-  int i;
+  uint16_t i;
   for (i = 0; i < IPduConfig->numOfSignals; i++) {
     signal = IPduConfig->signals[i];
     if (signal->UpdateBit != COM_UPDATE_BIT_NOT_USED) {
@@ -200,12 +219,12 @@ void comTxClearUpdateBit(const Com_IPduConfigType *IPduConfig) {
 }
 #endif
 
-Com_DataLengthType comGetMinimumLength(const Com_IPduConfigType *IPduConfig) {
+static Com_DataLengthType comGetMinimumLength(const Com_IPduConfigType *IPduConfig) {
   const Com_SignalConfigType *signal;
   Com_DataLengthType minLen = IPduConfig->length;
 
   if (NULL != IPduConfig->dynLen) { /* only the last signal can be dyn */
-    signal = IPduConfig->signals[IPduConfig->numOfSignals - 1];
+    signal = IPduConfig->signals[IPduConfig->numOfSignals - 1u];
     minLen -= (signal->BitSize >> 3); /* the last dyn signal size can be 0 */
   }
 
@@ -343,27 +362,37 @@ SHELL_REGISTER(wrsg,
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Com_Init(const Com_ConfigType *config) {
+#ifdef COM_USE_PB_CONFIG
+  if (NULL != config) {
+    COM_CONFIG = config;
+  } else {
+    COM_CONFIG = &Com_Config;
+  }
+#else
+  (void)config;
+#endif
   COM_CONFIG->context->GroupStatus = 0;
 }
 
 void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
   const Com_IPduConfigType *IPduConfig;
-  int i;
+  uint16_t i;
 #ifdef COM_USE_SIGNAL_CONFIG
   const Com_SignalConfigType *signal;
-  int j;
+  uint16_t j;
 #endif
+  DET_VALIDATE(NULL != COM_CONFIG, 0x03, COM_E_UNINIT, return);
   DET_VALIDATE(IpduGroupId < COM_CONFIG->numOfGroups, 0x03, COM_E_PARAM, return);
 
-  COM_CONFIG->context->GroupStatus |= (1 << IpduGroupId);
+  COM_CONFIG->context->GroupStatus |= (1u << IpduGroupId);
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
-    if (IPduConfig->GroupRefMask & (1 << IpduGroupId)) {
-      if (initialize) {
+    if (0u != (IPduConfig->GroupRefMask & (1u << IpduGroupId))) {
+      if (TRUE == initialize) {
         comIPduDataInit(IPduConfig);
       }
       if (NULL != IPduConfig->rxConfig) {
-        if (IPduConfig->rxConfig->FirstTimeout > 0) {
+        if (IPduConfig->rxConfig->FirstTimeout > 0u) {
           IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->FirstTimeout;
         } else {
           IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->Timeout;
@@ -373,7 +402,7 @@ void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
         for (j = 0; j < IPduConfig->numOfSignals; j++) {
           signal = IPduConfig->signals[j];
           if (NULL != signal->rxConfig) {
-            if (signal->rxConfig->FirstTimeout > 0) {
+            if (signal->rxConfig->FirstTimeout > 0u) {
               signal->rxConfig->context->timer = signal->rxConfig->FirstTimeout;
             } else {
               signal->rxConfig->context->timer = signal->rxConfig->Timeout;
@@ -383,7 +412,7 @@ void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
 #endif
       } else if ((NULL != IPduConfig->txConfig) && (NULL != IPduConfig->txConfig->context)) {
         /* For LIN, as trigger transmit by LinIf, it has no context */
-        if (IPduConfig->txConfig->FirstTime > 0) {
+        if (IPduConfig->txConfig->FirstTime > 0u) {
           IPduConfig->txConfig->context->timer = IPduConfig->txConfig->FirstTime;
         } else {
           IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
@@ -400,10 +429,11 @@ void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
 
 void Com_IpduGroupStop(Com_IpduGroupIdType IpduGroupId) {
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x04, COM_E_UNINIT, return);
   DET_VALIDATE(IpduGroupId < COM_CONFIG->numOfGroups, 0x04, COM_E_PARAM, return);
 
   if (IpduGroupId < COM_CONFIG->numOfGroups) {
-    COM_CONFIG->context->GroupStatus &= ~(1 << IpduGroupId);
+    COM_CONFIG->context->GroupStatus &= ~(1u << IpduGroupId);
   }
 }
 
@@ -411,6 +441,7 @@ Std_ReturnType Com_ReceiveSignal(Com_SignalIdType SignalId, void *SignalDataPtr)
   Std_ReturnType ret = E_NOT_OK;
   const Com_SignalConfigType *signal;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x0B, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalId < COM_CONFIG->numOfSignals, 0x0B, COM_E_PARAM, return E_NOT_OK);
   DET_VALIDATE(NULL != SignalDataPtr, 0x0B, COM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -424,6 +455,7 @@ Std_ReturnType Com_SendSignal(Com_SignalIdType SignalId, const void *SignalDataP
   Std_ReturnType ret = E_NOT_OK;
   const Com_SignalConfigType *signal;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x0A, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalId < COM_CONFIG->numOfSignals, 0x0A, COM_E_PARAM, return E_NOT_OK);
   DET_VALIDATE(NULL != SignalDataPtr, 0x0A, COM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -439,6 +471,7 @@ Std_ReturnType Com_SendDynSignal(Com_SignalIdType SignalId, const void *SignalDa
   const Com_SignalConfigType *signal;
   const Com_IPduConfigType *IPduConfig;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x21, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalId < COM_CONFIG->numOfSignals, 0x21, COM_E_PARAM, return E_NOT_OK);
   DET_VALIDATE(NULL != SignalDataPtr, 0x21, COM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -448,7 +481,7 @@ Std_ReturnType Com_SendDynSignal(Com_SignalIdType SignalId, const void *SignalDa
   DET_VALIDATE(IPduConfig->signals[IPduConfig->numOfSignals - 1] == signal, 0x21, COM_E_PARAM,
                return E_NOT_OK); /* only the last signal can be dyn type */
   if (Length <= (signal->BitSize >> 3)) {
-    memcpy(signal->ptr, SignalDataPtr, Length);
+    (void)memcpy(signal->ptr, SignalDataPtr, Length);
     *IPduConfig->dynLen = IPduConfig->length - (signal->BitSize >> 3) + Length;
     ret = E_OK;
   }
@@ -463,6 +496,7 @@ Std_ReturnType Com_ReceiveDynSignal(Com_SignalIdType SignalId, void *SignalDataP
   const Com_IPduConfigType *IPduConfig;
   Com_DataLengthType dynLen;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x22, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalId < COM_CONFIG->numOfSignals, 0x22, COM_E_PARAM, return E_NOT_OK);
   DET_VALIDATE(NULL != SignalDataPtr, 0x22, COM_E_PARAM_POINTER, return E_NOT_OK);
   DET_VALIDATE(NULL != Length, 0x22, COM_E_PARAM_POINTER, return E_NOT_OK);
@@ -476,7 +510,7 @@ Std_ReturnType Com_ReceiveDynSignal(Com_SignalIdType SignalId, void *SignalDataP
   dynLen = *IPduConfig->dynLen - dynLen;
 
   if (*Length >= dynLen) {
-    memcpy(SignalDataPtr, signal->ptr, dynLen);
+    (void)memcpy(SignalDataPtr, signal->ptr, dynLen);
     *Length = dynLen;
     ret = E_OK;
   }
@@ -488,11 +522,12 @@ Std_ReturnType Com_SendSignalGroup(Com_SignalGroupIdType SignalGroupId) {
   Std_ReturnType ret = E_OK;
   const Com_SignalConfigType *signal;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x0D, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalGroupId < COM_CONFIG->numOfSignals, 0x0D, COM_E_PARAM, return E_NOT_OK);
   signal = &COM_CONFIG->SignalConfigs[SignalGroupId];
   DET_VALIDATE(COM_UINT8N == signal->type, 0x0D, COM_E_PARAM, return E_NOT_OK);
 
-  memcpy(signal->ptr, signal->initPtr, (signal->BitSize >> 3));
+  (void)memcpy(signal->ptr, signal->initPtr, (signal->BitSize >> 3));
 
   return ret;
 }
@@ -501,11 +536,12 @@ Std_ReturnType Com_ReceiveSignalGroup(Com_SignalGroupIdType SignalGroupId) {
   Std_ReturnType ret = E_OK;
   const Com_SignalConfigType *signal;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x0E, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(SignalGroupId < COM_CONFIG->numOfSignals, 0x0E, COM_E_PARAM, return E_NOT_OK);
   signal = &COM_CONFIG->SignalConfigs[SignalGroupId];
   DET_VALIDATE(COM_UINT8N == signal->type, 0x0E, COM_E_PARAM, return E_NOT_OK);
 
-  memcpy((void *)signal->initPtr, signal->ptr, (signal->BitSize >> 3));
+  (void)memcpy((void *)signal->initPtr, signal->ptr, (signal->BitSize >> 3));
 
   return ret;
 }
@@ -515,23 +551,38 @@ Std_ReturnType Com_TriggerIPDUSend(PduIdType PduId) {
   Std_ReturnType ret = E_NOT_OK;
   const Com_IPduConfigType *IPduConfig;
   PduInfoType PduInfo;
+#ifdef COM_USE_TX_IPDU_CALLOUT
+  boolean bProcess;
+#endif
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x17, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(PduId < COM_CONFIG->numOfIPdus, 0x17, COM_E_INVALID_TXPDUID, return E_NOT_OK);
   IPduConfig = &COM_CONFIG->IPduConfigs[PduId];
   DET_VALIDATE(NULL != IPduConfig->txConfig, 0x17, COM_E_PARAM, return E_NOT_OK);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
     PduInfo.SduDataPtr = IPduConfig->ptr;
     PduInfo.SduLength = IPduConfig->length;
     if (NULL != IPduConfig->dynLen) {
       PduInfo.SduLength = *IPduConfig->dynLen;
     }
-    ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
-    if (E_OK == ret) {
-      IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
+#ifdef COM_USE_TX_IPDU_CALLOUT
+    if (NULL != IPduConfig->txConfig->TxIpduCallout) {
+      bProcess = IPduConfig->txConfig->TxIpduCallout((PduIdType)PduId, &PduInfo);
     } else {
-      IPduConfig->txConfig->context->timer = 1;
-      ret = E_OK;
+      bProcess = TRUE;
     }
+    if (TRUE == bProcess) { /* @SWS_Com_00492 */
+#endif
+      ret = PduR_ComTransmit(IPduConfig->txConfig->TxPduId, &PduInfo);
+      if (E_OK == ret) {
+        IPduConfig->txConfig->context->timer = IPduConfig->txConfig->CycleTime;
+      } else {
+        IPduConfig->txConfig->context->timer = 1;
+        ret = E_OK;
+      }
+#ifdef COM_USE_TX_IPDU_CALLOUT
+    }
+#endif
   }
 
   return ret;
@@ -545,15 +596,16 @@ void Com_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
 #endif
 #ifdef COM_USE_SIGNAL_CONFIG
   const Com_SignalConfigType *signal;
-  int i;
+  uint16_t i;
 #endif
   Com_DataLengthType dynLen;
+  DET_VALIDATE(NULL != COM_CONFIG, 0x42, COM_E_UNINIT, return);
   DET_VALIDATE(RxPduId < COM_CONFIG->numOfIPdus, 0x42, COM_E_INVALID_RXPDUID, return);
   IPduConfig = &COM_CONFIG->IPduConfigs[RxPduId];
   DET_VALIDATE(NULL != IPduConfig->rxConfig, 0x42, COM_E_PARAM, return);
   dynLen = comGetMinimumLength(IPduConfig);
   DET_VALIDATE(dynLen <= PduInfoPtr->SduLength, 0x42, COM_E_PARAM, return);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
 #ifdef COM_USE_RX_IPDU_CALLOUT
     if (NULL != IPduConfig->rxConfig->RxIpduCallout) {
       bProcess = IPduConfig->rxConfig->RxIpduCallout(RxPduId, PduInfoPtr);
@@ -569,7 +621,7 @@ void Com_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
         }
         *IPduConfig->dynLen = dynLen;
       }
-      memcpy(IPduConfig->ptr, PduInfoPtr->SduDataPtr, dynLen);
+      (void)memcpy(IPduConfig->ptr, PduInfoPtr->SduDataPtr, dynLen);
       IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->Timeout;
 #ifdef COM_USE_RX_NOTIFICATION
       if (IPduConfig->rxConfig->RxNotification) {
@@ -603,6 +655,7 @@ Std_ReturnType Com_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr) {
   PduInfoType PduInfo;
 #endif
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x41, COM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(TxPduId < COM_CONFIG->numOfIPdus, 0x41, COM_E_INVALID_TXPDUID, return E_NOT_OK);
   DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x41, COM_E_PARAM_POINTER,
                return E_NOT_OK);
@@ -619,7 +672,8 @@ Std_ReturnType Com_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr) {
   }
   if (TRUE == bProcess) {
 #endif
-    memcpy(PduInfoPtr->SduDataPtr, IPduConfig->ptr, IPduConfig->length);
+    (void)memcpy(PduInfoPtr->SduDataPtr, IPduConfig->ptr, IPduConfig->length);
+    PduInfoPtr->SduLength = IPduConfig->length;
 #ifdef COM_USE_TX_IPDU_CALLOUT
   } else {
     ret = E_NOT_OK; /* reject by APP */
@@ -635,15 +689,17 @@ BufReq_ReturnType Com_CopyTxData(PduIdType id, const PduInfoType *info, const Re
   const Com_IPduConfigType *IPduConfig;
   PduLengthType offset = 0;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x43, COM_E_UNINIT, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(id < COM_CONFIG->numOfIPdus, 0x43, COM_E_INVALID_TXPDUID, return BUFREQ_E_NOT_OK);
   IPduConfig = &COM_CONFIG->IPduConfigs[id];
   DET_VALIDATE(NULL != IPduConfig->txConfig, 0x43, COM_E_PARAM, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(info->MetaDataPtr != NULL, 0x43, COM_E_PARAM, return BUFREQ_E_NOT_OK);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  (void)retry;
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
     offset = *(PduLengthType *)info->MetaDataPtr;
 
-    if (offset + info->SduLength <= IPduConfig->length) {
-      memcpy(info->SduDataPtr, ((uint8_t *)IPduConfig->ptr) + offset, info->SduLength);
+    if ((offset + info->SduLength) <= IPduConfig->length) {
+      (void)memcpy(info->SduDataPtr, ((uint8_t *)IPduConfig->ptr) + offset, info->SduLength);
       *availableDataPtr = IPduConfig->length - (offset + info->SduLength);
       bufRet = BUFREQ_OK;
     }
@@ -657,12 +713,14 @@ void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
 #if defined(COM_USE_SIGNAL_CONFIG) &&                                                              \
   (defined(COM_USE_SIGNAL_TX_NOTIFICATION) || defined(COM_USE_SIGNAL_TX_ERROR_NOTIFICATION))
   const Com_SignalConfigType *signal;
-  int i;
+  uint16_t i;
 #endif
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x40, COM_E_UNINIT, return);
   DET_VALIDATE(TxPduId < COM_CONFIG->numOfIPdus, 0x40, COM_E_INVALID_TXPDUID, return);
   IPduConfig = &COM_CONFIG->IPduConfigs[TxPduId];
   DET_VALIDATE(NULL != IPduConfig->txConfig, 0x40, COM_E_PARAM, return);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
     if (E_OK == result) {
 #ifdef COM_USE_TX_NOTIFICATION
       if (IPduConfig->txConfig->TxNotification) {
@@ -697,18 +755,20 @@ void Com_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
 
 void Com_MainFunctionRx(void) {
   const Com_IPduConfigType *IPduConfig;
-  int i;
+  uint16_t i;
 #ifdef COM_USE_SIGNAL_CONFIG
   const Com_SignalConfigType *signal;
-  int j;
+  uint16_t j;
 #endif
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x18, COM_E_UNINIT, return);
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
     if (IPduConfig->rxConfig && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
-      if (IPduConfig->rxConfig->context->timer > 0) {
+      if (IPduConfig->rxConfig->context->timer > 0u) {
         IPduConfig->rxConfig->context->timer--;
-        if (0 == IPduConfig->rxConfig->context->timer) {
+        if (0u == IPduConfig->rxConfig->context->timer) {
           IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->Timeout;
 #ifdef COM_USE_RX_TIMEOUT
           if (IPduConfig->rxConfig->RxTOut) {
@@ -721,16 +781,16 @@ void Com_MainFunctionRx(void) {
       for (j = 0; j < IPduConfig->numOfSignals; j++) {
         signal = IPduConfig->signals[j];
         if (NULL != signal->rxConfig) {
-          if (signal->rxConfig->context->timer > 0) {
+          if (signal->rxConfig->context->timer > 0u) {
             signal->rxConfig->context->timer--;
-            if (0 == signal->rxConfig->context->timer) {
+            if (0u == signal->rxConfig->context->timer) {
               signal->rxConfig->context->timer = signal->rxConfig->Timeout;
               switch (signal->rxConfig->RxDataTimeoutAction) {
               case COM_ACTION_REPLACE:
-                comSendSignal(signal, signal->initPtr);
+                (void)comSendSignal(signal, signal->initPtr);
                 break;
               case COM_ACTION_SUBSTITUTE:
-                comSendSignal(signal, signal->rxConfig->TimeoutSubstitutionValue);
+                (void)comSendSignal(signal, signal->rxConfig->TimeoutSubstitutionValue);
                 break;
               default:
                 break;
@@ -757,15 +817,17 @@ void Com_MainFunctionTx(void) {
 #ifdef COM_USE_TX_IPDU_CALLOUT
   boolean bProcess;
 #endif
-  int i;
+  uint16_t i;
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x19, COM_E_UNINIT, return);
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
-    if ((0 != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) &&
+    if ((0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) &&
          (NULL != IPduConfig->txConfig) && (NULL != IPduConfig->txConfig->context))) {
-      if (IPduConfig->txConfig->context->timer > 0) {
+      if (IPduConfig->txConfig->context->timer > 0u) {
         IPduConfig->txConfig->context->timer--;
-        if (0 == IPduConfig->txConfig->context->timer) {
+        if (0u == IPduConfig->txConfig->context->timer) {
           PduInfo.SduDataPtr = IPduConfig->ptr;
           PduInfo.SduLength = IPduConfig->length;
           if (NULL != IPduConfig->dynLen) {
@@ -806,16 +868,18 @@ void Com_MainFunctionTx(void) {
 }
 
 #ifdef COM_USE_MAIN_FAST
-void Com_MainFunctionTx_Fast(void) {
+static void Com_MainFunctionTx_Fast(void) {
 #if defined(COM_USE_CAN)
   const Com_IPduConfigType *IPduConfig;
   Std_ReturnType ret;
   PduInfoType PduInfo;
-  int i;
+  uint16_t i;
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x19, COM_E_UNINIT, return);
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
-    if ((0 != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) &&
+    if ((0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) &&
          (NULL != IPduConfig->txConfig) && (NULL != IPduConfig->txConfig->context))) {
       if (TRUE == IPduConfig->txConfig->context->bTxRetry) {
         PduInfo.SduDataPtr = IPduConfig->ptr;
@@ -853,14 +917,16 @@ BufReq_ReturnType Com_StartOfReception(PduIdType id, const PduInfoType *info,
   BufReq_ReturnType bufRet = BUFREQ_E_NOT_OK;
   const Com_IPduConfigType *IPduConfig;
   Com_DataLengthType dynLen;
+  DET_VALIDATE(NULL != COM_CONFIG, 0x43, COM_E_UNINIT, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(id < COM_CONFIG->numOfIPdus, 0x43, COM_E_INVALID_RXPDUID, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != bufferSizePtr, 0x43, COM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
   IPduConfig = &COM_CONFIG->IPduConfigs[id];
   DET_VALIDATE(NULL != IPduConfig->rxConfig, 0x43, COM_E_PARAM, return BUFREQ_E_NOT_OK);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  (void)info;
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
     dynLen = comGetMinimumLength(IPduConfig);
     if (NULL != IPduConfig->dynLen) {
-      dynLen = TpSduLength;
+      dynLen = (Com_DataLengthType)TpSduLength;
       if (dynLen > IPduConfig->length) {
         dynLen = IPduConfig->length;
       }
@@ -884,17 +950,18 @@ BufReq_ReturnType Com_CopyRxData(PduIdType id, const PduInfoType *info,
   const Com_IPduConfigType *IPduConfig;
   PduLengthType offset = 0;
 
+  DET_VALIDATE(NULL != COM_CONFIG, 0x44, COM_E_UNINIT, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(id < COM_CONFIG->numOfIPdus, 0x44, COM_E_INVALID_RXPDUID, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != bufferSizePtr, 0x44, COM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != info, 0x44, COM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != info->MetaDataPtr, 0x44, COM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
   IPduConfig = &COM_CONFIG->IPduConfigs[id];
   DET_VALIDATE(NULL != IPduConfig->rxConfig, 0x44, COM_E_PARAM, return BUFREQ_E_NOT_OK);
-  if (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) {
+  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
     offset = *(PduLengthType *)info->MetaDataPtr;
 
-    if (offset + info->SduLength <= IPduConfig->length) {
-      memcpy(((uint8_t *)IPduConfig->ptr) + offset, info->SduDataPtr, info->SduLength);
+    if ((offset + info->SduLength) <= IPduConfig->length) {
+      (void)memcpy(((uint8_t *)IPduConfig->ptr) + offset, info->SduDataPtr, info->SduLength);
       if (NULL == IPduConfig->dynLen) {
         *bufferSizePtr = IPduConfig->length - (offset + info->SduLength);
       } else {
@@ -915,8 +982,9 @@ void Com_TpRxIndication(PduIdType id, Std_ReturnType result) {
 #endif
 #ifdef COM_USE_SIGNAL_CONFIG
   const Com_SignalConfigType *signal;
-  int i;
+  uint16_t i;
 #endif
+  DET_VALIDATE(NULL != COM_CONFIG, 0x45, COM_E_UNINIT, return);
   DET_VALIDATE(id < COM_CONFIG->numOfIPdus, 0x45, COM_E_INVALID_RXPDUID, return);
   IPduConfig = &COM_CONFIG->IPduConfigs[id];
   DET_VALIDATE(NULL != IPduConfig->rxConfig, 0x45, COM_E_PARAM, return);

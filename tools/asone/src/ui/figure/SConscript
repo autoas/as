@@ -1,0 +1,19 @@
+
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob('*.*pp')
+
+
+@register_library
+class LibraryFigure(Library):
+    compiler = 'QMake'
+    shared = True
+
+    def config(self):
+        self.include = [CWD]
+        self.source = objs
+        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ['AsOne']
+        self.Install('../prebuilt')
+        self.Install('../one')

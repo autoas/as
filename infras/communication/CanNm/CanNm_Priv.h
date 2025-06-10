@@ -12,11 +12,13 @@
 #include "NmStack_Types.h"
 #include "Std_Timer.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_CANNM
+
 #define CANNM_PDU_BYTE_0 ((CanNm_PduPositionType)0)
 #define CANNM_PDU_BYTE_1 ((CanNm_PduPositionType)1)
 #define CANNM_PDU_OFF ((CanNm_PduPositionType)2)
 
-#define CANNM_INVALID_NODE_ID 0xFF
+#define CANNM_INVALID_NODE_ID 0xFFu
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t CanNm_PduPositionType;
 typedef struct {
@@ -32,6 +34,9 @@ typedef struct {
   uint16_t WaitBusSleepTime;  /* @ECUC_CanNm_00021 */
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
   uint16_t RemoteSleepIndTime; /* @ECUC_CanNm_00023 */
+#endif
+#ifdef CANNM_COM_USER_DATA_SUPPORT
+  PduIdType UserDataTxPdu; /* @ECUC_CanNm_00045 */
 #endif
   PduIdType TxPdu; /* @ECUC_CanNm_00048 */
   uint8_t NodeId;  /* @ECUC_CanNm_00031 */
@@ -50,9 +55,17 @@ typedef struct {
   uint8_t PnInfoLength;            /* @ECUC_CanNm_00061 */
   const uint8_t *PnFilterMaskByte; /* @ECUC_CanNm_00069 */
 #endif
+#ifdef CANNM_CAR_WAKEUP_SUPPORT
+  boolean CarWakeUpRxEnabled; /* @ECUC_CanNm_00074*/
+  uint8_t NodeMask;
+  uint8_t CarWakeUpBytePosition;  /* @ECUC_CanNm_00076 */
+  uint8_t CarWakeUpBitPosition;   /* @ECUC_CanNm_00075 */
+  boolean CarWakeUpFilterEnabled; /* @ECUC_CanNm_00077 */
+  uint8_t CarWakeUpFilterNodeId;  /* @ECUC_CanNm_00078 */
+#endif
 } CanNm_ChannelConfigType;
 
-#ifdef _WIN32
+#ifdef CANNM_USE_STD_TIMER
 typedef Std_TimerType CanNm_TimerType;
 #else
 typedef uint16_t CanNm_TimerType;
@@ -63,10 +76,8 @@ typedef struct {
     CanNm_TimerType _Tx;
     CanNm_TimerType _TxTimeout;
     CanNm_TimerType _NMTimeout;
-    union {
-      CanNm_TimerType _RepeatMessage;
-      CanNm_TimerType _WaitBusSleep;
-    };
+    CanNm_TimerType _RepeatMessage;
+    CanNm_TimerType _WaitBusSleep;
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
     CanNm_TimerType _RemoteSleepInd;
 #endif

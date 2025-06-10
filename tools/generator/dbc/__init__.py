@@ -7,21 +7,21 @@ from . import ascyacc
 
 
 def get_period(p, msg):
+    CycleTime, FirstTime = None, None
     id = msg["id"]
-    if "baList" not in p:
-        return None
-    for ba in p["baList"]:
+    for ba in p.get("baList", []):
         if (ba[1] == '"GenMsgCycleTime"') and (ba[2] == "BO_"):
             if ba[3] == id:
-                return ba[4]
-    return None
+                CycleTime = ba[4]
+        if (ba[1] == '"GenMsgDelayTime"') and (ba[2] == "BO_"):
+            if ba[3] == id:
+                FirstTime = ba[4]
+    return CycleTime, FirstTime
 
 
 def get_init(p, sig):
     name = sig["name"]
-    if "baList" not in p:
-        return None
-    for ba in p["baList"]:
+    for ba in p.get("baList", []):
         if (ba[1] == '"GenSigStartValue"') and (ba[2] == "SG_"):
             if ba[4] == name:
                 return ba[5]
@@ -30,9 +30,7 @@ def get_init(p, sig):
 
 def get_comment(p, sig):
     name = sig["name"]
-    if "cmList" not in p:
-        return None
-    for cm in p["cmList"]:
+    for cm in p.get("cmList", []):
         if (cm[1] == "SG_") and (cm[3] == name):
             return cm[4]
     return None
@@ -40,10 +38,11 @@ def get_comment(p, sig):
 
 def post_process_period(p):
     for msg in p["messages"]:
-        period = get_period(p, msg)
-        if period != None:
-            msg.update({"CycleTime": period})
-
+        CycleTime, FirstTime = get_period(p, msg)
+        if CycleTime != None:
+            msg.update({"CycleTime": CycleTime})
+        if FirstTime != None:
+            msg.update({"FirstTime": FirstTime})
 
 def post_process_init(p):
     for msg in p["messages"]:

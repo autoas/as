@@ -17,6 +17,7 @@ class LibraryPduR(Library):
             "$J1939Tp_Cfg",
             "$Dcm_Cfg",
             "$NvM_Cfg",
+            "$SecOC_Cfg",
         ]
         if self.GetCompiler() not in ["CWS12"]:
             self.LIBS = ["MemPool"]

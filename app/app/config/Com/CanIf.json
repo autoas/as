@@ -8,17 +8,36 @@
       "RxPdus": [
         { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
         { "name": "P2A_RX", "id": "0x7DF", "hoh": 0, "up": "CanTp" },
-        { "name": "OSEKNM_RX", "id": "0x400", "mask": "0x700", "hoh": 0, "up": "OsekNm" },
-        { "name": "CANNM_RX", "id": "0x500", "mask": "0x700", "hoh": 0, "up": "CanNm" },
-        { "name": "CANTSYN_RX", "id": "0x100", "hoh": 0, "up": "CanTSyn" }
+        { "name": "OSEKNM0_RX", "id": "0x400", "mask": "0x700", "hoh": 0, "up": "OsekNm" },
+        { "name": "CANNM0_RX", "id": "0x500", "mask": "0x700", "hoh": 0, "up": "CanNm" },
+        { "name": "CANTSYN_RX", "id": "0x100", "hoh": 0, "up": "CanTSyn" },
+        { "name": "XCP_ON_CAN_RX", "id": "0x7A0", "hoh": 0, "up": "Xcp" },
+        { "name": "FW_CAN0_SECOC_MSG1_RX", "-name": "FW_CAN0_SECOC_MSG0_RX", "id": "0x89", "hoh": 0, "up": "SecOC", "-up": "CanTp" }
       ],
       "TxPdus": [
         { "name": "P2P_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
         { "name": "P2A_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
-        { "name": "OSEKNM_TX", "id": "0x400", "dynamic": true, "hoh": 0, "up": "OsekNm" },
-        { "name": "CANNM_TX", "id": "0x500", "dynamic": true, "hoh": 0, "up": "CanNm" },
-        { "name": "CANTSYN_TX", "id": "0x100", "hoh": 0, "up": "CanTSyn" }
-      ]
+        { "name": "OSEKNM0_TX", "id": "0x400", "dynamic": true, "hoh": 0, "up": "OsekNm" },
+        { "name": "CANNM0_TX", "id": "0x500", "dynamic": true, "hoh": 0, "up": "CanNm" },
+        { "name": "CANTSYN_TX", "id": "0x100", "hoh": 0, "up": "CanTSyn" },
+        { "name": "XCP_ON_CAN_TX", "id": "0x7B0", "hoh": 0, "up": "Xcp" },
+        { "name": "FW_CAN0_SECOC_MSG0_TX", "id": "0x99", "hoh": 0, "up": "SecOC", "-up": "CanTp" }
+      ],
+      "ignore": ["CanNmUserData"]
+    },
+    {
+      "name": "CAN1",
+      "me": "AS",
+      "dbc": "CAN0.dbc",
+      "RxPdus": [
+        { "name": "P2A_FW_RX", "id": "0x7EF", "hoh": 1, "up": "CanTp" },
+        { "name": "CANNM1_RX", "id": "0x500", "mask": "0x700", "hoh": 1, "up": "CanNm" }
+      ],
+      "TxPdus": [
+        { "name": "P2A_FW_TX", "id": "0x742", "hoh": 1, "up": "CanTp" },
+        { "name": "CANNM1_TX", "id": "0x500", "dynamic": true, "hoh": 1, "up": "CanNm" }
+      ],
+      "ignore": ["CanNmUserData"]
     }
   ]
 }

@@ -10,7 +10,7 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define RTE_COM_PORT_READ_IMPL(name, type)                                                         \
   Std_ReturnType Rte_Read_Gauge_Com_##name(type *data) {                                           \
-    return Com_ReceiveSignal(COM_SID_##name, data);                                                \
+    return Com_ReceiveSignal(COM_SID_CAN0_RxMsgAbsInfo_##name, data);                              \
   }
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

@@ -12,10 +12,15 @@
 #if defined(_WIN32)
 #include <time.h>
 #endif
+#ifdef USE_NVM
+#include "NvM.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define App_SECURITY_LEVEL_EXTDS DCM_SEC_LEVEL1
 
 #define TO_BCD(v) (((v) / 10) * 16 + ((v) % 10))
+
+#define AS_LOG_APP 0
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern void App_EnterProgramSession(void);
@@ -28,9 +33,10 @@ Std_ReturnType App_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
                                               Dcm_SesCtrlType sesCtrlTypeNew,
                                               Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType ercd = E_OK;
-  ASLOG(INFO, ("App_GetSessionChangePermission(%d --> %d)\n", (int)sesCtrlTypeActive,
-               (int)sesCtrlTypeNew));
+  ASLOG(APP, ("App_GetSessionChangePermission(%d --> %d)\n", (int)sesCtrlTypeActive,
+              (int)sesCtrlTypeNew));
 
+#ifndef DCM_DISABLE_PROGRAM_SESSION_PROTECTION
   /* program session can only be entered through EXTDS session */
   if ((DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) &&
       (DCM_EXTENDED_DIAGNOSTIC_SESSION != sesCtrlTypeActive)) {
@@ -47,21 +53,31 @@ Std_ReturnType App_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
       ercd = E_NOT_OK;
     }
   }
+#endif
 
+#ifdef USE_NVM
   if (E_OK == ercd) {
-    /* do nothing */
+    if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
+      /* ensure NVM all job done before jumping to bootloader */
+      MemIf_StatusType status;
+      status = NvM_GetStatus();
+      if (MEMIF_BUSY == status) {
+        *nrc = DCM_E_RESPONSE_PENDING;
+      }
+    }
   }
+#endif
 
   return ercd;
 }
 
-Std_ReturnType App_GetProgramSessionSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_GetProgramLevelSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
   uint32_t u32Seed; /* intentional not initialized to use the stack random value */
   uint32_t u32Time = Std_GetTime();
 
   app_prgs_seed = app_prgs_seed ^ u32Seed ^ u32Time ^ 0xfeedbeef;
 
-  ASLOG(INFO, ("App_GetProgramSessionSeed(seed = %X)\n", app_prgs_seed));
+  ASLOG(APP, ("App_GetProgramLevelSeed(seed = %X)\n", app_prgs_seed));
 
   seed[0] = (uint8_t)(app_prgs_seed >> 24);
   seed[1] = (uint8_t)(app_prgs_seed >> 16);
@@ -70,13 +86,14 @@ Std_ReturnType App_GetProgramSessionSeed(uint8_t *seed, Dcm_NegativeResponseCode
   return E_OK;
 }
 
-Std_ReturnType App_CompareProgramSessionKey(uint8_t *key, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_CompareProgramLevelKey(const uint8_t *key,
+                                          Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ercd;
   uint32_t u32Key = ((uint32_t)key[0] << 24) + ((uint32_t)key[1] << 16) + ((uint32_t)key[2] << 8) +
                     ((uint32_t)key[3]);
   uint32_t u32KeyExpected = app_prgs_seed ^ 0x94586792;
 
-  ASLOG(INFO, ("App_CompareProgramSessionKey(key = %X(%X))\n", u32Key, u32KeyExpected));
+  ASLOG(APP, ("App_CompareProgramLevelKey(key = %X(%X))\n", u32Key, u32KeyExpected));
 
   if (u32KeyExpected == u32Key) {
     ercd = E_OK;
@@ -87,13 +104,13 @@ Std_ReturnType App_CompareProgramSessionKey(uint8_t *key, Dcm_NegativeResponseCo
   return ercd;
 }
 
-Std_ReturnType App_GetExtendedSessionSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_GetExtendedLevelSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
   uint32_t u32Seed; /* intentional not initialized to use the stack random value */
   uint32_t u32Time = Std_GetTime();
 
   app_extds_seed = app_extds_seed ^ u32Seed ^ u32Time ^ 0x95774321;
 
-  ASLOG(INFO, ("App_GetExtendedSessionSeed(seed = %X)\n", app_extds_seed));
+  ASLOG(APP, ("App_GetExtendedLevelSeed(seed = %X)\n", app_extds_seed));
 
   seed[0] = (uint8_t)(app_extds_seed >> 24);
   seed[1] = (uint8_t)(app_extds_seed >> 16);
@@ -103,14 +120,14 @@ Std_ReturnType App_GetExtendedSessionSeed(uint8_t *seed, Dcm_NegativeResponseCod
   return E_OK;
 }
 
-Std_ReturnType App_CompareExtendedSessionKey(uint8_t *key,
-                                             Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_CompareExtendedLevelKey(const uint8_t *key,
+                                           Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ercd;
   uint32_t u32Key = ((uint32_t)key[0] << 24) + ((uint32_t)key[1] << 16) + ((uint32_t)key[2] << 8) +
                     ((uint32_t)key[3]);
   uint32_t u32KeyExpected = app_extds_seed ^ 0x78934673;
 
-  ASLOG(INFO, ("App_CompareExtendedSessionKey(key = %X(%X))\n", u32Key, u32KeyExpected));
+  ASLOG(APP, ("App_CompareExtendedLevelKey(key = %X(%X))\n", u32Key, u32KeyExpected));
 
   if (u32KeyExpected == u32Key) {
     ercd = E_OK;
@@ -119,6 +136,15 @@ Std_ReturnType App_CompareExtendedSessionKey(uint8_t *key,
     ercd = E_NOT_OK;
   }
   return ercd;
+}
+
+Std_ReturnType App_GetFactoryLevelSeed(uint8_t *seed, Dcm_NegativeResponseCodeType *errorCode) {
+  return App_GetExtendedLevelSeed(seed, errorCode);
+}
+
+Std_ReturnType App_CompareFactoryLevelKey(const uint8_t *key,
+                                          Dcm_NegativeResponseCodeType *errorCode) {
+  return App_CompareExtendedLevelKey(key, errorCode);
 }
 #ifdef USE_DEM
 Std_ReturnType Dem_FFD_GetBattery(Dem_EventIdType EventId, uint8_t *data,
@@ -160,7 +186,11 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
 
 Std_ReturnType App_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
                                    Dcm_NegativeResponseCodeType *errorCode) {
+#ifdef BL_FINGER_PRINT_ADDRESS
+  memcpy(data, (void *)BL_FINGER_PRINT_ADDRESS, length);
+#else
   memset(data, 0xA5, length);
+#endif
   return E_OK;
 }
 
@@ -182,8 +212,9 @@ Std_ReturnType App_ReadAB02(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t l
   return E_OK;
 }
 
-Std_ReturnType App_GetPeriodicDID01(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
-                                    Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_Read_PeriodicDID_P01_0001(Dcm_OpStatusType opStatus, uint8_t *data,
+                                             uint16_t length,
+                                             Dcm_NegativeResponseCodeType *errorCode) {
   int i;
   for (i = 0; i < length; i++) {
     data[i] = 0xA0 + i;
@@ -202,7 +233,16 @@ Std_ReturnType App_GetPeriodicDID02(Dcm_OpStatusType opStatus, uint8_t *data, ui
 
 Std_ReturnType App_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
                                          Dcm_NegativeResponseCodeType *ErrorCode) {
-  return E_OK;
+  Std_ReturnType ret = E_OK;
+#ifdef USE_NVM
+  MemIf_StatusType status;
+
+  status = NvM_GetStatus();
+  if (MEMIF_BUSY == status) {
+    *ErrorCode = DCM_E_RESPONSE_PENDING;
+  }
+#endif
+  return ret;
 }
 
 Dcm_ReturnReadMemoryType Dcm_ReadMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
@@ -219,17 +259,17 @@ Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType OpStatus, uint8_t Mem
   return E_OK;
 }
 
-Std_ReturnType App_IOCtl_FC01_ShortTermAdjustment(uint8_t *ControlRecord, uint16_t length,
-                                                  uint8_t *resData, uint16_t *resDataLen,
-                                                  uint8_t *nrc) {
+Std_ReturnType App_IOCtl_IOCTL1_FC01_ShortTermAdjustment(uint8_t *ControlRecord, uint16_t length,
+                                                         uint8_t *resData, uint16_t *resDataLen,
+                                                         uint8_t *nrc) {
   *resDataLen = 3;
   memset(resData, 0xA5, 3);
   return E_OK;
 }
 
-Std_ReturnType App_IOCtl_FC01_ReturnControlToEcuFnc(uint8_t *ControlRecord, uint16_t length,
-                                                    uint8_t *resData, uint16_t *resDataLen,
-                                                    uint8_t *nrc) {
+Std_ReturnType App_IOCtl_IOCTL1_FC01_ReturnControlToEcu(uint8_t *ControlRecord, uint16_t length,
+                                                        uint8_t *resData, uint16_t *resDataLen,
+                                                        uint8_t *nrc) {
   *resDataLen = 8;
   memset(resData, 0x88, 8);
   return E_OK;

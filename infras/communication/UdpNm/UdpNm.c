@@ -38,7 +38,7 @@
 
 #ifdef _WIN32
 #define nmSetAlarm(Timer, v)                                                                       \
-  Std_TimerSet(&context->Alarm._##Timer, ((v)*1000 * UDPNM_MAIN_FUNCTION_PERIOD))
+  Std_TimerSet(&context->Alarm._##Timer, ((v) * 1000 * UDPNM_MAIN_FUNCTION_PERIOD))
 #define nmSingalAlarm(Timer)
 #define nmIsAlarmTimeout(Timer) Std_IsTimerTimeout(&context->Alarm._##Timer)
 #define nmIsAlarmStarted(Timer) Std_IsTimerStarted(&context->Alarm._##Timer)

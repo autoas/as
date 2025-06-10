@@ -2,7 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  *
- * ref: https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_MCUDriver.pdf
+ * ref:
+ * https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_MCUDriver.pdf
  */
 #ifndef MCU_H
 #define MCU_H

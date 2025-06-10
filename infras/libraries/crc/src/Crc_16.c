@@ -20,11 +20,13 @@ uint16_t Crc_CalculateCRC16(const uint8_t *Crc_DataPtr, uint32_t Crc_Length,
                             uint16_t Crc_StartValue16, boolean Crc_IsFirstCall) {
   uint16_t u16Crc = Crc_StartValue16;
 
-  if (Crc_IsFirstCall) {
-    Crc_StartValue16 = crc_init();
+  if (TRUE != Crc_IsFirstCall) {
+    u16Crc = crc_finalize(u16Crc);
   }
 
-  u16Crc = crc_update(Crc_StartValue16, Crc_DataPtr, Crc_Length);
+  u16Crc = crc_update(u16Crc, Crc_DataPtr, Crc_Length);
+
+  u16Crc = crc_finalize(u16Crc);
 
   return u16Crc;
 }

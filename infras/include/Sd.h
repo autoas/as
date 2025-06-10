@@ -16,43 +16,37 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_SD_00118 */
-typedef enum
-{
+typedef enum {
   SD_SERVER_SERVICE_DOWN,
   SD_SERVER_SERVICE_AVAILABLE,
 } Sd_ServerServiceSetStateType;
 
 /* @SWS_SD_00405 */
-typedef enum
-{
+typedef enum {
   SD_CLIENT_SERVICE_RELEASED,
   SD_CLIENT_SERVICE_REQUESTED,
 } Sd_ClientServiceSetStateType;
 
 /* @SWS_SD_00550 */
-typedef enum
-{
+typedef enum {
   SD_CONSUMED_EVENTGROUP_RELEASED,
   SD_CONSUMED_EVENTGROUP_REQUESTED,
 } Sd_ConsumedEventGroupSetStateType;
 
 /* @SWS_SD_00551 */
-typedef enum
-{
+typedef enum {
   SD_CLIENT_SERVICE_DOWN,
   SD_CLIENT_SERVICE_AVAILABLE,
 } Sd_ClientServiceCurrentStateType;
 
 /* @SWS_SD_00552 */
-typedef enum
-{
+typedef enum {
   SD_CONSUMED_EVENTGROUP_DOWN,
   SD_CONSUMED_EVENTGROUP_AVAILABLE,
 } Sd_ConsumedEventGroupCurrentStateType;
 
 /* @SWS_SD_00553 */
-typedef enum
-{
+typedef enum {
   SD_EVENT_HANDLER_RELEASED,
   SD_EVENT_HANDLER_REQUESTED,
 } Sd_EventHandlerCurrentStateType;

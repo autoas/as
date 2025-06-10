@@ -27,6 +27,21 @@ extern "C" {
 
 #define TCPIP_IPV4_ADDR(b0, b1, b2, b3)                                                            \
   ((((uint32_t)b0) << 24) + (((uint32_t)b1) << 16) + (((uint32_t)b2) << 8) + b3)
+
+/* @SWS_TCPIP_00042 */
+#define TCPIP_E_UNINIT 0x01
+#define TCPIP_E_PARAM_POINTER 0x02
+#define TCPIP_E_INV_ARG 0x03
+#define TCPIP_E_NOBUFS 0x04
+#define TCPIP_E_MSGSIZE 0x07
+#define TCPIP_E_PROTOTYPE 0x08
+#define TCPIP_E_ADDRINUSE 0x09
+#define TCPIP_E_ADDRNOTAVAIL 0x0A
+#define TCPIP_E_ISCONN 0x0B
+#define TCPIP_E_NOTCONN 0x0C
+#define TCPIP_E_NOPROTOOPT 0x0D
+#define TCPIP_E_AFNOSUPPORT 0x0E
+#define TCPIP_E_INIT_FAILED 0x0F
 /* ================================ [ TYPES     ] ============================================== */
 typedef int TcpIp_SocketIdType;
 
@@ -37,8 +52,7 @@ typedef uint8_t TcpIp_LocalAddrIdType;
 typedef uint16_t TcpIp_DomainType;
 
 /* @SWS_TCPIP_00010 */
-typedef enum
-{
+typedef enum {
   TCPIP_IPPROTO_TCP = 0x06,
   TCPIP_IPPROTO_UDP = 0x11,
 } TcpIp_ProtocolType;
@@ -65,8 +79,7 @@ typedef struct {
 } TcpIp_SockAddrInet6Type;
 
 /* @SWS_TCPIP_00065 */
-typedef enum
-{
+typedef enum {
   TCPIP_IPADDR_ASSIGNMENT_STATIC,
   TCPIP_IPADDR_ASSIGNMENT_LINKLOCAL_DOIP,
   TCPIP_IPADDR_ASSIGNMENT_DHCP,
@@ -87,7 +100,7 @@ void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr);
 Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t ipv4Addr,
                                    uint16_t port);
 
-uint32_t TcpIp_InetAddr(const char* ip);
+uint32_t TcpIp_InetAddr(const char *ip);
 
 Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
                                uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);

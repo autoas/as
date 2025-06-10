@@ -52,6 +52,17 @@ class UIFBL(QWidget):
         self.cbxDebug = QCheckBox('debug')
         grid.addWidget(self.cbxDebug, 1, 7)
 
+        grid.addWidget(QLabel("sign type:"), 2, 0)
+        self.cmbxSignType = QComboBox()
+        self.cmbxSignType.addItems(["CRC16", "CRC32"])
+        self.cmbxSignType.setCurrentIndex(0)
+        grid.addWidget(self.cmbxSignType, 2, 1)
+        grid.addWidget(QLabel("choice:"), 2, 2)
+        self.cmbxChoice = QComboBox()
+        self.cmbxChoice.addItems(["FBL", "OTA"])
+        self.cmbxChoice.setEditable(True)
+        self.cmbxChoice.setCurrentIndex(0)
+        grid.addWidget(self.cmbxChoice, 2, 3)
         # application and flash driver selection
         vbox.addLayout(grid)
         grid = QGridLayout()
@@ -130,6 +141,8 @@ class UIFBL(QWidget):
             args['rxid'] = eval(str(self.leRxId.text()))
             args['app'] = str(self.leApplication.text())
             args['fls'] = str(self.leFlsDrv.text())
+            args['choice'] = str(self.cmbxChoice.currentText())
+            args['signType'] = self.cmbxSignType.currentIndex()
             args['logLevel'] = logLevel
             args['funcAddr'] = eval(str(self.leFuncAddr.text()))
             try:

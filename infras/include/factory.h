@@ -8,33 +8,33 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
+/* retry this factory, switch to running state if in waiting state */
+#define FACTORY_E_RETRY 9u
 /* depend on event happens */
-#define FACTORY_E_EVENT 10
+#define FACTORY_E_EVENT 10u
 /* Stop this factory */
-#define FACTORY_E_STOP 11
+#define FACTORY_E_STOP 11u
 
-#define FACTORY_MAX_MACHINES 80
+#define FACTORY_MAX_MACHINES 80u
 /* from 20 to 99, map machine 0 to 79, switch to that machine */
-#define FACTORY_E_SWITCH_TO 20
+#define FACTORY_E_SWITCH_TO 20u
 
-#define FACTORY_MAX_NODES 150
+#define FACTORY_MAX_NODES 150u
 /* from 100 to 249, map node 0 to 149, go to that node */
-#define FACTORY_E_GOTO 100
+#define FACTORY_E_GOTO 100u
 
-#define FACTORY_IDLE 0
-#define FACTORY_RUNNING 1
-#define FACTORY_WAITING 2
+#define FACTORY_IDLE 0u
+#define FACTORY_RUNNING 1u
+#define FACTORY_WAITING 2u
 
-#define factory_switch(machine) (Std_ReturnType)(FACTORY_E_SWITCH_TO + FEE_MACHINE_##machine)
-#define factory_goto(node) (Std_ReturnType)(FACTORY_E_GOTO + FEE_NODE_##node)
+#define factory_switch(machine) (Std_ReturnType)(FACTORY_E_SWITCH_TO + machine)
+#define factory_goto(node) (Std_ReturnType)(FACTORY_E_GOTO + node)
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t state;
   uint8_t machineId;
   uint8_t nodeId;
 } factory_context_t;
-
-typedef struct factory_s factory_t;
 
 typedef Std_ReturnType (*factory_event_t)(void);
 typedef Std_ReturnType (*factory_main_t)(void);
@@ -52,8 +52,7 @@ typedef struct machine_s {
   uint8_t numOfNodes;
 } machine_t;
 
-typedef enum
-{
+typedef enum {
   MACHINE_STOP,
   MACHINE_FAIL,
 } machine_state_t;

@@ -9,12 +9,14 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_EEP
+
 #define FLS_CFG_H
 #define FLS_ADDRESS_TYPE_U16
 
 #define Fls_AddressType Eep_AddressType
 #define Fls_LengthType Eep_LengthType
-#define Fls_SectorType Eep_SectorType 
+#define Fls_SectorType Eep_SectorType
 #define Fls_ConfigType Eep_ConfigType
 #define Fls_Config_s Eep_Config_s
 

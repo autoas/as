@@ -20,6 +20,7 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void PduR_Init(const PduR_ConfigType *ConfigPtr) {
+  (void) ConfigPtr;
 #if defined(PDUR_USE_MEMPOOL)
   PduR_MemInit();
 #endif
@@ -229,12 +230,14 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
 
+  (void) retry;
+
   ASLOG(PDUR, ("PduR_GwCopyTxData %d\n", pathId));
   if ((pathId < config->numOfRoutingPaths) &&
       (NULL != config->RoutingPaths[pathId].DestTxBufferRef)) {
     buffer = config->RoutingPaths[pathId].DestTxBufferRef;
     if (NULL != buffer->data) {
-      memcpy(info->SduDataPtr, &buffer->data[buffer->index], info->SduLength);
+      (void)memcpy(info->SduDataPtr, &buffer->data[buffer->index], info->SduLength);
       buffer->index += info->SduLength;
       *availableDataPtr = buffer->size - buffer->index;
       ret = BUFREQ_OK;
@@ -247,6 +250,8 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
 void PduR_GwTxConfirmation(PduIdType pathId, Std_ReturnType result) {
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
+
+  (void) result;
 
   DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF2, PDUR_E_PDU_ID_INVALID, return);
 
@@ -265,6 +270,8 @@ BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *i
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
+
+  (void) info;
 
   DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF3, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
@@ -300,7 +307,7 @@ BufReq_ReturnType PduR_GwCopyRxData(PduIdType pathId, const PduInfoType *info,
     buffer = config->RoutingPaths[pathId].DestTxBufferRef;
     if (NULL != buffer->data) {
       if ((buffer->index < buffer->size) && (info->SduLength <= (buffer->size - buffer->index))) {
-        memcpy(&buffer->data[buffer->index], info->SduDataPtr, info->SduLength);
+        (void)memcpy(&buffer->data[buffer->index], info->SduDataPtr, info->SduLength);
         buffer->index += info->SduLength;
         *bufferSizePtr = buffer->size - buffer->index;
         ret = BUFREQ_OK;

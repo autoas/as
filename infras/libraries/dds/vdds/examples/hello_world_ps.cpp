@@ -3,11 +3,11 @@
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "vdds.hpp"
-#include <unistd.h>
-#include <signal.h>
 #include "Std_Debug.h"
+#include "vdds.hpp"
+#include <signal.h>
 #include <thread>
+#include <unistd.h>
 
 using namespace as::vdds;
 /* ================================ [ MACROS    ] ============================================== */
@@ -52,6 +52,13 @@ static void SubMain(int subId) {
   Subscriber<HelloWorld_t> sub("/hello_wrold/xx");
 
   r = sub.init();
+  while (EEXIST == r) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    r = sub.init();
+    if (0 == r) {
+      ASLOG(INFO, ("online\n"));
+    }
+  }
   while ((0 == r) && (false == lStopped)) {
     size_t size = 0;
     HelloWorld_t *sample = nullptr;

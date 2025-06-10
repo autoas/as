@@ -110,6 +110,14 @@ int main(int argc, char *argv[]) {
         signType = SREC_SIGN_CRC32;
       } else if (0 == strcmp("crc16", optarg)) {
         signType = SREC_SIGN_CRC16;
+      } else if (0 == strcmp("crc32-v2", optarg)) {
+        signType = SREC_SIGN_CRC32_V2;
+      } else if (0 == strcmp("crc16-v2", optarg)) {
+        signType = SREC_SIGN_CRC16_V2;
+      } else if (0 == strcmp("crc32-v3", optarg)) {
+        signType = SREC_SIGN_CRC32_V3;
+      } else if (0 == strcmp("crc16-v3", optarg)) {
+        signType = SREC_SIGN_CRC16_V3;
       } else {
         usage(argv[0]);
         return -1;

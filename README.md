@@ -36,7 +36,7 @@ This project now provide below tools & libraries:
 
 ![JSON Editor](doc/images/json-editor-ssas.gif)
 
-- [**VDDS**](infras/libraries/dds/vdds/): [The Virtio Ring Buffer & Shared Memory based DDS](doc/EN/ViotioDDS.md)
+- [**VDDS**](infras/libraries/dds/vdds/): [The Virtio Ring Buffer & Shared Memory based DDS](doc/EN/VirtioDDS.md)
 
 ## Successful solutions for customer
 

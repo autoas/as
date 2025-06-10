@@ -1,16 +1,15 @@
 from building import *
 
-generate(Glob('*.json'))
+generate(Glob("*.json"))
 
 CWD = GetCurrentDir()
-objs = Glob('*.c') + Glob('GEN/*.c')
+objs = Glob("*.c") + Glob("GEN/*.c")
+
 
 @register_library
 class LibraryFee(Library):
     def config(self):
         self.include = CWD
-        self.LIBS = ['Crc', 'Factory']
-        self.CPPPATH = ['$INFRAS']
+        self.LIBS = ["Crc", "Factory"]
+        self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer"]
         self.source = objs
-
-    

@@ -1,78 +1,89 @@
 from building import *
 
-for sc in Glob('*/SConscript'):
+for sc in Glob("*/SConscript"):
     SConscript(sc)
 
 CWD = GetCurrentDir()
 
-LL_DL = os.getenv('LL_DL')
+LL_DL = os.getenv("LL_DL")
 
-generate(Glob('config/*.json'))
+# generate(Glob("config/*/*.json"))
 
-objsBL = Glob('src/*.c')
+objsBL = Glob("src/*.c")
 
 
 @register_library
 class LibraryBL(Library):
     def config(self):
-        self.include = '%s/include' % (CWD)
-        self.LIBS = ['Crc']
-        self.CPPPATH = ['$INFRAS']
+        self.include = "%s/include" % (CWD)
+        self.LIBS = ["RoD", "Crc"]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsBL
 
 
-objsAppBL = Glob('*.c')
+objsAppBL = Glob("*.c")
 
 
 class ApplicationBL(Application):
     def config(self):
         self.CPPDEFINES = []
-        self.LIBS = ['StdTimer']
+        self.LIBS = ["StdTimer"]
         for libName, source in self.libsForBL.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
-            self.Append(CPPDEFINES=['USE_%s' %
-                        (libName.split(':')[0].upper())])
-        self.CPPPATH = ['$INFRAS']
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsAppBL
 
 
 libsForCanBL = {}
-for libName in ['BL']:
-    libsForCanBL[libName] = Glob('config/%s_Cfg.c' % (libName))
-for libName in ['Dcm', 'CanTp', 'PduR']:
-    libsForCanBL[libName] = Glob('config/GEN/%s_Cfg.c' % (libName))
+for libName in ["BL"]:
+    libsForCanBL[libName] = Glob("config/%s_Cfg.c" % (libName))
+for libName in ["Dcm", "CanTp", "PduR"]:
+    libsForCanBL[libName] = Glob("config/%s/%s.json" % (libName, libName))
 
 
 @register_application
 class ApplicationCanBL(ApplicationBL):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.LIBS.append('Simulator')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
+        self.LIBS += ["LibC"]
+        self.Append(CPPDEFINES=["USE_STDIO_CAN", "USE_STD_PRINTF"])
+        self.Append(
+            CPPDEFINES=[
+                "BL_USE_CRC_32",
+                "BL_USE_APP_INFO",
+                "BL_USE_APP_INFO_V2",
+            ]
+        )
 
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['CANTP_LL_DL=%s' % (LL_DL)])
+            self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
         self.libsForBL = libsForCanBL
         super().config()
-        self.Append(CPPDEFINES=['USE_CAN'])
+        self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
 
 
 libsForLinBL = {}
-for libName in ['BL', 'Dcm', 'LinTp', 'LinIf']:
-    libsForLinBL[libName] = Glob('config/%s_Cfg.c' % (libName))
+for libName in ["BL"]:
+    libsForLinBL[libName] = Glob("config/%s_Cfg.c" % (libName))
+for libName in ["Dcm", "LinTp", "LinIf"]:
+    libsForLinBL[libName] = Glob("config/%s/%s.json" % (libName, libName))
+# libsForLinBL['Dll:lvds.slave'] = Glob('config/Dll_Cfg.c')
 
 
 @register_application
 class ApplicationLinBL(ApplicationBL):
     def platform_config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG'])
-        self.LIBS.append('Simulator')
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
 
     def config(self):
         if LL_DL != None:
-            self.Append(CPPDEFINES=['LINTP_LL_DL=%s' % (LL_DL)])
+            self.Append(CPPDEFINES=["LINTP_LL_DL=%s" % (LL_DL)])
         self.libsForBL = libsForLinBL
         super().config()
         self.platform_config()

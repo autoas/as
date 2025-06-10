@@ -4,8 +4,8 @@
  *
  * ref: Specification of PDU Router AUTOSAR CP Release 4.4.0
  */
-#ifndef _PDUR_PRIV_H_
-#define _PDUR_PRIV_H_
+#ifndef PDUR_PRIV_H
+#define PDUR_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "PduR_Cfg.h"
@@ -20,6 +20,7 @@
 typedef enum {
   PDUR_MODULE_CANIF,
   PDUR_MODULE_CANTP,
+  PDUR_MODULE_J1939TP,
   PDUR_MODULE_LINIF,
   PDUR_MODULE_LINTP,
   PDUR_MODULE_DOIP,
@@ -27,6 +28,7 @@ typedef enum {
   PDUR_MODULE_OSEKNM,
   /* ---- low / upper ---- */
   PDUR_MODULE_ISOTP,
+  PDUR_MODULE_SECOC,
   PDUR_MODULE_COM,
   PDUR_MODULE_DCM,
 } PduR_ModuleType;
@@ -76,13 +78,15 @@ struct PduR_Config_s {
 #endif
   const PduR_RoutingPathType *RoutingPaths;
   uint16_t numOfRoutingPaths;
-  const PduIdType DCM_TX_BASE_ID;
-  const PduIdType DOIP_RX_BASE_ID;
-  const PduIdType DOIP_TX_BASE_ID;
-  const PduIdType CANTP_RX_BASE_ID;
-  const PduIdType CANTP_TX_BASE_ID;
-  const PduIdType LINTP_RX_BASE_ID;
-  const PduIdType LINTP_TX_BASE_ID;
+  const PduIdType dcmTxBaseID;
+  const PduIdType doipRxBaseID;
+  const PduIdType doipTxBaseID;
+  const PduIdType cantpRxBaseID;
+  const PduIdType cantpTxBaseID;
+  const PduIdType lintpRxBaseID;
+  const PduIdType lintpTxBaseID;
+  const PduIdType j1939tpRxBaseID;
+  const PduIdType j1939tpTxBaseID;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 extern const PduR_ConfigType PduR_Config;
@@ -152,4 +156,4 @@ void PduR_MemInit(void);
 uint8_t *PduR_MemAlloc(uint32_t size);
 uint8_t *PduR_MemGet(uint32_t *size);
 void PduR_MemFree(uint8_t *buffer);
-#endif /* _PDUR_PRIV_H_ */
+#endif /* PDUR_PRIV_H */

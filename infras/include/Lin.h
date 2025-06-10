@@ -8,6 +8,9 @@
 #define LIN_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define LIN_CLASSIC_CS ((Lin_FrameCsModelType)0)
 #define LIN_ENHANCED_CS ((Lin_FrameCsModelType)1)
@@ -16,6 +19,18 @@
 #define LIN_FRAMERESPONSE_TX ((Lin_FrameResponseType)0)
 #define LIN_FRAMERESPONSE_RX ((Lin_FrameResponseType)1)
 #define LIN_FRAMERESPONSE_IGNORE ((Lin_FrameResponseType)2)
+
+#define LIN_CS_UNINIT ((Lin_ControllerStateType)0)
+#define LIN_CS_STARTED ((Lin_ControllerStateType)1)
+#define LIN_CS_STOPPED ((Lin_ControllerStateType)2)
+#define LIN_CS_SLEEP ((Lin_ControllerStateType)3)
+
+/* @SWS_Lin_00048 */
+#define LIN_E_UNINIT 0x00
+#define LIN_E_INVALID_CHANNEL 0x02
+#define LIN_E_INVALID_POINTER 0x03
+#define LIN_E_STATE_TRANSITION 0x04
+#define LIN_E_PARAM_POINTER 0x05
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Lin_00228 */
 #ifdef LIN_USE_EXT_ID
@@ -34,16 +49,15 @@ typedef uint8_t Lin_FrameDlType;
 
 /* @SWS_Lin_00232 */
 typedef struct {
+  uint8_t *SduPtr;
   Lin_FramePidType Pid;
   Lin_FrameCsModelType Cs;
   Lin_FrameResponseType Drc;
   Lin_FrameDlType Dl;
-  uint8_t *SduPtr;
 } Lin_PduType;
 
 /* @SWS_Lin_00233 */
-typedef enum
-{
+typedef enum {
   LIN_NOT_OK,
   LIN_TX_OK,
   LIN_TX_BUSY,
@@ -58,8 +72,7 @@ typedef enum
 } Lin_StatusType;
 
 /* @SWS_Lin_91140 */
-typedef enum
-{
+typedef enum {
   LIN_ERR_HEADER,
   LIN_ERR_RESP_STOPBIT,
   LIN_ERR_RESP_CHKSUM,
@@ -73,13 +86,7 @@ typedef enum
   LIN_ERR_BUFFER_OVERRUN,
 } Lin_SlaveErrorType;
 
-typedef enum
-{
-  LIN_CS_UNINIT,
-  LIN_CS_STARTED,
-  LIN_CS_STOPPED,
-  LIN_CS_SLEEP
-} Lin_ControllerStateType;
+typedef uint8_t Lin_ControllerStateType;
 
 /* extended LIN error type */
 typedef Lin_SlaveErrorType Lin_ErrorType;
@@ -92,6 +99,19 @@ typedef struct Lin_Config_s Lin_ConfigType;
 /* @SWS_Lin_00006 */
 void Lin_Init(const Lin_ConfigType *ConfigPtr);
 
+/* @SWS_Lin_00166: This service is only applicable for LIN master node  */
+Std_ReturnType Lin_GoToSleep(uint8_t Channel);
+
+/* @SWS_Lin_00167 */
+Std_ReturnType Lin_GoToSleepInternal(uint8_t Channel);
+
+/* @SWS_Lin_00169 */
+Std_ReturnType Lin_Wakeup(uint8_t Channel);
+
+/* @SWS_Lin_00256 */
+Std_ReturnType Lin_WakeupInternal(uint8_t Channel);
+
+/* deprecated, don't use this API any more */
 Std_ReturnType Lin_SetControllerMode(uint8_t Channel, Lin_ControllerStateType Transition);
 
 /* @SWS_Lin_00191 */
@@ -104,4 +124,8 @@ void Lin_MainFunction(void);
 void Lin_MainFunction_Write(uint8_t channel);
 void Lin_MainFunction_Read(void);
 void Lin_ErrorIntication(uint8_t channel, Lin_ErrorType error);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIN_H */

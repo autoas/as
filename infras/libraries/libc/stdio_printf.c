@@ -28,10 +28,6 @@
 #define SPECIAL (1 << 5) /* 0x */
 #define LARGE (1 << 6)   /* use 'ABCDEF' instead of 'abcdef' */
 
-#ifndef _G_va_list
-#define _G_va_list __gnuc_va_list
-#endif
-
 #define STDIO_PUTC(o, c)                                                                           \
   do {                                                                                             \
     if (NULL != (o)) {                                                                             \
@@ -198,7 +194,7 @@ static char *print_number(char *buf, char *end, long num, int base, int s, int t
   return buf;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-int vsnprintf(char *buf, size_t size, const char *fmt, _G_va_list args) {
+int vsnprintf(char *buf, size_t size, const char *fmt, va_list args) {
 #ifdef TM_PRINTF_LONGLONG
   unsigned long long num;
 #else
@@ -299,6 +295,10 @@ int vsnprintf(char *buf, size_t size, const char *fmt, _G_va_list args) {
         ++fmt;
       }
 #endif
+      if (qualifier == 'h' && *fmt == 'h') {
+        qualifier = 'b';
+        ++fmt;
+      }
     }
 
     /* the default base */
@@ -361,9 +361,10 @@ int vsnprintf(char *buf, size_t size, const char *fmt, _G_va_list args) {
         flags |= ZEROPAD;
       }
 #ifdef TM_PRINTF_PRECISION
-      str = print_number(str, end, (long)va_arg(args, void *), 16, field_width, precision, flags);
+      str = print_number(str, end, (long)(uintptr_t)va_arg(args, void *), 16, field_width,
+                         precision, flags);
 #else
-      str = print_number(str, end, (long)va_arg(args, void *), 16, field_width, flags);
+      str = print_number(str, end, (long)(uintptr_t)va_arg(args, void *), 16, field_width, flags);
 #endif
       continue;
 
@@ -468,8 +469,8 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
  * @param arg_ptr the arg_ptr
  * @param format the format
  */
-int vsprintf(char *buf, const char *format, _G_va_list arg_ptr) {
-  return vsnprintf(buf, (unsigned long)-1, format, arg_ptr);
+int vsprintf(char *buf, const char *format, va_list arg_ptr) {
+  return vsnprintf(buf, INT16_MAX, format, arg_ptr);
 }
 
 /**
@@ -504,15 +505,20 @@ int printf(const char *fmt, ...) {
 
   va_start(args, fmt);
 
-  length = vsnprintf(NULL, -1, fmt, args);
+  length = vsnprintf(NULL, INT16_MAX, fmt, args);
 
   va_end(args);
 
   return length;
 }
 
+#ifndef STD_NO_PUTS
 int puts(const char *pstr) {
+#ifdef USE_STD_PRINTF
+  return std_printf("%s\n", pstr);
+#else
   return printf("%s\n", pstr);
+#endif
 }
 
 #ifdef putchar
@@ -522,3 +528,4 @@ int putchar(int c) {
   stdio_putc(c);
   return 1;
 }
+#endif

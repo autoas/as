@@ -2,11 +2,47 @@
   {
     "title" : "Dcm", "type": "object",
     "properties": {
+      "ServiceVerification": { "type": "string", "default": "NULL", "description": "service verification hook" },
       "timings": { "title": "timings", "type": "object",
         "properties": {
           "S3Server": { "type": "integer", "default": 5000, "minimum": 0,"maximum": 100000 },
-          "P2ServerMin": { "type": "integer", "default": 450, "minimum": 0,"maximum": 100000 },
-          "P2ServerMax": { "type": "integer", "default": 500, "minimum": 0,"maximum": 100000 }
+          "P2ServerAjust": { "type": "integer", "default": 20, "minimum": 0,"maximum": 100000 },
+          "P2StarServerAdjust": { "type": "integer", "default": 100, "minimum": 0,"maximum": 100000 },
+          "P2ServerMax": { "type": "integer", "default": 50, "minimum": 0,"maximum": 100000 },
+          "P2StarServerMax": { "type": "integer", "default": 5000, "minimum": 0,"maximum": 100000 }
+        }
+      },
+      "EnableGlobalReadDtcSubFunctions": { "type": "bool", "default": false },
+      "ReadDtcSubFunctions": {
+        "type": "array", "enabled": "'${/Dcm/EnableGlobalReadDtcSubFunctions}' == 'True'", "items": {
+          "type": "object", "title": "SubFunction",
+          "properties": {
+            "name": { "type": "string", "map": {
+                "ReportNumberOfDTCByStatusMask": { "type": 0 },
+                "ReportDTCByStatusMask": { "type": 2 },
+                "ReportDTCSnapshotIdentification": { "type": 3 },
+                "ReportDTCSnapshotRecordByDTCNumber": { "type": 4 },
+                "ReportDTCExtendedDataRecordByDTCNumber": { "type": 5 },
+                "ReportSupportedDTC": { "type": "0x0A" },
+                "ReportMirrorMemoryDTCByStatusMask": { "type": "0x0F" },
+                "ReportMirrorMemoryDTCExtendedDataRecordByDTCNumber": { "type": "0x10" },
+                "ReportNumberOfMirrorMemoryDTCByStatusMask": { "type": "0x11" }
+                },
+              "friends": ["type"] },
+            "type": { "type": "hide" },
+            "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+            "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+            "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+          }
+        }
+      },
+      "channels": {
+        "type": "array",
+        "items": { "title": "channel", "type": "object",
+          "properties": {
+            "name": { "type": "string", "editable": true, "default": "", "enum": ["P2P", "P2A"],
+              "description": "name must starts with P2A for functional request channel!" }
+          }
         }
       },
       "security": {
@@ -57,6 +93,7 @@
             "name": { "type": "string" },
             "low": { "type": "integer", "format": "hex", "default": 0, "minimum": 0,"maximum": 4294967295 },
             "high": { "type": "integer", "format": "hex", "default": 1048576, "minimum": 0,"maximum": 4294967295 },
+            "attr": {"type": "string", "default": "rw", "enum": ["r", "w", "rw"]},
             "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
             "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
             "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
@@ -72,27 +109,28 @@
           "type": "object", "title": "service", "orders": ["name"], "display_with_list": false,
           "properties": {
             "name": { "type": "string", "map": { 
-                "session control": { "id": "0x10", "extend": true },
-                "ecu reset": { "id": "0x11", "extend": true },
-                "clear dtc": { "id": "0x14" },
-                "read dtc": { "id": "0x19" },
-                "read did": { "id": "0x22", "extend": true },
-                "read memory by address": { "id": "0x23" },
-                "security access": { "id": "0x27" },
-                "communication control": { "id": "0x28", "extend": true },
-                "authentication": { "id": "0x29", "extend": true },
-                "read periodic did": { "id": "0x2A", "extend": true },
-                "dynamic defined did": { "id": "0x2C" },
-                "write did": { "id": "0x2E", "extend": true },
-                "ioctl": { "id": "0x2F", "extend": true },
-                "routine control": { "id": "0x31", "extend": true },
-                "request download": { "id": "0x34", "extend": true },
-                "request upload": { "id": "0x35", "extend": true },
-                "transfer data": { "id": "0x36", "extend": true },
-                "transfer exit": { "id": "0x37", "extend": true },
-                "write memory by address": { "id": "0x3D" },
-                "tester present": { "id": "0x3E" },
-                "control dtc setting": { "id": "0x85" }
+                "Session Control": { "id": "0x10", "extend": true },
+                "Ecu Reset": { "id": "0x11", "extend": true },
+                "Clear DTC": { "id": "0x14" },
+                "Read DTC": { "id": "0x19", "extend": true },
+                "Read DID": { "id": "0x22", "extend": true },
+                "Read Memory by Address": { "id": "0x23" },
+                "Read Scaling DID": { "id": "0x24", "extend": true },
+                "Security Access": { "id": "0x27" },
+                "Communication Control": { "id": "0x28", "extend": true },
+                "Authentication": { "id": "0x29", "extend": true },
+                "Read Periodic DID": { "id": "0x2A", "extend": true },
+                "Dynamic Define DID": { "id": "0x2C" },
+                "Write DID": { "id": "0x2E", "extend": true },
+                "IO Control": { "id": "0x2F", "extend": true },
+                "Routine Control": { "id": "0x31", "extend": true },
+                "Request Download": { "id": "0x34", "extend": true },
+                "Request Upload": { "id": "0x35", "extend": true },
+                "Transfer Data": { "id": "0x36", "extend": true },
+                "Request Transfer Exit": { "id": "0x37", "extend": true },
+                "Write Memory by Address": { "id": "0x3D" },
+                "Tester Present": { "id": "0x3E" },
+                "Control DTC Setting": { "id": "0x85" }
               },
               "friends": ["id"] },
             "id": { "type": "hide" },
@@ -101,19 +139,46 @@
             "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
           },
           "extends": {
-            "session control": {
+            "Session Control": {
               "API": { "type": "string", "default": "Xxx_GetSessionChangePermission" }
             },
-            "ecu reset": {
-              "API": { "type": "string", "default": "Xxx_GetEcuResetPermission" }
+            "Ecu Reset": {
+              "API": { "type": "string", "default": "Xxx_GetEcuResetPermission" },
+              "delay": { "type": "integer", "format": "dec", "default": 100, "minimum": 0,"maximum": 655350 }
             },
-            "read did" : {
+            "Read DTC" : {
+              "functions": {
+                "enabled": "'${/Dcm/EnableGlobalReadDtcSubFunctions}' == 'False'",
+                "type": "array", "items": {
+                  "type": "object", "title": "SubFunction",
+                  "properties": {
+                    "name": { "type": "string", "map": {
+                        "ReportNumberOfDTCByStatusMask": { "type": 0 },
+                        "ReportDTCByStatusMask": { "type": 2 },
+                        "ReportDTCSnapshotIdentification": { "type": 3 },
+                        "ReportDTCSnapshotRecordByDTCNumber": { "type": 4 },
+                        "ReportDTCExtendedDataRecordByDTCNumber": { "type": 5 },
+                        "ReportSupportedDTC": { "type": "0x0A" },
+                        "ReportMirrorMemoryDTCByStatusMask": { "type": "0x0F" },
+                        "ReportMirrorMemoryDTCExtendedDataRecordByDTCNumber": { "type": "0x10" },
+                        "ReportNumberOfMirrorMemoryDTCByStatusMask": { "type": "0x11" }
+                        },
+                      "friends": ["type"] },
+                    "type": { "type": "hide" },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+                  }
+                }
+              }
+            },
+            "Read DID" : {
               "DIDs": {
                 "type": "array", "items": {
                   "type": "object", "title": "DID",
                   "properties": {
                     "name": { "type": "string" },
-                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0, "maximum": 65535 },
                     "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
                     "API": { "type": "string", "default": "Xxx_ReadDID${name}" },
                     "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
@@ -123,7 +188,23 @@
                 }
               }
             },
-            "communication control" : {
+            "Read Scaling DID" : {
+              "DIDs": {
+                "type": "array", "items": {
+                  "type": "object", "title": "DID",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0,"maximum": 65535 },
+                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
+                    "API": { "type": "string", "default": "Xxx_ReadScalingDID${name}" },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
+                  }
+                }
+              }
+            },
+            "Communication Control" : {
               "functions": {
                 "type": "array", "items": {
                   "type": "object", "title": "function",
@@ -135,7 +216,7 @@
                 }
               }
             },
-            "authentication": {
+            "Authentication": {
               "functions": {
                 "type": "array", "items": {
                   "type": "object", "title": "function",
@@ -146,7 +227,7 @@
                 }
               }
             },
-            "read periodic did": {
+            "Read Periodic DID": {
               "DIDs": {
                 "type": "array", "items": {
                   "type": "object", "title": "DID",
@@ -162,7 +243,7 @@
                 }
               }
             },
-            "write did" : {
+            "Write DID" : {
               "DIDs": {
                 "type": "array", "items": {
                   "type": "object", "title": "DID",
@@ -178,7 +259,7 @@
                 }
               }
             },
-            "ioctl" : {
+            "IO Control" : {
               "IOCTLs": {
                 "type": "array", "items": {
                   "type": "object", "title": "IOCTL",
@@ -200,12 +281,15 @@
                           "API": { "type": "string", "default": "Xxx_IOCtl_${../../name}_${name}" }
                         }
                       }
-                    }
+                    },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
                   }
                 }
               }
             },
-            "routine control": {
+            "Routine Control": {
               "routines": {
                 "type": "array", "items": {
                   "type": "object", "title": "routine",
@@ -219,18 +303,21 @@
                         "stop": { "type": "string", "default": "NULL", "description": "can be NULL if not used" },
                         "result": { "type": "string", "default": "NULL", "description": "can be NULL if not used" }
                       }
-                    }
+                    },
+                    "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
+                    "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },
+                    "access": { "type": "array", "items": { "type": "string", "title": "access", "enum": ["physical", "functional"]} }
                   }
                 }
               }
             },
-            "request download": {
+            "Request Download": {
               "API": { "type": "string", "default": "Xxx_ProcessRequestDownload" }
             },
-            "request upload": {
+            "Request Upload": {
               "API": { "type": "string", "default": "Xxx_ProcessRequestUpload" }
             },
-            "transfer data": {
+            "Transfer Data": {
               "API": { 
                 "type": "object", "title": "API",
                 "properties": {
@@ -239,7 +326,7 @@
                 }
               }
             },
-            "transfer exit": {
+            "Request Transfer Exit": {
               "API": { "type": "string", "default": "Xxx_ProcessRequestTransferExit" }
             }
           }
@@ -330,6 +417,15 @@
           }
         }
       },
+      "Memorys": {
+        "type": "array", "items": {
+          "type": "object", "title": "memory",
+          "properties": {
+            "name": { "type": "string", "editable": true, "enum": ["Primary", "Mirror"] },
+            "origin": { "type": "integer", "format": "hex", "default": 1, "minimum": 0,"maximum": 65535 }
+          }
+        }
+      },
       "DTCs": {
         "type": "array", "items": {
           "type": "object", "title": "DTC",
@@ -337,8 +433,23 @@
             "name": { "type": "string" },
             "number": { "type": "string" },
             "priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 },
+            "destination": {
+              "type": "array", "items": { "title": "destination", "type": "string", "enumref": "/Dem/Memorys:name" }
+            },
+            "Environments": {
+              "type": "array", "items": { "title": "Environment", "type": "string", "enumref": "/Dem/Environments:name" }
+            },
             "conditions": {
-              "type": "array", "items": { "title": "condition", "type": "string", "enumref": "/Dem/conditions:name" }
+              "type": "array", "items": { "title": "condition", "editable": true, "type": "string", "enumref": "/Dem/conditions:name" }
+            },
+            "is_group": { "type": "bool", "default": false, "description": "the DTC is a group of events that combined" },
+            "events": {
+              "type": "array", "enabled": "'${../is_group}' == 'True'", "items": {
+                "type": "object", "title": "event",
+                "properties": {
+                  "name": { "type": "string" }
+                }
+              }
             }
           }
         }
@@ -379,11 +490,23 @@
     "title" : "NvM", "type": "object",
     "properties": {
       "target": { "type": "string", "default": "Fee", "enum": ["Fee", "Ea"] },
+      "banks": {
+        "type": "array", "enabled": "'${/NvM/target}' == 'Fee'", "items": {
+          "type": "object", "title": "bank",
+          "properties": {
+            "name": { "type": "string", "description": "name of the flash bank" },
+            "address": { "type": "integer", "default": 0, "description": "the start address of the flash bank" },
+            "size": { "type": "integer", "default": 32768, "description": "the size of the flash bank" },
+            "repeat": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535, "description": "how many this kind of banks continuously" }
+          }
+        }
+       },
       "blocks": {
         "type": "array", "items": {
           "type": "object", "title": "block",
           "properties": {
             "name": { "type": "string", "description": "name end with '{}' means repeatable array" },
+            "NumberOfWriteCycles": { "type": "integer", "default": 10000000 },
             "repeat": { "type": "integer", "default": 1, "minimum": 1,"maximum": 65535, "enabled": "'${name}'[-2:] == '{}'" },
             "data": {
               "type": "array", "items": {
@@ -425,16 +548,26 @@
           "properties": {
             "name": { "type": "string", "default": "CAN?" },
             "me": { "type": "string", "default": "AS", "description": "self node name" },
+            "use_dbc": { "type": "bool", "default": false },
+            "dbc": { "type": "string", "default": "", "description": "the path to a Vector CAN DBC file", "enabled": "'${use_dbc}' == 'True'" },
+            "TxTimeout": { "type": "integer", "default": 100 },
+            "NumHth": { "type": "integer", "default": 1, "description": "depends on the CanAc implementation, generally 1" },
+            "NumHrh": { "type": "integer", "default": 1, "description": "not used now, generally 1" },
+            "ignore": {
+              "type": "array", "items": {
+                "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU ignored in the DBC file"
+              }, "enabled": "'${../use_dbc}' == 'True'"
+            },
             "RxPdus": {
               "type": "array", "items": {
                 "type": "object", "title": "RxPdu",
                 "properties": {
-                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "name": { "type": "string", "editable": true, "enumref": "/EcuC/Pdus:name" },
                   "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
                   "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
                   "use_mask": { "type": "bool", "default": false },
                   "mask": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295, "enabled": "'${use_mask}' == 'True'" },
-                  "up": { "type": "string", "enum": ["CanTp", "OsekNm", "CanNm", "PduR"] }
+                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Xcp", "J1939Tp"] }
                 }
               }
             },
@@ -442,14 +575,30 @@
               "type": "array", "items": {
                 "type": "object", "title": "TxPdu",
                 "properties": {
-                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "name": { "type": "string", "editable": true, "enumref": "/EcuC/Pdus:name" },
                   "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
                   "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
                   "dynamic": { "type": "bool", "default": false },
-                  "up": { "type": "string", "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Com"] }
+                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Com", "Xcp", "J1939Tp"] }
                 }
               }
             }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "LinIf", "type": "object",
+    "properties": {
+      "networks": {
+        "type": "array", "items": {
+          "type": "object", "title": "network", "display_with_list": false,
+          "properties": {
+            "name": { "type": "string", "default": "LIN?" },
+            "me": { "type": "string", "default": "AS", "description": "self node name" },
+            "timeout": { "type": "integer", "format": "dec", "default": 100, "minimum": 0, "maximum": 4294967295 },
+            "ldf": { "type": "string", "default": "", "description": "the path to a LDF file" }
           }
         }
       }
@@ -462,9 +611,36 @@
         "type": "array", "items": {
           "type": "object", "title": "routine",
           "properties": {
-            "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
-            "from": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP"] },
-            "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP"] }
+            "name": { "type": "string", "editable": true, "enumref": "/EcuC/Pdus:name" },
+            "from": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp"] },
+            "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp"] }
+          }
+        }
+      },
+      "networks": {
+        "type": "array", "items": {
+          "type": "object", "title": "network", "display_with_list": false,
+          "properties": {
+            "name": { "type": "string", "default": "CAN?" },
+            "network": { "type": "string", "enum": ["CAN", "LIN"]},
+            "me": { "type": "string", "default": "AS", "description": "self node name" },
+            "use_dbc": { "type": "bool", "default": false },
+            "dbc": { "type": "string", "default": "", "description": "the path to a Vector CAN DBC file", "enabled": "'${use_dbc}' == 'True'" },
+            "ignore": {
+              "type": "array", "items": {
+                "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU ignored in the DBC file"
+              }, "enabled": "'${../use_dbc}' == 'True'"
+            }
+          }
+        }
+      },
+      "memory": {
+        "type": "array", "items": {
+          "type": "object", "title": "memory",
+          "properties": {
+            "name": { "type": "string" },
+            "size": { "type": "integer", "format": "dec", "default": 256, "minimum": 0, "maximum": 4294967295 },
+            "number": { "type": "integer", "format": "dec", "default": 2, "minimum": 0, "maximum": 4294967295 }
           }
         }
       }
@@ -473,11 +649,62 @@
   {
     "title": "CanTp", "type": "object",
     "properties": {
+      "UseTxConfirmation": { "type": "bool", "default": false, "description": "enable to use Tx comfirmation or not" },
       "channels": {
         "type": "array", "items": {
           "type": "object", "title": "channel",
           "properties": {
-            "name": { "type": "string" }
+            "name": { "type": "string" },
+            "N_As": { "type": "integer", "format": "dec", "default": 100, "minimum": 0, "maximum": 4294967295, "description": "Time for transmission of the CAN frame (any N-PDU) on the sender side" },
+            "N_Bs": { "type": "integer", "format": "dec", "default": 1000, "minimum": 0, "maximum": 4294967295, "description": "Time until reception of the next flow control N-PDU" },
+            "N_Cr": { "type": "integer", "format": "dec", "default": 1000, "minimum": 0, "maximum": 4294967295, "description": "Time until reception of the next consecutive frame N-PDU" },
+            "STmin": { "type": "integer", "format": "dec", "default": 0, "minimum": 0, "maximum": 255, "description": "Sets the duration of the minimum time the CanTp sender shall wait between the transmissions of two CF N-PDUs" },
+            "BS": { "type": "integer", "format": "dec", "default": 8, "minimum": 0, "maximum": 255, "description": "a number BS (Block Size) of consecutive frames" },
+            "WftMax": { "type": "integer", "format": "dec", "default": 8, "minimum": 0, "maximum": 255, "description": "how many Flow Control wait N-PDUs can be consecutively transmitted by the receiver" },
+            "AddressingFormat": { "type": "string", "default": "STANDARD", "enum": ["STANDARD", "EXTENDED"]},
+            "N_TA": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 255, "enabled": "'${AddressingFormat}' == 'EXTENDED'", "description": "target address if addressing format is CANTP_EXTENDED" },
+            "LL_DL": { "type": "integer", "format": "dec", "default": 8, "minimum": 0, "maximum": 255 },
+            "padding": { "type": "integer", "format": "dec", "default": "0x55", "minimum": 0, "maximum": 255 },
+            "ComType": { "type": "string", "default": "PHYSICAL", "enum": ["PHYSICAL", "FUNCTIONAL"]}
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "J1939Tp", "type": "object",
+    "properties": {
+      "RxChannels": {
+        "type": "array", "items": {
+          "type": "object", "title": "channel",
+          "properties": {
+            "name": { "type": "string" },
+            "Protocol": { "type": "string", "default": "CMDT", "enum": ["CMDT", "BAM"] },
+            "Tr": { "type": "integer", "format": "dec", "default": 200, "minimum": 0, "maximum": 4294967295 },
+            "T1": { "type": "integer", "format": "dec", "default": 750, "minimum": 0, "maximum": 4294967295 },
+            "T2": { "type": "integer", "format": "dec", "default": 1250, "minimum": 0, "maximum": 4294967295 },
+            "T3": { "type": "integer", "format": "dec", "default": 1250, "minimum": 0, "maximum": 4294967295 },
+            "T4": { "type": "integer", "format": "dec", "default": 1050, "minimum": 0, "maximum": 4294967295 },
+            "PacketsPerBlock": { "type": "integer", "format": "dec", "default": 8, "minimum": 0, "maximum": 255 },
+            "S": { "type": "integer", "format": "dec", "default": 0, "minimum": 0, "maximum": 255, "description": "FD session" }
+          }
+        }
+      },
+      "TxChannels": {
+        "type": "array", "items": {
+          "type": "object", "title": "channel",
+          "properties": {
+            "name": { "type": "string" },
+            "Protocol": { "type": "string", "default": "CMDT", "enum": ["CMDT", "BAM"] },
+            "PgPGN": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295, "description": "PGN of the referenced N-SDUs. " },
+            "STMin": { "type": "integer", "format": "dec", "default": 10, "minimum": 0, "maximum": 4294967295 },
+            "Tr": { "type": "integer", "format": "dec", "default": 200, "minimum": 0, "maximum": 4294967295 },
+            "T1": { "type": "integer", "format": "dec", "default": 750, "minimum": 0, "maximum": 4294967295 },
+            "T2": { "type": "integer", "format": "dec", "default": 1250, "minimum": 0, "maximum": 4294967295 },
+            "T3": { "type": "integer", "format": "dec", "default": 1250, "minimum": 0, "maximum": 4294967295 },
+            "T4": { "type": "integer", "format": "dec", "default": 1050, "minimum": 0, "maximum": 4294967295 },
+            "PacketsPerBlock": { "type": "integer", "format": "dec", "default": 8, "minimum": 0, "maximum": 255 },
+            "S": { "type": "integer", "format": "dec", "default": 0, "minimum": 0, "maximum": 255, "description": "FD session" }
           }
         }
       }
@@ -497,15 +724,36 @@
             "device": { "type": "string", "default": "simulator_v2", "enum": ["simulator_v2", "peak", "zlg", "vxl"] },
             "port": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
             "baudrate": { "type": "integer", "default": 500000, "minimum": 0, "maximum": 4294967295 },
-            "me": { "type": "string", "default": "AS", "enumref": "/Com/nodes", "description": "self node name" },
+            "me": { "type": "string", "default": "AS", "editable": true, "enumref": "/Com/nodes", "description": "self node name" },
+            "use_dbc": { "type": "bool", "default": false, "enabled": "'${network}' in ['CAN', 'CANFD']" },
+            "dbc": { "type": "string", "default": "", "description": "the path to a Vector CAN DBC file", "enabled": "'${network}' in ['CAN', 'CANFD'] and '${use_dbc}' == 'True'" },
+            "use_ldf": { "type": "bool", "default": false, "enabled": "'${network}' == 'LIN'" },
+            "ldf": { "type": "string", "default": "", "description": "the path to a LDF file", "enabled": "'${network}' == 'LIN' and '${use_ldf}' == 'True'" },
+            "timeout_factor": { "type": "integer", "default": 10, "minimum": 0, "maximum": 65535 },
+            "enable_message_rx_notificaiton": { "type": "bool", "default": false },
+            "enable_signal_rx_notification": { "type": "bool", "default": false },
+            "enable_message_rx_timeout_notificaiton": { "type": "bool", "default": false },
+            "enable_signal_rx_timeout_notification": { "type": "bool", "default": false },
+            "enable_message_tx_callout": { "type": "bool", "default": false },
+            "trigger": {
+              "type": "array", "items": {
+                "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU only to be trigger transmit"
+              }, "enabled": "'${../use_dbc}' == 'True'"
+            },
             "messages": {
               "type": "array", "items": {
                 "type": "object", "title": "message", "display_with_list": false,
                 "properties": {
-                  "name": { "type": "string", "enumref": "/EcuC/Pdus:name" },
+                  "name": { "type": "string", "editable": true, "enumref": "/EcuC/Pdus:name" },
                   "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
                   "dlc": { "type": "integer", "default": 8, "minimum": 0, "maximum": 255 },
-                  "node": { "type": "string", "default": "AS", "enumref": "/Com/nodes", "description": "node that transmit this message" },
+                  "node": { "type": "string", "default": "AS", "editable": true, "enumref": "/Com/nodes", "description": "node that transmit this message" },
+                  "FirstTime": { "type": "integer", "default": 0, "enabled": "'${node}' == '${../../me}'"},
+                  "CycleTime": { "type": "integer", "default": 0},
+                  "Timeout": { "type": "integer", "default": 0, "enabled": "'${node}' != '${../../me}'"},
+                  "RxNotification": { "type": "string", "default": "NULL", "enabled": "'${node}' != '${../../me}'"},
+                  "RxTOut": { "type": "string", "default": "NULL", "enabled": "'${node}' != '${../../me}'"},
+                  "TxIpduCallout": { "type": "string", "default": "NULL", "enabled": "'${node}' == '${../../me}'"},
                   "signals": {
                     "type": "array", "items": {
                       "type": "object", "title": "signal",
@@ -516,6 +764,7 @@
                         "endian": { "type": "string", "default": "big", "enum": ["big", "little"] },
                         "sign": { "type": "string", "default": "+", "enum": ["+", "-"] },
                         "is_group": { "type": "bool", "default": false },
+                        "dyn": { "type": "bool", "default": false, "description": "is this a dynamic length signal, and dynamic signal must be the last signal of the message" },
                         "group": { "type": "string", "enumref": "/Com/group_signals", "enabled": "'${is_group}' == 'True'"},
                         "InitialValue": { "type": "string", "default":"0", "description": "example: '0' for basic type, '[0, 1, 2]' for array" },
                         "RxNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}'"},

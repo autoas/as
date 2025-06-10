@@ -1,0 +1,10 @@
+{
+  "class": "LinTp",
+  "zero_cost": "Dcm",
+  "channels": [
+    {
+      "name": "P2P",
+      "N_TA": 1
+    }
+  ]
+}

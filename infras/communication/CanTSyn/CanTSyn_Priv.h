@@ -65,9 +65,9 @@ typedef struct {
   uint16_t GlobalTimeDebounceTime; /* @ECUC_CanTSyn_00045: in ms */
   uint16_t GlobalTimeTxPeriod;     /* @ECUC_CanTSyn_00017: in ms */
   PduIdType TxPduId;
-  boolean GlobalTimeTxCrcSecured;  /* @ECUC_CanTSyn_00015: if true crc supported else not*/
-  boolean ImmediateTimeSync;       /* @ECUC_CanTSyn_00043 */
-  boolean TxTmacCalculated;        /* @ECUC_CanTSyn_00047: if true TMAC calculated else not */
+  boolean GlobalTimeTxCrcSecured; /* @ECUC_CanTSyn_00015: if true crc supported else not*/
+  boolean ImmediateTimeSync;      /* @ECUC_CanTSyn_00043 */
+  boolean TxTmacCalculated;       /* @ECUC_CanTSyn_00047: if true TMAC calculated else not */
 } CanTSyn_GlobalTimeMasterType;
 
 /* @ECUC_CanTSyn_00012 */

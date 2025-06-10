@@ -6,8 +6,10 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import json
-from bitarray import bitarray
+from one.AsPy import bitarray
+from one.AsPy import lua
 from one.dcm import dcm
+import sys
 
 CWD = os.path.abspath(os.path.dirname(__file__))
 
@@ -23,28 +25,89 @@ def FormatMessage(res):
 
 
 class dcmbits():
-    def __init__(self):
-        self.bits = bitarray()
+    def __init__(self, data=None):
+        if data != None:
+            self.bits = bitarray(data)
+        else:
+            self.bits = bitarray()
 
     def append(self, d, num=1):
-        for i in range(num):
-            if ((d & (1 << (num-1-i))) != 0):
-                self.bits.append(True)
-            else:
-                self.bits.append(False)
+        self.bits.put(d, num)
 
-    def toint(self, pos, num):
-        bits = self.bits[pos:pos+num]
-        nbyte = int((num+7)/8)
-        left = nbyte*8 - num
-        v = 0
-        for b in bits.tobytes():
-            v = (v << 8) + b
-        v = v >> left
+    def get(self, num):
+        v = self.bits.get(num)
         return v
+
+    def left(self):
+        return self.bits.left()
+
+    def drop(self, num):
+        self.bits.drop(num)
 
     def toarray(self):
         return self.bits.tobytes()
+
+
+class wTable(QTableWidget):
+    def __init__(self, data, parent):
+        super(QTableWidget, self).__init__(parent)
+        self.dcm = parent
+        self.Data = data
+        headers = []
+        for d in self.Data.get('datas', []):
+            headers.append(d['name'])
+        self.setColumnCount(len(headers))
+        self.setHorizontalHeaderLabels(headers)
+        self.setMinimumHeight(200)
+
+    def getValue(self, data):
+        if 'lua' in self.Data:
+            api = self.Data['lua']
+            bs, headers, values = self.dcm.lua.table_get(api)
+            for b in bs:
+                data.append(b, 8)
+            self.setColumnCount(len(headers))
+            widths = [len(h) * 10 for h in headers]
+            self.setHorizontalHeaderLabels(headers)
+            for idx, v in enumerate(values):
+                row = idx / len(headers)
+                col = idx % len(headers)
+                self.setRowCount(row + 1)
+                newItem = QTableWidgetItem(v)
+                newItem.setFlags(newItem.flags() ^ Qt.ItemIsEditable)
+                self.setItem(row, col, newItem);
+                if widths[col] < (len(v) * 10):
+                    widths[col] = len(v) * 10
+                if widths[col] > 500:
+                    widths[col] = 500
+            for col, w in enumerate(widths):
+                self.setColumnWidth(col, w)
+        else:
+            raise
+
+    def setValue(self, data):
+        if 'lua' in self.Data:
+            api = self.Data['lua']
+            headers, values, nBits = self.dcm.lua.table_decode(api, data.left())
+            self.setColumnCount(len(headers))
+            widths = [len(h) * 10 for h in headers]
+            self.setHorizontalHeaderLabels(headers)
+            for idx, v in enumerate(values):
+                row = idx / len(headers)
+                col = idx % len(headers)
+                self.setRowCount(row + 1)
+                newItem = QTableWidgetItem(v)
+                newItem.setFlags(newItem.flags() ^ Qt.ItemIsEditable)
+                self.setItem(row, col, newItem);
+                if widths[col] < (len(v) * 10):
+                    widths[col] = len(v) * 10
+                if widths[col] > 500:
+                    widths[col] = 500
+            for col, w in enumerate(widths):
+                self.setColumnWidth(col, w)
+            data.drop(nBits)
+        else:
+            raise
 
 
 class wDataUS(QComboBox):
@@ -64,7 +127,16 @@ class wDataUS(QComboBox):
 
         if 'default' in self.Data:
             default = self.Data['default']
-            self.setCurrentIndex(default)
+            si = 0
+            index = -1
+            for i, select in enumerate(self.Data['Select']):
+                if (default == select['value']):
+                    index = i
+                    break
+            self.setCurrentIndex(index)
+
+        if data.get('readonly', False):
+            self.setEnabled(False)
 
     def getValue(self, data):
         index = self.currentIndex()
@@ -80,15 +152,13 @@ class wDataUS(QComboBox):
         assert (svalue)
 
         d = eval(svalue)
-        a = dcmbits()
         num = eval(self.Data['type'][1:-6])
         data.append(d, num)
 
-    def setValue(self, data, start):
+    def setValue(self, data):
         try:
             num = eval(self.Data['type'][1:-6])
-            value = data.toint(start, num)
-            start += num
+            value = data.get(num)
 
         except IndexError:
             QMessageBox(QMessageBox.Critical, 'Error', 'Data record witn Invalid Length  %s.' % (
@@ -101,7 +171,6 @@ class wDataUS(QComboBox):
             else:
                 index += 1
         self.setCurrentIndex(index)
-        return start
 
 
 class wDataU(QLineEdit):
@@ -115,8 +184,11 @@ class wDataU(QLineEdit):
             self.setText('%s' % (data['default']))
         else:
             self.setText('0')
+        if data.get('readonly', False):
+            self.setReadOnly(True)
+            self.setStyleSheet("background-color:rgba(128,128,128,255)")
 
-    def setValue(self, data, start):
+    def setValue(self, data):
         try:
             if (self.Data['type'][-5:] == 'Array'):
                 num = eval(self.Data['type'][1:-5])
@@ -124,22 +196,22 @@ class wDataU(QLineEdit):
                 if (self.Data['display'] == 'asc'):
                     value = 'text='
                 size = self.Data['size']
+                raw = []
                 for i in range(0, size):
-                    v = data.toint(start, num)
+                    v = data.get(num)
                     if (self.Data['display'] == 'hex'):
                         value += '0x%X,' % (v)
                     elif (self.Data['display'] == 'asc'):
                         value += '%c' % (v)
                     else:
                         value += '%d,' % (v)
-                    start += num
+                    raw.append(hex(v))
                 if (self.Data['display'] != 'asc'):
                     value = value[:-1] + ' ]'
-
+                self.setToolTip('raw=%s' % (raw))
             else:
                 num = eval(self.Data['type'][1:])
-                value = data.toint(start, num)
-                start += num
+                value = data.get(num)
         except IndexError:
             QMessageBox(QMessageBox.Critical, 'Error', 'Data record witn Invalid Length  %s.' % (
                 self.dcm.get_response())).exec_()
@@ -151,7 +223,6 @@ class wDataU(QLineEdit):
                 self.setText('0x%X' % (value))
             else:
                 self.setText('%d' % (value))
-        return start
 
     def getValue(self, data):
         stype = self.Data['type']
@@ -190,7 +261,7 @@ class UISessionControl(QGroupBox):
         self.dcm = parent
         self.cmbxSessions = QComboBox()
         for sesNmae, _ in service.items():
-            self.service[sesNmae] = eval(self.service[sesNmae])
+            self.service[sesNmae] = eval(str(self.service[sesNmae]))
             self.cmbxSessions.addItem(sesNmae)
         grid = QGridLayout()
         grid.addWidget(QLabel('Session:'), 0, 0)
@@ -234,7 +305,7 @@ class UISecurityAccess(QGroupBox):
         self.btnUnlock.clicked.connect(self.on_btnUnlock_clicked)
 
     def Seed2Key(self, Level, res):
-        alg = Level['algorithm']
+        alg = Level['python']
         if (type(alg) == list):
             alg = '\n'.join(alg)
         if (alg.startswith('def')):
@@ -242,9 +313,10 @@ class UISecurityAccess(QGroupBox):
             alg = alg.replace('$LSL', '>>')
             alg = alg.replace('$LSR', '<<')
             alg = alg.replace('$AND', '&')
-            fp = open('./SeedToKey.py', 'w')
+            fp = open('%s/SeedToKey.py' % (CWD), 'w')
             fp.write(alg)
             fp.close()
+            sys.path.append(CWD)
             import SeedToKey
             return SeedToKey.CalculateKey(res.toarray())
         else:
@@ -287,6 +359,103 @@ class UISecurityAccess(QGroupBox):
         else:
             QMessageBox(QMessageBox.Information, 'Info', 'SecurityAccess okay with response %s' % (
                 FormatMessage(res))).exec_()
+
+
+class UIService(QGroupBox):
+    def __init__(self, service, parent):
+        super(QGroupBox, self).__init__(service['name'], parent)
+        self.service = service
+        self.dcm = parent
+        self.SID = eval(service['SID'])
+
+        vbox = QVBoxLayout()
+        grid = QGridLayout()
+
+        self.leTxDatas = []
+        self.leRxDatas = []
+        row = 0
+        col = 0
+        tables = []
+        for data in self.service.get('transmit', []):
+            if data['type'] == 'Table':
+                leData = wTable(data, parent)
+                tables.append(leData)
+                self.leTxDatas.append(leData)
+                continue
+            elif (data['type'][-6:] == 'Select'):
+                leData = wDataUS(data, parent)
+            else:
+                leData = wDataU(data, parent)
+            self.leTxDatas.append(leData)
+            # not visible, not add it
+            if data.get('visible', True) == False:
+                continue
+            grid.addWidget(QLabel(data['name']+":"), row, col+0)
+            grid.addWidget(leData, row, col+1)
+            col += 2
+
+            if (col >= 8):
+                row += 1
+                col = 0
+
+        if len(tables) > 0:
+            vbox.addLayout(grid)
+            for table in tables:
+                vbox.addWidget(table)
+            grid = QGridLayout()
+            row = 0
+        self.btnEnter = QPushButton("Enter")
+        grid.addWidget(self.btnEnter, row, 7)
+        col = 0
+        row += 1
+        tables = []
+        for data in self.service.get('receive', []):
+            data['readonly'] = True
+            if data['type'] == 'Table':
+                leData = wTable(data, parent)
+                tables.append(leData)
+                self.leRxDatas.append(leData)
+                continue
+            elif (data['type'][-6:] == 'Select'):
+                leData = wDataUS(data, parent)
+            else:
+                leData = wDataU(data, parent)
+            self.leRxDatas.append(leData)
+            # not visible, not add it
+            if data.get('visible', True) == False:
+                continue
+            grid.addWidget(QLabel(data['name']), row, col+0)
+            grid.addWidget(leData, row, col+1)
+            col += 2
+
+            if (col >= 8):
+                row += 1
+                col = 0
+        vbox.addLayout(grid)
+
+        if len(tables) > 0:
+            for table in tables:
+                vbox.addWidget(table)
+
+        self.btnEnter.clicked.connect(self.on_btnEnter_clicked)
+        self.setLayout(vbox)
+
+    def on_btnEnter_clicked(self):
+        data = dcmbits()
+        data.append(self.SID, 8)
+        for leData in self.leTxDatas:
+            leData.getValue(data)
+
+        res = self.dcm.transmit(data.toarray())
+        if (res == None):
+            return
+        if (res.toarray()[0] != (self.SID | 0x40)):
+            QMessageBox(QMessageBox.Critical, 'Error',
+                        'Failed!  %s.' % (self.dcm.get_last_error())).exec_()
+        else:
+            res.get(8)
+            for leData in self.leRxDatas:
+                start = leData.setValue(res)
 
 
 class UIDataIdentifier(QGroupBox):
@@ -337,13 +506,13 @@ class UIDataIdentifier(QGroupBox):
         res = self.dcm.transmit(data.toarray())
         if (res == None):
             return
-        start = 24
         if (res.toarray()[0] != 0x62):
             QMessageBox(QMessageBox.Critical, 'Error',
                         'DID Start Failed!  %s.' % (self.dcm.get_last_error())).exec_()
         else:
+            res.get(24)
             for leData in self.leDatas:
-                start = leData.setValue(res, start)
+                start = leData.setValue(res)
 
     def on_btnWrite_clicked(self):
         data = dcmbits()
@@ -834,6 +1003,9 @@ class UIGroup(QScrollArea):
                 vBox.addWidget(UISessionControl(service, parent))
             elif name == "SecurityAccess":
                 vBox.addWidget(UISecurityAccess(service, parent))
+            elif name == "Services":
+                for sr in service:
+                    vBox.addWidget(UIService(sr, parent))
             elif name == "DataIdentifier":
                 for sr in service:
                     vBox.addWidget(UIDataIdentifier(sr, parent))
@@ -847,6 +1019,7 @@ class UIGroup(QScrollArea):
                 vBox.addWidget(UIDTC(service, parent))
         wd.setLayout(vBox)
         self.setWidget(wd)
+        self.setWidgetResizable(True)
 
 
 class UIDcm(QWidget):
@@ -892,7 +1065,8 @@ class UIDcm(QWidget):
             self.killTimer(self.TPtimer)
 
     def timerEvent(self, event):
-        self.dcm.transmit([0x3e, 0x80])
+        if self.dcm != None:
+            self.dcm.transmit([0x3e, 0x80])
 
     def loadUI(self):
         self.djs['target'] = eval(str(self.leTarget.text()))
@@ -905,12 +1079,26 @@ class UIDcm(QWidget):
         except Exception as e:
             QMessageBox(QMessageBox.Critical, 'Error', '%s' % (e)).exec_()
             return
+        try:
+            DIR = os.path.dirname(str(self.leJson.text()))
+            lf = '%s/%s' % (DIR, self.djs['lua'])
+            self.lua = lua(lf)
+        except Exception as e:
+            QMessageBox(QMessageBox.Critical, 'Error', '%s' % (e)).exec_()
+            return
+
         self.tabWidget.clear()
         for name, group in self.djs['groups'].items():
             self.tabWidget.addTab(UIGroup(group, self), name)
 
     def on_btnStart_clicked(self):
-        self.loadUI()
+        if self.btnStart.text() == 'start':
+            self.loadUI()
+            self.btnStart.setText('stop')
+        else:
+            self.tabWidget.clear()
+            self.dcm = None
+            self.btnStart.setText('start')
 
     def loadJson(self, djs):
         with open(djs) as f:
@@ -928,9 +1116,7 @@ class UIDcm(QWidget):
     def transmit(self, req):
         ercd, res = self.dcm.transmit(req)
         if ((ercd == True) or (res is not None)):
-            res2 = dcmbits()
-            for d in res:
-                res2.append(d, 8)
+            res2 = dcmbits(bytes(res))
             return res2
 
         QMessageBox(QMessageBox.Critical, 'Error',

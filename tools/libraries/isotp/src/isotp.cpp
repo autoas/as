@@ -39,6 +39,9 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
     isotp = isotp_lin_create(params);
     break;
 #endif
+  case ISOTP_OVER_J1939TP:
+    isotp = isotp_j1939tp_create(params);
+    break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
     isotp = isotp_doip_create(params);
@@ -65,6 +68,9 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
     r = isotp_lin_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
 #endif
+  case ISOTP_OVER_J1939TP:
+    r = isotp_j1939tp_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
     r = isotp_doip_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
@@ -94,6 +100,9 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
     r = isotp_lin_receive(isotp, rxBuffer, rxSize);
     break;
 #endif
+  case ISOTP_OVER_J1939TP:
+    r = isotp_j1939tp_receive(isotp, rxBuffer, rxSize);
+    break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
     r = isotp_doip_receive(isotp, rxBuffer, rxSize);
@@ -121,6 +130,9 @@ int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
     r = isotp_lin_ioctl(isotp, cmd, data, size);
     break;
 #endif
+  case ISOTP_OVER_J1939TP:
+    r = isotp_j1939tp_ioctl(isotp, cmd, data, size);
+    break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
     r = isotp_doip_ioctl(isotp, cmd, data, size);
@@ -142,6 +154,9 @@ void isotp_destory(isotp_t *isotp) {
     isotp_lin_destory(isotp);
     break;
 #endif
+  case ISOTP_OVER_J1939TP:
+    isotp_j1939tp_destory(isotp);
+    break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
     isotp_doip_destory(isotp);

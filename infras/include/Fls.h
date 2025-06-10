@@ -15,6 +15,15 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 #define E_FLS_PENDING ((Std_ReturnType)100)
 #define E_FLS_INCONSISTENT ((Std_ReturnType)101)
+
+/* @SWS_Fls_00004 */
+#define FLS_E_PARAM_CONFIG 0x01
+#define FLS_E_PARAM_ADDRESS 0x02
+#define FLS_E_PARAM_LENGTH 0x03
+#define FLS_E_PARAM_DATA 0x04
+#define FLS_E_UNINIT 0x05
+#define FLS_E_PARAM_POINTER 0x0a
+#define FLS_E_ALREADY_INITIALIZED 0x0b
 /* ================================ [ TYPES     ] ============================================== */
 #ifdef FLS_ADDRESS_TYPE_U16
 typedef uint16_t Fls_AddressType;
@@ -47,7 +56,11 @@ Std_ReturnType Fls_AcWrite(Fls_AddressType address, const uint8_t *data, Fls_Len
 Std_ReturnType Fls_AcRead(Fls_AddressType address, uint8_t *data, Fls_LengthType length);
 Std_ReturnType Fls_AcCompare(Fls_AddressType address, uint8_t *data, Fls_LengthType length);
 Std_ReturnType Fls_AcBlankCheck(Fls_AddressType address, Fls_LengthType length);
+boolean Fls_AcIsIdle(void);
 /* ================================ [ DATAS     ] ============================================== */
+#if defined(linux) || defined(_WIN32)
+extern uint8_t g_FlsAcMirror[];
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Fls_Init(const Fls_ConfigType *ConfigPtr);

@@ -13,19 +13,24 @@
 #endif
 #include <string.h>
 #include "Std_Flag.h"
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DEM 0
-#define AS_LOG_DEMI 1
+#define AS_LOG_DEMI 0
 #define AS_LOG_DEME 2
 
+#ifdef DEM_USE_PB_CONFIG
+#define DEM_CONFIG demConfig
+#else
 #define DEM_CONFIG (&Dem_Config)
+#endif
 
 #define DEM_STATE_OFF ((Dem_StateType)0x00)
 #define DEM_STATE_PRE_INIT ((Dem_StateType)0x01)
 #define DEM_STATE_INIT ((Dem_StateType)0x02)
 
-#define DEM_FREEZE_FRAME_SLOT_FREE 0xFF
-#define DEM_EXTENDED_DATA_SLOT_FREE 0xFF
+#define DEM_FREEZE_FRAME_SLOT_FREE 0xFFu
+#define DEM_EXTENDED_DATA_SLOT_FREE 0xFFu
 
 #define DEM_FILTER_BY_MASK 0x00
 #define DEM_FILTER_BY_SELECTION 0x00
@@ -34,7 +39,7 @@ typedef struct {
   boolean disableDtcSetting;
   struct {
     uint32_t DTCNumber;
-    int index;
+    uint16_t index;
     Dem_DTCOriginType DTCOrigin;
     uint8_t statusMask;
     uint8_t RecordNumber;
@@ -44,19 +49,23 @@ typedef struct {
 #endif
 } Dem_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
-extern const Dem_ConfigType Dem_Config;
+extern CONSTANT(Dem_ConfigType, DEM_CONST) Dem_Config;
 static uint8_t *Dem_MallocFreezeFrameRecord(Dem_DtcIdType DtcId,
-                                            const Dem_MemoryDestinationType *memory,
+                                            P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+                                              memory,
                                             uint16_t *ffId);
-static Dem_FreezeFrameRecordType *
-Dem_LookupFreezeFrameRecordByRecordNumber(Dem_DtcIdType DtcId,
-                                          const Dem_MemoryDestinationType *memory, uint8_t *recNum,
-                                          uint8_t **data, int *where);
-static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId, const Dem_MemoryDestinationType *memory);
-static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId,
-                                       const Dem_MemoryDestinationType *memory);
+static Dem_FreezeFrameRecordType *Dem_LookupFreezeFrameRecordByRecordNumber(
+  Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory,
+  uint8_t *recNum, uint8_t **data, uint16_t *where);
+static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                   AUTOMATIC, DEM_CONST) memory);
+static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                    AUTOMATIC, DEM_CONST) memory);
 /* ================================ [ DATAS     ] ============================================== */
 static Dem_ContextType Dem_Context;
+#ifdef DEM_USE_PB_CONFIG
+static const Dem_ConfigType *demConfig = NULL;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static void Dem_EventInit(Dem_EventIdType EventId) {
   Dem_EventContextType *EventContext = &DEM_CONFIG->EventContexts[EventId];
@@ -81,12 +90,13 @@ static void Dem_ClearDirty(uint8_t *mask, uint16_t pos) {
 }
 
 static boolean Dem_IsDirty(uint8_t *mask, uint16_t pos) {
-  return (0 != (mask[pos / 8] & ((pos & 0x07) << 1)));
+  return (0u != (mask[pos / 8] & ((pos & 0x07) << 1)));
 }
 #endif
-const Dem_MemoryDestinationType *Dem_LookupMemory(Dem_DTCOriginType DTCOrigin) {
-  int i;
-  const Dem_MemoryDestinationType *memory = NULL;
+static P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+  Dem_LookupMemory(Dem_DTCOriginType DTCOrigin) {
+  uint16_t i;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory = NULL;
 
   for (i = 0; i < DEM_CONFIG->numOfMemoryDestination; i++) {
     if (DEM_CONFIG->MemoryDestination[i].DTCOrigin == DTCOrigin) {
@@ -97,10 +107,10 @@ const Dem_MemoryDestinationType *Dem_LookupMemory(Dem_DTCOriginType DTCOrigin) {
   return memory;
 }
 
-static void Dem_DtcUpdateOnOperationCycleStart(const Dem_DTCType *Dtc) {
+static void Dem_DtcUpdateOnOperationCycleStart(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc) {
   Dem_DtcStatusRecordType *StatusRecord;
-  const Dem_MemoryDestinationType *memory;
-  int i;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  uint16_t i;
   for (i = 0; i < Dtc->DTCAttributes->numOfMemoryDestination; i++) {
     memory = Dtc->DTCAttributes->MemoryDestination[i];
     StatusRecord = memory->StatusRecords[Dtc->DtcId];
@@ -119,9 +129,9 @@ static void Dem_DtcUpdateOnOperationCycleStart(const Dem_DTCType *Dtc) {
 }
 
 static void Dem_StartOperationCycle(uint8_t OperationCycleId) {
-  int i;
+  uint16_t i;
   Dem_EventContextType *EventContext;
-  const Dem_EventConfigType *EventConfig;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventStatusRecordType *EventStatus;
 
   ASLOG(DEMI, ("Operation Cycle %d Start\n", OperationCycleId));
@@ -155,24 +165,26 @@ static void Dem_StartOperationCycle(uint8_t OperationCycleId) {
   }
 }
 
-static void Dem_DtcUpdateOnOperationCycleStop(const Dem_DTCType *Dtc, boolean *bAged) {
+static void Dem_DtcUpdateOnOperationCycleStop(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc,
+                                              boolean *bAged) {
   Dem_DtcStatusRecordType *StatusRecord;
-  const Dem_MemoryDestinationType *memory;
-  int i;
-  bool bDirty;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  uint16_t i;
+  boolean bDirty;
+  *bAged = FALSE;
   for (i = 0; i < Dtc->DTCAttributes->numOfMemoryDestination; i++) {
     bDirty = FALSE;
     memory = Dtc->DTCAttributes->MemoryDestination[i];
     StatusRecord = memory->StatusRecords[Dtc->DtcId];
-    if (0 == (StatusRecord->status & (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TFTOC))) {
+    if (0u == (StatusRecord->status & (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TFTOC))) {
       /* ref: Figure 7.43: General diagnostic event deletion processing */
-      if (StatusRecord->status & DEM_UDS_STATUS_PDTC) {
+      if (0u != (StatusRecord->status & DEM_UDS_STATUS_PDTC)) {
         /* @SWS_Dem_00390 */
         Dem_UdsBitClear(StatusRecord->status, DEM_UDS_STATUS_PDTC);
         bDirty = TRUE;
       }
-      if (StatusRecord->status & DEM_UDS_STATUS_CDTC) {
-        if ((Dtc->DTCAttributes->AgingAllowed) &&
+      if (0u != (StatusRecord->status & DEM_UDS_STATUS_CDTC)) {
+        if ((TRUE == Dtc->DTCAttributes->AgingAllowed) &&
             (StatusRecord->agingCounter < Dtc->DTCAttributes->AgingCycleCounterThreshold)) {
           StatusRecord->agingCounter++;
           bDirty = TRUE;
@@ -213,9 +225,9 @@ static void Dem_DtcUpdateOnOperationCycleStop(const Dem_DTCType *Dtc, boolean *b
     }
 #endif
 
-    if (bDirty) {
+    if (TRUE == bDirty) {
 #ifdef DEM_USE_NVM
-      NvM_WriteBlock(memory->StatusNvmBlockIds[Dtc->DtcId], NULL);
+      (void)NvM_WriteBlock(memory->StatusNvmBlockIds[Dtc->DtcId], NULL);
 #else
       Dem_SetDirty(memory->StatusRecordsDirty, Dtc->DtcId);
 #endif
@@ -224,10 +236,11 @@ static void Dem_DtcUpdateOnOperationCycleStop(const Dem_DTCType *Dtc, boolean *b
 }
 
 static void Dem_StopOperationCycle(uint8_t OperationCycleId) {
-  int i, j;
-  const Dem_EventConfigType *EventConfig;
+  uint16_t i;
+  uint16_t j;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventStatusRecordType *EventStatus;
-  const Dem_DTCType *DTCRef;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef;
   boolean bAged = FALSE;
   boolean bUpdated = FALSE;
   Dem_EventIdType EventId;
@@ -243,32 +256,32 @@ static void Dem_StopOperationCycle(uint8_t OperationCycleId) {
       Dem_DtcUpdateOnOperationCycleStop(DTCRef, &bAged);
     }
 
-    if (bAged) {
+    if (TRUE == bAged) {
       /* @SWS_Dem_00442 */
       for (j = 0; j < DTCRef->numOfEvents; j++) {
         EventId = DTCRef->EventIdRefs[j];
         EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
         bUpdated = FALSE;
 
-        if (EventStatus->status & DEM_UDS_STATUS_CDTC) { /* @SWS_Dem_00498 */
+        if (0u != (EventStatus->status & DEM_UDS_STATUS_CDTC)) { /* @SWS_Dem_00498 */
           Dem_UdsBitClear(EventStatus->status, DEM_UDS_STATUS_CDTC);
           bUpdated = TRUE;
         }
 #if DEM_STATUS_BIT_HANDLING_TEST_FAILED_SINCE_LAST_CLEAR == DEM_STATUS_BIT_AGING_AND_DISPLACEMENT
-        if (EventStatus->status & DEM_UDS_STATUS_TFSLC) { /* @SWS_Dem_01054 */
+        if (0u != (EventStatus->status & DEM_UDS_STATUS_TFSLC)) { /* @SWS_Dem_01054 */
           Dem_UdsBitClear(EventStatus->status, DEM_UDS_STATUS_TFSLC);
           bUpdated = TRUE;
         }
 #endif
 
-        if (EventStatus->testFailedCounter != 0) {
+        if (EventStatus->testFailedCounter != 0u) {
           EventStatus->testFailedCounter = 0;
           bUpdated = TRUE;
         }
 
-        if (bUpdated) {
+        if (TRUE == bUpdated) {
 #ifdef DEM_USE_NVM
-          NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+          (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
           Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
@@ -278,12 +291,12 @@ static void Dem_StopOperationCycle(uint8_t OperationCycleId) {
       for (j = 0; j < DTCRef->numOfEvents; j++) {
         EventId = DTCRef->EventIdRefs[j];
         EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
-        if (0 == (EventStatus->status & (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TFTOC))) {
-          if (EventStatus->status & DEM_UDS_STATUS_PDTC) {
-            /* @SWS_Dem_00390 */
+        if (0u == (EventStatus->status & (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TFTOC))) {
+          if (0u != (EventStatus->status & DEM_UDS_STATUS_PDTC)) {
             Dem_UdsBitClear(EventStatus->status, DEM_UDS_STATUS_PDTC);
+            EventStatus->testFailedCounter = 0;
 #ifdef DEM_USE_NVM
-            NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+            (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
             Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
@@ -302,22 +315,25 @@ static Std_ReturnType Dem_IsOperationCycleStarted(uint8_t OperationCycleId) {
   return r;
 }
 
-static Std_ReturnType Dem_IsEventConditionEnabled(const Dem_EventConfigType *EventConfig) {
+#ifdef DEM_USE_ENABLE_CONDITION
+static Std_ReturnType Dem_IsEventConditionEnabled(P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST)
+                                                    EventConfig) {
   Std_ReturnType r = E_NOT_OK;
-  if ((0 == EventConfig->ConditionRefMask) ||
+  if ((0u == EventConfig->ConditionRefMask) ||
       (EventConfig->ConditionRefMask ==
        (Dem_Context.conditionMask & EventConfig->ConditionRefMask))) {
     r = E_OK;
   }
   return r;
 }
+#endif
 
 static Std_ReturnType Dem_SetEventStatusDebounce(Dem_EventIdType EventId,
                                                  Dem_EventStatusType EventStatus) {
   Std_ReturnType r = E_OK;
-  const Dem_EventConfigType *EventConfig;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventContextType *EventContext;
-  const Dem_DebounceCounterBasedConfigType *DebounceCfg;
+  P2CONST(Dem_DebounceCounterBasedConfigType, AUTOMATIC, DEM_CONST) DebounceCfg;
   Dem_EventStatusType DebouncedStatus;
 
   EventConfig = &DEM_CONFIG->EventConfigs[EventId];
@@ -375,6 +391,8 @@ static Std_ReturnType Dem_SetEventStatusDebounce(Dem_EventIdType EventId,
     DebouncedStatus = DEM_EVENT_STATUS_PASSED;
   } else if (EventContext->debouneCounter >= DebounceCfg->DebounceCounterFailedThreshold) {
     DebouncedStatus = DEM_EVENT_STATUS_FAILED;
+  } else {
+    /* keep no change */
   }
 
   EventContext->status = DebouncedStatus;
@@ -382,29 +400,38 @@ static Std_ReturnType Dem_SetEventStatusDebounce(Dem_EventIdType EventId,
   return r;
 }
 
-static uint16_t Dem_FillExtendedData(const Dem_DTCType *Dtc,
-                                     const Dem_ExtendedDataRecordClassType *ExtendedDataRecordClass,
+static uint16_t Dem_FillExtendedData(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc,
+                                     P2CONST(Dem_ExtendedDataRecordClassType, AUTOMATIC, DEM_CONST)
+                                       ExtendedDataRecordClass,
                                      uint8_t *data, Dem_DTCOriginType DTCOrigin) {
   uint16_t offset = 0;
-  int i;
-  int index;
+  uint16_t i;
+  uint8_t index;
+  Std_ReturnType ret;
 
   for (i = 0; i < ExtendedDataRecordClass->numOfExtendedData; i++) {
     index = ExtendedDataRecordClass->ExtendedDataNumberIndex[i];
-    DEM_CONFIG->ExtendedDataConfigs[index].GetExtendedDataFnc(Dtc->DtcId, &data[offset], DTCOrigin);
-    offset += DEM_CONFIG->ExtendedDataConfigs[index].length;
+    ret = DEM_CONFIG->ExtendedDataConfigs[index].GetExtendedDataFnc(Dtc->DtcId, &data[offset],
+                                                                    DTCOrigin);
+    if (E_OK == ret) {
+      offset += DEM_CONFIG->ExtendedDataConfigs[index].length;
+    } else {
+      offset = 0; /* error return */
+      break;
+    }
   }
+
   return offset;
 }
 
 #ifdef DEM_RESET_CONFIRMED_BIT_ON_OVERFLOW
-static void Dem_HandleDtcDisplacement(Dem_DtcIdType DtcId,
-                                      const Dem_MemoryDestinationType *memory) {
-  const Dem_DTCType *Dtc;
+static void Dem_HandleDtcDisplacement(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                   AUTOMATIC, DEM_CONST) memory) {
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
   Dem_EventIdType EventId;
   Dem_EventStatusRecordType *EventStatus;
-  int i;
-  bool bDirty;
+  uint16_t i;
+  boolean bDirty;
   if (memory->DTCOrigin == DEM_DTC_ORIGIN_PRIMARY_MEMORY) {
     /* TODO: is this right that do this only for origin primary */
     Dtc = &DEM_CONFIG->Dtcs[DtcId];
@@ -415,21 +442,21 @@ static void Dem_HandleDtcDisplacement(Dem_DtcIdType DtcId,
       bDirty = FALSE;
 
       /* @SWS_Dem_00409 */
-      if ((DEM_UDS_STATUS_PDTC | DEM_UDS_STATUS_CDTC) & EventStatus->status) {
+      if (0u != ((DEM_UDS_STATUS_PDTC | DEM_UDS_STATUS_CDTC) & EventStatus->status)) {
         Dem_UdsBitClear(EventStatus->status, DEM_UDS_STATUS_PDTC | DEM_UDS_STATUS_CDTC);
         bDirty = TRUE;
       }
 
 #if DEM_STATUS_BIT_HANDLING_TEST_FAILED_SINCE_LAST_CLEAR == DEM_STATUS_BIT_AGING_AND_DISPLACEMENT
       /* @SWS_Dem_01186 */
-      if (DEM_UDS_STATUS_TFSLC & EventStatus->status) {
+      if (0u != (DEM_UDS_STATUS_TFSLC & EventStatus->status)) {
         Dem_UdsBitClear(EventStatus->status, DEM_UDS_STATUS_TFSLC);
         bDirty = TRUE;
       }
 #endif
-      if (bDirty) {
+      if (TRUE == bDirty) {
 #ifdef DEM_USE_NVM
-        NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+        (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
         Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
@@ -440,11 +467,13 @@ static void Dem_HandleDtcDisplacement(Dem_DtcIdType DtcId,
 #endif
 
 static uint8_t *Dem_MallocFreezeFrameRecord(Dem_DtcIdType DtcId,
-                                            const Dem_MemoryDestinationType *memory,
+                                            P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+                                              memory,
                                             uint16_t *ffId) {
   Dem_FreezeFrameRecordType *record = NULL;
   uint8_t *data;
-  int i, slot;
+  uint16_t i;
+  uint16_t slot;
   uint8_t lowPriority;
   Dem_DtcIdType lowDtcId;
   *ffId = ((uint16_t)-1);
@@ -498,7 +527,7 @@ static uint8_t *Dem_MallocFreezeFrameRecord(Dem_DtcIdType DtcId,
       /* newly created */
       for (slot = 0; slot < DEM_MAX_FREEZE_FRAME_NUMBER; slot++) {
         record->FreezeFrameData[slot][0] =
-          DEM_FREEZE_FRAME_SLOT_FREE; /* First byte set to 0xFF: means free */
+          DEM_FREEZE_FRAME_SLOT_FREE; /* First byte set to 0xFFu: means free */
       }
       data = record->FreezeFrameData[0];
       record->DtcId = DtcId;
@@ -509,12 +538,11 @@ static uint8_t *Dem_MallocFreezeFrameRecord(Dem_DtcIdType DtcId,
           break;
         }
       }
-#if DEM_MAX_FREEZE_FRAME_NUMBER > 1
+
       if (NULL == data) {
         /* overwrite the last one with latest environment data */
-        data = record->FreezeFrameData[DEM_MAX_FREEZE_FRAME_NUMBER - 1];
+        data = record->FreezeFrameData[DEM_MAX_FREEZE_FRAME_NUMBER - 1u];
       }
-#endif
     }
   }
 
@@ -525,11 +553,12 @@ static uint8_t *Dem_MallocFreezeFrameRecord(Dem_DtcIdType DtcId,
 
 #ifdef DEM_USE_NVM_EXTENDED_DATA
 static uint8_t *Dem_MallocExtendedDataRecord(Dem_DtcIdType DtcId,
-                                             const Dem_MemoryDestinationType *memory,
+                                             P2CONST(Dem_MemoryDestinationType, AUTOMATIC,
+                                                     DEM_CONST) memory,
                                              uint16_t *eeId) {
   Dem_ExtendedDataRecordType *record = NULL;
   uint8_t *data;
-  int i;
+  uint16_t i;
   uint8_t lowPriority;
   Dem_DtcIdType lowDtcId;
   *eeId = ((uint16_t)-1);
@@ -579,7 +608,7 @@ static uint8_t *Dem_MallocExtendedDataRecord(Dem_DtcIdType DtcId,
               ("replace DTC %d extended data @ %d for DTC %d\n", record->DtcId, *eeId, DtcId));
       }
       /* newly created */
-      memset(record->ExtendedData, DEM_EXTENDED_DATA_SLOT_FREE, sizeof(record->ExtendedData));
+      (void)memset(record->ExtendedData, DEM_EXTENDED_DATA_SLOT_FREE, sizeof(record->ExtendedData));
       data = record->ExtendedData;
       record->DtcId = DtcId;
     } else {
@@ -593,9 +622,10 @@ static uint8_t *Dem_MallocExtendedDataRecord(Dem_DtcIdType DtcId,
 }
 
 static Dem_ExtendedDataRecordType *
-Dem_LookupExtendedDataRecord(Dem_DtcIdType DtcId, const Dem_MemoryDestinationType *memory) {
+Dem_LookupExtendedDataRecord(Dem_DtcIdType DtcId,
+                             P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory) {
   Dem_ExtendedDataRecordType *record = NULL;
-  int i;
+  uint16_t i;
 
   for (i = 0; i < memory->numOfExtendedDataRecords; i++) {
     if (DtcId == memory->ExtendedDataRecords[i]->DtcId) {
@@ -607,27 +637,28 @@ Dem_LookupExtendedDataRecord(Dem_DtcIdType DtcId, const Dem_MemoryDestinationTyp
 }
 #endif
 
-static Dem_FreezeFrameRecordType *
-Dem_LookupFreezeFrameRecordByRecordNumber(Dem_DtcIdType DtcId,
-                                          const Dem_MemoryDestinationType *memory, uint8_t *recNum,
-                                          uint8_t **data, int *where) {
+static Dem_FreezeFrameRecordType *Dem_LookupFreezeFrameRecordByRecordNumber(
+  Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory,
+  uint8_t *recNum, uint8_t **data, uint16_t *where) {
   Dem_FreezeFrameRecordType *record = NULL;
-  int index, i, slot;
+  uint16_t index;
+  uint16_t i;
+  uint16_t slot;
 
-  for (index = *where; index < memory->numOfFreezeFrameRecords * DEM_MAX_FREEZE_FRAME_NUMBER;
+  for (index = *where; index < (memory->numOfFreezeFrameRecords * DEM_MAX_FREEZE_FRAME_NUMBER);
        index++) {
     i = index / DEM_MAX_FREEZE_FRAME_NUMBER;
     slot = index % DEM_MAX_FREEZE_FRAME_NUMBER;
     if ((DtcId == memory->FreezeFrameRecords[i]->DtcId) &&
         (DEM_FREEZE_FRAME_SLOT_FREE != memory->FreezeFrameRecords[i]->FreezeFrameData[slot][0])) {
       if ((*recNum == memory->FreezeFrameRecords[i]->FreezeFrameData[slot][0]) ||
-          (0xFF == *recNum)) {
+          (0xFFu == *recNum)) {
         record = memory->FreezeFrameRecords[i];
         if (data != NULL) {
           *data = &memory->FreezeFrameRecords[i]->FreezeFrameData[slot][1];
         }
         *recNum = memory->FreezeFrameRecords[i]->FreezeFrameData[slot][0];
-        *where = index + 1;
+        *where = index + 1u;
         break;
       }
     }
@@ -637,9 +668,10 @@ Dem_LookupFreezeFrameRecordByRecordNumber(Dem_DtcIdType DtcId,
 }
 
 static uint16_t Dem_GetNumberOfFreezeFrameRecordsByRecordNumber(
-  Dem_DtcIdType DtcId, const Dem_MemoryDestinationType *memory, uint8_t recNum) {
+  Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory,
+  uint8_t recNum) {
   uint16_t r = 0;
-  int index = 0;
+  uint16_t index = 0;
   uint8_t _recNum;
 
   Dem_FreezeFrameRecordType *record = NULL;
@@ -656,10 +688,11 @@ static uint16_t Dem_GetNumberOfFreezeFrameRecordsByRecordNumber(
 }
 
 static Dem_FreezeFrameRecordType *
-Dem_LookupFreezeFrameRecordByIndex(const Dem_MemoryDestinationType *memory, int index,
-                                   uint8_t *recNum, uint8_t **data) {
+Dem_LookupFreezeFrameRecordByIndex(P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory,
+                                   uint16_t index, uint8_t *recNum, uint8_t **data) {
   Dem_FreezeFrameRecordType *record = NULL;
-  int i, slot;
+  uint16_t i;
+  uint16_t slot;
 
   i = index / DEM_MAX_FREEZE_FRAME_NUMBER;
   slot = index % DEM_MAX_FREEZE_FRAME_NUMBER;
@@ -680,10 +713,10 @@ Dem_LookupFreezeFrameRecordByIndex(const Dem_MemoryDestinationType *memory, int 
   return record;
 }
 
-static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId,
-                                      const Dem_MemoryDestinationType *memory) {
+static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                   AUTOMATIC, DEM_CONST) memory) {
   Dem_FreezeFrameRecordType *record = NULL;
-  int i;
+  uint16_t i;
 
   for (i = 0; i < memory->numOfFreezeFrameRecords; i++) {
     if (DtcId == memory->FreezeFrameRecords[i]->DtcId) {
@@ -691,9 +724,10 @@ static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId,
             ("Delete DTC %d freeze frame @ %d from origin %d\n", DtcId, i, memory->DTCOrigin));
       record = memory->FreezeFrameRecords[i];
       record->DtcId = DEM_INVALID_DTC_ID;
-      memset(record->FreezeFrameData, DEM_FREEZE_FRAME_SLOT_FREE, sizeof(record->FreezeFrameData));
+      (void)memset(record->FreezeFrameData, DEM_FREEZE_FRAME_SLOT_FREE,
+                   sizeof(record->FreezeFrameData));
 #ifdef DEM_USE_NVM
-      NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[i], NULL);
+      (void)NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[i], NULL);
 #else
       Dem_SetDirty(memory->FreezeFrameRecordsDirty, i);
 #endif
@@ -701,10 +735,10 @@ static void Dem_FreeFreezeFrameRecord(Dem_DtcIdType DtcId,
   }
 }
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId,
-                                       const Dem_MemoryDestinationType *memory) {
+static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                    AUTOMATIC, DEM_CONST) memory) {
   Dem_ExtendedDataRecordType *record = NULL;
-  int i;
+  uint16_t i;
 
   for (i = 0; i < memory->numOfExtendedDataRecords; i++) {
     if (DtcId == memory->ExtendedDataRecords[i]->DtcId) {
@@ -712,9 +746,9 @@ static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId,
             ("Delete DTC %d extended data @ %d from origin %d\n", DtcId, i, memory->DTCOrigin));
       record = memory->ExtendedDataRecords[i];
       record->DtcId = DEM_INVALID_DTC_ID;
-      memset(record->ExtendedData, DEM_EXTENDED_DATA_SLOT_FREE, sizeof(record->ExtendedData));
+      (void)memset(record->ExtendedData, DEM_EXTENDED_DATA_SLOT_FREE, sizeof(record->ExtendedData));
 #ifdef DEM_USE_NVM
-      NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[i], NULL);
+      (void)NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[i], NULL);
 #else
       Dem_SetDirty(memory->ExtendedDataRecordsDirty, i);
 #endif
@@ -723,10 +757,11 @@ static void Dem_FreeExtendedDataRecord(Dem_DtcIdType DtcId,
 }
 #endif
 
-static uint16_t
-Dem_GetExtendedDataRecordSize(const Dem_ExtendedDataRecordClassType *ExtendedDataRecordClass) {
+static uint16_t Dem_GetExtendedDataRecordSize(P2CONST(Dem_ExtendedDataRecordClassType, AUTOMATIC,
+                                                      DEM_CONST) ExtendedDataRecordClass) {
   uint16_t sz = 0;
-  int index, i;
+  uint16_t index;
+  uint16_t i;
 
   for (i = 0; i < ExtendedDataRecordClass->numOfExtendedData; i++) {
     index = ExtendedDataRecordClass->ExtendedDataNumberIndex[i];
@@ -736,10 +771,11 @@ Dem_GetExtendedDataRecordSize(const Dem_ExtendedDataRecordClassType *ExtendedDat
   return sz;
 }
 
-static uint16_t
-Dem_GetFreezeFrameSize(const Dem_FreezeFrameRecordClassType *FreezeFrameRecordClass) {
+static uint16_t Dem_GetFreezeFrameSize(P2CONST(Dem_FreezeFrameRecordClassType, AUTOMATIC, DEM_CONST)
+                                         FreezeFrameRecordClass) {
   uint16_t sz = 0;
-  int index, i;
+  uint16_t i;
+  uint16_t index;
 
   for (i = 0; i < FreezeFrameRecordClass->numOfFreezeFrameData; i++) {
     index = FreezeFrameRecordClass->freezeFrameDataIndex[i];
@@ -749,29 +785,32 @@ Dem_GetFreezeFrameSize(const Dem_FreezeFrameRecordClassType *FreezeFrameRecordCl
   return sz;
 }
 static void Dem_FillSnapshotRecord(uint8_t *DestBuf, uint8_t *data,
-                                   const Dem_FreezeFrameRecordClassType *FreezeFrameRecordClass) {
-  int index, i;
-  uint8_t *pIn = data, *pOut = DestBuf;
+                                   P2CONST(Dem_FreezeFrameRecordClassType, AUTOMATIC, DEM_CONST)
+                                     FreezeFrameRecordClass) {
+  uint16_t i;
+  uint16_t index;
+  uint8_t *pIn = data;
+  uint8_t *pOut = DestBuf;
 
   for (i = 0; i < FreezeFrameRecordClass->numOfFreezeFrameData; i++) {
     index = FreezeFrameRecordClass->freezeFrameDataIndex[i];
-    pOut[0] = (DEM_CONFIG->FreeFrameDataConfigs[index].id >> 8) & 0xFF;
-    pOut[1] = DEM_CONFIG->FreeFrameDataConfigs[index].id & 0xFF;
-    memcpy(&pOut[2], pIn, DEM_CONFIG->FreeFrameDataConfigs[index].length);
-    pOut += 2 + DEM_CONFIG->FreeFrameDataConfigs[index].length;
+    pOut[0] = (DEM_CONFIG->FreeFrameDataConfigs[index].id >> 8) & 0xFFu;
+    pOut[1] = DEM_CONFIG->FreeFrameDataConfigs[index].id & 0xFFu;
+    (void)memcpy(&pOut[2], pIn, DEM_CONFIG->FreeFrameDataConfigs[index].length);
+    pOut += 2u + DEM_CONFIG->FreeFrameDataConfigs[index].length;
     pIn += DEM_CONFIG->FreeFrameDataConfigs[index].length;
   }
 }
 
-static uint8_t Dem_GetNextRecordNumber(Dem_DtcIdType DtcId,
-                                       const Dem_MemoryDestinationType *memory) {
+static uint8_t Dem_GetNextRecordNumber(Dem_DtcIdType DtcId, P2CONST(Dem_MemoryDestinationType,
+                                                                    AUTOMATIC, DEM_CONST) memory) {
   uint8_t recNum;
   uint16_t numOfRecs;
-  const Dem_DTCType *Dtc = &DEM_CONFIG->Dtcs[DtcId];
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc = &DEM_CONFIG->Dtcs[DtcId];
   const Dem_FreezeFrameRecNumClassType *FreezeFrameRecNumClass =
     Dtc->DTCAttributes->FreezeFrameRecNumClass;
 
-  numOfRecs = Dem_GetNumberOfFreezeFrameRecordsByRecordNumber(DtcId, memory, 0xFF);
+  numOfRecs = Dem_GetNumberOfFreezeFrameRecordsByRecordNumber(DtcId, memory, 0xFFu);
 
   if (DEM_FF_RECNUM_CONFIGURED == DEM_CONFIG->TypeOfFreezeFrameRecordNumeration) {
     /* @SWS_Dem_00337 @SWS_Dem_00582 */
@@ -779,27 +818,28 @@ static uint8_t Dem_GetNextRecordNumber(Dem_DtcIdType DtcId,
       recNum = FreezeFrameRecNumClass->FreezeFrameRecNums[numOfRecs];
     } else {
       recNum = FreezeFrameRecNumClass
-                 ->FreezeFrameRecNums[FreezeFrameRecNumClass->numOfFreezeFrameRecNums - 1];
+                 ->FreezeFrameRecNums[FreezeFrameRecNumClass->numOfFreezeFrameRecNums - 1u];
     }
   } else {
     /* @SWS_Dem_00581 */
-    recNum = (uint8_t)numOfRecs + 1;
+    recNum = (uint8_t)numOfRecs + 1u;
   }
 
   return recNum;
 }
 
-static void Dem_TrigerStoreFreezeFrame(const Dem_DTCType *DTCRef,
-                                       const Dem_MemoryDestinationType *memory) {
-  const Dem_FreezeFrameRecordClassType *FreezeFrameRecordClass =
-    DTCRef->DTCAttributes->FreezeFrameRecordClass;
+static void Dem_TrigerStoreFreezeFrame(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef,
+                                       P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+                                         memory) {
+  P2CONST(Dem_FreezeFrameRecordClassType, AUTOMATIC, DEM_CONST)
+  FreezeFrameRecordClass = DTCRef->DTCAttributes->FreezeFrameRecordClass;
   uint8_t *data = NULL;
   uint16_t ffId = 0;
-  int offset = 1;
-  int i, index;
+  uint16_t offset = 1;
+  uint16_t i;
+  uint16_t index;
 
   data = Dem_MallocFreezeFrameRecord(DTCRef->DtcId, memory, &ffId);
-
   if (data != NULL) {
     for (i = 0; i < FreezeFrameRecordClass->numOfFreezeFrameData; i++) {
       index = FreezeFrameRecordClass->freezeFrameDataIndex[i];
@@ -816,7 +856,7 @@ static void Dem_TrigerStoreFreezeFrame(const Dem_DTCType *DTCRef,
     ASLOG(DEMI, ("DTC %d capture freeze frame with record number %d on origin %d\n", DTCRef->DtcId,
                  data[0], memory->DTCOrigin));
 #ifdef DEM_USE_NVM
-    NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[ffId], NULL);
+    (void)NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[ffId], NULL);
 #else
     Dem_SetDirty(memory->FreezeFrameRecordsDirty, ffId);
 #endif
@@ -826,38 +866,57 @@ static void Dem_TrigerStoreFreezeFrame(const Dem_DTCType *DTCRef,
 }
 
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-static void Dem_TrigerStoreExtendedData(const Dem_DTCType *DTCRef,
-                                        const Dem_MemoryDestinationType *memory) {
-  const Dem_ExtendedDataClassType *ExtendedDataClass = DTCRef->DTCAttributes->ExtendedDataClass;
-  const Dem_ExtendedDataRecordClassType *ExtendedDataRecordClassRef;
-  int i;
+static void Dem_TrigerStoreExtendedData(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef,
+                                        P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+                                          memory) {
+  P2CONST(Dem_ExtendedDataClassType, AUTOMATIC, DEM_CONST)
+  ExtendedDataClass = DTCRef->DTCAttributes->ExtendedDataClass;
+  P2CONST(Dem_ExtendedDataRecordClassType, AUTOMATIC, DEM_CONST) ExtendedDataRecordClassRef;
+  uint16_t i;
   uint16_t eeId = 0;
   uint8_t *data = NULL;
-  int offset = 0;
+  uint16_t offset = 0;
+  uint16_t ret = 0;
 
   data = Dem_MallocExtendedDataRecord(DTCRef->DtcId, memory, &eeId);
+  if (NULL != data) {
+    for (i = 0; i < ExtendedDataClass->numOfExtendedDataRecordClassRef; i++) {
+      ExtendedDataRecordClassRef = ExtendedDataClass->ExtendedDataRecordClassRef[i];
+      data[offset] = ExtendedDataRecordClassRef->ExtendedDataRecordNumber;
+      offset += 1u;
+      ret =
+        Dem_FillExtendedData(DTCRef, ExtendedDataRecordClassRef, &data[offset], memory->DTCOrigin);
+      if (ret > 0u) {
+        offset += ret;
+        ASLOG(DEMI,
+              ("DTC %d capture extended data with record number %d on origin %d\n", DTCRef->DtcId,
+               ExtendedDataRecordClassRef->ExtendedDataRecordNumber, memory->DTCOrigin));
+      } else {
+        ASLOG(DEME, ("DTC %d capture extended data with record number %d on origin %d failed\n",
+                     DTCRef->DtcId, ExtendedDataRecordClassRef->ExtendedDataRecordNumber,
+                     memory->DTCOrigin));
+        break;
+      }
+    }
 
-  for (i = 0; i < ExtendedDataClass->numOfExtendedDataRecordClassRef; i++) {
-    ExtendedDataRecordClassRef = ExtendedDataClass->ExtendedDataRecordClassRef[i];
-    data[offset] = ExtendedDataRecordClassRef->ExtendedDataRecordNumber;
-    offset += 1;
-    offset +=
-      Dem_FillExtendedData(DTCRef, ExtendedDataRecordClassRef, &data[offset], memory->DTCOrigin);
-    ASLOG(DEMI, ("DTC %d capture extended data with record number %d on origin %d\n", DTCRef->DtcId,
-                 ExtendedDataRecordClassRef->ExtendedDataRecordNumber, memory->DTCOrigin));
-  }
-
+    if (ret > 0u) {
 #ifdef DEM_USE_NVM
-  NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[eeId], NULL);
+      (void)NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[eeId], NULL);
 #else
-  Dem_SetDirty(memory->ExtendedDataRecordsDirty, eeId);
+      Dem_SetDirty(memory->ExtendedDataRecordsDirty, eeId);
 #endif
+    } else {
+      Dem_FreeExtendedDataRecord(DTCRef->DtcId, memory);
+    }
+  } else {
+    ASLOG(DEMI, ("DTC %d store extended data failed as no slot\n", DTCRef->DtcId));
+  }
 }
 #endif
 
-static void Dem_UpdateDtcStatus(const Dem_DTCType *DTCRef,
-                                const Dem_MemoryDestinationType *memory) {
-  int i;
+static void Dem_UpdateDtcStatus(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef,
+                                P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory) {
+  uint16_t i;
   Dem_DtcStatusRecordType *StatusRecord = memory->StatusRecords[DTCRef->DtcId];
   Dem_EventStatusRecordType *EventStatus;
   Dem_UdsStatusByteType status = 0;
@@ -869,11 +928,11 @@ static void Dem_UpdateDtcStatus(const Dem_DTCType *DTCRef,
     status |= EventStatus->status;
   }
 
-  if (DEM_UDS_STATUS_TFSLC & status) {
+  if (0u != (DEM_UDS_STATUS_TFSLC & status)) {
     status &= ~DEM_UDS_STATUS_TNCSLC;
   }
 
-  if (DEM_UDS_STATUS_TFTOC & status) {
+  if (0u != (DEM_UDS_STATUS_TFTOC & status)) {
     status &= ~DEM_UDS_STATUS_TNCTOC;
   }
 
@@ -881,10 +940,12 @@ static void Dem_UpdateDtcStatus(const Dem_DTCType *DTCRef,
 }
 
 /* Figure 7.27: General diagnostic event storage processing */
-static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DTCRef, int origin) {
+static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId,
+                                  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef, int origin) {
   Dem_EventContextType *EventContext = &DEM_CONFIG->EventContexts[EventId];
   const Dem_DTCAttributesType *DTCAttributes = DTCRef->DTCAttributes;
-  const Dem_MemoryDestinationType *memory = DTCRef->DTCAttributes->MemoryDestination[origin];
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST)
+  memory = DTCRef->DTCAttributes->MemoryDestination[origin];
   Dem_DtcStatusRecordType *StatusRecord = memory->StatusRecords[DTCRef->DtcId];
   Dem_UdsStatusByteType oldStatus = StatusRecord->status;
   boolean bDirty = FALSE;
@@ -896,7 +957,7 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
 
   StatusRecord->agingCounter = 0;
 
-  if (0 == (oldStatus & DEM_UDS_STATUS_TF)) {
+  if (0u == (oldStatus & DEM_UDS_STATUS_TF)) {
     /* @SWS_Dem_00524 */
     if (DEM_PROCESS_OCCCTR_TF == DTCAttributes->OccurrenceCounterProcessing) {
       if (StatusRecord->faultOccuranceCounter < UINT8_MAX) {
@@ -920,8 +981,17 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
 #endif
   }
 
-  if ((0 == (oldStatus & DEM_UDS_STATUS_PDTC)) &&
-      (0 != (StatusRecord->status & DEM_UDS_STATUS_PDTC))) {
+  if (0u == (oldStatus & DEM_UDS_STATUS_TFTOC)) {
+    if (DEM_PROCESS_OCCCTR_TFTOC == DTCAttributes->OccurrenceCounterProcessing) {
+      if (StatusRecord->faultOccuranceCounter < UINT8_MAX) {
+        StatusRecord->faultOccuranceCounter++;
+        bDirty = TRUE;
+      }
+    }
+  }
+
+  if ((0u == (oldStatus & DEM_UDS_STATUS_PDTC)) &&
+      (0u != (StatusRecord->status & DEM_UDS_STATUS_PDTC))) {
     /* @SWS_Dem_00801 */
     if (DEM_TRIGGER_ON_PENDING == DTCAttributes->FreezeFrameRecordTrigger) {
       bCaptureFF = TRUE;
@@ -934,8 +1004,8 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
 #endif
   }
 
-  if ((0 == (oldStatus & DEM_UDS_STATUS_CDTC)) &&
-      (0 != (StatusRecord->status & DEM_UDS_STATUS_CDTC))) {
+  if ((0u == (oldStatus & DEM_UDS_STATUS_CDTC)) &&
+      (0u != (StatusRecord->status & DEM_UDS_STATUS_CDTC))) {
     /* @SWS_Dem_00580 */
     if (DEM_PROCESS_OCCCTR_CDTC == DTCAttributes->OccurrenceCounterProcessing) {
       if (StatusRecord->faultOccuranceCounter < UINT8_MAX) {
@@ -965,7 +1035,7 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
     bDirty = TRUE;
   }
 
-  if (bCaptureFF) {
+  if (TRUE == bCaptureFF) {
     if (DEM_CAPTURE_SYNCHRONOUS_TO_REPORTING == DTCRef->DTCAttributes->EnvironmentDataCapture) {
       Dem_TrigerStoreFreezeFrame(DTCRef, memory); /* @SWS_Dem_00805 */
     } else {
@@ -974,7 +1044,7 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
   }
 
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-  if (bCaptureEE) {
+  if (TRUE == bCaptureEE) {
     if (DEM_CAPTURE_SYNCHRONOUS_TO_REPORTING == DTCRef->DTCAttributes->EnvironmentDataCapture) {
       Dem_TrigerStoreExtendedData(DTCRef, memory); /* @SWS_Dem_01081 */
     } else {
@@ -983,9 +1053,9 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
   }
 #endif
 
-  if (bDirty) {
+  if (TRUE == bDirty) {
 #ifdef DEM_USE_NVM
-    NvM_WriteBlock(memory->StatusNvmBlockIds[DTCRef->DtcId], NULL);
+    (void)NvM_WriteBlock(memory->StatusNvmBlockIds[DTCRef->DtcId], NULL);
 #else
     Dem_SetDirty(memory->StatusRecordsDirty, DTCRef->DtcId);
 #endif
@@ -993,12 +1063,13 @@ static void Dem_DtcUpdateOnFailed(Dem_EventIdType EventId, const Dem_DTCType *DT
 }
 
 static void Dem_EventUpdateOnFailed(Dem_EventIdType EventId) {
-  const Dem_EventConfigType *EventConfig = &DEM_CONFIG->EventConfigs[EventId];
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST)
+  EventConfig = &DEM_CONFIG->EventConfigs[EventId];
   Dem_EventStatusRecordType *EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
   Dem_UdsStatusByteType oldStatus = EventStatus->status;
-  const Dem_DTCType *DTCRef = EventConfig->DTCRef;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef = EventConfig->DTCRef;
   boolean bUpdated = FALSE;
-  int i;
+  uint16_t i;
 
   ASLOG(DEMI, ("Event %d Test Failed\n", EventId));
 
@@ -1021,15 +1092,15 @@ static void Dem_EventUpdateOnFailed(Dem_EventIdType EventId) {
     bUpdated = TRUE;
   }
 
-  if (bUpdated) {
+  if (TRUE == bUpdated) {
 #ifdef DEM_USE_NVM
-    NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+    (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
     Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
   }
 
-  if (DTCRef) {
+  if (NULL != DTCRef) {
     /* @SWS_Dem_01199 @SWS_Dem_01207 */
     for (i = 0; i < DTCRef->DTCAttributes->numOfMemoryDestination; i++) {
       /* @SWS_Dem_01063
@@ -1040,21 +1111,22 @@ static void Dem_EventUpdateOnFailed(Dem_EventIdType EventId) {
   }
 }
 
-static void Dem_DtcUpdateOnPass(Dem_EventIdType EventId, const Dem_DTCType *DTCRef,
-                                const Dem_MemoryDestinationType *memory) {
+static void Dem_DtcUpdateOnPass(Dem_EventIdType EventId,
+                                P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef,
+                                P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory) {
   Dem_DtcStatusRecordType *StatusRecord = memory->StatusRecords[DTCRef->DtcId];
   Dem_UdsStatusByteType oldStatus = StatusRecord->status;
   boolean bUpdated = FALSE;
-
+  (void)EventId;
   Dem_UpdateDtcStatus(DTCRef, memory);
 
   if ((oldStatus & DEM_NVM_STORE_CARED_BITS) != (StatusRecord->status & DEM_NVM_STORE_CARED_BITS)) {
     bUpdated = TRUE;
   }
 
-  if (bUpdated) {
+  if (TRUE == bUpdated) {
 #ifdef DEM_USE_NVM
-    NvM_WriteBlock(memory->StatusNvmBlockIds[DTCRef->DtcId], NULL);
+    (void)NvM_WriteBlock(memory->StatusNvmBlockIds[DTCRef->DtcId], NULL);
 #else
     Dem_SetDirty(memory->StatusRecordsDirty, DTCRef->DtcId);
 #endif
@@ -1062,24 +1134,23 @@ static void Dem_DtcUpdateOnPass(Dem_EventIdType EventId, const Dem_DTCType *DTCR
 }
 
 static void Dem_EventUpdateOnPass(Dem_EventIdType EventId) {
-  const Dem_EventConfigType *EventConfig = &DEM_CONFIG->EventConfigs[EventId];
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST)
+  EventConfig = &DEM_CONFIG->EventConfigs[EventId];
   Dem_EventStatusRecordType *EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
   Dem_EventContextType *EventContext = &DEM_CONFIG->EventContexts[EventId];
-  const Dem_DTCType *DTCRef = EventConfig->DTCRef;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef = EventConfig->DTCRef;
   Dem_UdsStatusByteType oldStatus = EventStatus->status;
   boolean bPass = TRUE;
-  int i;
+  uint16_t i;
 
   ASLOG(DEMI, ("Event %d Test Passed\n", EventId));
 
   Dem_UdsBitClear(EventStatus->status,
                   DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TNCSLC | DEM_UDS_STATUS_TF);
 
-  EventStatus->testFailedCounter = 0;
-
   if ((oldStatus & DEM_NVM_STORE_CARED_BITS) != (EventStatus->status & DEM_NVM_STORE_CARED_BITS)) {
 #ifdef DEM_USE_NVM
-    NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+    (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
     Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
@@ -1100,10 +1171,15 @@ static void Dem_EventUpdateOnPass(Dem_EventIdType EventId) {
   }
 }
 
-static boolean Dem_IsFilteredDTC(const Dem_DTCType *Dtc, const Dem_MemoryDestinationType *memory) {
+static boolean Dem_IsFilteredDTC(P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc,
+                                 P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory) {
   boolean r = TRUE;
 
-  if (0 == (Dem_Context.filter.statusMask & memory->StatusRecords[Dtc->DtcId]->status)) {
+  /* Values: 0x00: Autosar-specific value to deactivate the status-byte filtering (different meaning
+   * than in ISO 14229-1) to report all supported DTCs (used for service 0x19 subfunctions
+   * 0x0A/0x15) */
+  if ((0u != Dem_Context.filter.statusMask) &&
+      (0u == (Dem_Context.filter.statusMask & memory->StatusRecords[Dtc->DtcId]->status))) {
     r = FALSE;
   }
 
@@ -1112,12 +1188,13 @@ static boolean Dem_IsFilteredDTC(const Dem_DTCType *Dtc, const Dem_MemoryDestina
 
 static boolean Dem_IsFilteredFF(int index) {
   /* only UDS FF are supported */
+  (void)index;
   return TRUE;
 }
 
-static const Dem_DTCType *Dem_LookupDtcByDTCNumber(uint32_t DTCNumber) {
-  int i;
-  const Dem_DTCType *Dtc = NULL;
+static P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dem_LookupDtcByDTCNumber(uint32_t DTCNumber) {
+  uint16_t i;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc = NULL;
 
   for (i = 0; i < DEM_CONFIG->numOfDtcs; i++) {
     if (DEM_CONFIG->Dtcs[i].DtcNumber == DTCNumber) {
@@ -1128,17 +1205,51 @@ static const Dem_DTCType *Dem_LookupDtcByDTCNumber(uint32_t DTCNumber) {
 
   return Dtc;
 }
+
+static Std_ReturnType Dem_IsDtcInGroup(Dem_DtcIdType DtcId, uint32_t groupDTC) {
+  Std_ReturnType r = E_NOT_OK;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
+  if (DtcId < DEM_CONFIG->numOfDtcs) {
+    Dtc = &DEM_CONFIG->Dtcs[DtcId];
+    if (0xFFFFFFu == groupDTC) {
+      r = E_OK;
+    } else if (Dtc->DtcNumber == groupDTC) {
+      r = E_OK;
+    } else {
+      /* not in the group */
+    }
+  } else if (DtcId != DEM_INVALID_EVENT_ID) {
+    /* note: as this API is only used by ClearDTC, so if DtcId invalid, just clear it */
+    ASLOG(DEME, ("Found invalid DTC with id %x\n", DtcId));
+    r = E_OK;
+  } else {
+    /* do nothing */
+  }
+  return r;
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Dem_PreInit(void) {
   /* NOTE: BSW Event is not supported, so this API is dummy */
 }
 
 void Dem_Init(const Dem_ConfigType *ConfigPtr) {
-  int i;
-  const Dem_MemoryDestinationType *memory;
+  uint16_t i;
+#if !defined(DEM_USE_NVM) || AS_LOG_DEMI > 0
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+#endif
 #if AS_LOG_DEMI > 0
   int j, k;
-  const Dem_DTCType *Dtc;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
+#endif
+
+#ifdef DEM_USE_PB_CONFIG
+  if (NULL != ConfigPtr) {
+    DEM_CONFIG = ConfigPtr;
+  } else {
+    DEM_CONFIG = &Dem_Config;
+  }
+#else
+  (void)ConfigPtr;
 #endif
 
   for (i = 0; i < DEM_CONFIG->numOfOperationCycles; i++) {
@@ -1149,7 +1260,7 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
     Dem_EventInit((Dem_EventIdType)i);
   }
 #ifndef DEM_USE_NVM
-  memset(DEM_CINFIG->EventStatusDirty, 0, (DEM_CONFIG->numOfEvents + 7) / 8);
+  (void)memset(DEM_CINFIG->EventStatusDirty, 0, (DEM_CONFIG->numOfEvents + 7) / 8);
 #endif
 #if AS_LOG_DEMI > 0
   for (i = 0; i < DEM_CONFIG->numOfDtcs; i++) {
@@ -1167,7 +1278,9 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
 #endif
 
   for (i = 0; i < DEM_CONFIG->numOfMemoryDestination; i++) {
+#if !defined(DEM_USE_NVM) || AS_LOG_DEMI > 0
     memory = &DEM_CONFIG->MemoryDestination[i];
+#endif
 #if AS_LOG_DEMI > 0
     for (j = 0; j < memory->numOfFreezeFrameRecords; j++) {
       if (memory->FreezeFrameRecords[j]->DtcId != DEM_INVALID_DTC_ID) {
@@ -1182,22 +1295,22 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
     }
 #endif
 #ifndef DEM_USE_NVM
-    memset(memory->StatusRecordsDirty, 0, (memory->numOfStatusRecords + 7) / 8);
-    memset(memory->FreezeFrameRecordsDirty, 0, (memory->numOfFreezeFrameRecords + 7) / 8);
+    (void)memset(memory->StatusRecordsDirty, 0, (memory->numOfStatusRecords + 7) / 8);
+    (void)memset(memory->FreezeFrameRecordsDirty, 0, (memory->numOfFreezeFrameRecords + 7) / 8);
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-    memset(memory->ExtendedDataRecordsDirty, 0, (memory->numOfExtendedDataRecords + 7) / 8);
+    (void)memset(memory->ExtendedDataRecordsDirty, 0, (memory->numOfExtendedDataRecords + 7) / 8);
 #endif
 #endif
   }
 
-  memset(&Dem_Context, 0, sizeof(Dem_Context));
+  (void)memset(&Dem_Context, 0, sizeof(Dem_Context));
   Dem_Context.disableDtcSetting = FALSE;
 }
 
 Std_ReturnType Dem_EXTD_GetFaultOccuranceCounter(Dem_DtcIdType DtcId, uint8_t *data,
                                                  Dem_DTCOriginType DTCOrigin) {
   Std_ReturnType r = E_OK;
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
 
   memory = Dem_LookupMemory(DTCOrigin);
   if (NULL != memory) {
@@ -1216,7 +1329,7 @@ Std_ReturnType Dem_EXTD_GetFaultOccuranceCounter(Dem_DtcIdType DtcId, uint8_t *d
 Std_ReturnType Dem_EXTD_GetAgingCounter(Dem_DtcIdType DtcId, uint8_t *data,
                                         Dem_DTCOriginType DTCOrigin) {
   Std_ReturnType r = E_OK;
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
 
   memory = Dem_LookupMemory(DTCOrigin);
   if (NULL != memory) {
@@ -1235,7 +1348,7 @@ Std_ReturnType Dem_EXTD_GetAgingCounter(Dem_DtcIdType DtcId, uint8_t *data,
 Std_ReturnType Dem_EXTD_GetAgedCounter(Dem_DtcIdType DtcId, uint8_t *data,
                                        Dem_DTCOriginType DTCOrigin) {
   Std_ReturnType r = E_OK;
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
 
   memory = Dem_LookupMemory(DTCOrigin);
   if (NULL != memory) {
@@ -1255,17 +1368,17 @@ Std_ReturnType Dem_SetOperationCycleState(uint8_t OperationCycleId,
                                           Dem_OperationCycleStateType cycleState) {
   Std_ReturnType r = E_OK;
 
-  if (OperationCycleId < DEM_CONFIG->numOfOperationCycles) {
-    if (cycleState != DEM_CONFIG->OperationCycleStates[OperationCycleId]) {
-      if (DEM_OPERATION_CYCLE_STARTED == cycleState) {
-        Dem_StartOperationCycle(OperationCycleId);
-      } else {
-        Dem_StopOperationCycle(OperationCycleId);
-      }
-      DEM_CONFIG->OperationCycleStates[OperationCycleId] = cycleState;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0xF1, DEM_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(OperationCycleId < DEM_CONFIG->numOfOperationCycles, 0xF1, DEM_E_PARAM_DATA,
+               return E_NOT_OK);
+
+  if (cycleState != DEM_CONFIG->OperationCycleStates[OperationCycleId]) {
+    if (DEM_OPERATION_CYCLE_STARTED == cycleState) {
+      Dem_StartOperationCycle(OperationCycleId);
+    } else {
+      Dem_StopOperationCycle(OperationCycleId);
     }
-  } else {
-    r = E_NOT_OK;
+    DEM_CONFIG->OperationCycleStates[OperationCycleId] = cycleState;
   }
 
   return r;
@@ -1274,13 +1387,14 @@ Std_ReturnType Dem_SetOperationCycleState(uint8_t OperationCycleId,
 Std_ReturnType Dem_RestartOperationCycle(uint8_t OperationCycleId) {
   Std_ReturnType r = E_OK;
 
-  if (OperationCycleId < DEM_CONFIG->numOfOperationCycles) {
-    if (DEM_OPERATION_CYCLE_STARTED == DEM_CONFIG->OperationCycleStates[OperationCycleId]) {
-      Dem_StopOperationCycle(OperationCycleId);
-      Dem_StartOperationCycle(OperationCycleId);
-    } else {
-      r = E_NOT_OK;
-    }
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x08, DEM_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x08, DEM_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(OperationCycleId < DEM_CONFIG->numOfOperationCycles, 0x08, DEM_E_PARAM_DATA,
+               return E_NOT_OK);
+
+  if (DEM_OPERATION_CYCLE_STARTED == DEM_CONFIG->OperationCycleStates[OperationCycleId]) {
+    Dem_StopOperationCycle(OperationCycleId);
+    Dem_StartOperationCycle(OperationCycleId);
   } else {
     r = E_NOT_OK;
   }
@@ -1290,17 +1404,17 @@ Std_ReturnType Dem_RestartOperationCycle(uint8_t OperationCycleId) {
 
 Std_ReturnType Dem_SetEventStatus(Dem_EventIdType EventId, Dem_EventStatusType EventStatus) {
   Std_ReturnType r = E_OK;
-  const Dem_EventConfigType *EventConfig;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventContextType *EventContext;
-  Dem_EventStatusType OldStatus;
+  Dem_EventStatusType oldStatus;
 
-  if (EventId < DEM_CONFIG->numOfEvents) {
-    EventConfig = &DEM_CONFIG->EventConfigs[EventId];
-    EventContext = &DEM_CONFIG->EventContexts[EventId];
-    r = Dem_IsOperationCycleStarted(EventConfig->OperationCycleRef);
-  } else {
-    r = E_NOT_OK;
-  }
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x04, DEM_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(EventId < DEM_CONFIG->numOfEvents, 0x04, DEM_E_PARAM_DATA, return E_NOT_OK);
+  DET_VALIDATE(EventStatus <= DEM_EVENT_STATUS_PREFAILED, 0x04, DEM_E_PARAM_DATA, return E_NOT_OK);
+
+  EventConfig = &DEM_CONFIG->EventConfigs[EventId];
+  EventContext = &DEM_CONFIG->EventContexts[EventId];
+  r = Dem_IsOperationCycleStarted(EventConfig->OperationCycleRef);
 
   if (E_OK == r) {
     if (TRUE == Dem_Context.disableDtcSetting) {
@@ -1317,12 +1431,12 @@ Std_ReturnType Dem_SetEventStatus(Dem_EventIdType EventId, Dem_EventStatusType E
 
   if (E_OK == r) {
     ASLOG(DEMI, ("Set Event %d status %d\n", EventId, EventStatus));
-    OldStatus = EventContext->status;
+    oldStatus = EventContext->status;
     r = Dem_SetEventStatusDebounce(EventId, EventStatus);
   }
 
   if (E_OK == r) {
-    if (OldStatus != EventContext->status) {
+    if (oldStatus != EventContext->status) {
       if (DEM_EVENT_STATUS_FAILED == EventContext->status) {
         Dem_EventUpdateOnFailed(EventId);
       } else {
@@ -1338,13 +1452,14 @@ Std_ReturnType Dem_GetEventUdsStatus(Dem_EventIdType EventId,
   Std_ReturnType r = E_OK;
   Dem_EventStatusRecordType *EventStatus;
 
-  if (EventId < DEM_CONFIG->numOfEvents) {
-    /* @SWS_Dem_00006 @SWS_Dem_01276 */
-    EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
-    *UDSStatusByte = EventStatus->status;
-  } else {
-    r = E_NOT_OK;
-  }
+  DET_VALIDATE(NULL != DEM_CONFIG, 0xB6, DEM_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(EventId < DEM_CONFIG->numOfEvents, 0xB6, DEM_E_PARAM_DATA, return E_NOT_OK);
+  DET_VALIDATE(NULL != UDSStatusByte, 0xB6, DEM_E_PARAM_POINTER, return E_NOT_OK);
+
+  /* @SWS_Dem_00006 @SWS_Dem_01276 */
+  EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
+  *UDSStatusByte = EventStatus->status;
+
   return r;
 }
 
@@ -1361,12 +1476,12 @@ Std_ReturnType Dem_DisableDTCSetting(uint8_t ClientId) {
 
 Std_ReturnType Dem_EnableDTCSetting(uint8_t ClientId) {
   Std_ReturnType r = E_OK;
-  const Dem_EventConfigType *EventConfig;
-  int i;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
+  uint16_t i;
 
   (void)ClientId; /* not used */
   ASLOG(DEMI, ("enable DTC setting\n"));
-
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x25, DEM_E_UNINIT, return E_NOT_OK);
   Dem_Context.disableDtcSetting = FALSE;
 
   for (i = 0; i < DEM_CONFIG->numOfEvents; i++) {
@@ -1380,34 +1495,21 @@ Std_ReturnType Dem_EnableDTCSetting(uint8_t ClientId) {
   return r;
 }
 
-Std_ReturnType Dem_IsDtcInGroup(Dem_DtcIdType DtcId, uint32_t groupDTC) {
-  Std_ReturnType r = E_NOT_OK;
-  const Dem_DTCType *Dtc;
-  if (DtcId < DEM_CONFIG->numOfDtcs) {
-    Dtc = &DEM_CONFIG->Dtcs[DtcId];
-    if (0xFFFFFFu == groupDTC) {
-      r = E_OK;
-    } else if (Dtc->DtcNumber == groupDTC) {
-      r = E_OK;
-    } else {
-      /* not in the group */
-    }
-  }
-  return r;
-}
-
 Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
   Std_ReturnType r = E_OK;
-  const Dem_DTCType *Dtc = NULL;
-  int i, j;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc = NULL;
+  uint16_t i;
+  uint16_t j;
   Dem_EventIdType EventId;
   uint32_t groupDTC = Dem_Context.filter.DTCNumber;
   Dem_EventContextType *EventContext;
-  const Dem_EventConfigType *EventConfig;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventStatusRecordType *EventStatus;
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
   Dem_DtcStatusRecordType *StatusRecord;
   (void)ClientId; /* not used */
+
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x23, DEM_E_UNINIT, return E_NOT_OK);
 
   if (0xFFFFFFu == groupDTC) {
     /* clear all DTC */
@@ -1428,14 +1530,14 @@ Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
   }
 
   if (E_OK == r) {
-    /* NOTE: 0xFF is initial value of NVM, means free */
+    /* NOTE: 0xFFu is initial value of NVM, means free */
     for (i = 0; i < memory->numOfFreezeFrameRecords; i++) {
       r = Dem_IsDtcInGroup(memory->FreezeFrameRecords[i]->DtcId, groupDTC);
       if (E_OK == r) {
-        memset(memory->FreezeFrameRecords[i], DEM_FREEZE_FRAME_SLOT_FREE,
-               sizeof(Dem_FreezeFrameRecordType));
+        (void)memset(memory->FreezeFrameRecords[i], DEM_FREEZE_FRAME_SLOT_FREE,
+                     sizeof(Dem_FreezeFrameRecordType));
 #ifdef DEM_USE_NVM
-        NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[i], NULL);
+        (void)NvM_WriteBlock(memory->FreezeFrameNvmBlockIds[i], NULL);
 #else
         Dem_SetDirty(memory->FreezeFrameRecordsDirty, i);
 #endif
@@ -1447,10 +1549,10 @@ Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
     for (i = 0; i < memory->numOfExtendedDataRecords; i++) {
       r = Dem_IsDtcInGroup(memory->ExtendedDataRecords[i]->DtcId, groupDTC);
       if (E_OK == r) {
-        memset(memory->ExtendedDataRecords[i], DEM_EXTENDED_DATA_SLOT_FREE,
-               sizeof(Dem_ExtendedDataRecordType));
+        (void)memset(memory->ExtendedDataRecords[i], DEM_EXTENDED_DATA_SLOT_FREE,
+                     sizeof(Dem_ExtendedDataRecordType));
 #ifdef DEM_USE_NVM
-        NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[i], NULL);
+        (void)NvM_WriteBlock(memory->ExtendedDataNvmBlockIds[i], NULL);
 #else
         Dem_SetDirty(memory->ExtendedDataRecordsDirty, i);
 #endif
@@ -1467,14 +1569,14 @@ Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
       if (E_OK == r) {
         StatusRecord = memory->StatusRecords[Dtc->DtcId];
         if (StatusRecord->status != (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TNCSLC)) {
-          memset(StatusRecord, 0x00, sizeof(Dem_DtcStatusRecordType));
+          (void)memset(StatusRecord, 0x00, sizeof(Dem_DtcStatusRecordType));
           /* @SWS_Dem_00394 @SWS_Dem_00392 */
           StatusRecord->status = DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TNCSLC;
 #ifdef DEM_USE_CYCLES_SINCE_LAST_FAILED
           StatusRecord->cyclesSinceLastFailed = DEM_CYCLE_COUNTER_STOPPED;
 #endif
 #ifdef DEM_USE_NVM
-          NvM_WriteBlock(memory->StatusNvmBlockIds[Dtc->DtcId], NULL);
+          (void)NvM_WriteBlock(memory->StatusNvmBlockIds[Dtc->DtcId], NULL);
 #else
           Dem_SetDirty(memory->StatusRecordsDirty, Dtc->DtcId);
 #endif
@@ -1485,13 +1587,13 @@ Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
           EventContext = &DEM_CONFIG->EventContexts[EventId];
           EventConfig = &DEM_CONFIG->EventConfigs[EventId];
           EventStatus = DEM_CONFIG->EventStatusRecords[EventId];
-          memset(EventContext, 0, sizeof(Dem_EventContextType));
+          (void)memset(EventContext, 0, sizeof(Dem_EventContextType));
           if ((EventStatus->status != (DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TNCSLC)) ||
-              (EventStatus->testFailedCounter != 0)) {
+              (EventStatus->testFailedCounter != 0u)) {
             EventStatus->status = DEM_UDS_STATUS_TNCTOC | DEM_UDS_STATUS_TNCSLC;
             EventStatus->testFailedCounter = 0;
 #ifdef DEM_USE_NVM
-            NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
+            (void)NvM_WriteBlock(DEM_CONFIG->EventStatusNvmBlockIds[EventId], NULL);
 #else
             Dem_SetDirty(DEM_CONFIG->EventStatusDirty, EventId);
 #endif
@@ -1509,13 +1611,30 @@ Std_ReturnType Dem_ClearDTC(uint8_t ClientId) {
   return r;
 }
 
-Std_ReturnType Dem_SetDTCFilter(uint8_t ClientId, uint8_t DtcDirty, Dem_DTCFormatType DTCFormat,
-                                Dem_DTCOriginType DTCOrigin, boolean FilterWithSeverity,
-                                Dem_DTCSeverityType DTCSeverityMask,
+Std_ReturnType Dem_GetDTCStatusAvailabilityMask(uint8_t ClientId,
+                                                Dem_UdsStatusByteType *DTCStatusMask,
+                                                Dem_DTCOriginType DTCOrigin) {
+  (void)ClientId;
+  (void)DTCOrigin;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x16, DEM_E_UNINIT, return E_NOT_OK);
+  /* StatusAvailabilityMask: except WIR, all supported */
+  *DTCStatusMask = DEM_CONFIG->StatusAvailabilityMask;
+  return E_OK;
+}
+
+Std_ReturnType Dem_SetDTCFilter(uint8_t ClientId, uint8_t DTCStatusMask,
+                                Dem_DTCFormatType DTCFormat, Dem_DTCOriginType DTCOrigin,
+                                boolean FilterWithSeverity, Dem_DTCSeverityType DTCSeverityMask,
                                 boolean FilterForFaultDetectionCounter) {
   Std_ReturnType r = E_OK;
+  (void)ClientId;
+  (void)DTCFormat;
+  (void)FilterWithSeverity;
+  (void)DTCSeverityMask;
+  (void)FilterForFaultDetectionCounter;
 
-  Dem_Context.filter.statusMask = DtcDirty;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x13, DEM_E_UNINIT, return E_NOT_OK);
+  Dem_Context.filter.statusMask = DTCStatusMask & DEM_CONFIG->StatusAvailabilityMask;
   Dem_Context.filter.index = 0;
   Dem_Context.filter.DTCOrigin = DTCOrigin;
 
@@ -1525,15 +1644,18 @@ Std_ReturnType Dem_SetDTCFilter(uint8_t ClientId, uint8_t DtcDirty, Dem_DTCForma
 Std_ReturnType Dem_GetNumberOfFilteredDTC(uint8_t ClientId, uint16_t *NumberOfFilteredDTC) {
   Std_ReturnType r = E_OK;
   boolean IsFiltered;
-  int i;
+  uint16_t i;
   uint16_t number = 0;
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
 
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x17, DEM_E_UNINIT, return E_NOT_OK);
+
+  (void)ClientId;
   memory = Dem_LookupMemory(Dem_Context.filter.DTCOrigin);
   if (NULL != memory) {
     for (i = 0; i < DEM_CONFIG->numOfDtcs; i++) {
       IsFiltered = Dem_IsFilteredDTC(&DEM_CONFIG->Dtcs[i], memory);
-      if (IsFiltered) {
+      if (TRUE == IsFiltered) {
         number++;
       }
     }
@@ -1550,21 +1672,23 @@ Std_ReturnType Dem_GetNumberOfFilteredDTC(uint8_t ClientId, uint16_t *NumberOfFi
 Std_ReturnType Dem_GetNextFilteredDTC(uint8_t ClientId, uint32_t *DTC, uint8_t *DTCStatus) {
   Std_ReturnType r = E_NOT_OK;
   boolean IsFiltered;
-  int i;
-  const Dem_DTCType *Dtc;
+  uint16_t i;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
 
-  const Dem_MemoryDestinationType *memory;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
 
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x18, DEM_E_UNINIT, return E_NOT_OK);
+  (void)ClientId;
   memory = Dem_LookupMemory(Dem_Context.filter.DTCOrigin);
   if (NULL != memory) {
     for (i = Dem_Context.filter.index; i < DEM_CONFIG->numOfDtcs; i++) {
       Dtc = &DEM_CONFIG->Dtcs[i];
       IsFiltered = Dem_IsFilteredDTC(Dtc, memory);
-      if (IsFiltered) {
+      if (TRUE == IsFiltered) {
         Dtc = &DEM_CONFIG->Dtcs[i];
         *DTC = Dtc->DtcNumber;
-        *DTCStatus = memory->StatusRecords[Dtc->DtcId]->status;
-        Dem_Context.filter.index = i + 1;
+        *DTCStatus = memory->StatusRecords[Dtc->DtcId]->status & DEM_CONFIG->StatusAvailabilityMask;
+        Dem_Context.filter.index = i + 1u;
         ASLOG(DEMI, ("Get DTC %d: %06X %02X\n", i, *DTC, *DTCStatus));
         r = E_OK;
         break;
@@ -1578,7 +1702,8 @@ Std_ReturnType Dem_GetNextFilteredDTC(uint8_t ClientId, uint32_t *DTC, uint8_t *
 
 Std_ReturnType Dem_SetFreezeFrameRecordFilter(uint8_t ClientId, Dem_DTCFormatType DTCFormat) {
   Std_ReturnType r = E_OK;
-
+  (void)ClientId;
+  (void)DTCFormat;
   Dem_Context.filter.index = 0;
 
   return r;
@@ -1587,11 +1712,13 @@ Std_ReturnType Dem_SetFreezeFrameRecordFilter(uint8_t ClientId, Dem_DTCFormatTyp
 Std_ReturnType Dem_GetNumberOfFreezeFrameRecords(uint8_t ClientId,
                                                  uint16_t *NumberOfFilteredRecords) {
   Std_ReturnType r = E_OK;
-  int i, slot;
+  uint16_t i;
+  uint16_t slot;
   uint16_t number = 0;
   Dem_FreezeFrameRecordType *record;
-  const Dem_MemoryDestinationType *memory;
-
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  (void)ClientId;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x5a, DEM_E_UNINIT, return E_NOT_OK);
   memory = Dem_LookupMemory(Dem_Context.filter.DTCOrigin);
   if (NULL != memory) {
     for (i = 0; i < memory->numOfFreezeFrameRecords; i++) {
@@ -1616,17 +1743,18 @@ Std_ReturnType Dem_GetNumberOfFreezeFrameRecords(uint8_t ClientId,
 Std_ReturnType Dem_GetNextFilteredRecord(uint8_t ClientId, uint32_t *DTC, uint8_t *RecordNumber) {
   Std_ReturnType r = E_NOT_OK;
   boolean IsFiltered;
-  int i;
-  const Dem_DTCType *DtcRef;
+  uint16_t i;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DtcRef;
   Dem_FreezeFrameRecordType *record;
   uint8_t recNum;
-  const Dem_MemoryDestinationType *memory;
-
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  (void)ClientId;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x3a, DEM_E_UNINIT, return E_NOT_OK);
   memory = Dem_LookupMemory(Dem_Context.filter.DTCOrigin);
   if (NULL != memory) {
     *RecordNumber = 0;
     for (i = Dem_Context.filter.index;
-         i < memory->numOfFreezeFrameRecords * DEM_MAX_FREEZE_FRAME_NUMBER; i++) {
+         i < (memory->numOfFreezeFrameRecords * DEM_MAX_FREEZE_FRAME_NUMBER); i++) {
       IsFiltered = Dem_IsFilteredFF(i);
       record = Dem_LookupFreezeFrameRecordByIndex(memory, i, &recNum, NULL);
       if (IsFiltered && (NULL != record)) {
@@ -1634,7 +1762,7 @@ Std_ReturnType Dem_GetNextFilteredRecord(uint8_t ClientId, uint32_t *DTC, uint8_
         *DTC = DtcRef->DtcNumber;
         *RecordNumber = recNum;
 
-        Dem_Context.filter.index = i + 1;
+        Dem_Context.filter.index = i + 1u;
         r = E_OK;
         break;
       }
@@ -1649,7 +1777,8 @@ Std_ReturnType Dem_GetNextFilteredRecord(uint8_t ClientId, uint32_t *DTC, uint8_
 Std_ReturnType Dem_SelectDTC(uint8_t ClientId, uint32_t DTC, Dem_DTCFormatType DTCFormat,
                              Dem_DTCOriginType DTCOrigin) {
   Std_ReturnType r = E_OK;
-
+  (void)ClientId;
+  (void)DTCFormat;
   Dem_Context.filter.DTCNumber = DTC;
   Dem_Context.filter.DTCOrigin = DTCOrigin;
 
@@ -1658,7 +1787,7 @@ Std_ReturnType Dem_SelectDTC(uint8_t ClientId, uint32_t DTC, Dem_DTCFormatType D
 
 Std_ReturnType Dem_SelectFreezeFrameData(uint8_t ClientId, uint8_t RecordNumber) {
   Std_ReturnType r = E_OK;
-
+  (void)ClientId;
   Dem_Context.filter.RecordNumber = RecordNumber;
 
   return r;
@@ -1666,7 +1795,7 @@ Std_ReturnType Dem_SelectFreezeFrameData(uint8_t ClientId, uint8_t RecordNumber)
 
 Std_ReturnType Dem_SelectExtendedDataRecord(uint8_t ClientId, uint8_t ExtendedDataNumber) {
   Std_ReturnType r = E_OK;
-
+  (void)ClientId;
   Dem_Context.filter.RecordNumber = ExtendedDataNumber;
 
   return r;
@@ -1676,16 +1805,19 @@ Std_ReturnType Dem_GetNextFreezeFrameData(uint8_t ClientId, uint8_t *DestBuffer,
                                           uint16_t *BufSize) {
   Std_ReturnType r = E_OK;
   Dem_FreezeFrameRecordType *record;
-  const Dem_MemoryDestinationType *memory;
-  const Dem_DTCType *Dtc;
-  const Dem_FreezeFrameRecordClassType *FreezeFrameRecordClass;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
+  P2CONST(Dem_FreezeFrameRecordClassType, AUTOMATIC, DEM_CONST) FreezeFrameRecordClass;
   uint8_t recNum;
   uint8_t *data;
-  int i, index = 0;
-  int offset;
+  uint16_t i;
+  uint16_t index = 0;
+  uint16_t offset;
   uint8_t numOfRecords = 0;
   uint16_t freezeFrameSize = 0;
+  (void)ClientId;
 
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x1d, DEM_E_UNINIT, return E_NOT_OK);
   Dtc = Dem_LookupDtcByDTCNumber(Dem_Context.filter.DTCNumber);
 
   if (NULL != Dtc) {
@@ -1698,32 +1830,49 @@ Std_ReturnType Dem_GetNextFreezeFrameData(uint8_t ClientId, uint8_t *DestBuffer,
   }
 
   if (E_OK == r) {
+    if (0xFFu == Dem_Context.filter.RecordNumber) {
+      /* OK as request any */
+    } else {
+      r = DEM_NO_SUCH_ELEMENT;
+      for (i = 0; i < Dtc->DTCAttributes->FreezeFrameRecNumClass->numOfFreezeFrameRecNums; i++) {
+        if (Dem_Context.filter.RecordNumber ==
+            Dtc->DTCAttributes->FreezeFrameRecNumClass->FreezeFrameRecNums[i]) {
+          r = E_OK;
+          break;
+        }
+      }
+    }
+  }
+
+  if (E_OK == r) {
     numOfRecords = Dem_GetNumberOfFreezeFrameRecordsByRecordNumber(Dtc->DtcId, memory,
                                                                    Dem_Context.filter.RecordNumber);
 
     FreezeFrameRecordClass = Dtc->DTCAttributes->FreezeFrameRecordClass;
     freezeFrameSize = Dem_GetFreezeFrameSize(FreezeFrameRecordClass) +
-                      2 * FreezeFrameRecordClass->numOfFreezeFrameData;
-    if (((uint32_t)numOfRecords * (freezeFrameSize + 2) + 4) > *BufSize) {
+                      (2u * FreezeFrameRecordClass->numOfFreezeFrameData);
+    if (((uint32_t)numOfRecords * ((uint32_t)freezeFrameSize + 2u) + 4u) > (uint32_t)(*BufSize)) {
       r = DEM_BUFFER_TOO_SMALL;
+    } else {
+      /* OK */
     }
   }
 
   if (E_OK == r) {
-    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFF);
-    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFF);
-    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFF);
-    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status;
-    *BufSize = 4 + (freezeFrameSize + 2) * numOfRecords;
+    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFFu);
+    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFFu);
+    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFFu);
+    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status & DEM_CONFIG->StatusAvailabilityMask;
+    *BufSize = 4u + ((freezeFrameSize + 2u) * numOfRecords);
     for (i = 0; i < numOfRecords; i++) {
-      offset = 4 + (freezeFrameSize + 2) * i;
+      offset = 4u + ((freezeFrameSize + 2u) * i);
       recNum = Dem_Context.filter.RecordNumber;
       record =
         Dem_LookupFreezeFrameRecordByRecordNumber(Dtc->DtcId, memory, &recNum, &data, &index);
       if (record != NULL) {
         DestBuffer[offset] = recNum;
-        DestBuffer[offset + 1] = FreezeFrameRecordClass->numOfFreezeFrameData;
-        Dem_FillSnapshotRecord(&DestBuffer[offset + 2], data, FreezeFrameRecordClass);
+        DestBuffer[offset + 1u] = FreezeFrameRecordClass->numOfFreezeFrameData;
+        Dem_FillSnapshotRecord(&DestBuffer[offset + 2u], data, FreezeFrameRecordClass);
       } else {
         ASLOG(DEME, ("Dem record changed during read\n"));
         r = E_NOT_OK;
@@ -1737,18 +1886,19 @@ Std_ReturnType Dem_GetNextFreezeFrameData(uint8_t ClientId, uint8_t *DestBuffer,
 Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuffer,
                                              uint16_t *BufSize) {
   Std_ReturnType r = E_OK;
-  const Dem_DTCType *Dtc;
-  const Dem_MemoryDestinationType *memory;
-  const Dem_ExtendedDataClassType *ExtendedDataClass;
-  const Dem_ExtendedDataRecordClassType *ExtendedDataRecordClass;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtc;
+  P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) memory;
+  P2CONST(Dem_ExtendedDataClassType, AUTOMATIC, DEM_CONST) ExtendedDataClass;
+  P2CONST(Dem_ExtendedDataRecordClassType, AUTOMATIC, DEM_CONST) ExtendedDataRecordClass;
 #ifdef DEM_USE_NVM_EXTENDED_DATA
   Dem_ExtendedDataRecordType *record;
   uint16_t sz;
-  int offset = 0;
+  uint16_t offset = 0;
 #endif
-  uint16_t length = 4;
-  int i = 0;
-
+  uint16_t length = 4u;
+  uint16_t i = 0;
+  (void)ClientId;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x20, DEM_E_UNINIT, return E_NOT_OK);
   Dtc = Dem_LookupDtcByDTCNumber(Dem_Context.filter.DTCNumber);
 
   if (NULL != Dtc) {
@@ -1773,18 +1923,18 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
       ExtendedDataRecordClass = ExtendedDataClass->ExtendedDataRecordClassRef[i];
 #ifdef DEM_USE_NVM_EXTENDED_DATA
       if (record->ExtendedData[offset] != DEM_EXTENDED_DATA_SLOT_FREE) {
-        if ((0xFF == Dem_Context.filter.RecordNumber) ||
+        if ((0xFFu == Dem_Context.filter.RecordNumber) ||
             (record->ExtendedData[offset] == Dem_Context.filter.RecordNumber)) {
           asAssert(record->ExtendedData[offset] ==
                    ExtendedDataRecordClass->ExtendedDataRecordNumber);
-          length += 1 + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
+          length += 1u + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
         }
       }
-      offset += 1 + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
+      offset += 1u + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
 #else
-      if ((0xFF == Dem_Context.filter.RecordNumber) ||
+      if ((0xFFu == Dem_Context.filter.RecordNumber) ||
           (ExtendedDataRecordClass->ExtendedDataRecordNumber == Dem_Context.filter.RecordNumber)) {
-        length += 1 + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
+        length += 1u + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
       } else {
         r = E_NOT_OK;
       }
@@ -1798,12 +1948,12 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
   }
 
   if (E_OK == r) {
-    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFF);
-    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFF);
-    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFF);
-    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status;
+    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFFu);
+    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFFu);
+    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFFu);
+    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status & DEM_CONFIG->StatusAvailabilityMask;
     *BufSize = length;
-    length = 4; /* acting as offset to DestBuffer */
+    length = 4u; /* acting as offset to DestBuffer */
 #ifdef DEM_USE_NVM_EXTENDED_DATA
     offset = 0;
 #endif
@@ -1811,19 +1961,19 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
       ExtendedDataRecordClass = ExtendedDataClass->ExtendedDataRecordClassRef[i];
 #ifdef DEM_USE_NVM_EXTENDED_DATA
       if (record->ExtendedData[offset] != DEM_EXTENDED_DATA_SLOT_FREE) {
-        if ((0xFF == Dem_Context.filter.RecordNumber) ||
+        if ((0xFFu == Dem_Context.filter.RecordNumber) ||
             (record->ExtendedData[offset] == Dem_Context.filter.RecordNumber)) {
-          sz = 1 + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
-          memcpy(&DestBuffer[length], &record->ExtendedData[offset], sz);
+          sz = 1u + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
+          (void)memcpy(&DestBuffer[length], &record->ExtendedData[offset], sz);
           length += sz;
         }
       }
-      offset += 1 + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
+      offset += 1u + Dem_GetExtendedDataRecordSize(ExtendedDataRecordClass);
 #else
-      if ((0xFF == Dem_Context.filter.RecordNumber) ||
+      if ((0xFFu == Dem_Context.filter.RecordNumber) ||
           (ExtendedDataRecordClass->ExtendedDataRecordNumber == Dem_Context.filter.RecordNumber)) {
         DestBuffer[length] = ExtendedDataRecordClass->ExtendedDataRecordNumber;
-        length += 1;
+        length += 1u;
         length += Dem_FillExtendedData(Dtc, ExtendedDataRecordClass, &DestBuffer[length],
                                        memory->DTCOrigin);
       }
@@ -1833,11 +1983,11 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
 
 #ifdef DEM_USE_NVM_EXTENDED_DATA
   if (DEM_NO_SUCH_ELEMENT == r) {
-    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFF);
-    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFF);
-    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFF);
-    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status;
-    *BufSize = 4;
+    DestBuffer[0] = (uint8_t)((Dtc->DtcNumber >> 16) & 0xFFu);
+    DestBuffer[1] = (uint8_t)((Dtc->DtcNumber >> 8) & 0xFFu);
+    DestBuffer[2] = (uint8_t)(Dtc->DtcNumber & 0xFFu);
+    DestBuffer[3] = memory->StatusRecords[Dtc->DtcId]->status & DEM_CONFIG->StatusAvailabilityMask;
+    *BufSize = 4u;
     r = E_OK;
   }
 #endif
@@ -1848,10 +1998,11 @@ Std_ReturnType Dem_GetNextExtendedDataRecord(uint8_t ClientId, uint8_t *DestBuff
 Std_ReturnType Dem_SetEnableCondition(uint8_t EnableConditionID, boolean ConditionFulfilled) {
   Std_ReturnType r = E_OK;
   Std_ReturnType ret;
-  const Dem_EventConfigType *EventConfig;
-  int i;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
+  uint16_t i;
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x39, DEM_E_UNINIT, return E_NOT_OK);
   if (EnableConditionID < DEM_NUM_OF_ENABLE_CONDITION) {
-    if (ConditionFulfilled) {
+    if (TRUE == ConditionFulfilled) {
       Dem_Context.conditionMask |= (1 << EnableConditionID);
       for (i = 0; i < DEM_CONFIG->numOfEvents; i++) {
         EventConfig = &DEM_CONFIG->EventConfigs[i];
@@ -1874,11 +2025,13 @@ Std_ReturnType Dem_SetEnableCondition(uint8_t EnableConditionID, boolean Conditi
 #endif
 
 void Dem_MainFunction(void) {
-  int i, j;
-  const Dem_EventConfigType *EventConfig;
+  uint16_t i;
+  uint16_t j;
+  P2CONST(Dem_EventConfigType, AUTOMATIC, DEM_CONST) EventConfig;
   Dem_EventContextType *EventContext;
-  const Dem_DTCType *DTCRef;
+  P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) DTCRef;
 
+  DET_VALIDATE(NULL != DEM_CONFIG, 0x55, DEM_E_UNINIT, return);
   for (i = 0; i < DEM_CONFIG->numOfEvents; i++) {
     EventContext = &DEM_CONFIG->EventContexts[i];
     EventConfig = &DEM_CONFIG->EventConfigs[i];

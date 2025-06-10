@@ -1,14 +1,15 @@
 
 function eval(s)
+  local data = {}
   if "\"" == s:sub(1,1) then
     s = s:sub(2, -2)
   end
   if "text=" == s:sub(1, 5) then
     data = {}
     s = s:sub(6)
-    n = s:len()
+    local n = s:len()
     for i = 1, n, 1 do
-      c = s:sub(i, i)
+      local c = s:sub(i, i)
       data[i] = c:byte()
     end
   else
@@ -263,4 +264,132 @@ function decode_extended_data(d)
   return true, headers, values, (index-1)*8
 end
 
+------------------------- AUTHENTICATION -------------------------------------------
+require("crypto")
 
+function tohex(data)
+  s = ''
+  for i, v in ipairs(data) do
+    s = s .. string.format('%02X', v)
+    if i > 0 and i % 32 == 0 then
+      s = s .. '\n'
+    end
+  end
+  return s
+end
+
+function load_keys(role)
+  local private_key = nil
+  local public_key = nil
+  local private_key_asc = nil
+  local public_key_asc = nil
+  prikey = string.format('%sprivate_key.txt', role)
+  pubkey = string.format('%spublic_key.txt', role)
+  private_key_f = io.open(prikey, "rb")
+  public_key_f = io.open(pubkey, "rb")
+  if public_key_f == nil or private_key_f == nil then
+    private_key, public_key = crypto.keygen(2048)
+    private_key_asc = crypto.base64_encode(private_key)
+    public_key_asc = crypto.base64_encode(public_key)
+    private_key_f = io.open(prikey, "wb")
+    public_key_f = io.open(pubkey, "wb")
+    private_key_f:write(private_key_asc)
+    public_key_f:write(public_key_asc)
+  else
+    private_key_asc = private_key_f:read()
+    public_key_asc = public_key_f:read()
+    private_key = crypto.base64_decode(private_key_asc)
+    public_key = crypto.base64_decode(public_key_asc)
+  end
+
+  private_key_f:close()
+  public_key_f:close()
+
+  return private_key, public_key, private_key_asc, public_key_asc
+end
+
+
+function load_certificate()
+  private_key, public_key, private_key_asc, public_key_asc = load_keys('')
+  ca_private_key, ca_public_key, ca_private_key_asc, ca_public_key_asc = load_keys('ca_')
+  -- simuate a certificate issued by CA, the signature signed by CA's private key, nobody will know
+  -- CA's private key but know CA's public key
+  signature = crypto.sign(ca_private_key, public_key)
+  signature_asc = crypto.base64_encode(signature)
+  headers = { "public key", "signature" }
+
+  -- dd = { 1, 2, 3}
+  -- print("org:", tohex(dd))
+  -- ens = crypto.encrypt(public_key, dd)
+  -- print("ens:", tohex(ens))
+  -- des = crypto.decrypt(private_key, ens)
+  -- print("des:", tohex(des))
+
+  data = {}
+  len = rawlen(public_key)
+  data[1] = (len >> 8) & 0xFF
+  data[2] = len & 0xFF
+  offset = 3
+  for _, v in ipairs(public_key) do
+    data[offset] = v
+    offset = offset + 1
+  end
+  -- Diagnostic Role
+  -- Unlocked Services
+  len = rawlen(signature)
+  data[offset] = (len >> 8) & 0xFF
+  data[offset + 1] = len & 0xFF
+  offset = offset + 2
+  for _, v in ipairs(signature) do
+    data[offset] = v
+    offset = offset + 1
+  end
+
+  values = { public_key_asc, signature_asc }
+  return data, headers, values
+end
+
+challenge = nil
+
+function decode_challenge(d)
+  headers = { "challenge" }
+  values = { crypto.base64_encode(d) }
+  challenge = d
+
+  return true, headers, values, rawlen(d)*8
+end
+
+function sign_challenge()
+  private_key, public_key, private_key_asc, public_key_asc = load_keys('')
+  signature = crypto.sign(private_key, challenge)
+  signature_asc = crypto.base64_encode(signature)
+  headers = { "challenge", "signature" }
+  values = {  crypto.base64_encode(challenge), signature_asc }
+  return signature, headers, values
+end
+
+
+-- private_key, public_key, private_key_asc, public_key_asc = load_keys('')
+-- signature = crypto.sign(private_key, public_key)
+-- print('signature')
+-- print(tohex(signature))
+-- print(crypto.verify(public_key, public_key, signature))
+
+-- require("x509")
+
+-- rca = x509.open('D:/repository/ssas/build/nt/GCC/one/astrust/AS_Root_CA.der')
+-- rkey = rca:public_key()
+-- print('root public key')
+-- print(tohex(rkey))
+
+-- ca = x509.open('D:/repository/ssas/build/nt/GCC/one/astrust/astrust-rsa-ica1/AS_RSA_ICA1.der')
+
+-- print('tbs')
+-- tbs = ca:tbs_certificate()
+-- print(tohex(tbs))
+
+-- sig = ca:signature()
+-- print('signature')
+-- print(tohex(sig))
+
+-- print(crypto.verify(rkey, tbs, sig))

@@ -26,14 +26,14 @@ extern "C" {
 #define DCM_E_FORCE_RCRRP ((Std_ReturnType)12)
 
 /* @SWS_Dcm_91015 */
-#define DCM_INITIAL 0x00
-#define DCM_PENDING 0x01
-#define DCM_CANCEL 0x02
-#define DCM_FORCE_RCRRP_OK 0x03
-#define DCM_POS_RESPONSE_SENT 0x04
-#define DCM_POS_RESPONSE_FAILED 0x04
-#define DCM_NEG_RESPONSE_SENT 0x06
-#define DCM_NEG_RESPONSE_FAILED 0x07
+#define DCM_INITIAL 0x00u
+#define DCM_PENDING 0x01u
+#define DCM_CANCEL 0x02u
+#define DCM_FORCE_RCRRP_OK 0x03u
+#define DCM_POS_RESPONSE_SENT 0x04u
+#define DCM_POS_RESPONSE_FAILED 0x04u
+#define DCM_NEG_RESPONSE_SENT 0x06u
+#define DCM_NEG_RESPONSE_FAILED 0x07u
 
 #define DCM_READ_OK (Dcm_ReturnReadMemoryType) E_OK
 #define DCM_READ_PENDING (Dcm_ReturnReadMemoryType)0x01
@@ -53,28 +53,28 @@ extern "C" {
 #define DCM_COLD_START (Dcm_EcuStartModeType)0x00
 #define DCM_WARM_START (Dcm_EcuStartModeType)0x01
 
-#define DCM_PHYSICAL_REQUEST 0
-#define DCM_FUNCTIONAL_REQUEST 1
+#define DCM_PHYSICAL_REQUEST 0u
+#define DCM_FUNCTIONAL_REQUEST 1u
 
-#define DCM_NOT_SUPRESS_POSITIVE_RESPONCE 0
-#define DCM_SUPRESS_POSITIVE_RESPONCE 1
+#define DCM_NOT_SUPRESS_POSITIVE_RESPONCE 0u
+#define DCM_SUPRESS_POSITIVE_RESPONCE 1u
 
 /* @SWS_Dcm_00978 */
-#define DCM_DEFAULT_SESSION 0x01
-#define DCM_PROGRAMMING_SESSION 0x02
-#define DCM_EXTENDED_DIAGNOSTIC_SESSION 0x03
-#define DCM_SAFETY_SYSTEM_DIAGNOSTIC_SESSION 0x04
+#define DCM_DEFAULT_SESSION 0x01u
+#define DCM_PROGRAMMING_SESSION 0x02u
+#define DCM_EXTENDED_DIAGNOSTIC_SESSION 0x03u
+#define DCM_SAFETY_SYSTEM_DIAGNOSTIC_SESSION 0x04u
 /* For this DCM implementation, only 4 customer defined session are supported */
 
 /* @SWS_Dcm_00977 */
-#define DCM_SEC_LEV_LOCKED 0x00
-#define DCM_SEC_LEVEL1 0x01
-#define DCM_SEC_LEVEL2 0x02
-#define DCM_SEC_LEVEL3 0x03
-#define DCM_SEC_LEVEL4 0x04
-#define DCM_SEC_LEVEL5 0x05
-#define DCM_SEC_LEVEL6 0x06
-#define DCM_SEC_LEVEL7 0x07
+#define DCM_SEC_LEV_LOCKED 0x00u
+#define DCM_SEC_LEVEL1 0x01u
+#define DCM_SEC_LEVEL2 0x02u
+#define DCM_SEC_LEVEL3 0x03u
+#define DCM_SEC_LEVEL4 0x04u
+#define DCM_SEC_LEVEL5 0x05u
+#define DCM_SEC_LEVEL6 0x06u
+#define DCM_SEC_LEVEL7 0x07u
 
 /* @SWS_Dcm_00980 */
 #define DCM_POS_RESP ((Dcm_NegativeResponseCodeType)0x00)
@@ -120,13 +120,13 @@ extern "C" {
 #endif
 
 /* @SWS_Dcm_00040 */
-#define DCM_E_INVALID_VALUE 0x02
-#define DCM_E_INTERFACE_RETURN_VALUE 0x03
-#define DCM_E_UNINIT 0x05
-#define DCM_E_PARAM 0x06
-#define DCM_E_PARAM_POINTER 0x07
-#define DCM_E_INIT_FAILED 0x08
-#define DCM_E_SET_PROG_CONDITIONS_FAIL 0x09
+#define DCM_E_INVALID_VALUE 0x02u
+#define DCM_E_INTERFACE_RETURN_VALUE 0x03u
+#define DCM_E_UNINIT 0x05u
+#define DCM_E_PARAM 0x06u
+#define DCM_E_PARAM_POINTER 0x07u
+#define DCM_E_INIT_FAILED 0x08u
+#define DCM_E_SET_PROG_CONDITIONS_FAIL 0x09u
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Dcm_00976 */
 typedef uint8_t Dcm_StatusType;

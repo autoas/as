@@ -16,8 +16,7 @@
 #define SD_ANY_MAJOR_VERSION 0xFF
 #define SD_ANY_MINOR_VERSION 0xFFFFFFFF
 /* ================================ [ TYPES     ] ============================================== */
-typedef enum
-{
+typedef enum {
   SD_PHASE_DOWN,
   SD_PHASE_INITIAL_WAIT,
   SD_PHASE_REPETITION,

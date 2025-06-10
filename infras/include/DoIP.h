@@ -9,6 +9,9 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "SoAd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 /* @SWS_DoIP_00055 */
 #define DOIP_E_PENDING ((Std_ReturnType)16)
@@ -65,4 +68,7 @@ BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *in
 
 /* @SWS_DoIP_00039 */
 void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _DOIP_H */

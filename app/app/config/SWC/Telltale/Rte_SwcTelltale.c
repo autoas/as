@@ -19,8 +19,7 @@
 #define TELLTALE_MGR_PERIOD 10
 #define mMS2Ticks(t) (((t) + TELLTALE_MGR_PERIOD - 1) / TELLTALE_MGR_PERIOD)
 /* ================================ [ TYPES     ] ============================================== */
-enum
-{
+enum {
   eTelltaleTPMS = 0,
   eTelltaleLowOil,
   eTelltalePosLamp,
@@ -34,8 +33,7 @@ enum
   eTelltaleMax
 };
 
-enum
-{
+enum {
   eTelltaleStatusOff = 0,
   eTelltaleStatusOn,
   eTelltaleStatus1Hz,

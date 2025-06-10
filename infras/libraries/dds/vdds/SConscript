@@ -3,6 +3,8 @@ Import('BUILD_DIR')
 CWD = GetCurrentDir()
 
 objs = Glob('src/*.cpp')
+objs += Glob('src/vring/*.cpp')
+objs += Glob('src/vring/*/*.cpp')
 objsWin = Glob('src/platform/win/*.cpp')
 
 
@@ -23,8 +25,6 @@ class LibraryVDDS(Library):
 
 
 objsHwPub = Glob('examples/hello_world_publisher.cpp')
-
-
 @register_application
 class ApplicationVDDSHwPub(Application):
     def config(self):
@@ -33,10 +33,17 @@ class ApplicationVDDSHwPub(Application):
         self.source = objsHwPub
         self.LIBS += ['VDDS']
 
+@register_application
+class ApplicationVDDSHwSPub(Application):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsHwPub
+        self.LIBS += ['VDDS']
+        self.CPPDEFINES += ['VRING_WRITER=vring::spsc::Writer']
+
 
 objsHwSub = Glob('examples/hello_world_subscriber.cpp')
-
-
 @register_application
 class ApplicationVDDSHwSub(Application):
     def config(self):
@@ -45,10 +52,16 @@ class ApplicationVDDSHwSub(Application):
         self.source = objsHwSub
         self.LIBS += ['VDDS']
 
+@register_application
+class ApplicationVDDSHwSSub(Application):
+    def config(self):
+        self.include = ['%s/include' % (CWD)]
+        self.CPPPATH = ['$INFRAS']
+        self.source = objsHwSub
+        self.LIBS += ['VDDS']
+        self.CPPDEFINES += ['VRING_READER=vring::spsc::Reader']
 
 objsHwPS = Glob('examples/hello_world_ps.cpp')
-
-
 @register_application
 class ApplicationVDDSHwPS(Application):
     def config(self):

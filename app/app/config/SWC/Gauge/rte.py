@@ -4,11 +4,26 @@ from generator import asar
 import autosar
 from bswcom import *
 
-STMO_I = asar.createSenderReceiverInterfaceTemplate('STMO_I', COM_D)
+
+C_VehicleSpeed_IV = C_CAN1_RxMsgAbsInfo_VehicleSpeed_IV
+C_TachoSpeed_IV = C_CAN1_RxMsgAbsInfo_TachoSpeed_IV
+
+VehicleSpeed = asar.createSenderReceiverPortTemplate('Com', COM_I, C_VehicleSpeed_IV, aliveTimeout=30, elemName='VehicleSpeed')
+TachoSpeed = asar.createSenderReceiverPortTemplate('Com', COM_I, C_TachoSpeed_IV, aliveTimeout=30, elemName='TachoSpeed')
+COM_D.append(asar.createDataElementTemplate('VehicleSpeed', asar.UINT16_T))
+COM_D.append(asar.createDataElementTemplate('TachoSpeed', asar.UINT16_T))
+
+STMO_D = []
+STMO_D.append(asar.createDataElementTemplate('VehicleSpeed', asar.UINT16_T))
+STMO_D.append(asar.createDataElementTemplate('TachoSpeed', asar.UINT16_T))
+
+STMO_I = asar.createSenderReceiverInterfaceTemplate("STMO_I", STMO_D)
 VehicleSpeed_stmo = asar.createSenderReceiverPortTemplate(
-    'Stmo', STMO_I, C_VehicleSpeed_IV, aliveTimeout=30, elemName='VehicleSpeed')
+    "Stmo", STMO_I, C_VehicleSpeed_IV, aliveTimeout=30, elemName="VehicleSpeed"
+)
 TachoSpeed_stmo = asar.createSenderReceiverPortTemplate(
-    'Stmo', STMO_I, C_TachoSpeed_IV, aliveTimeout=30, elemName='TachoSpeed')
+    "Stmo", STMO_I, C_TachoSpeed_IV, aliveTimeout=30, elemName="TachoSpeed"
+)
 
 
 class Gauge(autosar.Template):
@@ -32,11 +47,13 @@ class Gauge(autosar.Template):
     @classmethod
     def addBehavior(cls, swc):
         componentName = cls.__name__
-        swc.behavior.createRunnable(componentName+'_Init')
-        swc.behavior.createRunnable(componentName+'_Exit')
-        swc.behavior.createRunnable(componentName+'_Run', portAccess=['%s/%s' % (
-            p.name, p.comspec[0].name) for p in swc.requirePorts+swc.providePorts])
-        swc.behavior.createTimerEvent(componentName+'_Run', 20)
+        swc.behavior.createRunnable(componentName + "_Init")
+        swc.behavior.createRunnable(componentName + "_Exit")
+        swc.behavior.createRunnable(
+            componentName + "_Run",
+            portAccess=["%s/%s" % (p.name, p.comspec[0].name) for p in swc.requirePorts + swc.providePorts],
+        )
+        swc.behavior.createTimerEvent(componentName + "_Run", 20)
 
 
 def main(dir):

@@ -28,11 +28,11 @@ extern "C" {
 #endif
 
 #ifndef FALSE
-#define FALSE 0
+#define FALSE 0u
 #endif
 
 #ifndef TRUE
-#define TRUE 1
+#define TRUE 1u
 #endif
 
 /* @SWS_Std_00006 */
@@ -42,6 +42,7 @@ extern "C" {
 typedef unsigned char StatusType; /* OSEK compliance */
 #endif
 #define E_NOT_OK 0x01u
+#define E_BUSY 0x02u
 
 /* @ SWS_Std_00007 */
 #define STD_HIGH 0x01u /* Physical state 5V or 3.3V */

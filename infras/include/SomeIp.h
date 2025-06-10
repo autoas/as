@@ -67,7 +67,8 @@ void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr);
 void SomeIp_MainFunction(void);
 
 Std_ReturnType SomeIp_ConnectionTakeControl(uint16_t serviceId, uint16_t conId);
-Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId, uint8_t *data, uint32_t length);
+Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId, uint8_t *data,
+                                          uint32_t length);
 #ifdef __cplusplus
 }
 #endif

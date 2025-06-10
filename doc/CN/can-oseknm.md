@@ -9,7 +9,7 @@ comments: true
 
 CAN NM（Network Management）网络管理非以太网网络管理，CAN NM比起以太网网络管理要简单太多，其无非进行网络上CAN节点的一个同醒同睡问题。
 
-CAN NM也有很多变种，常用的如[AUTOSAR CAN NM](https://github.com/autoas/ssas-public/blob/master/infras/include/CanNm.h)和[OSEK NM](https://github.com/autoas/ssas-public/blob/master/infras/include/OsekNm.h)，当然还有很多各大厂商自定义的网络管理机制，但所有的CAN NM变种，其都为了实现同一个目的，同睡同醒。
+CAN NM也有很多变种，常用的如[AUTOSAR CAN NM](../../infras/include/CanNm.h)和[OSEK NM](../../infras/include/OsekNm.h)，当然还有很多各大厂商自定义的网络管理机制，但所有的CAN NM变种，其都为了实现同一个目的，同睡同醒。
 
 OSEK NM其自身又分为2种机制，直接网络管理和间接网络管理，如何理解呢，其实也很简单，有专有CAN报文来传递网络状态信息的即为直接网络管理；没有专有CAN报文的，使用应用报文来简介同步网络状态信息的即为间接网络管理。按此来划分，其实AUTOSAR CAN NM属于直接网络管理。
 
@@ -19,7 +19,7 @@ OSEK NM其自身又分为2种机制，直接网络管理和间接网络管理，
 
 ## 第一， 如何配置
 
-关于OSEK配置信息的描述都位于[OsekNm_Priv.h](https://github.com/autoas/ssas-public/blob/master/infras/communication/OsekNm/OsekNm_Priv.h)头文件中，一个CAN通道的配置可以参考文件[OsekNm_Cfg.c](https://github.com/autoas/ssas-public/blob/master/app/app/config/OsekNm_Cfg.c)，该配置信息还是比较简单直白的，无非配置些节点的各OSEK NM的参数：
+关于OSEK配置信息的描述都位于[OsekNm_Priv.h](../../infras/communication/OsekNm/OsekNm_Priv.h)头文件中，一个CAN通道的配置可以参考文件[OsekNm_Cfg.c](../../app/app/config/OsekNm_Cfg.c)，该配置信息还是比较简单直白的，无非配置些节点的各OSEK NM的参数：
 
 | NM Parameter  | Definition                                                   | Valid Area                   |
 | :------------ | ------------------------------------------------------------ | ---------------------------- |
@@ -34,22 +34,22 @@ OSEK NM其自身又分为2种机制，直接网络管理和间接网络管理，
 本OSEK NM实现可与任何系统集成，可单独使用。在集成时，须实现如下几个API：
 
 ```c
-void D_Init(NetIdType NetId, RoutineRefType Routine);
-// disable application communication by D_Offline
-void D_Offline(NetIdType NetId);
-// enable application communication by D_Online
-void D_Online(NetIdType NetId);
+void OsekNm_D_Init(NetworkHandleType NetId, OsekNm_RoutineRefType Routine);
+// disable application communication by OsekNm_D_Offline
+void OsekNm_D_Offline(NetworkHandleType NetId);
+// enable application communication by OsekNm_D_Online
+void OsekNm_D_Online(NetworkHandleType NetId);
 // request to transmit NM frame
-StatusType D_WindowDataReq(NetIdType NetId, NMPduType *NMPDU, uint8_t DataLengthTx);
+Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *NMPDU, uint8_t DataLengthTx);
 ```
 
 在ssas-public项目中，你可以注意到实际上前三个API为空实现，其实这是不对的，需要按照OSEK NM文档的要求去实现。
 
-如下为D_WindowDataReq使用AUTOSAR CAN驱动的一个简单的实现，该实现以CAN ID从0x500到0x5FF为NM网段。
+如下为OsekNm_D_WindowDataReq使用AUTOSAR CAN驱动的一个简单的实现，该实现以CAN ID从0x500到0x5FF为NM网段。
 
 ```c
-StatusType D_WindowDataReq(NetIdType NetId, NMPduType *NMPDU, uint8_t DataLengthTx) {
-  StatusType ercd;
+Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *NMPDU, uint8_t DataLengthTx) {
+  Std_ReturnType ercd;
   Can_PduType canPdu;
 
   canPdu.swPduHandle = 2;
@@ -70,7 +70,7 @@ OSEK NM其他节点报文接受处理，如下代码所示：
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   ...
   if ((Mailbox->CanId >= 0x500) && ((Mailbox->CanId <= 0x5FF))) {
-    NMPduType NMPDU;
+    OsekNm_PduType NMPDU;
     NMPDU.Source = Mailbox->CanId - 0x500;
     memcpy(&NMPDU.Destination, PduInfoPtr->SduDataPtr, 8);
     OsekNm_RxIndication(Mailbox->ControllerId, &NMPDU);
@@ -83,8 +83,8 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
 
 ```c
   OsekNm_Init(NULL);
-  TalkNM(0);
-  StartNM(0);
+  OsekNm_Talk(0);
+  OsekNm_Start(0);
 ```
 
 另外，需要周期性调用函数OsekNm_MainFunction来驱动OSEK NM工作。
@@ -92,19 +92,19 @@ void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr
 API GotoMode可用来控制网络的状态：
 
 ```c
-GotoMode(0, NM_BusSleep); // 请求睡眠，释放网络
-GotoMode(0, NM_Awake);    // 请求唤醒，激活网络
+OsekNm_GotoMode(0, OSEKNM_BUS_SLEEP); // 请求睡眠，释放网络
+OsekNm_GotoMode(0, OSEKNM_AWAKE);    // 请求唤醒，激活网络
 ```
 
 另外，还有如下两个API来控制是否真正参与网络管理，可用来实现UDS的网络管理通讯控制服务。
 
 ```c
-StatusType SilentNM(NetIdType);
-StatusType TalkNM(NetIdType);
+Std_ReturnType OsekNm_Silent(NetworkHandleType);
+Std_ReturnType OsekNm_Talk(NetworkHandleType);
 ```
 另外，需要特别强调一点， OSEK NM具有CAN总线 bus off错误的管理机制，即在发生bus off 时，调用OsekNm_BusErrorIndication即可。
 另，CAN总线由睡眠到唤醒时，调用OsekNm_WakeupIndication 即可。
 
 ## 第三，一个例子
 
-参考 [OsekNm](https://github.com/autoas/ssas-public/blob/master/examples/OsekNm.md)。
+参考 [OsekNm](../../examples/OsekNm.md)。

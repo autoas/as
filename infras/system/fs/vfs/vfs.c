@@ -56,7 +56,8 @@ static const struct vfs_filesystem_ops *vfs_ops[] = {
 #endif
   NULL};
 
-static TAILQ_HEAD(vfs_mount_head, vfs_mount_s) vfs_mount_list = TAILQ_HEAD_INITIALIZER(vfs_mount_list);
+static TAILQ_HEAD(vfs_mount_head,
+                  vfs_mount_s) vfs_mount_list = TAILQ_HEAD_INITIALIZER(vfs_mount_list);
 
 static char vfs_cwd[FILENAME_MAX] = "/";
 /* ================================ [ LOCALS    ] ============================================== */

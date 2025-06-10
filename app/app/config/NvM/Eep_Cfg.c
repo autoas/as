@@ -50,10 +50,10 @@ static const Eep_SectorType Eep_SectorList[] = {
 };
 
 const Eep_ConfigType Eep_Config = {
-  Ea_JobEndNotification, Ea_JobErrorNotification,   MEMIF_MODE_FAST,
-  EEP_MAX_READ_FAST,      EEP_MAX_READ_NORM,          EEP_MAX_WRITE_FAST,
-  EEP_MAX_WRITE_NORM,     EEP_MAX_ERASE_FAST,         EEP_MAX_ERASE_NORM,
-  Eep_SectorList,         ARRAY_SIZE(Eep_SectorList),
+  Ea_JobEndNotification, Ea_JobErrorNotification,    MEMIF_MODE_FAST,
+  EEP_MAX_READ_FAST,     EEP_MAX_READ_NORM,          EEP_MAX_WRITE_FAST,
+  EEP_MAX_WRITE_NORM,    EEP_MAX_ERASE_FAST,         EEP_MAX_ERASE_NORM,
+  Eep_SectorList,        ARRAY_SIZE(Eep_SectorList),
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */

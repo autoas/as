@@ -29,7 +29,7 @@ typedef unsigned int imask_t;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 imask_t Std_EnterCritical(void);
-void Std_ExitCritical(imask_t);
+void Std_ExitCritical(imask_t mask);
 #ifdef __cplusplus
 }
 #endif

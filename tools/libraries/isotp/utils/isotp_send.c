@@ -43,8 +43,12 @@ int main(int argc, char *argv[]) {
   char *device = "CAN.simulator_v2";
   int port = 0;
   uint32_t rxid = 0x732, txid = 0x731;
+  isotp_j1939tp_protocal_t jprotocol = ISOTP_J1939TP_PROTOCOL_CMDT;
+  uint32_t rxCM = 0x18ECFFE8, rxDirect = 0x18FECAE8, rxFC = 0x18ECFFE9;
+  uint32_t txCM = 0x17ECFFE8, txDirect = 0x17FECAE8, txFC = 0x17ECFFE9;
   uint16_t N_TA = 0xFFFF;
   uint32_t delayUs = 0;
+  uint32_t PgPGN = 0;
   int ll_dl = 8;
   int length = 0;
   uint8_t data[4095];
@@ -56,6 +60,7 @@ int main(int argc, char *argv[]) {
   int quitRx = 0; /* whether do tx only */
   isotp_t *isotp;
   int baudrate = 500000;
+  uint32_t timeout = 100; /* ms */
   isotp_parameter_t params;
   static const uint8_t testerKeep[2] = {0x3E, 0x00 | 0x80};
 
@@ -68,9 +73,16 @@ int main(int argc, char *argv[]) {
       break;
     case 'd':
       device = optarg;
+      if (0 == strncmp("J1939TP", device, 7)) {
+        txDT = 0x17EBFFE8;
+        rxDT = 0x18EBFFE8;
+      }
       break;
     case 'D':
       delayUs = (uint32_t)toU32(optarg);
+      break;
+    case 'g':
+      PgPGN = (uint32_t)toU32(optarg);
       break;
     case 'l':
       ll_dl = toU32(optarg);
@@ -87,6 +99,9 @@ int main(int argc, char *argv[]) {
     case 't':
       txid = toU32(optarg);
       break;
+    case 'T':
+      timeout = toU32(optarg);
+      break;
     case 'v':
       length = strlen(optarg) / 2;
       for (i = 0; (i < length) && (i < sizeof(data)); i++) {
@@ -100,6 +115,34 @@ int main(int argc, char *argv[]) {
       break;
     case 'e':
       echo = 1;
+      break;
+    case 'c':
+      txCM = toU32(optarg);
+      break;
+    case 'f':
+      txFC = toU32(optarg);
+      break;
+    case 's':
+      txDirect = toU32(optarg);
+      break;
+    case 'C':
+      rxCM = toU32(optarg);
+      break;
+    case 'F':
+      rxFC = toU32(optarg);
+      break;
+    case 'S':
+      rxDirect = toU32(optarg);
+      break;
+    case 'j':
+      if (0 == strncmp("BAM", optarg, 3)) {
+        jprotocol = ISOTP_J1939TP_PROTOCOL_BAM;
+      } else if (0 == strncmp("CMDT", optarg, 4)) {
+        jprotocol = ISOTP_J1939TP_PROTOCOL_CMDT;
+      } else {
+        usage(argv[0]);
+        return -1;
+      }
       break;
     case 'q':
       quitRx = 1;
@@ -129,6 +172,50 @@ int main(int argc, char *argv[]) {
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
     params.U.CAN.STmin = delayUs;
+  } else if (0 == strncmp("LIN", device, 3)) {
+    if (0x731 == txid) {
+      txid = 0x3c;
+    }
+    if (0x732 == rxid) {
+      rxid = 0x3d;
+    }
+    strcpy(params.device, &device[4]);
+    params.protocol = ISOTP_OVER_LIN;
+    params.U.LIN.RxId = (uint32_t)rxid;
+    params.U.LIN.TxId = (uint32_t)txid;
+    params.U.LIN.timeout = timeout;
+    params.U.LIN.delayUs = delayUs;
+  } else if (0 == strncmp("J1939TP", device, 7)) {
+    strcpy(params.device, &device[8]);
+    params.protocol = ISOTP_OVER_J1939TP;
+    params.U.J1939TP.TX.CM = txCM | CAN_ID_EXTENDED;
+    params.U.J1939TP.TX.Direct = txDirect | CAN_ID_EXTENDED;
+    params.U.J1939TP.TX.DT = txDT | CAN_ID_EXTENDED;
+    params.U.J1939TP.TX.FC = txFC;
+    params.U.J1939TP.RX.CM = rxCM;
+    params.U.J1939TP.RX.Direct = rxDirect;
+    params.U.J1939TP.RX.DT = rxDT;
+    params.U.J1939TP.RX.FC = rxFC | CAN_ID_EXTENDED;
+    params.U.J1939TP.protocol = jprotocol;
+    params.U.J1939TP.PgPGN = PgPGN;
+
+    printf("J1939TP protocol %s\n", ISOTP_J1939TP_PROTOCOL_CMDT == jprotocol ? "CMDT" : "BAM");
+    printf("  TX: CM=%08X DT=%08X Direct=%08X FC=%08X\n", txCM, txid, txDirect, txFC);
+    printf("  RX: CM=%08X DT=%08X Direct=%08X FC=%08X\n", rxCM, rxid, rxDirect, rxFC);
+    printf("  reverse:\n\t%s -d %s"
+           " -c 0x%08X -t 0x%08X -f 0x%08X -s 0x%08X"
+           " -C 0x%08X -r 0x%08X -F 0x%08X -S 0x%08X"
+           " -j %s\n",
+           argv[0], device, rxCM, rxDT, rxFC, rxDirect, txCM, txDT, txFC, txDirect,
+           ISOTP_J1939TP_PROTOCOL_CMDT == jprotocol ? "CMDT" : "BAM");
+
+    params.U.J1939TP.STMin = 10;
+    params.U.J1939TP.Tr = 200;
+    params.U.J1939TP.T1 = 750;
+    params.U.J1939TP.T2 = 1250;
+    params.U.J1939TP.T3 = 1250;
+    params.U.J1939TP.T4 = 1050;
+    params.U.J1939TP.TxMaxPacketsPerBlock = 8;
   } else {
     printf("%s not supported\n", device);
     usage(argv[0]);
@@ -178,7 +265,12 @@ int main(int argc, char *argv[]) {
     do {
       r = isotp_receive(isotp, data, sizeof(data));
       if (r > 0) {
-        printf("RX: ");
+        if (ISOTP_OVER_J1939TP == params.protocol) {
+          (void)isotp_ioctl(isotp, ISOTP_IOCTL_J1939TP_GET_PGN, &PgPGN, sizeof(PgPGN));
+          printf("RX PgPGN %" PRIx32 ": ", PgPGN);
+        } else {
+          printf("RX: ");
+        }
         for (i = 0; i < r; i++) {
           printf("%02X ", data[i]);
         }

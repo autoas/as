@@ -41,6 +41,9 @@ Std_ReturnType factory_post(const factory_t *factory, uint8_t machineId, uint8_t
 
   if (E_OK == ercd) {
     /* pass */
+  } else if (FACTORY_E_RETRY == ercd) {
+    factory->context->state = FACTORY_RUNNING;
+    ret = E_OK;
   } else if (FACTORY_E_EVENT == ercd) {
     factory->context->state = FACTORY_WAITING;
     ret = E_OK;
@@ -172,7 +175,9 @@ Std_ReturnType factory_start_machine(const factory_t *factory, uint8_t machineId
       ret = E_OK;
       ASLOG(FACTORY, ("%s: start %s\n", factory->name, factory->machines[machineId].name));
     } else {
-      ASLOG(ERROR, ("%s: %s start failed\n", factory->name, factory->machines[machineId].name));
+      ASLOG(ERROR, ("%s: %s start failed, current machine %d node %d state %d\n", factory->name,
+                    factory->machines[machineId].name, factory->context->machineId,
+                    factory->context->nodeId, factory->context->state));
     }
   } else {
     ASLOG(ERROR, ("%s: invalid machineId %d\n", factory->name, machineId));

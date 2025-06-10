@@ -24,7 +24,7 @@ comments: true
 
 对于anaconda3，其也可以使用pip工具后续安装ssas库所依赖的软件包，比如scons等，但默认，anaconda3已经继承了非常多的python库，比如pyQT等。
 
-当你安装好如下软件后，你就可以双击ssas工程目录下的[Console.bat](https://github.com/autoas/ssas-public/blob/master/Console.bat), 其会自动下载安装[ConEmu](https://conemu.github.io/)(一个windows下非常好用的命令行终端工具)。当然由于国内经常访问github会出错的问题，你也可以手动下载[ConEmu Portable](https://www.fosshub.com/ConEmu.html)版本，并安装到ssas-public/download/ConEmu目录下，如下图所示，之后在重新双击[Console.bat](https://github.com/autoas/ssas-public/blob/master/Console.bat), 启动ssas开发终端。
+当你安装好如下软件后，你就可以双击ssas工程目录下的[Console.bat](../../Console.bat), 其会自动下载安装[ConEmu](https://conemu.github.io/)(一个windows下非常好用的命令行终端工具)。当然由于国内经常访问github会出错的问题，你也可以手动下载[ConEmu Portable](https://www.fosshub.com/ConEmu.html)版本，并安装到ssas-public/download/ConEmu目录下，如下图所示，之后在重新双击[Console.bat](../../Console.bat), 启动ssas开发终端。
 
 ![ConEum Install](../images/conemu-install.png)
 

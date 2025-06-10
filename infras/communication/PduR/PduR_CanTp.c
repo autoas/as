@@ -11,6 +11,7 @@
 #ifdef USE_LINTP
 #include "LinTp_Cfg.h"
 #endif
+#include "PduR_CanTp.h"
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef LINTP_GW_USER_HOOK_RX_IND
 #define LINTP_GW_USER_HOOK_RX_IND(id, result)
@@ -50,25 +51,25 @@ void PduR_CanTpGwRxIndication(PduIdType id, Std_ReturnType result) {
 BufReq_ReturnType PduR_CanTpCopyTxData(PduIdType id, const PduInfoType *info,
                                        const RetryInfoType *retry,
                                        PduLengthType *availableDataPtr) {
-  return PduR_CopyTxData(id + PDUR_CONFIG->CANTP_TX_BASE_ID, info, retry, availableDataPtr);
+  return PduR_CopyTxData(id + PDUR_CONFIG->cantpTxBaseID, info, retry, availableDataPtr);
 }
 
 void PduR_CanTpRxIndication(PduIdType id, Std_ReturnType result) {
-  PduR_TpRxIndication(id + PDUR_CONFIG->CANTP_RX_BASE_ID, result);
+  PduR_TpRxIndication(id + PDUR_CONFIG->cantpRxBaseID, result);
 }
 
 void PduR_CanTpTxConfirmation(PduIdType id, Std_ReturnType result) {
-  PduR_TxConfirmation(id + PDUR_CONFIG->CANTP_TX_BASE_ID, result);
+  PduR_TxConfirmation(id + PDUR_CONFIG->cantpTxBaseID, result);
 }
 
 BufReq_ReturnType PduR_CanTpStartOfReception(PduIdType id, const PduInfoType *info,
                                              PduLengthType TpSduLength,
                                              PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id + PDUR_CONFIG->CANTP_RX_BASE_ID, info, TpSduLength,
+  return PduR_StartOfReception(id + PDUR_CONFIG->cantpRxBaseID, info, TpSduLength,
                                bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_CanTpCopyRxData(PduIdType id, const PduInfoType *info,
                                        PduLengthType *bufferSizePtr) {
-  return PduR_CopyRxData(id + PDUR_CONFIG->CANTP_RX_BASE_ID, info, bufferSizePtr);
+  return PduR_CopyRxData(id + PDUR_CONFIG->cantpRxBaseID, info, bufferSizePtr);
 }

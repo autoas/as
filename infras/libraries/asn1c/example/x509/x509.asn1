@@ -1,0 +1,79 @@
+X509 DEFINITIONS ::=
+BEGIN
+
+-- https://www.rfc-editor.org/rfc/rfc5280
+-- http://websites.umich.edu/~x509/ssleay/asn1-oids.html
+-- https://www.oss.com/asn1/resources/asn1-made-simple/asn1-quick-reference.html
+
+Name ::= CHOICE { -- only one possibility for now --
+      rdnSequence  RDNSequence }
+
+RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+
+RelativeDistinguishedName ::= SET SIZE (1..MAX) OF AttributeTypeAndValue
+
+AttributeTypeAndValue ::= SEQUENCE {
+     type     AttributeType,
+     value    AttributeValue }
+
+AttributeType ::= OBJECT IDENTIFIER
+
+AttributeValue ::= ANY -- DEFINED BY AttributeType
+
+Certificate  ::=  SEQUENCE  {
+     tbsCertificate       TBSCertificate,
+     signatureAlgorithm   AlgorithmIdentifier,
+     signature            BIT STRING  }
+
+TBSCertificate  ::=  SEQUENCE  {
+     version         [0]  Version DEFAULT v1,
+     serialNumber         CertificateSerialNumber,
+     signature            AlgorithmIdentifier,
+     issuer               Name,
+     validity             Validity,
+     subject              Name,
+     subjectPublicKeyInfo SubjectPublicKeyInfo,
+     issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
+                          -- If present, version MUST be v2 or v3
+     subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
+                          -- If present, version MUST be v2 or v3
+     extensions      [3]  Extensions OPTIONAL
+                          -- If present, version MUST be v3 --  }
+
+Version  ::=  INTEGER  {  v1(0), v2(1), v3(2)  }
+
+CertificateSerialNumber  ::=  INTEGER
+
+Validity ::= SEQUENCE {
+     notBefore      DateTime,
+     notAfter       DateTime  }
+
+DateTime ::= CHOICE {
+     utcTime        UTCTime,
+     generalTime    GeneralizedTime }
+
+UniqueIdentifier  ::=  BIT STRING
+
+SubjectPublicKeyInfo  ::=  SEQUENCE  {
+     algorithm            AlgorithmIdentifier,
+     subjectPublicKey     BIT STRING  }
+
+Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
+
+Extension  ::=  SEQUENCE  {
+     extnID      OBJECT IDENTIFIER,
+     critical    BOOLEAN DEFAULT FALSE,
+     extnValue   OCTET STRING
+                 -- contains the DER encoding of an ASN.1 value
+                 -- corresponding to the extension type identified
+                 -- by extnID
+     }
+
+AlgorithmIdentifier  ::=  SEQUENCE  {
+     algorithm               OBJECT IDENTIFIER,
+     parameters              ANY DEFINED BY algorithm OPTIONAL  }
+                                -- contains a value of the type
+                                -- registered for use with the
+                                -- algorithm object identifier value
+
+END

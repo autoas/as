@@ -1,0 +1,4 @@
+objs = []
+objs += Glob('*.c')
+objs += Glob('*.cpp')
+Return('objs')

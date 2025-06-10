@@ -13,8 +13,22 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* @SWS_Fee_00010 */
+#define FEE_E_UNINIT 0x01
+#define FEE_E_INVALID_BLOCK_NO 0x02
+#define FEE_E_INVALID_BLOCK_OFS 0x03
+#define FEE_E_PARAM_POINTER 0x04
+#define FEE_E_INVALID_BLOCK_LEN 0x05
+#define FEE_E_INIT_FAILED 0x09
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Fee_Config_s Fee_ConfigType;
+
+typedef struct {
+  uint32_t eraseNumber;
+  uint32_t adminFreeAddr;
+  uint32_t dataFreeAddr;
+  uint8_t curWrokingBank;
+} Fee_AdminInfoType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -34,6 +48,8 @@ void Fee_JobEndNotification(void);
 void Fee_JobErrorNotification(void);
 
 void Fee_MainFunction(void);
+
+void Fee_GetAdminInfo(Fee_AdminInfoType *pAdminInfo);
 #ifdef __cplusplus
 }
 #endif

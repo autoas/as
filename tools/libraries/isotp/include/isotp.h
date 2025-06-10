@@ -17,6 +17,7 @@ extern "C" {
 typedef enum {
   ISOTP_OVER_CAN,
   ISOTP_OVER_LIN,
+  ISOTP_OVER_J1939TP,
   ISOTP_OVER_DOIP
 } isotp_protocol_t;
 

@@ -17,10 +17,11 @@
 
 #include "Std_Compiler.h"
 #include "linlib.h"
-#include "isotp.h"
+#include "BitArray.hpp"
 #include "devlib.h"
 #include "loader.h"
 #include "srec.h"
+#include "aslua.hpp"
 
 using namespace as;
 namespace py = pybind11;
@@ -383,12 +384,134 @@ private:
   int m_LogLevel = L_LOG_INFO;
   uint32_t m_FuncAddr = 0;
 };
+
+class bitarray {
+public:
+  bitarray(py::bytes data = py::bytes(), std::string endianS = "BIG") {
+    BitArray::Endian endian;
+    if ("BIG" == endianS) {
+      endian = BitArray::Endian::BIG;
+    } else {
+      endian = BitArray::Endian::LITTLE;
+    }
+
+    std::string b = data;
+    if (b.empty()) {
+      m_BitArray = std::make_shared<BitArray>(endian);
+    } else {
+
+      m_BitArray = std::make_shared<BitArray>((uint8_t *)b.c_str(), b.size(), endian);
+    }
+  }
+
+  void put(uint32_t u32, uint8_t nBits) {
+    m_BitArray->put(u32, nBits);
+  }
+
+  uint32_t get(uint8_t nBits) {
+    return m_BitArray->get(nBits);
+  }
+
+  py::bytes tobytes() {
+    auto data = m_BitArray->bytes();
+    return py::bytes((char *)data.data(), data.size());
+  }
+
+  py::bytes left_bytes() {
+    auto data = m_BitArray->left_bytes();
+    return py::bytes((char *)data.data(), data.size());
+  }
+
+  void drop(uint32_t nBits) {
+    m_BitArray->drop(nBits);
+  }
+
+  ~bitarray() {
+  }
+
+private:
+  std::shared_ptr<BitArray> m_BitArray;
+};
+
+class pylua {
+public:
+  pylua(std::string scriptFile) {
+    m_Lua = std::make_shared<AsLuaScript>(scriptFile);
+  }
+
+  py::object table_get(std::string api) {
+    py::list L;
+    lua_arg_t outArgs[3];
+
+    outArgs[0].type = LUA_ARG_TYPE_UINT8_N;  /* get new bytes data */
+    outArgs[1].type = LUA_ARG_TYPE_STRING_N; /* bytes data headers */
+    outArgs[2].type = LUA_ARG_TYPE_STRING_N; /* bytes data values */
+    auto r = m_Lua->call(api, nullptr, 0, outArgs, 3);
+    if (0 == r) {
+      L.append(py::bytes((char *)outArgs[0].u8N.data(), outArgs[0].u8N.size()));
+      py::list Lh;
+      for (auto &h : outArgs[1].stringN) {
+        Lh.append(py::str(h));
+      }
+      L.append(Lh);
+      py::list Lv;
+      for (auto &v : outArgs[2].stringN) {
+        Lv.append(py::str(v));
+      }
+      L.append(Lv);
+    } else {
+      throw std::runtime_error("Failed to get table content");
+    }
+    return L;
+  }
+
+  py::object table_decode(std::string api, py::bytes data) {
+    py::list L;
+    lua_arg_t inArgs[1];
+    lua_arg_t outArgs[4];
+
+    inArgs[0].type = LUA_ARG_TYPE_UINT8_N;
+    std::string b = data;
+    for (size_t i = 0; i < b.size(); i++) {
+      inArgs[0].u8N.push_back((uint8_t)b[i]);
+    }
+
+    outArgs[0].type = LUA_ARG_TYPE_BOOL;     /* decoding results */
+    outArgs[1].type = LUA_ARG_TYPE_STRING_N; /* decoding headers */
+    outArgs[2].type = LUA_ARG_TYPE_STRING_N; /* decoding values */
+    outArgs[3].type = LUA_ARG_TYPE_UINT32;   /* consumed bits */
+    auto r = m_Lua->call(api, inArgs, 1, outArgs, 4);
+    if (0 == r) {
+      if (outArgs[0].b) {
+        py::list Lh;
+        for (auto &h : outArgs[1].stringN) {
+          Lh.append(py::str(h));
+        }
+        L.append(Lh);
+        py::list Lv;
+        for (auto &v : outArgs[2].stringN) {
+          Lv.append(py::str(v));
+        }
+        L.append(Lv);
+        L.append(py::int_(outArgs[3].u32));
+      } else {
+        throw std::runtime_error("Failed to decode table content:" + outArgs[1].stringN[0]);
+      }
+    } else {
+      throw std::runtime_error("Failed to decode table content");
+    }
+    return L;
+  }
+
+  ~pylua() {
+  }
+
+private:
+  std::shared_ptr<AsLuaScript> m_Lua;
+};
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static void __attribute__((constructor)) AsPyInit(void) {
-  Log::setName("AsPy");
-}
 /* ================================ [ FUNCTIONS ] ============================================== */
 PYBIND11_MODULE(AsPy, m) {
   Log::setName("AsPy");
@@ -419,4 +542,16 @@ PYBIND11_MODULE(AsPy, m) {
     .def(py::init<std::string, std::string>(), py::arg("device"), py::arg("options"))
     .def("read", &dev::read)
     .def("write", &dev::write, py::arg("data"));
+  py::class_<bitarray>(m, "bitarray")
+    .def(py::init<py::bytes, std::string>(), py::arg("data") = py::bytes(),
+         py::arg("endian") = "BIG")
+    .def("put", &bitarray::put, py::arg("u32"), py::arg("nBits"))
+    .def("get", &bitarray::get, py::arg("nBits"))
+    .def("tobytes", &bitarray::tobytes)
+    .def("left", &bitarray::left_bytes)
+    .def("drop", &bitarray::drop, py::arg("nBits"));
+  py::class_<pylua>(m, "lua")
+    .def(py::init<std::string>())
+    .def("table_get", &pylua::table_get, py::arg("api"))
+    .def("table_decode", &pylua::table_decode, py::arg("api"), py::arg("data"));
 }

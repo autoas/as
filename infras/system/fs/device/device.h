@@ -47,8 +47,7 @@ typedef struct {
   int (*ctrl)(const device_t *device, int cmd, void *args);
 } device_ops_t;
 
-typedef enum
-{
+typedef enum {
   DEVICE_TYPE_BLOCK,
   DEVICE_TYPE_NET,
   DEVICE_TYPE_CHAR

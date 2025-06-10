@@ -3,7 +3,7 @@ for sc in Glob('*/SConscript'):
     SConscript(sc)
 
 CWD = GetCurrentDir()
-objs = Glob('*.cpp')
+objs = Glob('*.cpp') + Glob('../../asone/src/one/bitarray.cpp')
 
 
 @register_library
@@ -14,7 +14,7 @@ class LibraryAsPy(Library):
     def config(self):
         self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
         self.CPPPATH = ['$INFRAS', '%s/../../asone/src/one/include' % (CWD)]
-        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils', 'StdBit']
+        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils', 'StdBit', 'LUA']
         self.source = objs
         INSTALL_DIR = os.path.abspath('%s/../../asone/one' % (CWD))
         if IsBuildForWindows():

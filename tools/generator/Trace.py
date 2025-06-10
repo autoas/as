@@ -107,3 +107,4 @@ def Gen(cfg):
         cfg = json.load(f)
     cfg_ = extract(cfg, dir)
     Gen_Trace(cfg_, dir)
+    return {"StdTrace": ["%s/Trace%s_Cfg.c" % (dir, cfg["area"])]}

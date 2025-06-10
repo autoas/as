@@ -13,6 +13,13 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* @SWS_Ea_00196 */
+#define EA_E_UNINIT 0x01
+#define EA_E_INVALID_BLOCK_NO 0x02
+#define EA_E_INVALID_BLOCK_OFS 0x03
+#define EA_E_PARAM_POINTER 0x04
+#define EA_E_INVALID_BLOCK_LEN 0x05
+#define EA_E_INIT_FAILED 0x09
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Ea_Config_s Ea_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */

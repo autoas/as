@@ -1,0 +1,39 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+objs = Glob("*.cpp")
+
+
+def GetLuaPackage():
+    cmd = 'sed -i "612c extern void luaL_openAsBuiltlibs(lua_State *L);" lua.c'
+    cmd += ' && sed -i "634c luaL_openlibs(L); luaL_openAsBuiltlibs(L);" lua.c'
+    pkg = Package("https://github.com/lua/lua.git", version="v5.4.6", cmd=cmd)
+    return pkg
+
+
+@register_library
+class LibraryLUA(Library):
+    def config(self):
+        pkg = GetLuaPackage()
+        self.include = ["%s/include" % (CWD), pkg]
+        self.CPPPATH = ["$INFRAS"]
+        if IsBuildForMSVC():
+            self.LIBS = ["Utils", "CanLib"]
+        else:
+            self.LIBS = ["CryptoIf", "Utils", "ASN1X509", "CanLib"]
+            self.CPPDEFINES = ["USE_ASN1X509"]
+        luaObjs = PkgGlob(pkg, ["*.c"])
+        SrcRemove(luaObjs, ["lua.c", "onelua.c"])
+        self.source = objs + luaObjs
+
+@register_application
+class ApplicationLua(Application):
+    def config(self):
+        pkg = GetLuaPackage()
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = [pkg, "$INFRAS"]
+        self.LIBS += ["LUA"]
+        luaMain = PkgGlob(pkg, ["lua.c"])
+        self.source = luaMain
+        self.Install('../one')

@@ -8,7 +8,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include "Std_Types.h"
 #include "Std_Debug.h"
+#include "Std_Compiler.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -20,8 +23,14 @@ extern "C" {
     Shell_Register(&shCmd_##name);                                                                 \
   }
 #else
+#if defined(__CSP__) || defined(__ghs__)
+#define SHELL_CONST
+#endif
+#ifndef SHELL_CONST
+#define SHELL_CONST __attribute__((section("ShellCmdTab")))
+#endif
 #define SHELL_REGISTER(name, desc, func)                                                           \
-  const Shell_CmdType __attribute__((section("ShellCmdTab"))) shCmd_##name = {#name, desc, func};
+  CONSTANT(Shell_CmdType, SHELL_CONST) shCmd_##name = {#name, desc, func};
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef int (*Sh_CmdFuncType)(int argc, const char *argv[]);
@@ -31,6 +40,11 @@ typedef struct {
   const char *cmdDesc;
   Sh_CmdFuncType cmdFunc;
 } Shell_CmdType;
+
+typedef struct {
+  const Shell_CmdType *const *cmds;
+  uint32_t numOfCmds;
+} Shell_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

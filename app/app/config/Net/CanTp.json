@@ -2,10 +2,14 @@
   "class": "CanTp",
   "channels": [
     {
-      "name": "GW_P2P"
+      "name": "GW_P2P",
+      "RxPduId": "GW_P2P_TX",
+      "TxPduId": "GW_P2P_RX"
     },
     {
-      "name": "GW_P2A"
+      "name": "GW_P2A",
+      "RxPduId": "GW_P2A_TX",
+      "TxPduId": "GW_P2A_RX"
     }
   ]
 }

@@ -11,6 +11,9 @@
 #include "TcpIp.h"
 #include "Std_Debug.h"
 
+#define DET_THIS_MODULE_ID MODULE_ID_TCPIP
+#include "Det.h"
+
 #if defined(linux) && !defined(USE_LWIP)
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -137,7 +140,7 @@ static void tcpIpInit(void *arg) { /* remove compiler warning */
       ASLOG(TCPIPE, ("dhcp_connect: overtime, not doing dhcp\n"));
       break;
     }
-    usleep(1000000);
+    OSAL_SleepUs(1000000);
   }
 
   ASLOG(TCPIPI, ("DHCP IP address: %s\n", ip4addr_ntoa(&netif_dhcp.offered_ip_addr)));
@@ -268,6 +271,8 @@ TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
   TcpIp_SocketIdType sockId;
   int type;
   int on = 1;
+
+  DET_VALIDATE(TRUE == lInitialized, 0xF1, TCPIP_E_UNINIT, return -1);
 
   if (TCPIP_IPPROTO_TCP == protocol) {
     type = SOCK_STREAM;
@@ -432,9 +437,11 @@ Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, ui
                                   uint32_t Count) {
   Std_ReturnType ret = E_OK;
 #if defined(_WIN32) && !defined(USE_LWIP)
+#ifdef SIO_KEEPALIVE_VALS
   struct tcp_keepalive keepin;
   struct tcp_keepalive keepout;
   DWORD bytesnum;
+#endif
 #else
   int keepalive = 1;
 #ifndef USE_LWIP
@@ -446,11 +453,13 @@ Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, ui
   int r = 0;
 
 #if defined(_WIN32) && !defined(USE_LWIP)
+#ifdef SIO_KEEPALIVE_VALS
   keepin.keepaliveinterval = Interval * 1000;
   keepin.keepalivetime = Idel * 1000;
   keepin.onoff = 1;
   r = WSAIoctl(SocketId, SIO_KEEPALIVE_VALS, &keepin, sizeof(keepin), &keepout, sizeof(keepout),
                &bytesnum, NULL, NULL);
+#endif
 #else
 #ifndef USE_LWIP
   r = setsockopt(SocketId, SOL_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));

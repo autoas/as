@@ -6,7 +6,8 @@ for sc in Glob("*/SConscript"):
 
 CWD = GetCurrentDir()
 
-generate(Glob("config/*/*.json"))
+# generate(Glob("config/*/*.json"))
+# generate(Glob("config/Dcm/excel/*.json"))
 
 objsApp = Glob("*.c") + Glob("src/*.c")
 
@@ -16,8 +17,8 @@ LL_DL = os.getenv("LL_DL")
 class ApplicationApp(Application):
     def config(self):
         self.CPPDEFINES = []
-        self.CPPPATH = ["$INFRAS", "%s/include" % (CWD), CWD, "$Com_Cfg", "$StdTrace_Cfg"]
-        self.LIBS = ["StdTimer"]
+        self.CPPPATH = ["$INFRAS", "%s/include" % (CWD), CWD, "$Com_Cfg", "$EcuM_Cfg", "$StdTrace_Cfg"]
+        self.LIBS = ["StdTimer", "EcuM"]
         for libName, source in self.libsForApp.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
@@ -26,35 +27,38 @@ class ApplicationApp(Application):
 
 
 libsCommon = {
-    "Dcm": Glob("config/Dcm/GEN/Dcm_Cfg.c"),
-    "Dem": Glob("config/Dcm/GEN/Dem_Cfg.c"),
-    "NvM": Glob("config/NvM/GEN/NvM_Cfg.c"),
+    "Dcm": Glob("config/Dcm/Dcm.json"),
+    "Dem": Glob("config/Dcm/Dem.json"),
+    "NvM": Glob("config/NvM/NvM.json"),
 }
 
 with open(Glob("config/NvM/NvM.json")[0].rstr()) as f:
     cfg = json.load(f)
     nvmTarget = os.getenv("NVM_TARGET", cfg.get("target", "Ea"))
-libsCommon[nvmTarget] = Glob("config/NvM/GEN/%s_Cfg.c" % (nvmTarget))
 
-if "Fee" in libsCommon:
+if "Fee" == nvmTarget:
     libsCommon["Fls"] = Glob("config/NvM/Fls_Cfg.c")
-if "Ea" in libsCommon:
+if "Ea" == nvmTarget:
     libsCommon["Eep"] = Glob("config/NvM/Eep_Cfg.c")
 
 libsForCanApp = {
-    "OsekNm": Glob("config/OsekNm_Cfg.c"),
-    "CanNm": Glob("config/CanNm_Cfg.c"),
-    "Com": Glob("config/Com/GEN/Com_Cfg.c"),
-    "CanTp": Glob("config/CanTp/GEN/CanTp_Cfg.c"),
-    "PduR": Glob("config/Com/GEN/PduR_Cfg.c"),
-    "CanIf": Glob("config/Com/GEN/CanIf_Cfg.c"),
+    "OsekNm": Glob("config/Com/OsekNm.json"),
+    "CanNm": Glob("config/Com/CanNm.json"),
+    "CanSM": Glob("config/Com/CanSM.json"),
+    "Com": Glob("config/Com/Com.json"),
+    "ComM": Glob("config/Com/ComM.json"),
+    "Nm": Glob("config/Com/Nm.json"),
+    "CanTp": Glob("config/CanTp/CanTp.json"),
+    "PduR": Glob("config/Com/PduR.json"),
+    "CanIf": Glob("config/Com/CanIf.json"),
     "CanTSyn": Glob("config/CanTSyn/master/CanTSyn_Cfg.c"),
-    "StdTrace": Glob("config/Trace/GEN/TraceApp_Cfg.c"),
+    "Xcp": Glob("config/Xcp/Xcp.json"),
+    "StdTrace": Glob("config/Trace/Trace.json"),
+    "Csm": Glob("config/Csm/Csm.json"),
+    "SecOC": Glob("config/SecOC/SecOC.json"),
+    "E2E": Glob("config/E2E/E2E.json"),
 }
 libsForCanApp.update(libsCommon)
-
-
-objsTraceTestCfg = Glob("config/GEN/TraceTest_Cfg.c")
 
 
 @register_application
@@ -63,15 +67,19 @@ class ApplicationCanApp(ApplicationApp):
         self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_PLUGIN"])
         self.Append(CPPDEFINES=["FEE_USE_BLANK_CHECK", "FLS_ERASED_VALUE=0xFF"])
         self.Append(CPPDEFINES=["FLS_DIRECT_ACCESS"])
+        # self.Append(CPPDEFINES=["FEE_PAGE_SIZE=256", "FEE_WORKING_AREA_SIZE=4096"])
         self.LIBS.append("Simulator")
         self.LIBS.append("Plugin")
-        # self.Append(CPPDEFINES=['USE_SHELL'])
-        # self.LIBS.append('Shell')
-        # self.LIBS.append('VFS')
-        # self.Append(CPPDEFINES=['USE_VFS'])
-        # self.Append(CPPDEFINES=['USE_TRACE_APP'])
-        # self.LIBS += ['LibC']
-        # self.Append(CPPDEFINES=['USE_STDIO_CAN', 'USE_STD_PRINTF'])
+        self.Append(CPPDEFINES=["USE_SHELL"])
+        self.LIBS.append("Shell")
+        self.LIBS.append("VFS")
+        self.Append(CPPDEFINES=["USE_VFS"])
+        self.LIBS.append("CryptoIf")
+        self.Append(CPPDEFINES=["USE_CRYPTO"])
+        # self.Append(CPPDEFINES=["USE_TRACE_APP"])
+        self.LIBS += ["LibC"]
+        # self.Append(CPPDEFINES=["USE_STD_PRINTF", "USE_STDIO_CAN", "USE_STDIO_CAN_FLUSH"])
+        self.Append(CPPFLAGS=["-O0"])
 
     def config(self):
         if LL_DL != None:
@@ -80,9 +88,12 @@ class ApplicationCanApp(ApplicationApp):
         super().config()
         self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
+        self.Remove(CPPDEFINES="USE_OSEKNM")
+        self.Remove(CPPDEFINES="USE_CANTSYN")
 
 
-generate(Glob("config/SWC/*/*.json"))
+# generate(Glob("config/SWC/*/*.json"))
+jsSwc = Glob("config/SWC/*/*.json")
 
 objsSwc = Glob("config/SWC/*/*.c")
 
@@ -90,6 +101,7 @@ objsSwc = Glob("config/SWC/*/*.c")
 @register_application
 class ApplicationCanIC(query_application("CanApp")):
     def config(self):
+        self.Generate(jsSwc)
         super().config()
         self.Append(CPPDEFINES=["USE_VIC"])
         self.LIBS += ["VicServer"]
@@ -116,13 +128,17 @@ class ApplicationOsekNm(ApplicationApp):
         self.LIBS.append("Simulator")
 
     def config(self):
+        self.CPPPATH = ["$LinIf_Cfg"]
         self.libsForApp = {k: libsForCanApp[k] for k in ["OsekNm"]}
         super().config()
         self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
 
 
-libsForLinApp = {"LinIf": Glob("../bootloader/config/LinIf_Cfg.c"), "LinTp": Glob("../bootloader/config/LinTp_Cfg.c")}
+libsForLinApp = {
+    "LinIf": Glob("../bootloader/config/LinIf/LinIf.json"),
+    "LinTp": Glob("../bootloader/config/LinTp/LinTp.json"),
+}
 libsForLinApp.update(libsCommon)
 
 
@@ -130,34 +146,24 @@ libsForLinApp.update(libsCommon)
 class ApplicationLinApp(ApplicationApp):
     def platform_config(self):
         self.Append(CPPDEFINES=["USE_STD_DEBUG"])
-        self.LIBS.append("Simulator")
+        self.LIBS += ["Simulator", "RingBuffer"]
 
     def config(self):
         if LL_DL != None:
             self.Append(CPPDEFINES=["LINTP_LL_DL=%s" % (LL_DL)])
-        self.Append(CPPDEFINES=["PDUR_DCM_LINTP_ZERO_COST"])
         self.libsForApp = libsForLinApp
         super().config()
+        self.CPPPATH += ["$LinIf_Cfg"]
         self.platform_config()
 
 
 libsForNetApp = {
-    "SoAd": Glob("config/Net/GEN/SoAd_*.c") + Glob("config/Net/GEN/NetMem.c"),
-    "DoIP": Glob("config/Net/GEN/DoIP_*.c"),
-    "Sd": Glob("config/Net/GEN/Sd_*.c"),
-    "SomeIp": Glob("config/Net/GEN/SomeIp_*.c") + Glob("config/Net/GEN/SS_*.cpp") + Glob("config/Net/GEN/CS_*.cpp"),
-    "PduR": Glob("config/Net/GEN/PduR_Cfg.c"),
-    "CanTp": Glob("config/Net/GEN/CanTp_Cfg.c"),
-    "CanIf": Glob("config/Net/GEN/CanIf_Cfg.c"),
+    "PduR": Glob("config/Net/PduR.json"),
+    "CanTp": Glob("config/Net/CanTp.json"),
+    "CanIf": Glob("config/Net/CanIf.json"),
     "UdpNm": Glob("config/Net/UdpNm_Cfg.c"),
 }
 libsForNetApp.update(libsCommon)
-
-libsForNetAppT = {
-    "SoAd": Glob("config/Net/GENT/SoAd_*.c"),
-    "Sd": Glob("config/Net/GENT/Sd_*.c"),
-    "SomeIp": Glob("config/Net/GENT/SomeIp_*.c") + Glob("config/Net/GENT/SS_*.cpp") + Glob("config/Net/GENT/CS_*.cpp"),
-}
 
 
 @register_application
@@ -172,10 +178,25 @@ class ApplicationNetApp(Application):
         self.Append(CPPDEFINES=["USE_CAN"])
         self.LIBS += ["Simulator", "Plugin"]
 
+    def gencfg(self):
+        source = self.Generate(["%s/config/Net/Network.json" % (CWD), "%s/config/Net/Mempool.json" % (CWD)])
+        libs = {
+            "SoAd": source["SoAd"] + source["MemCluster"],
+            "DoIP": source["DoIP"],
+            "Sd": source["Sd"],
+            "SomeIp": source["SomeIp"]
+            + source["SS_Exserver0Cpp"]
+            + source["SS_server0Cpp"]
+            + source["CS_client0Cpp"]
+            + source["CS_Exclient0Cpp"],
+        }
+        self.mylibs.update(libs)
+
     def config(self):
-        self.CPPPATH = ["$INFRAS", "%s/include" % (CWD)]
+        self.gencfg()
+        self.CPPPATH = ["$INFRAS", "$EcuM_Cfg", "%s/include" % (CWD)]
         self.source = objsApp
-        self.LIBS = ["TcpIp", "StdTimer"]
+        self.LIBS = ["TcpIp", "StdTimer", "EcuM"]
         self.Append(CPPDEFINES=["USE_TCPIP"])
         self.Append(CPPDEFINES=["DCM_DEFAULT_RXBUF_SIZE=4095", "DCM_DEFAULT_TXBUF_SIZE=4095"])
         self.platform_config()
@@ -184,16 +205,24 @@ class ApplicationNetApp(Application):
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
 
-
-netMemSrc = Glob("config/Net/GEN/NetMem.c")
-
-
 @register_application
 class ApplicationNetAppT(query_application("NetApp")):
-    mylibs = libsForNetAppT
+    mylibs = {}
+
+    def gencfg(self):
+        source = self.Generate(["%s/config/Net/Network.json" % (CWD), "%s/config/Net/Mempool.json" % (CWD)])
+        libs = {
+            "SoAd": source["SoAd_T"] + source["MemCluster"],
+            "Sd": source["Sd_T"],
+            "SomeIp": source["SomeIp_T"]
+            + source["SS_Exclient0Cpp_T"]
+            + source["SS_client0Cpp_T"]
+            + source["CS_server0Cpp_T"]
+            + source["CS_Exserver0Cpp_T"],
+        }
+        self.mylibs.update(libs)
 
     def config(self):
         super().config()
         self.Append(CPPDEFINES=["LWIP_IPADDR_CFG_NR=1"])
         self.Append(CPPPATH=["%s/config/Net/GEN" % (CWD)])
-        self.source += netMemSrc

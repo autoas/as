@@ -45,6 +45,8 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
         TcpIp_Close(sockId, TRUE);
       }
     }
+  } else {
+    ret = E_NOT_OK;
   }
 
   if (E_OK == ret) {

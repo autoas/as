@@ -22,6 +22,12 @@ static uint16_t lPublicKeyLen;
 static uint8_t *lCAPublicKey = NULL;
 static uint16_t lCAPublicKeyLen = 0;
 #else
+/*
+import base64
+asc = 'Paste the ASC public key here'
+decoded = base64.b64decode(asc)
+print('{', ', '.join(['0x%02X'%(x) for x in decoded]), '};')
+*/
 #error TODO: define the CA public key here
 #endif
 
@@ -29,11 +35,11 @@ static uint8_t lChallenge[512];
 static uint32_t lChallengeSeed = 0xabcdeffe;
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(linux) || defined(_WIN32)
-static void __attribute__((constructor)) _auth_init(void) {
+INITIALIZER(_auth_init) {
   FILE *fp;
   char *publicKeyTxt;
   size_t sz;
-  unsigned long outlen;
+  uint32_t outlen;
   const char *publicKeyPath = getenv("CA_PUBLIC_KEY");
   if (NULL == publicKeyPath) {
     publicKeyPath = "ca_public_key.txt";
@@ -48,10 +54,13 @@ static void __attribute__((constructor)) _auth_init(void) {
     if (publicKeyTxt && lCAPublicKey) {
       fseek(fp, 0, SEEK_SET);
       fread(publicKeyTxt, 1, sz, fp);
+#ifdef USE_LTC
       ltc_mp = ltm_desc;
-      base64_decode((uint8_t *)publicKeyTxt, sz, lCAPublicKey, &outlen);
+#endif
+      crypto_base64_decode((uint8_t *)publicKeyTxt, sz, lCAPublicKey, &outlen);
       lCAPublicKeyLen = outlen;
       ASLOG(INFO, ("load CA public key <%s> length=%d OK\n", publicKeyTxt, (int)lCAPublicKeyLen));
+      ASHEXDUMP(INFO, ("CA public key"), lCAPublicKey, lCAPublicKeyLen);
       free(publicKeyTxt);
     } else {
       ASLOG(ERROR, ("OoM for CA public key <%s>\n", publicKeyPath));
@@ -75,7 +84,7 @@ Std_ReturnType Dcm_AuthenticationVerifyTesterCertificate(const uint8_t *publicKe
                         lCAPublicKeyLen);
   if (E_INVALID_SIGNATURE == r) {
     *ErrorCode = DCM_E_INVALID_KEY;
-  } else if (CRYPT_OK == r) {
+  } else if (0 == r) {
     ret = E_OK;
   } else {
     *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
@@ -125,7 +134,7 @@ Std_ReturnType Dcm_AuthenticationVerifyProofOfOwnership(const uint8_t *signature
                         lPublicKeyLen);
   if (E_INVALID_SIGNATURE == r) {
     *ErrorCode = DCM_E_INVALID_KEY;
-  } else if (CRYPT_OK == r) {
+  } else if (0 == r) {
     ret = E_OK;
   } else {
     *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;

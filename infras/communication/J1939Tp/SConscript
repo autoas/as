@@ -1,0 +1,11 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.c")
+
+
+@register_library
+class LibraryJ1939Tp(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", CWD, "$CanIf_Cfg"]
+        self.source = objs

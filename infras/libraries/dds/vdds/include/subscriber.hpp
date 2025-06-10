@@ -5,12 +5,15 @@
 #ifndef _VRING_DDS_SUBSCRIBER_HPP_
 #define _VRING_DDS_SUBSCRIBER_HPP_
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "vring.hpp"
-#include <string>
+#include "vring/spmc/reader.hpp"
+#include "vring/spsc/reader.hpp"
 #include <map>
 #include <mutex>
+#include <string>
 
 #include "Std_Debug.h"
+
+using namespace as::vdds::vring;
 
 namespace as {
 namespace vdds {
@@ -26,7 +29,7 @@ public:
   uint32_t queueDepth = 8;
 } SubscriberOptions_t;
 
-template <typename T> class Subscriber {
+template <typename T, typename VRingReader = vring::spmc::Reader> class Subscriber {
 public:
   Subscriber(std::string topicName,
              const SubscriberOptions_t &subscriberOptions = SubscriberOptions());
@@ -51,19 +54,21 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-template <typename T>
-Subscriber<T>::Subscriber(std::string topicName, const SubscriberOptions_t &subscriberOptions)
+template <typename T, typename VRingReader>
+Subscriber<T, VRingReader>::Subscriber(std::string topicName,
+                                       const SubscriberOptions_t &subscriberOptions)
   : m_TopicName(topicName), m_Reader(topicName, subscriberOptions.queueDepth) {
 }
 
-template <typename T> Subscriber<T>::~Subscriber() {
+template <typename T, typename VRingReader> Subscriber<T, VRingReader>::~Subscriber() {
 }
 
-template <typename T> int Subscriber<T>::init() {
+template <typename T, typename VRingReader> int Subscriber<T, VRingReader>::init() {
   return m_Reader.init();
 }
 
-template <typename T> int Subscriber<T>::receive(T *&sample, uint32_t timeoutMs) {
+template <typename T, typename VRingReader>
+int Subscriber<T, VRingReader>::receive(T *&sample, uint32_t timeoutMs) {
   int ret = 0;
   uint32_t idx;
   uint32_t len;
@@ -77,7 +82,8 @@ template <typename T> int Subscriber<T>::receive(T *&sample, uint32_t timeoutMs)
   return ret;
 }
 
-template <typename T> int Subscriber<T>::receive(T *&sample, size_t &size, uint32_t timeoutMs) {
+template <typename T, typename VRingReader>
+int Subscriber<T, VRingReader>::receive(T *&sample, size_t &size, uint32_t timeoutMs) {
   int ret = 0;
   uint32_t idx = -1;
   uint32_t len = 0;
@@ -92,7 +98,7 @@ template <typename T> int Subscriber<T>::receive(T *&sample, size_t &size, uint3
   return ret;
 }
 
-template <typename T> int Subscriber<T>::release(T *sample) {
+template <typename T, typename VRingReader> int Subscriber<T, VRingReader>::release(T *sample) {
   int ret = 0;
   uint32_t idx;
 
@@ -109,7 +115,7 @@ template <typename T> int Subscriber<T>::release(T *sample) {
   return ret;
 }
 
-template <typename T> uint32_t Subscriber<T>::idx(T *sample) {
+template <typename T, typename VRingReader> uint32_t Subscriber<T, VRingReader>::idx(T *sample) {
   uint32_t idx_ = -1;
   std::unique_lock<std::mutex> lck(m_Mutex);
   auto it = m_IdxMap.find(sample);

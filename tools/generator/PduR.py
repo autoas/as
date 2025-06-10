@@ -12,7 +12,7 @@ from . import MemCluster as MC
 __all__ = ["Gen"]
 
 HIGH_MODULES = ["Dcm"]
-TP_MODULES = ["DoIP", "CanTp", "LinTp"]
+TP_MODULES = ["DoIP", "CanTp", "LinTp", "J1939Tp"]
 LOW_MODULES = TP_MODULES + ["CanIf"]
 
 
@@ -95,6 +95,8 @@ def Gen_PduR(cfg, dir):
         H.write("#define PDUR_CANTP_TX_BASE_ID 0\n")
         H.write("#define PDUR_LINTP_RX_BASE_ID 0\n")
         H.write("#define PDUR_LINTP_TX_BASE_ID 0\n")
+    H.write("#define PDUR_J1939TP_RX_BASE_ID 0\n")
+    H.write("#define PDUR_J1939TP_TX_BASE_ID 0\n")
     H.write("\n")
     index = 0
     for fr, grphls in groups.items():
@@ -102,6 +104,8 @@ def Gen_PduR(cfg, dir):
             for to, rts in grptos.items():
                 for rt in rts:
                     H.write("#define PDUR_%s %s\n" % (rt["name"], index))
+                    if "fake" in rt:
+                        H.write("#define PDUR_%s %s\n" % (rt["fake"], index))
                     dsts = rt.get("destinations", [])
                     for dst in dsts:
                         H.write("#define PDUR_%s %s\n" % (dst["name"], index))
@@ -111,6 +115,7 @@ def Gen_PduR(cfg, dir):
 
     if "memory" in cfg:
         MC.Gen_Macros(mcfg, H)
+    H.write("%s#define PDUR_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", True) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -197,6 +202,16 @@ def Gen_PduR(cfg, dir):
             C.write("  NULL,\n")
             C.write("  NULL,\n")
         C.write("};\n\n")
+    if "J1939Tp" in modules:
+        C.write("const PduR_ApiType PduR_J1939TpApi = {\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  J1939Tp_Transmit,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("};\n\n")
     if "LinTp" in modules:
         C.write("const PduR_ApiType PduR_LinTpApi = {\n")
         if hasGW:
@@ -226,6 +241,16 @@ def Gen_PduR(cfg, dir):
         C.write("  CanIf_Transmit,\n")
         C.write("  NULL,\n")
         C.write("  NULL,\n")
+        C.write("};\n\n")
+    if "SecOC" in modules:
+        C.write("const PduR_ApiType PduR_SecOCApi = {\n")
+        C.write("  SecOC_StartOfReception,\n")
+        C.write("  SecOC_CopyRxData,\n")
+        C.write("  SecOC_TpRxIndication,\n")
+        C.write("  NULL,\n")
+        C.write("  SecOC_IfTransmit,\n")
+        C.write("  SecOC_CopyTxData,\n")
+        C.write("  SecOC_TxConfirmation,\n")
         C.write("};\n\n")
     for rt in cfg["routines"]:
         hasGw = False
@@ -299,6 +324,8 @@ def Gen_PduR(cfg, dir):
     C.write("  PDUR_CANTP_TX_BASE_ID,\n")
     C.write("  PDUR_LINTP_RX_BASE_ID,\n")
     C.write("  PDUR_LINTP_TX_BASE_ID,\n")
+    C.write("  PDUR_J1939TP_RX_BASE_ID,\n")
+    C.write("  PDUR_J1939TP_TX_BASE_ID,\n")
     C.write("};\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
@@ -360,3 +387,4 @@ def Gen(cfg):
         cfg = json.load(f)
     cfg_ = extract(cfg, dir)
     Gen_PduR(cfg_, dir)
+    return ["%s/PduR_Cfg.c" % (dir)]
