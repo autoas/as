@@ -12,7 +12,7 @@
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define FLASH_IMG "Flash.img"
-#define FLS_TOTAL_SIZE (1 * 1024 * 1024)
+#define FLS_TOTAL_SIZE (2 * 1024 * 1024)
 
 #define IS_FLASH_ADDRESS(a) ((a) <= FLS_TOTAL_SIZE)
 #define AS_LOG_FLS 1

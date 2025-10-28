@@ -8,7 +8,8 @@
          { "type": "mask", "code":"0x700", "mask": "0x700" }
        ],
        "MaxDynamicFilters": 128,
-       "ControllerId": 0
+       "ControllerId": 0,
+       "NetworkId": 3
     }
   ],
   "SourceNetworkLin": [
@@ -19,7 +20,8 @@
          { "type": "mask", "code":"0x20", "mask": "0x70" }
        ],
        "MaxDynamicFilters": 32,
-       "ControllerId": 0
+       "ControllerId": 0,
+       "NetworkId": 5
     }
   ],
   "DestNetworkIp": [

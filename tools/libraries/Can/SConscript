@@ -34,7 +34,7 @@ class LibraryCanLib(Library):
         self.source += objsVXL
 
     def config_zlg(self):
-        pkg = Package("https://www.zlg.cn/data/upload/software/Can/CAN_lib.rar")
+        pkg = Package("https://gitee.com/autoas/mirror/raw/master/CAN_lib.rar")
         if IsBuildForWin32():
             ControlCAN = Glob("%s/ControlCAN*/ControlCANx86" % (pkg))[0].rstr()
         else:
@@ -73,9 +73,7 @@ objsCanSim = Glob("utils/can_simulator.c")
 class ApplicationCanSimulator(Application):
     def config(self):
         self.CPPPATH = ["$INFRAS"]
-        self.LIBS = ["TcpIp", "StdTimer", "Utils"]
-        if IsBuildForWindows():
-            self.LIBS += ["wsock32", "winmm"]
+        self.LIBS = ["AsOne"]
         self.source = objsCanSim
 
 
@@ -85,7 +83,7 @@ objsCanDump = Glob("utils/can_dump.cpp")
 @register_application
 class ApplicationCanDump(Application):
     def config(self):
-        self.LIBS = ["CanLib"]
+        self.LIBS = ["AsOne"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objsCanDump
         self.Install("../one")
@@ -97,7 +95,7 @@ objsCanSend = Glob("utils/can_send.c")
 @register_application
 class ApplicationCanSend(Application):
     def config(self):
-        self.LIBS = ["CanLib"]
+        self.LIBS = ["AsOne"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objsCanSend
         self.Install("../one")
@@ -109,7 +107,7 @@ objsCanBr = Glob("utils/can_bridge.cpp")
 @register_application
 class ApplicationCanBridge(Application):
     def config(self):
-        self.LIBS = ["CanLib"]
+        self.LIBS = ["AsOne"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objsCanBr
         self.Install("../one")
@@ -121,7 +119,7 @@ objsCanIO = Glob("utils/can_stdio.cpp")
 @register_application
 class ApplicationCanStdio(Application):
     def config(self):
-        self.LIBS = ["CanLib"]
+        self.LIBS = ["AsOne"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objsCanIO
         self.Install("../one")

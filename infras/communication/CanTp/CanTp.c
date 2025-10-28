@@ -114,7 +114,7 @@ static uint8_t CanTp_GetSFMaxLen(const CanTp_ChannelConfigType *config) {
       sfMaxLen = config->LL_DL - 1u;
     }
   }
-  return sfMaxLen;
+  return (uint8_t)sfMaxLen;
 }
 
 static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
@@ -519,7 +519,7 @@ static void CanTp_SendSF(PduIdType TxPduId) {
   if ((config->LL_DL > 8u) && ((7u - pos) < context->TpSduLength)) {
     data[pos] = N_PCI_SF;
     pos++;
-    data[pos] = context->TpSduLength;
+    data[pos] = (uint8_t)context->TpSduLength;
     pos++;
   } else {
     data[pos] = N_PCI_SF | (uint8_t)(context->TpSduLength & 0x7u);

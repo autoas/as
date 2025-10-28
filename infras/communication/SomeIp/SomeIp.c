@@ -1787,7 +1787,8 @@ void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr) {
 
 void SomeIp_MainFunction(void) {
   uint16_t i;
-  for (i = 0u; i < SOMEIP_CONFIG->numOfService; i++) {
+  boolean bLinkedUp = TcpIp_IsLinkedUp();
+  for (i = 0u; (TRUE == bLinkedUp) && (i < SOMEIP_CONFIG->numOfService); i++) {
     if (TRUE == SOMEIP_CONFIG->services[i].isServer) {
       SomeIp_MainServer((const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[i].service);
     } else {
@@ -1862,7 +1863,7 @@ Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *inf
   (void)RxPduId;
 
   if (info->SduLength < 8u) {
-    ASLOG(SDE, ("malformed SOMEIP message\n"));
+    ASLOG(SOMEIPE, ("malformed SOMEIP message\n"));
     ret = E_NOT_OK;
   }
 

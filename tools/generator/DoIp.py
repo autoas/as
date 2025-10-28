@@ -26,9 +26,25 @@ def Gen_DoIp(cfg, dir):
     H.write("#endif\n")
     H.write("#define DOIP_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + DOIP_MAIN_FUNCTION_PERIOD - 1) / DOIP_MAIN_FUNCTION_PERIOD)\n\n")
-    for i, target in enumerate(cfg["targets"]):
-        H.write("#define DOIP_%s_RX %s\n" % (toMacro(target["name"]), i))
-        H.write("#define DOIP_%s_TX %s\n" % (toMacro(target["name"]), i))
+    ID = 0
+    for target in cfg["targets"]:
+        name = target["name"]
+        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
+        if name not in [node["name"] for node in nodes]:
+            H.write("#define DOIP_%s_RX %s\n" % (toMacro(name), ID))
+        for node in nodes:
+            H.write("#define DOIP_%s_RX %s\n" % (toMacro(node["name"]), ID))
+        ID += 1
+    H.write("\n")
+    ID = 0
+    for target in cfg["targets"]:
+        name = target["name"]
+        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
+        if name not in [node["name"] for node in nodes]:
+            H.write("#define DOIP_%s_TX %s\n" % (toMacro(name), ID))
+        for node in nodes:
+            H.write("#define DOIP_%s_TX %s\n" % (toMacro(node["name"]), ID))
+            ID += 1
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -73,13 +89,27 @@ def Gen_DoIp(cfg, dir):
     C.write("extern Std_ReturnType DoIP_UserGetGID(uint8_t *Data);\n")
     C.write("extern Std_ReturnType DoIP_UserGetPowerModeStatus(uint8_t *PowerState);\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
+    for target in cfg["targets"]:
+        name = target["name"]
+        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
+        for node in nodes:
+            C.write("static DoIP_TargetNodeContextType DoIp_%s_%s_TargetNodeContext;\n" % (name, node["name"]))
+        C.write("static const DoIP_TargetNodeType DoIp_%s_TargetNodes[] = {\n" % (name))
+        for node in nodes:
+            C.write("  {\n")
+            C.write("    &DoIp_%s_%s_TargetNodeContext,\n" % (name, node["name"]))
+            C.write("    PDUR_%s_TX, /* TxPduId */\n" % (toMacro(node["name"])))
+            C.write("    DOIP_%s_TX, /* doipTxPduId */\n" % (toMacro(node["name"])))
+            C.write("    %s, /* TargetAddress */\n" % (node["address"]))
+            C.write("  },\n")
+        C.write("};\n\n")
     C.write("static const DoIP_TargetAddressType DoIp_TargetAddress[] = {\n")
     for target in cfg["targets"]:
         C.write("  {\n")
+        C.write("    DoIp_%s_TargetNodes,\n" % (target["name"]))
+        C.write("    ARRAY_SIZE(DoIp_%s_TargetNodes),\n" % (target["name"]))
         C.write("    %s, /* TargetAddress */\n" % (target["address"]))
         C.write("    PDUR_%s_RX, /* RxPduId */\n" % (toMacro(target["name"])))
-        C.write("    PDUR_%s_TX, /* TxPduId */\n" % (toMacro(target["name"])))
-        C.write("    DOIP_%s_TX, /* doipTxPduId */\n" % (toMacro(target["name"])))
         C.write("  },\n")
     C.write("};\n\n")
 
@@ -99,7 +129,7 @@ def Gen_DoIp(cfg, dir):
         C.write("    DoIP_%s_RoutingActivationAuthenticationCallback,\n" % (rt["name"]))
         C.write("    DoIP_%s_RoutingActivationConfirmationCallback,\n" % (rt["name"]))
         C.write("  },\n")
-        C.write("};\n\n")
+    C.write("};\n\n")
 
     for tester in cfg["testers"]:
         C.write(

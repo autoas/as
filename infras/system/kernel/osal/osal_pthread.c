@@ -33,6 +33,47 @@ void StartupHook(void);
 FUNC(void, __weak) StartupHook(void) {
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
+int OSAL_ThreadAttrInit(OSAL_ThreadAttrType *attr) {
+  attr->stackPtr = NULL;
+  attr->stackSize = 8096;
+  attr->priority = 0;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetStack(OSAL_ThreadAttrType *attr, uint8_t *stackPtr, uint32_t stackSize) {
+  attr->stackPtr = stackPtr;
+  attr->stackSize = stackSize;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetStackSize(OSAL_ThreadAttrType *attr, uint32_t stackSize) {
+  attr->stackPtr = NULL;
+  attr->stackSize = stackSize;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetPriority(OSAL_ThreadAttrType *attr, int priority) {
+  attr->priority = priority;
+  return 0;
+}
+
+OSAL_ThreadType OSAL_ThreadCreateEx(const OSAL_ThreadAttrType *attr, OSAL_ThreadEntryType entry,
+                                    void *args) {
+  int ret;
+  OSAL_ThreadType thread = Os_MemAlloc(sizeof(pthread_t));
+
+  if (NULL != thread) {
+    ret = pthread_create((pthread_t *)thread, NULL, (void *(*)(void *))entry, args);
+    if (0 != ret) {
+      ASLOG(ERROR, ("create thread over pthread failed: %d\n", ret));
+      Os_MemFree(thread);
+      thread = NULL;
+    }
+  }
+
+  return thread;
+}
+
 OSAL_ThreadType OSAL_ThreadCreate(OSAL_ThreadEntryType entry, void *args) {
   int ret;
   OSAL_ThreadType thread = Os_MemAlloc(sizeof(pthread_t));

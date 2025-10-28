@@ -346,7 +346,7 @@ int main(int argc, char *argv[]) {
   BL_CheckAndJump();
 
 #ifdef USE_OSAL
-  osal_start();
+  OSAL_Start();
 #else
   Task_MainLoop();
 #endif

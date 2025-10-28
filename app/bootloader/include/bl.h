@@ -76,6 +76,9 @@
   do {                                                                                             \
     EnterCritical();                                                                               \
     FLASH_DRIVER_INIT(FLASH_DRIVER_START_ADDRESS, &blFlashParam);                                  \
+    if (kFlashOk != blFlashParam.errorcode) {                                                      \
+      ASLOG(BLE, ("Flash init failed: %d\n", blFlashParam.errorcode));                             \
+    }                                                                                              \
     ExitCritical();                                                                                \
   } while (0)
 
@@ -159,7 +162,7 @@ typedef struct {
 
 typedef struct {
   uint32_t magic;
-  uint32_t programmingCouner; /* programming counter for current partition */
+  uint32_t programmingCounter; /* programming counter for current partition */
 #ifdef BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER
   uint32_t rollingCounter; /* programming counter for all the partition */
 #endif
@@ -182,6 +185,7 @@ extern tFlashParam blFlashParam;
 void BL_Init(void);
 void BL_ABInit(void);
 void BL_ABSwitch(void);
+void BL_ABSetActivePartition(char activePartition);
 boolean BL_ABPrepareUpdateActive(void);
 void BL_SessionReset(void);
 Std_ReturnType BL_CheckAppIntegrity(void);

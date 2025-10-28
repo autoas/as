@@ -229,6 +229,7 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
+  PduLengthType offset = *((PduLengthType*)info->MetaDataPtr);
 
   (void)retry;
 
@@ -237,9 +238,9 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
       (NULL != config->RoutingPaths[pathId].DestTxBufferRef)) {
     buffer = config->RoutingPaths[pathId].DestTxBufferRef;
     if (NULL != buffer->data) {
-      (void)memcpy(info->SduDataPtr, &buffer->data[buffer->index], info->SduLength);
-      buffer->index += info->SduLength;
-      *availableDataPtr = buffer->size - buffer->index;
+      (void)memcpy(info->SduDataPtr, &buffer->data[offset], info->SduLength);
+      offset += info->SduLength;
+      *availableDataPtr = buffer->size - offset;
       ret = BUFREQ_OK;
     }
   }
@@ -378,7 +379,7 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
             ASLOG(PDURE, ("null ISOTP RX API\n"));
             ret = E_NOT_OK;
           }
-        } else { /* Gateway to others, Note this version only support 1 by 1 gateway only*/
+        } else {
           if (NULL != DestPduRef->api->Transmit) {
             buffer->index = 0;
             ret = DestPduRef->api->Transmit(DestPduRef->PduHandleId, &PduInfo);

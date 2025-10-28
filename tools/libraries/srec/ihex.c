@@ -16,7 +16,9 @@
 #define IHEX_TYPE_DATA_RECORD 0x00
 #define IHEX_TYPE_END_RECORD 0x01
 #define IHEX_TYPE_EXTEND_SEGMENT_ADDR 0x02
+#define IHEX_TYPE_START_SEGMENT_ADDR 0x03
 #define IHEX_TYPE_EXTEND_LINEAR_ADDR 0x04
+#define IHEX_TYPE_START_LINEAR_ADDR 0x05
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t CC; /* Character Count */
@@ -93,6 +95,21 @@ static int ihex_get_extend_linear_addr(ihex_line_t *iln, uint32_t *addr) {
   return err;
 }
 
+static int ihex_get_start_linear_addr(ihex_line_t *iln) {
+  int err = 0;
+  uint32_t addr;
+
+  if (4 == iln->CC) {
+    addr = ((uint32_t)iln->data[0] << 24) + ((uint32_t)iln->data[1] << 16) +
+           ((uint32_t)iln->data[2] << 8) + iln->data[3];
+    printf("  Start Linear Address: <0x%x>\n", addr);
+  } else {
+    err = -__LINE__;
+  }
+
+  return err;
+}
+
 static int ihex_add_data(ihex_line_t *iln, srec_t *srec, uint32_t base_addr) {
   int err = 0;
   sblk_t *curBlk = NULL;
@@ -127,6 +144,7 @@ static int ihex_add_data(ihex_line_t *iln, srec_t *srec, uint32_t base_addr) {
   if (0 == err) {
     memcpy(&curBlk->data[curBlk->length], iln->data, iln->CC);
     curBlk->length += iln->CC;
+    srec->totalSize += iln->CC;
   }
   return err;
 }
@@ -141,9 +159,10 @@ static void ihex_parse(srec_t *srec, FILE *fp) {
 
   while ((0 == err) && fgets(sline, sizeof(sline), fp)) {
     slen = strlen(sline);
-    if (sline[0] != ':') {
-      err = -1;
-      printf("invalid intel hex <%s>\n", sline);
+    if (sline[0] == '\n') {
+      /* do nothing */
+    } else if (sline[0] != ':') {
+      printf("  invalid intel hex <%s>, ignore\n", sline);
     } else {
       err = ihex_decode(sline, slen, &iln);
       if (0 == err) {
@@ -156,8 +175,14 @@ static void ihex_parse(srec_t *srec, FILE *fp) {
         case IHEX_TYPE_EXTEND_SEGMENT_ADDR:
           err = ihex_get_extend_segment_addr(&iln, &addr);
           break;
+        case IHEX_TYPE_START_SEGMENT_ADDR:
+          printf(" type 03 not supported, ignore\n");
+          break;
         case IHEX_TYPE_EXTEND_LINEAR_ADDR:
           err = ihex_get_extend_linear_addr(&iln, &addr);
+          break;
+        case IHEX_TYPE_START_LINEAR_ADDR:
+          err = ihex_get_start_linear_addr(&iln);
           break;
         default:
           err = -__LINE__;
@@ -225,5 +250,28 @@ void ihex_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, uint32_
     checksum = 1 + (~checksum);
     snprintf(sline, sizeof(sline), ":02%04X00%04X%02X\n", addr, crc, checksum);
   }
+  fputs(sline, fpS);
+}
+
+void ihex_add_line(FILE *fpS, uint32_t saddr, uint8_t *data, uint32_t len) {
+  uint16_t base_addr = (saddr >> 16) & 0xFFFF;
+  uint16_t addr = saddr & 0xFFFF;
+  uint8_t checksum;
+  uint32_t i = 0;
+  int ls;
+  char sline[IHEX_MAX_ONE_LINE];
+  checksum = 2 + 4 + ((base_addr >> 8) & 0xFF) + (base_addr & 0xFF);
+  checksum = 1 + (~checksum);
+  snprintf(sline, sizeof(sline), ":02000004%04X%02X\n", base_addr, checksum);
+  fputs(sline, fpS);
+  checksum = len + ((addr >> 8) & 0xFF) + (addr & 0xFF);
+  ls = snprintf(sline, sizeof(sline), ":%02X%04X00", len, addr);
+  for (i = 0; i < len; i++) {
+    ls += snprintf(&sline[ls], sizeof(sline) - ls, "%02X", data[i]);
+    checksum += data[i];
+  }
+  checksum = 1 + (~checksum);
+  snprintf(&sline[ls], sizeof(sline) - ls, "%02X\n", checksum);
+
   fputs(sline, fpS);
 }

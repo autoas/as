@@ -35,6 +35,11 @@ Std_ReturnType Rod_ReadData(const RoD_ConfigType *config, uint16_t dataId, const
         ASLOG(RODE, ("[%" PRIu16 "] CRC %" PRIx16 " != %" PRIx16 "\n", dataId, crc, dinfo->crc));
       }
     }
+  } else {
+    ASLOG(RODE, ("[%" PRIu16 "] Addr=%p Magic = %08" PRIx8 " %08" PRIx8 " Number %04" PRIx16
+                 " %04" PRIx16 "\n",
+                 dataId, config, config->magic, config->invMagic, config->numOfData,
+                 config->invNumOfData));
   }
 
   return ret;

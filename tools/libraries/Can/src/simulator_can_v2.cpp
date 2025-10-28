@@ -180,6 +180,8 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
         TcpIp_Close(sockRd, TRUE);
         rv = FALSE;
         ASLOG(ERROR, ("CAN socket bind to %x:%d failed\n", CAN_CAST_IP, CAN_PORT_MIN + port));
+      } else {
+        (void)TcpIp_SetMulticastIF(sockRd, TCPIP_LOCALADDRID_ANY);
       }
     } else {
       rv = FALSE;
@@ -192,6 +194,8 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
         TcpIp_Close(sockWt, TRUE);
         rv = FALSE;
         ASLOG(ERROR, ("CAN socket create write sock failed\n"));
+      } else {
+        (void)TcpIp_SetMulticastIF(sockWt, TCPIP_LOCALADDRID_ANY);
       }
     }
     if (rv) { /* open port OK */
@@ -203,6 +207,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->sockRd = sockRd;
       handle->sockWt = sockWt;
       get_uuid(handle->uuid, sizeof(handle->uuid));
+      ASHEXDUMP(DEBUG, ("uuid[%u]:", port), handle->uuid, sizeof(handle->uuid));
       std::lock_guard<std::mutex>(socketH.mutex);
       STAILQ_INSERT_TAIL(&socketH.head, handle, entry);
     } else {

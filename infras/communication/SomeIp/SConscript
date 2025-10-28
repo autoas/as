@@ -14,7 +14,7 @@ class LibrarySomeIp(Library):
         self.CPPPATH = ["$INFRAS", CWD]
         self.LIBS = ["SoAd", "MemPool", "OSAL"]
         self.source = objs
-        if IsBuildForHost():
+        if IsBuildForHost(self.GetCompiler()):
             USE_PCAP = os.getenv("USE_PCAP")
             if USE_PCAP == "YES":
                 self.LIBS += ["PCap"]

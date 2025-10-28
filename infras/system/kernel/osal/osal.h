@@ -22,6 +22,12 @@ typedef struct {
   int type;
 } OSAL_MutexAttrType;
 
+typedef struct {
+  uint8_t* stackPtr;
+  uint32_t stackSize;
+  int priority;
+} OSAL_ThreadAttrType;
+
 typedef void *OSAL_MutexType;
 
 typedef void *OSAL_SemType;
@@ -29,6 +35,12 @@ typedef void *OSAL_SemType;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+int OSAL_ThreadAttrInit(OSAL_ThreadAttrType *attr);
+int OSAL_ThreadAttrSetStack(OSAL_ThreadAttrType *attr, uint8_t *stackPtr, uint32_t stackSize);
+int OSAL_ThreadAttrSetStackSize(OSAL_ThreadAttrType *attr, uint32_t stackSize);
+int OSAL_ThreadAttrSetPriority(OSAL_ThreadAttrType *attr, int priority);
+OSAL_ThreadType OSAL_ThreadCreateEx(const OSAL_ThreadAttrType *attr, OSAL_ThreadEntryType entry, void *args);
+
 OSAL_ThreadType OSAL_ThreadCreate(OSAL_ThreadEntryType entry, void *args);
 int OSAL_ThreadJoin(OSAL_ThreadType thread);
 int OSAL_ThreadDestory(OSAL_ThreadType thread);

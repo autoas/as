@@ -79,7 +79,7 @@
 #endif
 
 #ifndef BL_MAX_SEGMENT
-#define BL_MAX_SEGMENT 8
+#define BL_MAX_SEGMENT 32
 #endif
 
 #ifndef BL_USE_FLS_READ
@@ -87,9 +87,16 @@
 #define BL_USE_FLS_READ
 #endif
 #endif
+
+#if !defined(_WIN32) && !defined(__linux__)
+#define FlashDriverRam ((uint8_t *)blFlsDriverMemoryLow)
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+#if defined(_WIN32) || defined(__linux__)
 extern uint8_t FlashDriverRam[];
+#endif
+
 #ifdef BL_USE_AB
 extern const BL_MemoryInfoType *blMemoryList;
 #else
@@ -362,7 +369,7 @@ static Dcm_ReturnWriteMemoryType writeFlashDriver(Dcm_OpStatusType OpStatus, uin
 
     if (flsCrc == calcCrc) {
       bl_flashDriverReady = TRUE;
-      ASLOG(BLI, ("Flash Driver is ready\n"));
+      ASLOG(BLI, ("Flash Driver is ready @%x\n", FLASH_DRIVER_START_ADDRESS));
     } else {
       ASLOG(BLE, ("Flash Driver invalid, C %" PRIx32 " != R %" PRIx32 "\n", (uint32_t)calcCrc,
                   (uint32_t)flsCrc));
@@ -928,7 +935,7 @@ Std_ReturnType BL_ProcessRequestDownload(Dcm_OpStatusType OpStatus, uint8_t Data
       if (BL_FLASH_IDENTIFIER == MemoryIdentifier) {
         blWWBOffset = MemoryAddress % FLASH_WRITE_SIZE;
         blWWBAddr = MemoryAddress - blWWBOffset;
-        memset(blWriteWindowBuffer, 0xFF, blWWBOffset);
+        BL_FLS_READ(blWWBAddr, blWriteWindowBuffer, blWWBOffset);
       }
 #endif
 #ifndef BL_DISABLE_SEGMENT_INTEGRITY_CHECK

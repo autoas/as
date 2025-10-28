@@ -22,7 +22,7 @@
 using namespace as;
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef FLS_TOTAL_SIZE
-#define FLS_TOTAL_SIZE (1 * 1024 * 1024)
+#define FLS_TOTAL_SIZE (2 * 1024 * 1024)
 #endif
 
 #define IS_FLS_ADDRESS(a) ((a) <= FLS_TOTAL_SIZE)

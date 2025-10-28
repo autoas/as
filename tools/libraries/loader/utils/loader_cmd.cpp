@@ -7,14 +7,17 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <string>
 #include "isotp.h"
 #include "srec.h"
 #include "loader.h"
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+extern "C" {
 void std_set_log_name(const char *path);
 void std_set_log_level(int level);
+}
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
@@ -37,10 +40,12 @@ static uint32_t toU32(const char *strV) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   int ch;
-  char *device = "CAN.simulator_v2";
+  const char *device = "CAN.simulator_v2";
   int port = 0;
   int baudrate = 500000;
+  boolean bPortSet = FALSE;
   uint32_t rxid = 0x732, txid = 0x731;
+  boolean bRxIdSet = FALSE, bTxIdSet = FALSE;
   uint16_t N_TA = 0xFFFF;
   uint32_t delayUs = 0;
   uint32_t funcAddr = 0x7DF;
@@ -98,9 +103,11 @@ int main(int argc, char *argv[]) {
       break;
     case 'p':
       port = atoi(optarg);
+      bPortSet = FALSE;
       break;
     case 'r':
       rxid = toU32(optarg);
+      bRxIdSet = TRUE;
       break;
     case 's':
       total = toU32(optarg);
@@ -125,6 +132,7 @@ int main(int argc, char *argv[]) {
       break;
     case 't':
       txid = toU32(optarg);
+      bTxIdSet = TRUE;
       break;
     case 'T':
       timeout = toU32(optarg);
@@ -208,6 +216,27 @@ int main(int argc, char *argv[]) {
     params.U.LIN.timeout = timeout;
     funcAddr = 0; /* This is not avaiable for LIN */
     params.U.LIN.delayUs = delayUs;
+  } else if (0 == strncmp("DOIP", device, 4)) {
+    /* device: "DOIP.224.244.224.245" for example */
+    size_t length = strlen(device);
+    if (length > 5) {
+      strcpy(params.device, &device[5]);
+    } else {
+      strcpy(params.device, "224.244.224.245");
+    }
+    params.protocol = ISOTP_OVER_DOIP;
+    if (FALSE == bRxIdSet) {
+      rxid = 0xbeef;
+    }
+    if (FALSE == bTxIdSet) {
+      txid = 0xdead;
+    }
+    if (FALSE == bPortSet) {
+      params.port = 13400;
+    }
+    params.U.DoIP.sourceAddress = (uint32_t)rxid;
+    params.U.DoIP.targetAddress = (uint32_t)txid;
+    params.U.DoIP.activationType = 0;
   } else {
     printf("%s not supported\n", device);
     usage(argv[0]);
@@ -221,7 +250,14 @@ int main(int argc, char *argv[]) {
   if (0 == r) {
     isotp = isotp_create(&params);
     if (NULL == isotp) {
+      printf("failed to create isotp\n");
       r = -6;
+    } else {
+      if (ISOTP_OVER_CAN == params.protocol) {
+        if (timeout > 1000) {
+          isotp_ioctl(isotp, ISOTP_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
+        }
+      }
     }
   }
 

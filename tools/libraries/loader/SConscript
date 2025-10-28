@@ -41,7 +41,7 @@ for obj in objsApp:
     )
     register_library(cls)
 
-objsCmd = Glob("utils/loader_cmd.c")
+objsCmd = Glob("utils/loader_cmd.cpp")
 
 
 @register_application

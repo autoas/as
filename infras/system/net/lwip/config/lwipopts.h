@@ -74,14 +74,15 @@
  *    4 byte alignment -> #define MEM_ALIGNMENT 4
  *    2 byte alignment -> #define MEM_ALIGNMENT 2
  */
-#define MEM_ALIGNMENT 1U
+#define MEM_ALIGNMENT 4U
 
 /**
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
+#ifndef MEM_SIZE
 #define MEM_SIZE (64 * 1024)
-
+#endif
 /*
    ------------------------------------------------
    ---------- Internal Memory Pool Sizes ----------
@@ -92,7 +93,9 @@
  * If the application sends a lot of data out of ROM (or other static memory),
  * this should be set high.
  */
+#ifndef MEMP_NUM_PBUF
 #define MEMP_NUM_PBUF 16
+#endif
 
 /**
  * MEMP_NUM_RAW_PCB: Number of raw connection PCBs
@@ -174,8 +177,9 @@
 /**
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool.
  */
+#ifndef PBUF_POOL_SIZE
 #define PBUF_POOL_SIZE 128
-
+#endif
 /*
    ---------------------------------
    ---------- ARP options ----------

@@ -24,10 +24,18 @@
     {
       "name": "GW_P2A_RX",
       "from": "DoIP",
-      "to": "CanTp"
+      "to": "CanTp",
+      "dest": "GW_P2A0_RX",
+      "destinations": [{ "to": "CanTp", "name": "GW_P2A1_RX" }],
+      "DestBuffer": "P2A"
     },
     {
-      "name": "GW_P2A_TX",
+      "name": "GW_P2A0_TX",
+      "from": "CanTp",
+      "to": "DoIP"
+    },
+    {
+      "name": "GW_P2A1_TX",
       "from": "CanTp",
       "to": "DoIP"
     },
@@ -37,6 +45,7 @@
       "to": "CanIf"
     }
   ],
+  "buffers": [ {"name": "P2A", "size": 4096} ],
   "memory": [
     { "name": "large", "size": 4096, "number": 2 },
     { "name": "middle", "size": 1400, "number": 8 },

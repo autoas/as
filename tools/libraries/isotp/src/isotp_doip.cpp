@@ -45,7 +45,7 @@ isotp_t *isotp_doip_create(isotp_parameter_t *params) {
   }
 
   if (0 == r) {
-    r = doip_await_vehicle_announcement(doip->client, &doip->node, 1, 3000);
+    r = doip_await_vehicle_announcement(doip->client, &doip->node, 1, 100);
 
     if (r <= 0) {
       doip->node = doip_request(doip->client);

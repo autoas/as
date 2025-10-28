@@ -35,7 +35,8 @@ Defines the settings for a **source CAN network**, including filters and control
          { "type": "mask", "code": "0x700", "mask": "0x700" }
       ],
       "MaxDynamicFilters": 128,
-      "ControllerId": 0
+      "ControllerId": 0,
+      "NetworkId": 3
     }
 ]
 ```
@@ -50,6 +51,8 @@ Defines the settings for a **source CAN network**, including filters and control
 | **`StaticFilters`**  | No        | List of static filters. Supports two types (see below). Default: `[]`.      |
 | **`MaxDynamicFilters`** | Yes    | Maximum dynamic filters allowed (range: `1~255`). Total filters (static + dynamic) must **not exceed 255**. |
 | **`ControllerId`**   | Yes       | Numeric ID of the CAN controller (e.g., `0`).                              |
+| **`NetworkId`**      | Yes       | Numeric ID of the network assigned.                                        |
+
 
 ---
 
@@ -82,7 +85,8 @@ Defines the settings for a **source LIN network**, including filters and control
          { "type": "mask", "code":"0x20", "mask": "0x70" }
       ],
       "MaxDynamicFilters": 128,
-      "ControllerId": 0
+      "ControllerId": 0,
+      "NetworkId": 3
     }
 ]
 ```
@@ -97,6 +101,7 @@ Defines the settings for a **source LIN network**, including filters and control
 | **`StaticFilters`**  | No        | List of static filters. Supports two types (see below). Default: `[]`.      |
 | **`MaxDynamicFilters`** | Yes    | Maximum dynamic filters allowed (range: `1~255`). Total filters (static + dynamic) must **not exceed 255**. |
 | **`ControllerId`**   | Yes       | Numeric ID of the LIN controller (e.g., `0`).                              |
+| **`NetworkId`**      | Yes       | Numeric ID of the network assigned.                                        |
 
 ---
 
@@ -126,6 +131,7 @@ Defines the settings for a **destination IP network**, including queue/buffer si
         "name": "AS",
         "DestQueueSize": 2,
         "DestBufferSize": 1400,
+        "MirrorDestTransmissionDeadline": 655,
         "SoAd": "MIRROR_CLIENT_0"
     }
 ]
@@ -140,6 +146,7 @@ Defines the settings for a **destination IP network**, including queue/buffer si
 | **`name`**            | Yes       | Logical name of the IP network (e.g., `"AS"`).                              |
 | **`DestQueueSize`**   | Yes       | Maximum number of frames buffered in the output queue. <br> **Note:** Impacts latency and memory usage. <br> **Note:** The value must be power of 2. |
 | **`DestBufferSize`**  | Yes       | Size (in bytes) of the frame buffer for outgoing data. <br> **Must align with MTU/packet size constraints.** |
+| **`MirrorDestTransmissionDeadline`**  | Yes       | Time in miliseconds after which the collection of source frames into the destination frame stopped and the frame is sent at the latest. |
 | **`SoAd`**            | Yes       | Corresponding SoAd socket connection name (e.g., `"MIRROR_CLIENT_0"`). <br> Ensures proper routing to the AUTOSAR Socket Adapter layer. |
 
 ---

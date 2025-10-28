@@ -69,7 +69,9 @@ extern boolean Can_WakeupCheck();
 void __weak Mcu_EnterSleepMode(void) {
   boolean bWakeup = FALSE;
   ASLOG(INFO, ("Enter Sleep Mode!!!\n"));
-  Can_SetControllerMode(0, CAN_CS_STARTED); /* ensure can online */
+#ifdef USE_CANIF
+  CanIf_SetControllerMode(0, CAN_CS_STARTED); /* ensure can online */
+#endif
   while (FALSE == bWakeup) {
     if (TRUE == App_IsIgOn()) {
       bWakeup = TRUE;
@@ -326,10 +328,8 @@ void EcuM_AL_EnterRUN(void) {
 #ifdef USE_CANSM
   CanSM_RequestComMode(0, COMM_FULL_COMMUNICATION);
 #else
-#ifdef USE_CAN
-  Can_SetControllerMode(0, CAN_CS_STARTED);
-#endif
 #ifdef USE_CANIF
+  CanIf_SetControllerMode(0, CAN_CS_STARTED);
   CanIf_SetPduMode(0, CANIF_ONLINE);
 #endif
 #endif
@@ -369,7 +369,7 @@ void EcuM_AL_EnterRUN(void) {
 
 #ifdef USE_MIRROR
 #ifdef CANIF_CHL_CAN2
-  Can_SetControllerMode(CANIF_CHL_CAN2, CAN_CS_STARTED);
+  CanIf_SetControllerMode(CANIF_CHL_CAN2, CAN_CS_STARTED);
   CanIf_SetPduMode(CANIF_CHL_CAN2, CANIF_ONLINE);
 #endif
 #endif
@@ -426,11 +426,9 @@ void EcuM_AL_EnterSLEEP(void) {
   CanSM_StartWakeupSource(1);
   CanSM_MainFunction();
 #endif
-#ifdef USE_CAN
-  Can_SetControllerMode(0, CAN_CS_STARTED);
-  Can_SetControllerMode(1, CAN_CS_STARTED);
-#endif
 #ifdef USE_CANIF
+  CanIf_SetControllerMode(0, CAN_CS_STARTED);
+  CanIf_SetControllerMode(1, CAN_CS_STARTED);
   CanIf_SetPduMode(0, CANIF_ONLINE);
   CanIf_SetPduMode(1, CANIF_ONLINE);
 #endif

@@ -51,11 +51,14 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
         TcpIp_Close(sockId, TRUE);
       }
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_CLIENT)) {
+#ifdef USE_LWIP
+      /* See for LWIP, for a UDP socket created without port assigned, it takes several seconds to
+       * make it ready to recevice packet, so, give one. */
+      addr.port = conG->LocalPort;
+#else
       addr.port = TCPIP_PORT_ANY;
+#endif
       ret = TcpIp_Bind(sockId, conG->LocalAddrId, &addr.port);
-      if (E_OK == ret) {
-        *connection->LocalPort = addr.port;
-      }
     } else {
       /* do nothing */
     }
@@ -143,7 +146,7 @@ static Std_ReturnType soAdSocketRecvStart(SoAd_SoConIdType SoConId) {
     }
     if (E_OK == ret) {
       if (rxLen > 0) {
-        ASLOG(SOAD, ("[%u] read %d bytes\n", SoConId, rxLen));
+        ASLOG(SOAD, ("[%u] read %d bytes headerLen %u\n", SoConId, rxLen, conG->headerLen));
         PduInfo.SduDataPtr = data;
         PduInfo.SduLength = rxLen;
         PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
@@ -160,6 +163,8 @@ static Std_ReturnType soAdSocketRecvStart(SoAd_SoConIdType SoConId) {
                               (uint32_t)conG->headerLen + length));
               } else {
                 (void)memcpy(context->data, data, rxLen);
+                ASLOG(SOAD,
+                      ("[%u] length = %u, offset=%u\n", SoConId, context->length, context->offset));
               }
             } else {
               conG->IF->RxIndication(connection->RxPduId, &PduInfo);
@@ -373,10 +378,11 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
 }
 
 void SoAd_MainFunction(void) {
-  int i;
+  uint16_t i;
   SoAd_SocketContextType *context;
+  boolean bLinkedUp = TcpIp_IsLinkedUp();
 
-  for (i = 0; i < SOAD_CONFIG->numOfConnections; i++) {
+  for (i = 0; (TRUE == bLinkedUp) && (i < SOAD_CONFIG->numOfConnections); i++) {
     context = &SOAD_CONFIG->Contexts[i];
     switch (context->state) {
     case SOAD_SOCKET_CREATE:
@@ -440,6 +446,7 @@ Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     if (E_OK != ret) {
       context->errorCounter++;
       if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+        ASLOG(SOADE, ("[%u] If Tx failed, closing\n", SoConId));
         SoAd_CloseSoCon(SoConId, TRUE);
       }
     }
@@ -507,7 +514,7 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
       }
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_CLIENT)) {
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
-      LocalAddrPtr->port = *connection->LocalPort;
+      LocalAddrPtr->port = conG->LocalPort;
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
       LocalAddrPtr->port = conG->Port;

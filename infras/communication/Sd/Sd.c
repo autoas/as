@@ -769,6 +769,10 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
                                                      const Sd_ServerServiceType *config,
                                                      const Sd_EventHandlerType *EventHandler,
                                                      Sd_EventHandlerSubscriberType *sub) {
+#if (defined(_WIN32) || defined(linux)) && !defined(USE_LWIP)
+#else
+  TcpIp_SockAddrType RemoteAddr;
+#endif
   uint32_t lengthOfOptions = 0u;
   Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0u, 0u, 1u, 0u,
                      config->ServiceId, config->InstanceId, config->MajorVersion, 0u,
@@ -1960,7 +1964,8 @@ void Sd_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
 
 void Sd_MainFunction(void) {
   uint16_t i;
-  for (i = 0u; i < SD_CONFIG->numOfInstances; i++) {
+  boolean bLinkedUp = TcpIp_IsLinkedUp();
+  for (i = 0u; (TRUE == bLinkedUp) && (i < SD_CONFIG->numOfInstances); i++) {
     Sd_ServerServiceMain(&SD_CONFIG->Instances[i]);
     Sd_ClientServiceMain(&SD_CONFIG->Instances[i]);
     Sd_ServerClientServiceMain(&SD_CONFIG->Instances[i]);

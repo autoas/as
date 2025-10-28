@@ -106,6 +106,7 @@ Std_ReturnType BL_CompareExtendedLevelKey(uint8_t *key, Dcm_NegativeResponseCode
   return ercd;
 }
 
+#ifndef BL_USE_BL_IN_APP
 void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
                                  boolean timeout) {
   BL_SessionReset();
@@ -120,6 +121,7 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
   } else {
   }
 }
+#endif
 
 Std_ReturnType BL_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
                                         Dcm_NegativeResponseCodeType *ErrorCode) {

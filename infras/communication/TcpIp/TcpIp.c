@@ -8,12 +8,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "TcpIp.h"
-#include "Std_Debug.h"
-
-#define DET_THIS_MODULE_ID MODULE_ID_TCPIP
-#include "Det.h"
-
 #if defined(linux) && !defined(USE_LWIP)
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -35,30 +29,20 @@
 #include <iphlpapi.h>
 #else
 #include "lwip/opt.h"
-#include "lwip/sys.h"
-#include "lwip/timeouts.h"
-#include "lwip/debug.h"
-#include "lwip/stats.h"
-#include "lwip/init.h"
-#include "lwip/tcpip.h"
-#include "lwip/netif.h"
-#include "lwip/api.h"
-#include "lwip/tcpip.h"
-#include "lwip/dhcp.h"
-#include "lwip/apps/netbiosns.h"
-#if defined(_WIN32)
-#include "pcapif.h"
-#else
-#include "netif/tapif.h"
-#endif
 #include "lwip/sockets.h"
 #endif
+
+#include "TcpIp.h"
+#include "TcpIp_Priv.h"
+#include "Std_Debug.h"
+
+#define DET_THIS_MODULE_ID MODULE_ID_TCPIP
+#include "Det.h"
 
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_TCPIP -10
 #define AS_LOG_TCPIPI 1
 #define AS_LOG_TCPIPE 2
-#define NETIF_ADDRS ipaddr, netmask, gw,
 
 #ifndef TCPIP_MAX_DATA_SIZE
 #define TCPIP_MAX_DATA_SIZE 1420
@@ -66,92 +50,11 @@
 
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+extern const TcpIp_ConfigType TcpIp_Config;
 /* ================================ [ DATAS     ] ============================================== */
-#ifdef USE_LWIP
-static struct netif netif;
-#if LWIP_DHCP
-/* dhcp struct for the ethernet netif */
-struct dhcp netif_dhcp;
-#endif /* LWIP_DHCP */
-#endif
 static boolean lInitialized = FALSE;
+static boolean lLinkedUp = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
-#ifdef USE_LWIP
-static void init_default_netif(const ip4_addr_t *ipaddr, const ip4_addr_t *netmask,
-                               const ip4_addr_t *gw) {
-  netif.name[0] = 'a';
-  netif.name[1] = 's';
-#if LWIP_NETIF_HOSTNAME
-  netif.hostname = "as";
-#endif
-#if defined(_WIN32)
-  netif_add(&netif, NETIF_ADDRS NULL, pcapif_init, tcpip_input);
-#else
-  netif_add(&netif, NETIF_ADDRS NULL, tapif_init, tcpip_input);
-#endif
-  netif_set_default(&netif);
-}
-
-static void default_netif_poll(void) {
-#if defined(_WIN32)
-#if !PCAPIF_RX_USE_THREAD
-  pcapif_poll(&netif);
-#endif
-#else
-#if NO_SYS
-  tapif_poll(&netif);
-#endif
-#endif
-}
-
-static void tcpIpInit(void *arg) { /* remove compiler warning */
-  sys_sem_t *init_sem;
-  ip4_addr_t ipaddr, netmask, gw;
-
-  init_sem = (sys_sem_t *)arg;
-
-#if LWIP_DHCP
-  ipaddr.addr = 0;
-  netmask.addr = 0;
-  gw.addr = 0;
-#else
-  LWIP_PORT_INIT_GW(&gw);
-  LWIP_PORT_INIT_IPADDR(&ipaddr);
-  LWIP_PORT_INIT_NETMASK(&netmask);
-  ASLOG(TCPIPI, ("Starting lwIP, IP %s\n", ip4addr_ntoa(&ipaddr)));
-#endif
-  init_default_netif(&ipaddr, &netmask, &gw);
-
-#if LWIP_DHCP
-  dhcp_set_struct(netif_default, &netif_dhcp);
-#endif
-  netif_set_up(netif_default);
-#if LWIP_DHCP
-  /* start dhcp search */
-  dhcp_start(netif_default);
-  netbiosns_init();
-  netbiosns_set_name(netif_default->hostname);
-#if 0 // defined(_WIN32) || defined(linux)
-  uint32_t over_time = 0;
-  while (!dhcp_supplied_address(netif_default)) {
-    over_time++;
-    ASLOG(TCPIPI, ("dhcp_connect: DHCP discovering... for %d times\n", over_time));
-    if (over_time > 10) {
-      ASLOG(TCPIPE, ("dhcp_connect: overtime, not doing dhcp\n"));
-      break;
-    }
-    OSAL_SleepUs(1000000);
-  }
-
-  ASLOG(TCPIPI, ("DHCP IP address: %s\n", ip4addr_ntoa(&netif_dhcp.offered_ip_addr)));
-  ASLOG(TCPIPI, ("DHCP Subnet mask: %s\n", ip4addr_ntoa(&netif_dhcp.offered_sn_mask)));
-  ASLOG(TCPIPI, ("DHCP Default gateway: %s\n", ip4addr_ntoa(&netif_dhcp.offered_gw_addr)));
-#endif
-#endif
-  sys_sem_signal(init_sem);
-}
-#endif
-
 #if defined(_WIN32) && !defined(USE_LWIP)
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
 #define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
@@ -238,34 +141,64 @@ Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr
   return ret;
 }
 #endif
+
+#ifndef USE_LWIP
+uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType LocalAddrId) {
+  static uint32_t u32AddrLocal = INADDR_ANY;
+  static boolean bAddrLocalSetup = FALSE;
+  char *ip;
+  if (FALSE == bAddrLocalSetup) {
+    ip = getenv("AS_LOCAL_IP");
+    if (NULL == ip) {
+#ifdef _WIN32
+      TcpIp_SockAddrType addr;
+      static char lIPStr[64];
+      static bool lGeted = FALSE;
+      static bool lAvaiable = FALSE;
+      if (FALSE == lGeted) {
+        if (E_OK == TcpIp_GetAdapterAddress(LocalAddrId, &addr)) {
+          snprintf(lIPStr, sizeof(lIPStr), "%d.%d.%d.%d", addr.addr[0], addr.addr[1], addr.addr[2],
+                   addr.addr[3]);
+          ASLOG(WARN, ("env AS_LOCAL_IP not set, using adapter 0, IP is %s\n", lIPStr));
+          lAvaiable = TRUE;
+        }
+        lGeted = TRUE;
+      }
+      if (lAvaiable) {
+        ip = lIPStr;
+      } else {
+#endif
+        ip = "172.18.0.1";
+        ASLOG(WARN, ("env AS_LOCAL_IP not set, default %s\n", ip));
+#ifdef _WIN32
+      }
+#endif
+    } else {
+      ASLOG(INFO, ("AS_LOCAL_IP is %s\n", ip));
+    }
+    u32AddrLocal = inet_addr(ip);
+    bAddrLocalSetup = TRUE;
+  }
+  return u32AddrLocal;
+}
+#endif
+
 /* ================================ [ FUNCTIONS ] ============================================== */
 void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr) {
   if (FALSE == lInitialized) {
-#ifdef USE_LWIP
-    sys_sem_t init_sem;
-    sys_sem_new(&init_sem, 0);
-    tcpip_init(tcpIpInit, &init_sem);
-    sys_sem_wait(&init_sem);
-    sys_sem_free(&init_sem);
-#ifdef linux
-    /* ref https://wiki.qemu.org/Documentation/Networking#Tap
-     * route add -nv 224.224.224.245 dev tap0
-     * route add -nv 224.224.224.245 dev enp0s3
-     * ufw allow proto udp from 224.224.224.245/4
-     */
-#endif
-#elif defined(_WIN32)
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-#endif
+    TcpIp_Config.InitFnc();
     lInitialized = TRUE;
   }
 }
 
 void TcpIp_MainFunction(void) {
-#ifdef USE_LWIP
-  default_netif_poll();
-#endif
+  boolean bLinkedUp;
+  TcpIp_Config.MainFnc();
+  bLinkedUp = TcpIp_IsLinkedUp();
+  if (bLinkedUp != lLinkedUp) {
+    lLinkedUp = bLinkedUp;
+    ASLOG(TCPIPI, ("link %s\n", lLinkedUp ? "up" : "down"));
+  }
 }
 
 TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
@@ -425,10 +358,10 @@ Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrT
 
 #ifndef USE_LWIP
     memcpy(&mreq.imr_multiaddr.s_addr, ipv4Addr->addr, 4);
-    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+    mreq.imr_interface.s_addr = TcpIp_GetLocalIpAddr(0);
 #else
   mreq.imr_multiaddr.s_addr = ipaddr.addr;
-  mreq.imr_interface.s_addr = netif.ip_addr.addr;
+  mreq.imr_interface.s_addr = netif_default->ip_addr.addr;
 #endif
     r = setsockopt(SocketId, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq));
     ASLOG(TCPIP, ("[%d] multicast on %d.%d.%d.%d:%d\n", SocketId, ipv4Addr->addr[0],
@@ -442,6 +375,26 @@ Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrT
 #ifdef USE_LWIP
   }
 #endif
+  return ret;
+}
+
+Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType SocketId,
+                                    TcpIp_LocalAddrIdType LocalAddrId) {
+  int r;
+  Std_ReturnType ret = E_OK;
+  struct in_addr localInterface;
+#ifndef USE_LWIP
+  localInterface.s_addr = TcpIp_GetLocalIpAddr(LocalAddrId);
+#else
+  localInterface.s_addr = netif_default->ip_addr.addr;
+#endif
+  r = setsockopt(SocketId, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localInterface,
+                 sizeof(localInterface));
+  if (0 != r) {
+    ASLOG(TCPIPE, ("setsockopt(IP_MULTICAST_IF) failed\n"));
+    ret = E_NOT_OK;
+  }
+
   return ret;
 }
 
@@ -561,7 +514,7 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
     *Length = nbytes;
     ASLOG(TCPIP, ("[%d] recv %d bytes\n", SocketId, nbytes));
   } else if (nbytes < -1) {
-    ret = nbytes;
+    ret = E_NOT_OK;
     ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, nbytes));
 
   } else if (-1 == nbytes) {
@@ -608,8 +561,26 @@ Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *R
                   RemoteAddrPtr->addr[3], RemoteAddrPtr->port));
     *Length = nbytes;
   } else if (nbytes < -1) {
-    ret = nbytes;
+    ret = E_NOT_OK;
     ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, nbytes));
+  } else if (-1 == nbytes) {
+#ifndef USE_LWIP
+#ifdef _WIN32
+    if ((10035 != WSAGetLastError()) && (10060 != WSAGetLastError()))
+#else
+    if (EAGAIN != errno)
+#endif
+    {
+#ifdef _WIN32
+      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, WSAGetLastError()));
+#else
+      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, errno));
+#endif
+      ret = E_NOT_OK;
+    } else {
+      /* Resource temporarily unavailable. */
+    }
+#endif
   } else {
     /* got nothing */
   }
@@ -717,41 +688,12 @@ uint32_t TcpIp_InetAddr(const char *ip) {
 }
 
 Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
-                               uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr) {
+                               uint8_t *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr) {
 #ifdef USE_LWIP
-  memcpy(IpAddrPtr->addr, &netif.ip_addr.addr, 4);
+  memcpy(IpAddrPtr->addr, &netif_default->ip_addr.addr, 4);
   return E_OK;
 #else
-  uint32_t u32Addr;
-  char *ip;
-
-  ip = getenv("AS_LOCAL_IP");
-  if (NULL == ip) {
-#ifdef _WIN32
-    TcpIp_SockAddrType addr;
-    static char lIPStr[64];
-    static bool lGeted = FALSE;
-    static bool lAvaiable = FALSE;
-    if (FALSE == lGeted) {
-      if (E_OK == TcpIp_GetAdapterAddress(LocalAddrId, &addr)) {
-        snprintf(lIPStr, sizeof(lIPStr), "%d.%d.%d.%d", addr.addr[0], addr.addr[1], addr.addr[2],
-                 addr.addr[3]);
-        ASLOG(WARN, ("env AS_LOCAL_IP not set, using adapter 0, IP is %s\n", lIPStr));
-        lAvaiable = TRUE;
-      }
-      lGeted = TRUE;
-    }
-    if (lAvaiable) {
-      ip = lIPStr;
-    } else {
-#endif
-      ip = "172.18.0.1";
-      ASLOG(WARN, ("env AS_LOCAL_IP not set, default %s\n", ip));
-#ifdef _WIN32
-    }
-#endif
-  }
-  u32Addr = inet_addr(ip);
+  uint32_t u32Addr = TcpIp_GetLocalIpAddr(LocalAddrId);
   memcpy(IpAddrPtr->addr, &u32Addr, 4);
   return E_OK;
 #endif
@@ -789,5 +731,25 @@ uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId) {
     Length = TCPIP_MAX_DATA_SIZE;
   }
 
-  return Length;
+  if (Length > 0) {
+    ASLOG(TCPIP, ("[%d] tell %u\n", SocketId, (uint16_t)Length));
+  }
+
+  return (uint16_t)Length;
+}
+
+boolean TcpIp_IsLinkedUp(void) {
+  boolean bLinkedUp = TRUE;
+
+#if defined(USE_LWIP)
+  if (NULL == netif_default) {
+    bLinkedUp = FALSE;
+  } else {
+    if (0 == (netif_default->flags & NETIF_FLAG_LINK_UP)) {
+      bLinkedUp = FALSE;
+    }
+  }
+#endif
+
+  return bLinkedUp;
 }

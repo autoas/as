@@ -31,6 +31,10 @@ extern "C" {
 #define CANTRCV_TRCVMODE_SLEEP ((CanTrcv_TrcvModeType)0)
 #define CANTRCV_TRCVMODE_STANDBY ((CanTrcv_TrcvModeType)1)
 #define CANTRCV_TRCVMODE_NORMAL ((CanTrcv_TrcvModeType)2)
+
+#define CAN_ERRORSTATE_ACTIVE ((Can_ErrorStateType)0)
+#define CAN_ERRORSTATE_PASSIVE ((Can_ErrorStateType)1)
+#define CAN_ERRORSTATE_BUSOFF ((Can_ErrorStateType)2)
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t Can_ControllerStateType;
 
@@ -80,6 +84,9 @@ typedef enum {
 
 /* @SWS_CanTrcv_00163 */
 typedef uint8_t CanTrcv_TrcvModeType;
+
+/* @SWS_Can_91003 */
+typedef uint8_t Can_ErrorStateType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

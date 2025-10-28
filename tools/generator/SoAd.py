@@ -7,10 +7,18 @@ from .helper import *
 
 __all__ = ["Gen_SoAd"]
 
+__EphemeralPort = 49152
 
-def Gen_Sock(C, RxPduId, SoConId, GID, SoConType, LocalPort="NULL"):
+
+def GenEphemeralPort():
+    global __EphemeralPort
+    port = __EphemeralPort
+    __EphemeralPort += 1
+    return port
+
+
+def Gen_Sock(C, RxPduId, SoConId, GID, SoConType):
     C.write("  {\n")
-    C.write("    %s, /* LocalPort */\n" % (LocalPort))
     C.write("    %s, /* RxPduId */\n" % (RxPduId))
     C.write("    %s, /* SoConId */\n" % (SoConId))
     C.write("    %s, /* GID */\n" % (GID))
@@ -69,6 +77,7 @@ def Gen_SoAd(cfg, dir):
             headerMaxLen = headerLen
     H.write("\n")
     H.write("#define SOAD_HEADER_MAX_LEN %su\n" % (headerMaxLen))
+    H.write("#define SOAD_ERROR_COUNTER_LIMIT %su\n" % (cfg.get("ErrorCounterLimit", 10)))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -144,9 +153,6 @@ def Gen_SoAd(cfg, dir):
         C.write("  NULL,\n")
         C.write("};\n\n")
 
-    for sock in cfg["sockets"]:
-        if sock["protocol"] == "UDP" and "client" in sock:
-            C.write("static uint16_t SoAd_LocalPort%s = 0;\n" % (sock["name"]))
     C.write("static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n")
     for GID, sock in enumerate(cfg["sockets"]):
         RxPduId = sock["RxPduId"]
@@ -159,11 +165,7 @@ def Gen_SoAd(cfg, dir):
             RxPduId = -1
         elif "client" in sock:
             SoConId = "SOAD_SOCKID_%s" % (mn)
-        if sock["protocol"] == "UDP" and "client" in sock:
-            LocalPort = "&SoAd_LocalPort%s" % (sock["name"])
-        else:
-            LocalPort = "NULL"
-        Gen_Sock(C, RxPduId, SoConId, GID, SoConType, LocalPort)
+        Gen_Sock(C, RxPduId, SoConId, GID, SoConType)
         if ("server" in sock) and (sock["protocol"] == "TCP"):
             for i in range(sock["listen"]):
                 RxPduId = "%s%s" % (sock["RxPduId"], i)
@@ -217,8 +219,10 @@ def Gen_SoAd(cfg, dir):
             SoConModeChgNotification = "%s_SoConModeChg" % (sock["ModeChg"])
         if "server" in sock:
             IpAddress, Port = sock["server"].split(":")
+            LocalPort = 0
         else:
             IpAddress, Port = sock["client"].split(":")
+            LocalPort = GenEphemeralPort()
         if IpAddress.count(".") == 3:
             IpAddress = "TCPIP_IPV4_ADDR(%s)" % (",".join(IpAddress.split(".")))
         else:
@@ -238,6 +242,7 @@ def Gen_SoAd(cfg, dir):
         C.write("    %s, /* Remote */\n" % (IpAddress))
         C.write("    %s, /* SoConId */\n" % (SoConId))
         C.write("    %s, /* Port */\n" % (Port))
+        C.write("    %s, /* LocalPort */\n" % (LocalPort))
         C.write("    %s, /* headerLen */\n" % (headerLen))
         C.write("    %s, /* LocalAddrId */\n" % (LocalAddrId))
         C.write("    %s, /* numOfConnections */\n" % (numOfConnections))

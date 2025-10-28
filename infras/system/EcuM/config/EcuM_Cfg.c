@@ -17,6 +17,10 @@ typedef struct LinTp_Config_s LinTp_ConfigType;
 extern void LinTp_Init(const LinTp_ConfigType *CfgPtr);
 extern void LinTp_MainFunction(void);
 /* ================================ [ DATAS     ] ============================================== */
+static void Dummy_Init(const void *config) {
+}
+static void Dummy_MainFunction(void) {
+}
 static const EcuM_DriverInitItemType EcuM_DriverInitListZero[] = {
 #ifdef USE_MCU
   {(EcuM_DriverInitFncType)Mcu_Init, NULL},
@@ -36,6 +40,7 @@ static const EcuM_DriverInitItemType EcuM_DriverInitListZero[] = {
 #ifdef USE_FLS
   {(EcuM_DriverInitFncType)Fls_Init, NULL},
 #endif
+  {Dummy_Init, NULL},
 };
 
 static const EcuM_DriverInitItemType EcuM_DriverInitListOne[] = {
@@ -90,7 +95,7 @@ static const EcuM_DriverInitItemType EcuM_DriverInitListOne[] = {
 #ifdef USE_NVM
   {(EcuM_DriverInitFncType)NvM_Init, NULL},
 #endif
-
+  {Dummy_Init, NULL},
 };
 
 static const EcuM_DriverInitItemType EcuM_DriverInitListTwo[] = {
@@ -134,6 +139,7 @@ static const EcuM_DriverInitItemType EcuM_DriverInitListTwo[] = {
 #ifdef USE_MIRROR
   {(EcuM_DriverInitFncType)Mirror_Init, NULL},
 #endif
+  {Dummy_Init, NULL},
 };
 
 static const EcuM_DriverMainFncType EcuM_DriverMainList[] = {
@@ -199,9 +205,7 @@ static const EcuM_DriverMainFncType EcuM_DriverMainList[] = {
 #ifdef USE_TLS
   TLS_MainFunction,
 #endif
-#ifdef USE_MIRROR
-  Mirror_MainFunction,
-#endif
+  Dummy_MainFunction,
 };
 
 static const EcuM_DriverMainFncType EcuM_DriverMainMemList[] = {
@@ -220,6 +224,7 @@ static const EcuM_DriverMainFncType EcuM_DriverMainMemList[] = {
 #ifdef USE_NVM
   NvM_MainFunction,
 #endif
+  Dummy_MainFunction,
 };
 
 static const EcuM_DriverMainFncType EcuM_DriverMainFastList[] = {
@@ -256,6 +261,10 @@ static const EcuM_DriverMainFncType EcuM_DriverMainFastList[] = {
 #ifdef USE_SECOC
   SecOC_MainFunctionTx,     SecOC_MainFunctionRx,
 #endif
+#ifdef USE_MIRROR
+  Mirror_MainFunction,
+#endif
+  Dummy_MainFunction,
 };
 
 const EcuM_ConfigType EcuM_Config = {

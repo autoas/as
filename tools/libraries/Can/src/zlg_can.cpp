@@ -282,6 +282,10 @@ static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
 
   if (handle != NULL) {
     VCI_CAN_OBJ msg;
+    if (sizeof(msg.Data) < dlc) {
+      ASLOG(WARN, ("CAN ZLG port=%d request transmit message with dlc %u!\n", port, dlc));
+      dlc = sizeof(msg.Data);
+    }
     msg.SendType = 0;
     msg.ID = canid & 0x7FFFFFFFUL;
     msg.DataLen = dlc;

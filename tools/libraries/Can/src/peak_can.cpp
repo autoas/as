@@ -237,6 +237,10 @@ static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t
   (void)timestamp;
 
   if (handle != NULL) {
+    if (sizeof(msg.DATA) < dlc) {
+      ASLOG(WARN, ("CAN PEAK port=%d request transmit message with dlc %u!\n", port, dlc));
+      dlc = sizeof(msg.DATA);
+    }
     msg.ID = canid & 0x7FFFFFFFUL;
     msg.LEN = dlc;
     if (0 != (canid & CAN_ID_EXTENDED)) {

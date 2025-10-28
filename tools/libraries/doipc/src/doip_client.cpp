@@ -35,6 +35,8 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <queue>
+#include <condition_variable>
 
 #include "Semaphore.hpp"
 
@@ -75,8 +77,22 @@ using namespace std::literals::chrono_literals;
 #define DOIP_ALIVE_TIMEOUT 5000000
 #define DOIP_ALIVE_CHECK_TIME 3000000
 /* ================================ [ TYPES     ] ============================================== */
+typedef enum {
+  DOIP_MSGQ_DEFAULT,
+  DOIP_MSGQ_UDS_ACK,
+  DOIP_MSGQ_UDS_REPLY,
+  DOIP_MSGQ_MAX,
+} doip_msg_queue_type_t;
+
+typedef struct {
+  int result;
+  uint16_t payload_type;
+  std::vector<uint8_t> data;
+} doip_msg_t;
+
 struct doip_node_s {
   doip_node_t node;
+  uint8_t lastSID = 0;
   uint8_t FA;
   uint8_t status;
   uint16_t SA;
@@ -86,18 +102,17 @@ struct doip_node_s {
   bool connected;
   bool activated;
   std::thread thread;
-  std::recursive_mutex lock;
+  std::mutex lock;
   Semaphore sem;
   Std_TimerType alive_request_timer;
   Std_TimerType alive_timer;
-  struct {
-    int result;
-    uint16_t payload_type;
-  } R; /* for response */
+
+  std::queue<doip_msg_t> msgQ[DOIP_MSGQ_MAX];
+  std::condition_variable condVarQ[DOIP_MSGQ_MAX];
+
   bool stopped;
   struct doip_client_s *client;
   STAILQ_ENTRY(doip_node_s) entry;
-  uint8_t buffer[4096];
 
   /* TLS related */
   mbedtls_entropy_context entropy;
@@ -113,16 +128,15 @@ struct doip_client_s {
   char ip[32];
   int port;
   std::thread thread;
-  std::recursive_mutex lock;
+  std::mutex lock;
   bool stopped;
   Semaphore sem;
-  struct {
-    int result;
-    uint16_t payload_type;
-  } R; /* for response */
+
+  std::queue<doip_msg_t> msgQ;
+  std::condition_variable condVar;
+
   STAILQ_HEAD(, doip_node_s) nodes;
   uint32_t numOfNodes;
-  uint8_t buffer[4096];
   /* TLS related */
   /* path to concatenation of all available CA certificates in PEM format */
   std::vector<char> casPem;
@@ -132,6 +146,20 @@ static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, ui
 /* ================================ [ DATAS     ] ============================================== */
 static boolean l_initialized = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
+static std::string build_hexstring(const uint8_t *data, size_t length) {
+  std::string s;
+  char buf[4];
+  size_t max = length;
+  if (max > 32) {
+    max = 32;
+  }
+  for (size_t i = 0; i < max; i++) {
+    snprintf(buf, sizeof(buf), "%02X", data[i]);
+    s += buf;
+  }
+  return s;
+}
+
 static Std_ReturnType TcpIp_TlsRecv(struct doip_node_s *node, uint8_t *buffer, uint32_t *length) {
   Std_ReturnType ret = E_OK;
 
@@ -188,7 +216,8 @@ static void doip_fill_header(uint8_t *header, uint16_t payloadType, uint32_t pay
 static void doip_add_node(doip_client_t *client, struct doip_node_s *node) {
   bool exist = false;
   struct doip_node_s *n;
-  client->lock.lock();
+
+  std::unique_lock<std::mutex> lck(client->lock);
   STAILQ_FOREACH(n, &client->nodes, entry) {
     if ((0 == memcmp(n->node.VIN, node->node.VIN, 17)) &&
         (0 == memcmp(n->node.EID, node->node.EID, 6)) &&
@@ -210,7 +239,6 @@ static void doip_add_node(doip_client_t *client, struct doip_node_s *node) {
   } else {
     free(node);
   }
-  client->lock.unlock();
 }
 
 static int doip_handle_VAN_VIN_response(doip_client_t *client, TcpIp_SockAddrType *RemoteAddr,
@@ -248,10 +276,9 @@ static void doip_handle_udp_message(doip_client_t *client, TcpIp_SockAddrType *R
   uint32_t payloadLength;
   int r = 0;
 
-  ASHEXDUMP(DOIP,
-            ("udp message from %d.%d.%d.%d:%d", RemoteAddr->addr[0], RemoteAddr->addr[1],
-             RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port),
-            data, length);
+  ASLOG(DOIP, ("udp message from %d.%d.%d.%d:%d %s", RemoteAddr->addr[0], RemoteAddr->addr[1],
+               RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port,
+               build_hexstring(data, length).c_str()));
 
   if ((length >= DOIP_HEADER_LENGTH) && (DOIP_PROTOCOL_VERSION == data[0]) &&
       (data[0] = ((~data[1])) & 0xFF)) {
@@ -282,9 +309,12 @@ static void doip_handle_udp_message(doip_client_t *client, TcpIp_SockAddrType *R
   }
 
   if (DOIP_E_OK_SILENT != r) {
-    client->R.payload_type = payloadType;
-    client->R.result = r;
-    client->sem.post();
+    std::unique_lock<std::mutex> lck(client->lock);
+    doip_msg_t msg;
+    msg.payload_type = payloadType;
+    msg.result = r;
+    client->msgQ.push(msg);
+    client->condVar.notify_one();
   }
 }
 
@@ -293,21 +323,21 @@ static void doip_daemon(void *arg) {
   doip_client_t *client = (doip_client_t *)arg;
   uint32_t length;
   TcpIp_SockAddrType RemoteAddr;
+  std::vector<uint8_t> buffer;
+  buffer.resize(4096);
 
   ASLOG(DOIPI, ("DoIP Client request on %s:%d\n", client->ip, client->port));
   while (false == client->stopped) {
-    client->lock.lock();
-    length = sizeof(client->buffer);
-    ret = TcpIp_RecvFrom(client->discovery, &RemoteAddr, client->buffer, &length);
+    length = buffer.size();
+    ret = TcpIp_RecvFrom(client->discovery, &RemoteAddr, buffer.data(), &length);
     if ((E_OK == ret) && (length > 0)) {
-      doip_handle_udp_message(client, &RemoteAddr, client->buffer, length);
+      doip_handle_udp_message(client, &RemoteAddr, buffer.data(), length);
     }
-    length = sizeof(client->buffer);
-    ret = TcpIp_RecvFrom(client->test_equipment_request, &RemoteAddr, client->buffer, &length);
+    length = buffer.size();
+    ret = TcpIp_RecvFrom(client->test_equipment_request, &RemoteAddr, buffer.data(), &length);
     if ((E_OK == ret) && (length > 0)) {
-      doip_handle_udp_message(client, &RemoteAddr, client->buffer, length);
+      doip_handle_udp_message(client, &RemoteAddr, buffer.data(), length);
     }
-    client->lock.unlock();
     std::this_thread::sleep_for(1ms);
   }
 
@@ -318,8 +348,9 @@ static void doip_daemon(void *arg) {
 
 static void doip_alive_check_request(struct doip_node_s *node) {
   Std_ReturnType ret;
-  doip_fill_header(node->buffer, DOIP_ALIVE_CHECK_REQUEST, 0);
-  ret = TcpIp_TlsSend(node, node->buffer, DOIP_HEADER_LENGTH);
+  uint8_t buffer[DOIP_HEADER_LENGTH];
+  doip_fill_header(buffer, DOIP_ALIVE_CHECK_REQUEST, 0);
+  ret = TcpIp_TlsSend(node, buffer, DOIP_HEADER_LENGTH);
   if (E_OK != ret) {
     ASLOG(DOIPE, ("send alive check request failed: %d\n", ret));
     node->stopped = true;
@@ -457,6 +488,8 @@ static void node_daemon(void *arg) {
   uint32_t length = 0;
   uint32_t offset = 0;
   uint32_t payloadLength = UINT16_MAX;
+  std::vector<uint8_t> buffer;
+  buffer.resize(4096);
 
   if (node->client->casPem.size() > 0) {
     node_tls_setup(node);
@@ -475,25 +508,24 @@ static void node_daemon(void *arg) {
     } else {
       length = payloadLength - (offset - DOIP_HEADER_LENGTH);
     }
-    node->lock.lock();
-    ret = TcpIp_TlsRecv(node, &node->buffer[offset], &length);
+    ret = TcpIp_TlsRecv(node, &buffer[offset], &length);
     if ((E_OK == ret) && (length > 0)) {
-      ASHEXDUMP(DOIP, ("recv :"), &node->buffer[offset], length);
+      ASLOG(DOIP, ("recv: %s\n", build_hexstring(&buffer[offset], length).c_str()));
       offset += length;
       if (offset >= DOIP_HEADER_LENGTH) {
-        if ((DOIP_PROTOCOL_VERSION == node->buffer[0]) &&
-            (node->buffer[0] = ((~node->buffer[1])) & 0xFF)) {
-          payloadLength = ((uint32_t)node->buffer[4] << 24) + ((uint32_t)node->buffer[5] << 16) +
-                          ((uint32_t)node->buffer[6] << 8) + node->buffer[7];
+        if ((DOIP_PROTOCOL_VERSION == buffer[0]) && (buffer[0] = ((~buffer[1])) & 0xFF)) {
+          payloadLength = ((uint32_t)buffer[4] << 24) + ((uint32_t)buffer[5] << 16) +
+                          ((uint32_t)buffer[6] << 8) + buffer[7];
         } else {
           offset = 0;
           ASLOG(DOIPE, ("invalid tcp message\n"));
         }
       }
       if (offset >= (payloadLength + DOIP_HEADER_LENGTH)) {
-        doip_handle_tcp_response(node, node->buffer, offset);
+        doip_handle_tcp_response(node, buffer.data(), offset);
         offset = 0;
         payloadLength = UINT16_MAX;
+        Std_TimerStart(&node->alive_timer); /* as thre is response, restart alive timer */
       } else {
         /* wait a full DoIP message received */;
       }
@@ -506,15 +538,15 @@ static void node_daemon(void *arg) {
       ASLOG(DOIPI, ("alive timer timeout, stop this node\n"));
       node->stopped = true;
     }
-    node->lock.unlock();
     std::this_thread::sleep_for(1ms);
   }
 
-  node->lock.lock();
-  TcpIp_Close(node->sock, TRUE);
-  node->connected = false;
-  node->activated = false;
-  node->lock.unlock();
+  {
+    std::unique_lock<std::mutex> lck(node->lock);
+    TcpIp_Close(node->sock, TRUE);
+    node->connected = false;
+    node->activated = false;
+  }
 
   ASLOG(DOIPI, ("DoIP node offline\n"));
 }
@@ -548,12 +580,13 @@ static int doip_handle_alive_check_request(struct doip_node_s *node, uint8_t *pa
                                            uint32_t length) {
   int r = DOIP_E_OK_SILENT;
   Std_ReturnType ret;
+  uint8_t buffer[DOIP_HEADER_LENGTH + 2];
   ASLOG(DOIP, ("Alive Check Request\n"));
   if (0 == length) {
-    doip_fill_header(node->buffer, DOIP_ALIVE_CHECK_RESPONSE, 2);
-    node->buffer[DOIP_HEADER_LENGTH] = (node->SA >> 8) & 0xFF;
-    node->buffer[DOIP_HEADER_LENGTH + 1] = node->SA & 0xFF;
-    ret = TcpIp_Send(node->sock, node->buffer, DOIP_HEADER_LENGTH + 2);
+    doip_fill_header(buffer, DOIP_ALIVE_CHECK_RESPONSE, 2);
+    buffer[DOIP_HEADER_LENGTH] = (node->SA >> 8) & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 1] = node->SA & 0xFF;
+    ret = TcpIp_TlsSend(node, buffer, DOIP_HEADER_LENGTH + 2);
     if (E_OK != ret) {
       ASLOG(DOIPE, ("send alive check response failed: %d\n", ret));
       node->stopped = true;
@@ -609,7 +642,7 @@ static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, ui
     payloadType = ((uint16_t)data[2] << 8) + data[3];
     payloadLength =
       ((uint32_t)data[4] << 24) + ((uint32_t)data[5] << 16) + ((uint32_t)data[6] << 8) + data[7];
-    ASHEXDUMP(DOIP, ("payload %u:", payloadType), &data[DOIP_HEADER_LENGTH], payloadLength);
+    ASLOG(DOIP, ("payload: %s\n", build_hexstring(data, length).c_str()));
     if ((payloadLength + DOIP_HEADER_LENGTH) <= length) {
       switch (payloadType) {
       case DOIP_GENERAL_HEADER_NEGATIVE_ACK:
@@ -627,7 +660,10 @@ static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, ui
       case DOIP_DIAGNOSTIC_MESSAGE:
         if (payloadLength > 4) {
           r = payloadLength - 4;
+          ASLOG(DOIPI,
+                ("uds reply: %s\n", build_hexstring(&data[DOIP_HEADER_LENGTH + 4], r).c_str()));
         } else {
+          ASLOG(DOIPE, ("diagnostic message with invalid length\n"));
           r = DOIP_E_INVAL;
         }
         break;
@@ -653,49 +689,61 @@ static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, ui
   }
 
   if (DOIP_E_OK_SILENT != r) {
-    node->R.payload_type = payloadType;
-    node->R.result = r;
-    node->sem.post();
+    ASLOG(DOIPI, ("post with payload type %x, result %d\n", payloadType, r));
+    doip_msg_t msg;
+    doip_msg_queue_type_t queType = DOIP_MSGQ_DEFAULT;
+    switch (payloadType) {
+    case DOIP_DIAGNOSTIC_MESSAGE:
+      queType = DOIP_MSGQ_UDS_REPLY;
+      break;
+    case DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK:
+    case DOIP_DIAGNOSTIC_MESSAGE_NEGATIVE_ACK:
+      queType = DOIP_MSGQ_UDS_ACK;
+      break;
+    default:
+      break;
+    }
+    std::unique_lock<std::mutex> lck(node->lock);
+    msg.payload_type = payloadType;
+    msg.result = r;
+    msg.data.resize(length);
+    memcpy(msg.data.data(), data, length);
+    node->msgQ[queType].push(msg);
+    node->condVarQ[queType].notify_one();
   }
 }
 
-static int doip_node_wait(struct doip_node_s *node) {
-  int r;
+static doip_msg_t doip_node_wait(struct doip_node_s *node,
+                                 doip_msg_queue_type_t queType = DOIP_MSGQ_DEFAULT) {
+  doip_msg_t msg = {DOIP_E_TIMEOUT, 0, {}};
 
-  node->R.result = DOIP_E_TIMEOUT;
-  node->lock.unlock();
-  node->sem.wait(5000);
-  r = node->R.result;
-  node->lock.lock();
+  std::unique_lock<std::mutex> lck(node->lock);
+  if (true == node->msgQ[queType].empty()) {
+    node->condVarQ[queType].wait_for(lck, std::chrono::milliseconds(5000));
+  }
+  if (false == node->msgQ[queType].empty()) {
+    msg = node->msgQ[queType].front();
+    node->msgQ[queType].pop();
+  }
 
-  return r;
+  return msg;
 }
 
-static void doip_node_clear(struct doip_node_s *node) {
-  int r;
-  do {
-    r = node->sem.wait(0);
-  } while (0 == r);
+static doip_msg_t doip_client_wait(doip_client_t *client) {
+  doip_msg_t msg = {DOIP_E_TIMEOUT, 0, {}};
+
+  std::unique_lock<std::mutex> lck(client->lock);
+  if (true == client->msgQ.empty()) {
+    client->condVar.wait_for(lck, std::chrono::milliseconds(5000));
+  }
+  if (false == client->msgQ.empty()) {
+    msg = client->msgQ.front();
+    client->msgQ.pop();
+  }
+
+  return msg;
 }
 
-static int doip_client_wait(doip_client_t *client) {
-  int r;
-
-  client->R.result = DOIP_E_TIMEOUT;
-  client->lock.unlock();
-  client->sem.wait(5000);
-  r = client->R.result;
-  client->lock.lock();
-
-  return r;
-}
-
-static void doip_client_clear(doip_client_t *client) {
-  int r;
-  do {
-    r = client->sem.wait(0);
-  } while (0 == r);
-}
 /* ================================ [ FUNCTIONS ] ============================================== */
 doip_client_t *doip_create_client(const char *ip, int port, const char *casPem) {
   doip_client_t *client = NULL;
@@ -729,6 +777,7 @@ doip_client_t *doip_create_client(const char *ip, int port, const char *casPem) 
           ret = E_NOT_OK;
         } else {
           TcpIp_Bind(test_equipment_request, TCPIP_LOCALADDRID_ANY, &u16PortAny);
+          TcpIp_SetMulticastIF(test_equipment_request, TCPIP_LOCALADDRID_ANY);
         }
       }
     }
@@ -788,7 +837,7 @@ int doip_await_vehicle_announcement(doip_client_t *client, doip_node_t **nodes, 
   }
 
   if (num > 0) {
-    client->lock.lock();
+    std::unique_lock<std::mutex> lck(client->lock);
     STAILQ_FOREACH(n, &client->nodes, entry) {
       nodes[i] = &n->node;
       i++;
@@ -796,7 +845,6 @@ int doip_await_vehicle_announcement(doip_client_t *client, doip_node_t **nodes, 
         break;
       }
     }
-    client->lock.unlock();
   }
 
   return client->numOfNodes;
@@ -808,20 +856,19 @@ doip_node_t *doip_request(doip_client_t *client) {
   doip_node_t *node = NULL;
   TcpIp_SockAddrType RemoteAddr;
   uint32_t ipAddr = TcpIp_InetAddr(client->ip);
+  uint8_t buffer[DOIP_HEADER_LENGTH];
 
-  doip_client_clear(client);
-  client->lock.lock();
-  doip_fill_header(client->buffer, DOIP_VID_REQUEST, 0);
+  doip_fill_header(buffer, DOIP_VID_REQUEST, 0);
   TcpIp_SetupAddrFrom(&RemoteAddr, ipAddr, client->port);
-  ret =
-    TcpIp_SendTo(client->test_equipment_request, &RemoteAddr, client->buffer, DOIP_HEADER_LENGTH);
+  ret = TcpIp_SendTo(client->test_equipment_request, &RemoteAddr, buffer, DOIP_HEADER_LENGTH);
   if (E_OK == ret) {
-    r = doip_client_wait(client);
-    if ((0 == r) && (DOIP_VAN_MSG_OR_VIN_RESPONCE == client->R.payload_type)) {
+    doip_msg_t msg = doip_client_wait(client);
+    r = msg.result;
+    if ((0 == r) && (DOIP_VAN_MSG_OR_VIN_RESPONCE == msg.payload_type)) {
+      std::unique_lock<std::mutex> lck(client->lock);
       node = (doip_node_t *)STAILQ_LAST(&client->nodes, doip_node_s, entry);
     }
   }
-  client->lock.unlock();
 
   return node;
 }
@@ -832,11 +879,9 @@ int doip_connect(doip_node_t *node) {
   Std_ReturnType ret = E_OK;
   struct doip_node_s *n = (struct doip_node_s *)node;
 
-  n->lock.lock();
   if (n->connected) {
     r = DOIP_E_AGAIN;
   }
-  n->lock.unlock();
 
   if (0 == r) {
     sockId = TcpIp_Create(TCPIP_IPPROTO_TCP);
@@ -871,35 +916,35 @@ int doip_activate(doip_node_t *node, uint16_t sa, uint8_t at, uint8_t *oem, uint
   int r = 0;
   Std_ReturnType ret;
   struct doip_node_s *n = (struct doip_node_s *)node;
+  std::vector<uint8_t> buffer;
+  buffer.resize(DOIP_HEADER_LENGTH + 7 + oem_len);
 
   if ((0 == oem_len) || ((4 == oem_len) && (NULL != oem))) {
   } else {
     r = DOIP_E_INVAL;
   }
-  n->lock.lock();
+
   if (n->activated) {
     r = DOIP_E_AGAIN;
   }
-  n->lock.unlock();
 
   if (0 == r) {
-    doip_node_clear(n);
-    n->lock.lock();
-    doip_fill_header(n->buffer, DOIP_ROUTING_ACTIVATION_REQUEST, 7 + oem_len);
-    n->buffer[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 2] = at;
-    n->buffer[DOIP_HEADER_LENGTH + 3] = 0;
-    n->buffer[DOIP_HEADER_LENGTH + 4] = 0;
-    n->buffer[DOIP_HEADER_LENGTH + 5] = 0;
-    n->buffer[DOIP_HEADER_LENGTH + 6] = 0;
+    doip_fill_header(buffer.data(), DOIP_ROUTING_ACTIVATION_REQUEST, 7 + oem_len);
+    buffer[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 2] = at;
+    buffer[DOIP_HEADER_LENGTH + 3] = 0;
+    buffer[DOIP_HEADER_LENGTH + 4] = 0;
+    buffer[DOIP_HEADER_LENGTH + 5] = 0;
+    buffer[DOIP_HEADER_LENGTH + 6] = 0;
     if (oem_len > 0) {
-      memcpy(&n->buffer[DOIP_HEADER_LENGTH + 7], oem, oem_len);
+      memcpy(&buffer[DOIP_HEADER_LENGTH + 7], oem, oem_len);
     }
-    ret = TcpIp_TlsSend(n, n->buffer, DOIP_HEADER_LENGTH + 7 + oem_len);
+    ret = TcpIp_TlsSend(n, buffer.data(), DOIP_HEADER_LENGTH + 7 + oem_len);
     if (E_OK == ret) {
-      r = doip_node_wait(n);
-      if ((0 == r) && (DOIP_ROUTING_ACTIVATION_RESPONSE == n->R.payload_type)) {
+      doip_msg_t msg = doip_node_wait(n);
+      r = msg.result;
+      if ((0 == r) && (DOIP_ROUTING_ACTIVATION_RESPONSE == msg.payload_type)) {
         n->activated = true;
       } else {
         r = DOIP_E_NOT_OK;
@@ -907,7 +952,6 @@ int doip_activate(doip_node_t *node, uint16_t sa, uint8_t at, uint8_t *oem, uint
     } else {
       r = DOIP_E_ACCES;
     }
-    n->lock.unlock();
   }
 
   return r;
@@ -918,46 +962,42 @@ int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_
   int r = 0;
   Std_ReturnType ret;
   struct doip_node_s *n = (struct doip_node_s *)node;
+  std::vector<uint8_t> buffer;
+  buffer.resize(DOIP_HEADER_LENGTH + 4 + txSize);
 
-  n->lock.lock();
+  ASLOG(DOIPI, ("uds request to TA=%X: %s\n", ta, build_hexstring(txBuffer, txSize).c_str()));
+
   if (false == n->activated) {
     r = DOIP_E_AGAIN;
   }
-  n->lock.unlock();
 
   if (0 == r) {
-    doip_node_clear(n);
-    n->lock.lock();
-    doip_fill_header(n->buffer, DOIP_DIAGNOSTIC_MESSAGE, 4 + txSize);
-    n->buffer[DOIP_HEADER_LENGTH] = (n->SA >> 8) & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 1] = n->SA & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
-    n->buffer[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
-    memcpy(&n->buffer[DOIP_HEADER_LENGTH + 4], txBuffer, txSize);
-    ret = TcpIp_TlsSend(n, n->buffer, DOIP_HEADER_LENGTH + 4 + txSize);
+    if ((2 == txSize) && (0x3E == txBuffer[0]) && (0x80 == txBuffer[1])) {
+    } else {
+      n->lastSID = txBuffer[0];
+    }
+    doip_fill_header(buffer.data(), DOIP_DIAGNOSTIC_MESSAGE, 4 + txSize);
+    buffer[DOIP_HEADER_LENGTH] = (n->SA >> 8) & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 1] = n->SA & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
+    buffer[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
+    memcpy(&buffer[DOIP_HEADER_LENGTH + 4], txBuffer, txSize);
+    ret = TcpIp_TlsSend(n, buffer.data(), DOIP_HEADER_LENGTH + 4 + txSize);
     if (E_OK == ret) {
-      r = doip_node_wait(n);
-      if ((0 == r) && (DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK == n->R.payload_type)) {
+      doip_msg_t msg = doip_node_wait(n, DOIP_MSGQ_UDS_ACK);
+      r = msg.result;
+      if ((0 == r) && (DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK == msg.payload_type)) {
       } else {
+        ASLOG(DOIPE, ("no diagnostic positive ack received: r = %d, payload_type = %x\n", r,
+                      msg.payload_type));
         r = DOIP_E_NOT_OK;
       }
-
       if (0 == r) {
         if (NULL != rxBuffer) {
-          r = doip_node_wait(n);
-          if ((r > 0) && (DOIP_DIAGNOSTIC_MESSAGE == n->R.payload_type)) {
-            if (rxSize >= (uint32_t)r) {
-              memcpy(rxBuffer, &n->buffer[DOIP_HEADER_LENGTH + 4], r);
-            } else {
-              r = DOIP_E_NOSPC;
-            }
-          } else {
-            r = DOIP_E_NOT_OK;
-          }
+          r = doip_receive(node, rxBuffer, rxSize);
         }
       }
     }
-    n->lock.unlock();
   }
 
   return r;
@@ -967,25 +1007,34 @@ int doip_receive(doip_node_t *node, uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
   struct doip_node_s *n = (struct doip_node_s *)node;
 
-  n->lock.lock();
   if (false == n->activated) {
     r = DOIP_E_AGAIN;
   }
-  n->lock.unlock();
 
   if (0 == r) {
-    n->lock.lock();
-    r = doip_node_wait(n);
-    if ((r > 0) && (DOIP_DIAGNOSTIC_MESSAGE == n->R.payload_type)) {
-      if (rxSize >= (uint32_t)r) {
-        memcpy(rxBuffer, &n->buffer[DOIP_HEADER_LENGTH + 4], r);
+    bool bCheckNext = false;
+    do {
+      bCheckNext = false;
+      doip_msg_t msg = doip_node_wait(n, DOIP_MSGQ_UDS_REPLY);
+      r = msg.result;
+      if ((r > 0) && (DOIP_DIAGNOSTIC_MESSAGE == msg.payload_type)) {
+        if (rxSize >= (uint32_t)r) {
+          memcpy(rxBuffer, &msg.data[DOIP_HEADER_LENGTH + 4], r);
+        } else {
+          r = DOIP_E_NOSPC;
+        }
       } else {
-        r = DOIP_E_NOSPC;
+        ASLOG(DOIPE,
+              ("no diagnostic message received: r = %d, payload_type = %x\n", r, msg.payload_type));
+        r = DOIP_E_NOT_OK;
       }
-    } else {
-      r = DOIP_E_NOT_OK;
-    }
-    n->lock.unlock();
+      if (r > 0) {
+        if ((0x7F == rxBuffer[0]) && (n->lastSID != rxBuffer[1])) {
+          ASLOG(DOIPI, ("negative response with different request SID, check next message\n"));
+          bCheckNext = true;
+        }
+      }
+    } while (true == bCheckNext);
   }
 
   return r;
@@ -997,7 +1046,7 @@ void doip_destory_client(doip_client_t *client) {
   if (client->thread.joinable()) {
     client->thread.join();
   }
-  client->lock.lock();
+  std::unique_lock<std::mutex> lck(client->lock);
   while (false == STAILQ_EMPTY(&client->nodes)) {
     n = STAILQ_FIRST(&client->nodes);
     STAILQ_REMOVE_HEAD(&client->nodes, entry);
@@ -1007,6 +1056,5 @@ void doip_destory_client(doip_client_t *client) {
     }
     delete n;
   }
-  client->lock.unlock();
   delete client;
 }

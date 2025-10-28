@@ -1,5 +1,5 @@
 diff --git a/ports/freertos/sys_arch.c b/ports/freertos/sys_arch.c
-index 84bd463..0bd5696 100644
+index 84bd463..2cc06a1 100644
 --- a/ports/freertos/sys_arch.c
 +++ b/ports/freertos/sys_arch.c
 @@ -29,10 +29,11 @@
@@ -15,7 +15,18 @@ index 84bd463..0bd5696 100644
  #include "lwip/sys.h"
  #include "lwip/mem.h"
  #include "lwip/stats.h"
-@@ -607,3 +608,52 @@ sys_check_core_locking(void)
+@@ -40,6 +41,10 @@
+ #include "semphr.h"
+ #include "task.h"
+ 
++#ifndef portTICK_RATE_MS
++#define portTICK_RATE_MS (1000u/OS_TICKS_PER_SECOND)
++#endif
++
+ /** Set this to 1 if you want the stack size passed to sys_thread_new() to be
+  * interpreted as number of stack words (FreeRTOS-like).
+  * Default is that they are interpreted as byte count (lwIP-like).
+@@ -607,3 +612,52 @@ sys_check_core_locking(void)
  }
  
  #endif /* LWIP_FREERTOS_CHECK_CORE_LOCKING*/

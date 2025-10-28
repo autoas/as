@@ -218,6 +218,11 @@ void BL_ABSwitch(void) {
   BL_ABSetupEnv();
 }
 
+void BL_ABSetActivePartition(char activePartition) {
+  blActivePartition = activePartition;
+  BL_ABSetupEnv();
+}
+
 #ifdef BL_USE_AB_UPDATE_ACTIVE
 boolean BL_ABPrepareUpdateActive(void) {
   int rv = FALSE;

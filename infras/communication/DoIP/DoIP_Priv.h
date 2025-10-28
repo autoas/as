@@ -73,6 +73,13 @@
 #define DOIP_VIN_GID_ARE_SYNCHRONIZED 0x00u
 #define DOIP_VIN_GID_INCOMPLETE_NOT_SYNCHRONIZED 0x10u
 
+#define DOIP_CON_CLOSED ((DoIP_ConnectionStateType)0)
+#define DOIP_CON_OPEN ((DoIP_ConnectionStateType)1)
+
+#define DOIP_MSG_IDLE ((DoIP_MessageStateType)0)
+#define DOIP_MSG_RX ((DoIP_MessageStateType)1)
+#define DOIP_MSG_TX ((DoIP_MessageStateType)2)
+
 /* ================================ [ TYPES     ] ============================================== */
 /* Architecture of DoIP
  *  SoAd provides one DOIP_UDP socket, which will be used both for broadcast vehicle
@@ -96,31 +103,37 @@ typedef Std_ReturnType (*DoIP_GetEIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetGIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetPowerModeStatusFncType)(uint8_t *PowerState);
 
-typedef enum {
-  DOIP_CON_CLOSED,
-  DOIP_CON_OPEN,
-} DoIP_ConnectionStateType;
+typedef uint8_t DoIP_ConnectionStateType;
 
-typedef enum {
-  DOIP_MSG_IDLE,
-  DOIP_MSG_RX,
-  DOIP_MSG_TX,
-} DoIP_MessageStateType;
+typedef uint8_t DoIP_MessageStateType;
+
+typedef struct {
+  PduLengthType TpSduLength;
+  PduLengthType index;
+  DoIP_MessageStateType state;
+} DoIP_TargetNodeContextType;
+
+typedef struct {
+  DoIP_TargetNodeContextType *context;
+  PduIdType TxPduId;     /* PduR ID */
+  PduIdType doipTxPduId; /* DoIP ID called by PduR */
+  uint16_t TargetAddress;
+} DoIP_TargetNodeType;
 
 /* @ECUC_DoIP_00053 */
 typedef struct {
+  const DoIP_TargetNodeType *targetNodes;
+  uint16_t numTargetNodes;
   uint16_t TargetAddress;
-  PduIdType RxPduId;     /* PduR ID */
-  PduIdType TxPduId;     /* PduR ID */
-  PduIdType doipTxPduId; /* DoIP ID called by PduR */
+  PduIdType RxPduId; /* PduR ID */
 } DoIP_TargetAddressType;
 
 typedef struct {
-  DoIP_MessageStateType state;
+  uint8_t *req; /* len = NumByteDiagAckNack */
+  const DoIP_TargetAddressType *TargetAddressRef;
   PduLengthType TpSduLength;
   PduLengthType index;
-  const DoIP_TargetAddressType *TargetAddressRef;
-  uint8_t *req; /* len = NumByteDiagAckNack */
+  DoIP_MessageStateType state;
 } DoIP_MessageContextType;
 
 typedef struct DoIP_Tester_s DoIP_TesterType;

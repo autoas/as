@@ -10,7 +10,7 @@ __all__ = ["Gen_SomeIp"]
 def Gen_DemoRxTp(C, name):
     C.write("Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n" % (name))
     C.write("  Std_ReturnType ret = E_OK;\n")
-    C.write("  if ((NULL != msg) && ((msg->offset + msg->length)) < sizeof(%sTpRxBuf)) {\n" % (name))
+    C.write("  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(%sTpRxBuf)) {\n" % (name))
     C.write("    memcpy(&%sTpRxBuf[msg->offset], msg->data, msg->length);\n" % (name))
     C.write("    if (FALSE == msg->moreSegmentsFlag) {\n")
     C.write("      msg->data = %sTpRxBuf;\n" % (name))
@@ -25,7 +25,7 @@ def Gen_DemoRxTp(C, name):
 def Gen_DemoTxTp(C, name):
     C.write("Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {\n" % (name))
     C.write("  Std_ReturnType ret = E_OK;\n")
-    C.write("  if ((NULL != msg) && ((msg->offset + msg->length) < sizeof(%sTpTxBuf))) {\n" % (name))
+    C.write("  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(%sTpTxBuf))) {\n" % (name))
     C.write("    memcpy(msg->data, &%sTpTxBuf[msg->offset], msg->length);\n" % (name))
     C.write("  } else {\n")
     C.write("    ret = E_NOT_OK;\n")
@@ -117,7 +117,7 @@ def Gen_ServerServiceExCpp(service, dir, source):
             C.write("        ((uint32_t)SOMEIP_TX_EVT_%s << 16) + (++m_SessionId);\n" % (toMacro(beName)))
             C.write("      auto buffer = m_BufferPool.get();\n")
             C.write("      if (nullptr != buffer) {\n")
-            C.write("        buffer->size = 8000;\n")
+            C.write("        buffer->size = %s;\n" % (event.get("TxMaxSize", 5000)))
             C.write("        uint8_t *data = (uint8_t *)buffer->data;\n")
             C.write("        for (size_t i = 0; i < buffer->size; i++) {\n")
             C.write("          data[i] = m_SessionId + i;\n")
@@ -209,13 +209,13 @@ def Gen_ServerService(service, dir, source):
     for method in service.get("methods", []):
         bName = "%s_%s" % (service["name"], method["name"])
         if method.get("tp", False):
-            C.write("static uint8_t %sTpRxBuf[%d];\n" % (bName, method.get("tpRxSize", 1 * 1024 * 1024)))
-            C.write("static uint8_t %sTpTxBuf[%d];\n" % (bName, method.get("tpTxSize", 1 * 1024 * 1024)))
+            C.write("static uint8_t %sTpRxBuf[%d];\n" % (bName, method.get("RxMaxSize", 64 * 1024)))
+            C.write("static uint8_t %sTpTxBuf[%d];\n" % (bName, method.get("TxMaxSize", 64 * 1024)))
     for egroup in service["event-groups"]:
         for event in egroup["events"]:
             beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
             if event.get("tp", False):
-                C.write("static uint8_t %sTpTxBuf[%d];\n" % (beName, event.get("tpTxSize", 1 * 1024 * 1024)))
+                C.write("static uint8_t %sTpTxBuf[%d];\n" % (beName, event.get("TxMaxSize", 64 * 1024)))
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     C.write("void SomeIp_%s_OnConnect(uint16_t conId, boolean isConnected) {\n}\n\n" % (service["name"]))
@@ -266,10 +266,15 @@ def Gen_ServerService(service, dir, source):
             C.write("  static uint16_t sessionId = 0;\n")
             C.write("  uint32_t requestId = ((uint32_t)SOMEIP_TX_EVT_%s << 16) + (++sessionId);\n" % (toMacro(beName)))
             if event.get("tp", False):
-                C.write("  memcpy(%sTpTxBuf, data, length);\n" % (beName))
-                C.write("  data = %sTpTxBuf;\n" % (beName))
-                C.write("  length = 8000;\n")
-            C.write("  ercd = SomeIp_Notification(requestId, data, length);\n")
+                C.write("  if ( length <= sizeof(%sTpTxBuf)) {\n" % (beName))
+                C.write("    memcpy(%sTpTxBuf, data, length);\n" % (beName))
+                C.write("    data = %sTpTxBuf;\n" % (beName))                
+                C.write("    ercd = SomeIp_Notification(requestId, data, length);\n")
+                C.write("  } else {\n")
+                C.write("    ercd = E_NOT_OK;\n")
+                C.write("  }\n")
+            else:
+                C.write("  ercd = SomeIp_Notification(requestId, data, length);\n")
             C.write("  return ercd;\n")
             C.write("}\n\n")
     C.close()
@@ -547,7 +552,7 @@ def Gen_ClientServiceExCpp(service, dir, source):
         C.write("        ((uint32_t)SOMEIP_TX_METHOD_%s << 16) + (++m_SessionId);\n" % (toMacro(bName)))
         C.write("      auto buffer = m_BufferPool.get();\n")
         C.write("      if (nullptr != buffer) {\n")
-        C.write("        buffer->size = 5000;\n")
+        C.write(f"        buffer->size = %s;\n" % (method.get("TxMaxSize", 5000)))
         C.write("        uint8_t *data = (uint8_t *)buffer->data;\n")
         C.write("        for (size_t i = 0; i < buffer->size; i++) {\n")
         C.write("          data[i] = m_SessionId + i;\n")
@@ -639,13 +644,13 @@ def Gen_ClientService(service, dir, source):
     for method in service.get("methods", []):
         bName = "%s_%s" % (service["name"], method["name"])
         if method.get("tp", False):
-            C.write("static uint8_t %sTpRxBuf[%d];\n" % (bName, method.get("tpRxSize", 1 * 1024 * 1024)))
-            C.write("static uint8_t %sTpTxBuf[%d];\n" % (bName, method.get("tpTxSize", 1 * 1024 * 1024)))
+            C.write("static uint8_t %sTpRxBuf[%d];\n" % (bName, method.get("RxMaxSize", 1 * 1024 * 1024)))
+            C.write("static uint8_t %sTpTxBuf[%d];\n" % (bName, method.get("TxMaxSize", 1 * 1024 * 1024)))
     for egroup in service["event-groups"]:
         for event in egroup["events"]:
             beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
             if event.get("tp", False):
-                C.write("static uint8_t %sTpRxBuf[%d];\n" % (beName, event.get("tpTxSize", 1 * 1024 * 1024)))
+                C.write("static uint8_t %sTpRxBuf[%d];\n" % (beName, event.get("TxMaxSize", 1 * 1024 * 1024)))
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     C.write("void SomeIp_%s_OnAvailability(boolean isAvailable) {\n" % (service["name"]))
@@ -659,16 +664,20 @@ def Gen_ClientService(service, dir, source):
         C.write("  static uint16_t sessionId = 0;\n")
         C.write("  uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_%s << 16) | (++sessionId);\n" % (toMacro(bName)))
         if method.get("tp", False):
-            C.write("  memcpy(%sTpTxBuf, data, length);\n" % (bName))
-            C.write("  data = %sTpTxBuf;\n" % (bName))
-            C.write("  length = 5000;\n")
-        C.write("  if (lIsAvailable) {\n")
+            C.write("  if ( length <= sizeof(%sTpTxBuf) ) {\n" % (bName))
+            C.write("    memcpy(%sTpTxBuf, data, length);\n" % (bName))
+            C.write("    data = %sTpTxBuf;\n" % (bName)) 
+        C.write("    if (lIsAvailable) {\n")
         C.write(
-            '    ASLOG(%s, ("%s Request %%X: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n' % (mn, method["name"])
+            '      ASLOG(%s, ("%s Request %%X: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n' % (mn, method["name"])
         )
         C.write("          requestId, length, data[0], data[1], data[2], data[3]));\n")
-        C.write("    ercd = SomeIp_Request(requestId, data, length);\n")
-        C.write("  }\n")
+        C.write("      ercd = SomeIp_Request(requestId, data, length);\n")
+        C.write("    }\n")
+        if method.get("tp", False):
+            C.write("  } else {\n")
+            C.write("    ercd = E_NOT_OK;\n")
+            C.write("  }\n")
         C.write("  return ercd;\n")
         C.write("}\n\n")
         C.write("Std_ReturnType SomeIp_%s_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {\n" % (bName))
@@ -882,9 +891,7 @@ def Gen_SD(cfg, dir):
                 a1, a2, a3, a4 = IpAddress.split(".")
                 mcgn = toMacro("_".join([service["name"], ge["name"]]))
                 C.write("    SOAD_SOCKID_SOMEIP_%s, /* MulticastEventSoConRef */\n" % (mcgn))
-                C.write(
-                    "    {%s, {%s, %s, %s, %s}}, /* MulticastEventAddr */\n" % (Port, a1, a2, a3, a4)
-                )
+                C.write("    {%s, {%s, %s, %s, %s}}, /* MulticastEventAddr */\n" % (Port, a1, a2, a3, a4))
                 C.write("    SOAD_TX_PID_SOMEIP_%s, /* MulticastTxPduId */\n" % (mcgn))
                 C.write("    %s, /* MulticastThreshold */\n" % (ge.get("threshold", 1)))
             else:
@@ -1433,7 +1440,7 @@ def Gen_SOMEIP(cfg, dir, source):
 
         else:
             numOfConnections = 1
-            if service.get("tp", False): 
+            if service.get("tp", False):
                 C.write("#ifdef SOMEIP_USE_TP_BUF\n")
                 C.write("static SomeIp_TpBufferType someIpTpBuffer_%s;\n\n" % (service["name"]))
                 C.write("#endif\n")
@@ -1454,7 +1461,7 @@ def Gen_SOMEIP(cfg, dir, source):
                 C.write("    SOAD_TX_PID_SOMEIP_%s_APT%s,\n" % (mn, i))
                 C.write("    SOAD_SOCKID_SOMEIP_%s_APT%s,\n" % (mn, i))
                 C.write("    #ifdef SOMEIP_USE_TP_BUF\n")
-                if service.get("tp", False): 
+                if service.get("tp", False):
                     C.write("    &someIpTpBuffer_%s[%s],\n" % (service["name"], i))
                 else:
                     C.write("    NULL\n")
@@ -1464,7 +1471,7 @@ def Gen_SOMEIP(cfg, dir, source):
                 C.write("    SOAD_TX_PID_SOMEIP_%s,\n" % (mn))
                 C.write("    SOAD_SOCKID_SOMEIP_%s,\n" % (mn))
                 C.write("    #ifdef SOMEIP_USE_TP_BUF\n")
-                if service.get("tp", False): 
+                if service.get("tp", False):
                     C.write("    &someIpTpBuffer_%s,\n" % (service["name"]))
                 else:
                     C.write("    NULL\n")

@@ -553,9 +553,9 @@ struct Dcm_Config_s {
 #ifdef DCM_USE_SERVICE_DYNAMICALLY_DEFINE_DATA_IDENTIFIER
   P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDIDs;
   uint8_t numOfDDDIDs;
+#endif
   P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDIDs;
   uint8_t numOfrDIDs;
-#endif
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
   P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) rPDIDConfig;
 #endif

@@ -4,6 +4,7 @@ import socket
 import struct
 import logging
 from datetime import datetime, timedelta
+import re
 
 CWD = os.path.dirname(__file__)
 if CWD == "":
@@ -65,11 +66,12 @@ def Decode(data):
     assert DataLength + 14 == len(data)
     if ProtocolVersion != 1:
         logger.error("wrong protocol version")
-    if LastSequenceNumber != -1 and LastSequenceNumber + 1 != SequenceNumber:
+    if LastSequenceNumber != -1 and (LastSequenceNumber + 1) & 0xFF != SequenceNumber:
         logger.error("wrong sequence number or missing")
     date = DecodeHeaderTimestamp(HeaderTimestamp)
     logger.info(f"{date}")
     data = data[14:]
+    frames = []
     while len(data) > 0:
         Timestamp = ((data[0] << 8) + data[1]) * 10
         tim = date + timedelta(microseconds=Timestamp)
@@ -108,12 +110,16 @@ def Decode(data):
             if networkType == 1:
                 CanForward(networkId, frameId, payload)
         else:
+            payload = []
             length = 0
             payloadS = ""
         logger.info(f"{NT} NS={networkState:02x} ID={frameId:x} LEN={length} data=[{payloadS}] @ {tim}")
+        frames.append([NT, networkState, frameId, length, payload, tim])
         data = data[offset:]
 
     LastSequenceNumber = SequenceNumber
+
+    return SequenceNumber, date, frames
 
 
 def Main(addr):
@@ -128,10 +134,43 @@ def Main(addr):
         Decode(data)
 
 
+def AnalyzeAscFile(filename):
+    from scapy.all import Ether, Raw, bytes_hex
+
+    lastSequenceNumber = -1
+    reETH = re.compile(r"^\s*(\d+\.\d+)\s+ETH\s+(\d+)\s+(Rx|Tx)\s+([0-9a-fA-F]+):([0-9a-fA-F]+)")
+    with open(filename, "r") as fin, open(filename + ".dec", "w") as fout:
+        for l in fin.readlines():
+            fout.write(l)
+            m = reETH.match(l)
+            if m:
+                timestamp, eth, dir, seq, asc = m.groups()
+                raw = bytes.fromhex(asc)
+                pkt = Ether(raw)
+                if pkt.haslayer("UDP") and pkt.haslayer("Raw"):
+                    payload = pkt["Raw"].load
+                    if payload[0] == 1:  # version check
+                        SequenceNumber, date, frames = Decode(payload)
+                        if lastSequenceNumber != -1 and (lastSequenceNumber + 1) & 0xFF != SequenceNumber:
+                            seqStatus = "NOK"
+                        else:
+                            seqStatus = "OK"
+                        lastSequenceNumber = SequenceNumber
+                        fout.write(f"SequenceNumber={SequenceNumber} {seqStatus} numFrames={len(frames)} date={date}\n")
+                        for NT, networkState, frameId, length, payload, tim in frames:
+                            payloadS = " ".join(["%02x" % (p) for p in payload])
+                            fout.write(
+                                f"{NT} NS={networkState:02x} ID={frameId&0x1FFFFFFF:X}x LEN={length} data=[{payloadS}] @ {tim}\n"
+                            )
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="bus mirror dump utility")
     parser.add_argument("-a", "--address", type=str, default="224.244.224.245:30511", help="The target UDP IP address")
     args = parser.parse_args()
-    Main(args.address)
+    if args.address.endswith(".asc"):
+        AnalyzeAscFile(args.address)
+    else:
+        Main(args.address)

@@ -17,12 +17,12 @@
 /* ================================ [ FUNCTIONS ] ============================================== */
 void mp_init(mempool_t *mp, uint8_t *buffer, uint32_t size, uint16_t number) {
   uint16_t i;
-  mp_pool_t *pool;
+  mp_entry_t *entry;
 
   SLIST_INIT(&mp->head);
   for (i = 0; i < number; i++) {
-    pool = (mp_pool_t *)&buffer[size * i];
-    SLIST_INSERT_HEAD(&mp->head, pool, entry);
+    entry = (mp_entry_t *)&buffer[size * i];
+    SLIST_INSERT_HEAD(&mp->head, entry, entry);
   }
 }
 
@@ -40,10 +40,10 @@ uint8_t *mp_alloc(mempool_t *mp) {
 }
 
 void mp_free(mempool_t *mp, uint8_t *buffer) {
-  mp_pool_t *pool = (mp_pool_t *)buffer;
+  mp_entry_t *entry = (mp_entry_t *)buffer;
 
   EnterCritical();
-  SLIST_INSERT_HEAD(&mp->head, pool, entry);
+  SLIST_INSERT_HEAD(&mp->head, entry, entry);
   ExitCritical();
 }
 

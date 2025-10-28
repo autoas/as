@@ -2,7 +2,9 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob("*.cpp")
+objs = Glob("aslua_can.cpp") + Glob("aslua.cpp")
+objsAsn1x509 = Glob("aslua_x509.cpp")
+objsCrypto = Glob("aslua_crypto.cpp")
 
 
 def GetLuaPackage():
@@ -18,14 +20,21 @@ class LibraryLUA(Library):
         pkg = GetLuaPackage()
         self.include = ["%s/include" % (CWD), pkg]
         self.CPPPATH = ["$INFRAS"]
-        if IsBuildForMSVC():
-            self.LIBS = ["Utils", "CanLib"]
-        else:
-            self.LIBS = ["CryptoIf", "Utils", "ASN1X509", "CanLib"]
-            self.CPPDEFINES = ["USE_ASN1X509"]
+        self.LIBS = ["Utils", "CanLib"]
         luaObjs = PkgGlob(pkg, ["*.c"])
         SrcRemove(luaObjs, ["lua.c", "onelua.c"])
         self.source = objs + luaObjs
+        if IsBuildForMSVC():
+            pass
+        else:
+            if os.getenv("LUA_WITH_ASN1X509", "NO") == "YES":
+                self.LIBS += ["ASN1X509"]
+                self.CPPDEFINES = ["USE_ASN1X509"]
+                self.source += objsAsn1x509
+            if os.getenv("LUA_WITH_CRYPTO", "NO") == "YES":
+                self.LIBS += ["CryptoIf"]
+                self.CPPDEFINES = ["USE_CRYPTOIF"]
+                self.source += objsCrypto
 
 
 @register_application

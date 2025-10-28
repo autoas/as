@@ -7,7 +7,7 @@
       "class": "DoIp",
       "discovery": "224.244.224.245:13400",
       "EnableTLS": false,
-      "max_connections" : 3,
+      "max_connections": 3,
       "targets": [
         {
           "name": "P2P",
@@ -19,21 +19,31 @@
         },
         {
           "name": "GW_P2A",
-          "address": "0xcaab"
+          "address": "0xcaab",
+          "nodes": [
+            { "name": "GW_P2A0", "address": "0xcaa0" },
+            { "name": "GW_P2A1", "address": "0xcaa1" }
+          ]
         }
       ],
       "routines": [
         {
           "name": "default",
           "number": "0x00",
-          "targets": ["P2P", "GW_P2P", "GW_P2A"]
+          "targets": [
+            "P2P",
+            "GW_P2P",
+            "GW_P2A"
+          ]
         }
       ],
-      "testers" : [
+      "testers": [
         {
           "name": "default",
           "address": "0xbeef",
-          "routines": ["default"]
+          "routines": [
+            "default"
+          ]
         }
       ]
     },
@@ -41,22 +51,24 @@
       "name": "SomeIp",
       "class": "SomeIp",
       "SD": {
-        "hostname" : "ssas",
-        "multicast" : "224.244.224.245"
+        "hostname": "ssas",
+        "multicast": "224.244.224.245"
       },
       "servers": [
         {
           "name": "server0",
-          "service":"0x1234",
-          "instance":"0x5678",
-          "clientId":"0x4444",
-          "unreliable":"30560",
+          "service": "0x1234",
+          "instance": "0x5678",
+          "clientId": "0x4444",
+          "unreliable": "30560",
           "methods": [
             {
-              "name" : "method1",
-              "methodId" : "0x421",
+              "name": "method1",
+              "methodId": "0x421",
               "tp": true,
-              "version" : "0"
+              "TxMaxSize": 2048,
+              "RxMaxSize": 2048,
+              "version": "0"
             }
           ],
           "event-groups": [
@@ -66,10 +78,11 @@
               "enable_multicast": false,
               "events": [
                 {
-                  "name" : "event0",
+                  "name": "event0",
                   "eventId": "0xbeef",
                   "tp": true,
-                  "version" : "0"
+                  "TxMaxSize": 2048,
+                  "version": "0"
                 }
               ]
             }
@@ -79,16 +92,18 @@
       "clients": [
         {
           "name": "client0",
-          "service":"0xabcd",
-          "instance":"0xbeef",
-          "clientId":"0x5555",
-          "unreliable":"30568",
+          "service": "0xabcd",
+          "instance": "0xbeef",
+          "clientId": "0x5555",
+          "unreliable": "30568",
           "methods": [
             {
-              "name" : "method2",
-              "methodId" : "0x424",
+              "name": "method2",
+              "methodId": "0x424",
               "tp": true,
-              "version" : "0"
+              "TxMaxSize": 2048,
+              "RxMaxSize": 2048,
+              "version": "0"
             }
           ],
           "event-groups": [
@@ -98,10 +113,11 @@
               "enable_multicast": false,
               "events": [
                 {
-                  "name" : "event0",
+                  "name": "event0",
                   "eventId": "0xabcd",
                   "tp": true,
-                  "version" : "0"
+                  "TxMaxSize": 2048,
+                  "version": "0"
                 }
               ]
             }

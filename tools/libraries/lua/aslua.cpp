@@ -93,7 +93,7 @@ AsLuaScript::AsLuaScript(const char *scripts, std::vector<Library> libraries) {
 
 extern "C" void luaL_openAsBuiltlibs(lua_State *L) {
 /* load AS builtin lib */
-#ifndef _MSC_VER
+#ifdef USE_CRYPTOIF
   luaL_requiref(L, "crypto", lua_create_crypto, 1);
   lua_pop(L, 1); /* remove lib */
 #endif

@@ -15,9 +15,10 @@ class LibraryFreeRTOS(Library):
                 objs += ["portable/ThirdParty/GCC/Posix/*.c", "portable/ThirdParty/GCC/Posix/utils/*.c"]
         else:
             arch = self.GetArch()
-            objs = ["*.c", "portable/MemMang/heap_5.c"]
-            objs += ["portable/%s/*.c" % (arch)]
-            self.include += ["%s/portable/%s" % (pkg, arch)]
+            objs = ["*.c", "portable/MemMang/heap_4.c"]
+            if not arch.startswith("arch/"):
+                objs += ["portable/%s/*.c" % (arch)]
+                self.include += ["%s/portable/%s" % (pkg, arch)]
         return PkgGlob(pkg, objs)
 
     def config(self):
@@ -28,7 +29,22 @@ class LibraryFreeRTOS(Library):
             return
         pkg = Package(url="https://github.com/FreeRTOS/FreeRTOS-Kernel.git", version="V10.4.6")
         self.source = self.get_objs(pkg)
-        self.include += ["%s/include" % (pkg), "%s/config" % (CWD)]
+        try:
+            arch = self.GetArch()
+        except:
+            arch = ""
+        if arch.startswith("arch/"):
+            arch = arch[5:]
+            pkgPart = Package(url="https://github.com/FreeRTOS/FreeRTOS-Kernel-Partner-Supported-Ports.git")
+            # or https://gitee.com/mirrors_FreeRTOS/FreeRTOS-Kernel-Partner-Supported-Ports.git
+            self.source += PkgGlob(pkgPart, ["%s/*.c" % (arch)])
+            self.include += ["%s/%s" % (pkgPart, arch)]
+        self.include += ["%s/include" % (pkg)]
+        try:
+            cfg_path, _ = self.RequireConfig("FreeRTOS")
+            self.include.insert(0, cfg_path)
+        except KeyError:
+            self.include += ["%s/config" % (CWD)]
 
         if IsBuildForHost(self.GetCompiler()):
             if IsBuildForWindows():

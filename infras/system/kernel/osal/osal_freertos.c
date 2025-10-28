@@ -10,8 +10,8 @@
 #include "task.h"
 #include "Std_Compiler.h"
 /* ================================ [ MACROS    ] ============================================== */
-#ifndef configMINIMAL_SECURE_STACK_SIZE
-#define configMINIMAL_SECURE_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+#ifndef configAS_OSAL_THREAD_SIZE
+#define configAS_OSAL_THREAD_SIZE 2048
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -22,15 +22,50 @@ FUNC(void, __weak) StartupHook(void) {
 }
 FUNC(void, __weak) TaskIdleHook(void) {
 }
-/* ================================ [ FUNCTIONS ] ============================================== */
 FUNC(void, __weak) vApplicationIdleHook(void) {
   TaskIdleHook();
+}
+/* ================================ [ FUNCTIONS ] ============================================== */
+int OSAL_ThreadAttrInit(OSAL_ThreadAttrType *attr) {
+  attr->stackPtr = NULL;
+  attr->stackSize = configAS_OSAL_THREAD_SIZE;
+  attr->priority = tskIDLE_PRIORITY + 1;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetStack(OSAL_ThreadAttrType *attr, uint8_t *stackPtr, uint32_t stackSize) {
+  attr->stackPtr = stackPtr;
+  attr->stackSize = stackSize;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetStackSize(OSAL_ThreadAttrType *attr, uint32_t stackSize) {
+  attr->stackPtr = NULL;
+  attr->stackSize = stackSize;
+  return 0;
+}
+
+int OSAL_ThreadAttrSetPriority(OSAL_ThreadAttrType *attr, int priority) {
+  attr->priority = priority;
+  return 0;
+}
+
+OSAL_ThreadType OSAL_ThreadCreateEx(const OSAL_ThreadAttrType *attr, OSAL_ThreadEntryType entry,
+                                    void *args) {
+  OSAL_ThreadType thread = NULL;
+  BaseType_t xReturn = xTaskCreate((TaskFunction_t)entry, attr->stackPtr, attr->stackSize, args,
+                                   (UBaseType_t)attr->priority, (TaskHandle_t *)&thread);
+  if (pdPASS != xReturn) {
+    ASLOG(ERROR, ("create thread over freertos failed: %d\n", xReturn));
+  }
+
+  return thread;
 }
 
 OSAL_ThreadType OSAL_ThreadCreate(OSAL_ThreadEntryType entry, void *args) {
   OSAL_ThreadType thread = NULL;
-  BaseType_t xReturn = xTaskCreate((TaskFunction_t)entry, NULL, configMINIMAL_SECURE_STACK_SIZE,
-                                   args, tskIDLE_PRIORITY + 1, (TaskHandle_t *)&thread);
+  BaseType_t xReturn = xTaskCreate((TaskFunction_t)entry, NULL, configAS_OSAL_THREAD_SIZE, args,
+                                   tskIDLE_PRIORITY + 1, (TaskHandle_t *)&thread);
   if (pdPASS != xReturn) {
     ASLOG(ERROR, ("create thread over freertos failed: %d\n", xReturn));
   }

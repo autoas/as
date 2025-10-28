@@ -322,7 +322,7 @@ Std_ReturnType Mirror_RemoveLinFilter(NetworkHandleType network, uint8 filterId)
 }
 
 #ifdef MIRROR_USE_DEST_CAN
-static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_t controllerId,
+static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_t NetworkId,
                                  Can_IdType canId, uint8_t length, const uint8_t *payload) {
   uint8_t numPackets = (length + 15) >> 3;
   uint16_t capability;
@@ -343,7 +343,7 @@ static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_
       &RingBuffer->DataElements[RingBuffer->context->in % RingBuffer->NumOfDataElements];
     RingBuffer->context->in++;
     dataElement->data[0] = MIRROR_NT_CAN;
-    dataElement->data[1] = controllerId;
+    dataElement->data[1] = NetworkId;
     dataElement->data[2] = 0u; /* reserved */
     dataElement->data[3] = length;
     dataElement->data[4] = (canId >> 24) & 0x3Fu;
@@ -374,11 +374,11 @@ static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_
   Mirror_ExitCritical();
 }
 
-static void Mirror_ReportCanFrameToDestCan(NetworkHandleType network, uint8_t controllerId,
+static void Mirror_ReportCanFrameToDestCan(NetworkHandleType network, uint8_t NetworkId,
                                            Can_IdType canId, uint8_t length,
                                            const uint8_t *payload) {
   const Mirror_DestNetworkCanType *config = &MIRROR_CONFIG->DestNetworkCans[network];
-  Mirror_EnqueCanFrame(config->RingBuffer, controllerId, canId, length, payload);
+  Mirror_EnqueCanFrame(config->RingBuffer, NetworkId, canId, length, payload);
 }
 #endif
 
@@ -469,7 +469,7 @@ static void Mirror_GetHeaderTimestamp(uint8_t *Seconds, uint8_t *Nanoseconds) {
 
 static void Mirror_IpAddCanFrameToDestBuf(const Mirror_DestNetworkIpType *config,
                                           const Mirror_DestBufferType *DestBuffer,
-                                          uint8_t controllerId, Can_IdType canId, uint8_t length,
+                                          uint8_t NetworkId, Can_IdType canId, uint8_t length,
                                           const uint8_t *payload) {
   boolean bHasState = FALSE;
   uint8_t NetworkState = 0;
@@ -484,11 +484,11 @@ static void Mirror_IpAddCanFrameToDestBuf(const Mirror_DestNetworkIpType *config
   DestBuffer->data[offset + 1u] = timestamp & 0xFFu;
   DestBuffer->data[offset + 2u] =
     MIRROR_NT_FRAME_ID_AVAIABLE | MIRROR_NT_PAYLOAD_AVAIABLE | MIRROR_NT_CAN;
-  DestBuffer->data[offset + 3u] = controllerId; /* NetworkID */
+  DestBuffer->data[offset + 3u] = NetworkId; /* NetworkID */
   if (TRUE == config->context->bFrameLost) {
     DestBuffer->data[offset + 2u] |= MIRROR_NT_STATE_AVAIABLE;
     config->context->bFrameLost = FALSE;
-    NetworkState |= 0x80; /* Frame Lost, SWS_Mirror_00079 */
+    NetworkState |= MIRROR_NS_FRAME_LOST; /* Frame Lost, SWS_Mirror_00079 */
     bHasState = TRUE;
   }
   offset += 4;
@@ -520,7 +520,7 @@ static void Mirror_IpAddCanFrameToDestBuf(const Mirror_DestNetworkIpType *config
   *DestBuffer->offset = offset;
 }
 
-static void Mirror_ReportCanFrameToDestIp(NetworkHandleType network, uint8_t controllerId,
+static void Mirror_ReportCanFrameToDestIp(NetworkHandleType network, uint8_t NetworkId,
                                           Can_IdType canId, uint8_t length,
                                           const uint8_t *payload) {
   boolean bMoveToNextDestBuf = FALSE;
@@ -543,7 +543,7 @@ static void Mirror_ReportCanFrameToDestIp(NetworkHandleType network, uint8_t con
     }
 
     if ((*DestBuffer->offset + 10u + length) <= DestBuffer->size) { /* space enough */
-      Mirror_IpAddCanFrameToDestBuf(config, DestBuffer, controllerId, canId, length, payload);
+      Mirror_IpAddCanFrameToDestBuf(config, DestBuffer, NetworkId, canId, length, payload);
     } else {
       ASLOG(MIRROR, ("DestBuffer %u full\n", config->context->in));
       config->context->in++;
@@ -557,6 +557,7 @@ static void Mirror_ReportCanFrameToDestIp(NetworkHandleType network, uint8_t con
       } else {
         ASLOG(MIRRORE, ("No Free DestBuffer\n"));
         config->context->bFrameLost = TRUE; /* SWS_Mirror_00113 */
+        config->context->in--;              /* rollback */
       }
     }
     Mirror_ExitCritical();
@@ -565,7 +566,7 @@ static void Mirror_ReportCanFrameToDestIp(NetworkHandleType network, uint8_t con
 
 static void Mirror_IpAddCanStateToDestBuf(const Mirror_DestNetworkIpType *config,
                                           const Mirror_DestBufferType *DestBuffer,
-                                          uint8_t controllerId,
+                                          uint8_t NetworkId,
                                           Mirror_CanNetworkStateType NetworkState) {
   uint16_t offset = *DestBuffer->offset;
   std_time_t timestamp;
@@ -577,14 +578,14 @@ static void Mirror_IpAddCanStateToDestBuf(const Mirror_DestNetworkIpType *config
   DestBuffer->data[offset + 0u] = (timestamp >> 8) & 0xFFu;
   DestBuffer->data[offset + 1u] = timestamp & 0xFFu;
   DestBuffer->data[offset + 2u] = MIRROR_NT_STATE_AVAIABLE | MIRROR_NT_CAN;
-  DestBuffer->data[offset + 3u] = controllerId; /* NetworkID */
+  DestBuffer->data[offset + 3u] = NetworkId; /* NetworkID */
   DestBuffer->data[offset + 4u] = NetworkState;
   offset += 5;
 
   *DestBuffer->offset = offset;
 }
 
-static void Mirror_ReportCanStateToDestIp(NetworkHandleType network, uint8_t controllerId,
+static void Mirror_ReportCanStateToDestIp(NetworkHandleType network, uint8_t NetworkId,
                                           Mirror_CanNetworkStateType NetworkState) {
   boolean bMoveToNextDestBuf = FALSE;
   const Mirror_DestNetworkIpType *config = &MIRROR_CONFIG->DestNetworkIps[network];
@@ -606,7 +607,7 @@ static void Mirror_ReportCanStateToDestIp(NetworkHandleType network, uint8_t con
     }
 
     if ((*DestBuffer->offset + 5u) <= DestBuffer->size) { /* space enough */
-      Mirror_IpAddCanStateToDestBuf(config, DestBuffer, controllerId, NetworkState);
+      Mirror_IpAddCanStateToDestBuf(config, DestBuffer, NetworkId, NetworkState);
     } else {
       ASLOG(MIRROR, ("DestBuffer %u full\n", config->context->in));
       config->context->in++;
@@ -620,6 +621,7 @@ static void Mirror_ReportCanStateToDestIp(NetworkHandleType network, uint8_t con
       } else {
         ASLOG(MIRRORE, ("No Free DestBuffer\n"));
         config->context->bFrameLost = TRUE; /* SWS_Mirror_00113 */
+        config->context->in--;              /* rollback */
       }
     }
     Mirror_ExitCritical();
@@ -699,7 +701,7 @@ static void Mirror_IpAddLinFrameToDestBuf(const Mirror_DestNetworkIpType *config
   }
   if (TRUE == config->context->bFrameLost) {
     config->context->bFrameLost = FALSE;
-    NetworkState |= 0x80; /* Frame Lost, SWS_Mirror_00079 */
+    NetworkState |= MIRROR_NS_FRAME_LOST; /* Frame Lost, SWS_Mirror_00079 */
     bHasState = TRUE;
   }
   if (TRUE == bHasState) {
@@ -763,6 +765,7 @@ static void Mirror_ReportLinFrameToDestIp(NetworkHandleType network, uint8_t con
       } else {
         ASLOG(MIRRORE, ("No Free DestBuffer\n"));
         config->context->bFrameLost = TRUE; /* SWS_Mirror_00113 */
+        config->context->in--;              /* rollback */
       }
     }
     Mirror_ExitCritical();
@@ -912,9 +915,11 @@ static void Mirror_MainFunctionDestIp(NetworkHandleType network) {
 #endif
   PduInfoType PduInfo;
   const Mirror_DestBufferType *DestBuffer = NULL;
+  boolean bLinkedUp = TcpIp_IsLinkedUp();
+
   PduInfo.SduLength = 0;
 
-  if (config->context->TxDeadlineTimer > 0) {
+  if ((config->context->TxDeadlineTimer > 0) && (TRUE == bLinkedUp)) {
     config->context->TxDeadlineTimer--;
     if (0 == config->context->TxDeadlineTimer) {
       Mirror_EnterCritical();
@@ -927,7 +932,8 @@ static void Mirror_MainFunctionDestIp(NetworkHandleType network) {
     }
   }
 
-  if (config->context->in != config->context->out) { /* @SWS_Mirror_00055 */
+  if ((config->context->in != config->context->out) &&
+      (TRUE == bLinkedUp)) { /* @SWS_Mirror_00055 */
     DestBuffer = &config->DestBuffers[config->context->out % config->NumDestBuffers];
     PduInfo.MetaDataPtr = NULL;
     PduInfo.SduDataPtr = DestBuffer->data;
@@ -942,14 +948,14 @@ static void Mirror_MainFunctionDestIp(NetworkHandleType network) {
     ret = SoAd_IfTransmit(config->TxPduId, &PduInfo);
     if (E_OK != ret) {
 #if 0
-       /* SWS_Mirror_00150 */
-      config->context->bFrameLost = FALSE;
+      /* SWS_Mirror_00150 */
+      config->context->bFrameLost = TRUE;
       *DestBuffer->offset = 0;
       config->context->out++;
 #else
       /* just cancel it according to SWS_Mirror_00150 maybe not good, do re-try next times */
 #endif
-      ASLOG(MIRRIRE, ("Failed to send ip packet\n"));
+      ASLOG(MIRRORE, ("Failed to send ip packet\n"));
     } else {
       *DestBuffer->offset = 0;
       config->context->out++;
@@ -1171,15 +1177,15 @@ void Mirror_ReportCanFrame(uint8_t controllerId, Can_IdType canId, uint8_t lengt
     if (MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkType ==
         (MIRROR_NT_CAN | MIRROR_NT_DEST)) {
       Mirror_ReportCanFrameToDestCan(
-        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId, controllerId,
-        canId, length, payload);
+        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId,
+        config->NetworkId, canId, length, payload);
     } else
 #endif
       if (MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkType ==
           (MIRROR_NT_ETHERNET | MIRROR_NT_DEST)) {
       Mirror_ReportCanFrameToDestIp(
-        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId, controllerId,
-        canId, length, payload);
+        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId,
+        config->NetworkId, canId, length, payload);
     } else {
       /* do nothing */
       ASLOG(MIRROR, ("drop as ActiveDestNetwork=%u\n", Mirror_Context.ActiveDestNetwork));
@@ -1220,8 +1226,8 @@ void Mirror_ReportCanState(uint8_t controllerId, Mirror_CanNetworkStateType Netw
       if (MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkType ==
           (MIRROR_NT_ETHERNET | MIRROR_NT_DEST)) {
       Mirror_ReportCanStateToDestIp(
-        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId, controllerId,
-        NetworkState);
+        MIRROR_CONFIG->ComChannelMaps[Mirror_Context.ActiveDestNetwork].NetworkId,
+        config->NetworkId, NetworkState);
     } else {
       /* do nothing */
       ASLOG(MIRROR, ("drop as ActiveDestNetwork=%u\n", Mirror_Context.ActiveDestNetwork));

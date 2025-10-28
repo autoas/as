@@ -68,6 +68,7 @@ typedef unsigned char StatusType; /* OSEK compliance */
 /* @SWS_Std_00005 */
 typedef uint8_t Std_ReturnType;
 
+
 typedef uint8_t boolean;
 
 typedef int8_t sint8_t;

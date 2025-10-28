@@ -32,8 +32,8 @@ Std_ReturnType BL_MetaBackup(void) {
     crc = BL_CalculateCRC((const uint8_t *)&meta.m, sizeof(BL_Meta_t), BL_CRC_START_VALUE, TRUE);
     if ((BL_META_MAGIC == meta.m.magic) && (crc == meta.crc) && (meta.crc == (~meta.crcInv))) {
       /* meta valid, back up */
-      ASLOG(BLI, ("Programming Couner: %" PRIu32 "\n", meta.m.programmingCouner));
-      blCurProgrammingCouner = meta.m.programmingCouner;
+      ASLOG(BLI, ("programming Counter: %" PRIu32 "\n", meta.m.programmingCounter));
+      blCurProgrammingCouner = meta.m.programmingCounter;
       memcpy(data, &meta, sizeof(meta));
       if (sizeof(data) > sizeof(meta)) {
         memset(&data[sizeof(meta)], 0xFF, sizeof(data) - sizeof(meta));
@@ -70,10 +70,10 @@ Std_ReturnType BL_MetaUpdate(void) {
     crc = BL_CalculateCRC((const uint8_t *)&meta.m, sizeof(BL_Meta_t), BL_CRC_START_VALUE, TRUE);
     if ((BL_META_MAGIC == meta.m.magic) && (crc == meta.crc) && (meta.crc == (~meta.crcInv))) {
       /* backup meta valid, update it */
-      if (meta.m.programmingCouner < UINT32_MAX) {
-        meta.m.programmingCouner++;
+      if (meta.m.programmingCounter < UINT32_MAX) {
+        meta.m.programmingCounter++;
       }
-#ifdef BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER
+#if defined(BL_USE_AB) && defined(BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER)
       meta.m.rollingCounter = BL_MetaGetRollingCouner();
       if (meta.m.rollingCounter < UINT32_MAX) {
         meta.m.rollingCounter++;
@@ -81,17 +81,20 @@ Std_ReturnType BL_MetaUpdate(void) {
 #endif
     } else { /* first time update */
       meta.m.magic = BL_META_MAGIC;
-      meta.m.programmingCouner = 1;
-#ifdef BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER
-      meta.m.rollingCounter = 1;
+      meta.m.programmingCounter = 1;
+#if defined(BL_USE_AB) && defined(BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER)
+      meta.m.rollingCounter = BL_MetaGetRollingCouner();
+      if (meta.m.rollingCounter < UINT32_MAX) {
+        meta.m.rollingCounter++;
+      }
 #endif
       ASLOG(BLI, ("First Time or Backup Meta corrupted\n"));
     }
-    ASLOG(BLI, ("Programming Couner: %" PRIu32 "\n", meta.m.programmingCouner));
-#ifdef BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER
+    ASLOG(BLI, ("programming Counter: %" PRIu32 "\n", meta.m.programmingCounter));
+#if defined(BL_USE_AB) && defined(BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER)
     ASLOG(BLI, ("Rolling Couner: %" PRIu32 "\n", meta.m.rollingCounter));
 #endif
-    blCurProgrammingCouner = meta.m.programmingCouner;
+    blCurProgrammingCouner = meta.m.programmingCounter;
     meta.crc =
       BL_CalculateCRC((const uint8_t *)&meta.m, sizeof(BL_Meta_t), BL_CRC_START_VALUE, TRUE);
     meta.crcInv = ~meta.crc;
@@ -121,7 +124,7 @@ uint32_t BL_MetaGetProgrammingCouner(void) {
     } else {
       crc = BL_CalculateCRC((const uint8_t *)&meta.m, sizeof(BL_Meta_t), BL_CRC_START_VALUE, TRUE);
       if ((BL_META_MAGIC == meta.m.magic) && (crc == meta.crc) && (meta.crc == (~meta.crcInv))) {
-        blCurProgrammingCouner = meta.m.programmingCouner;
+        blCurProgrammingCouner = meta.m.programmingCounter;
       } else {
         BL_FLS_READ(blAppMetaBackupAddr, &meta, sizeof(BL_MetaType));
         if (kFlashOk != blFlashParam.errorcode) {
@@ -131,7 +134,7 @@ uint32_t BL_MetaGetProgrammingCouner(void) {
             BL_CalculateCRC((const uint8_t *)&meta.m, sizeof(BL_Meta_t), BL_CRC_START_VALUE, TRUE);
           if ((BL_META_MAGIC == meta.m.magic) && (crc == meta.crc) &&
               (meta.crc == (~meta.crcInv))) {
-            blCurProgrammingCouner = meta.m.programmingCouner;
+            blCurProgrammingCouner = meta.m.programmingCounter;
           }
         }
       }

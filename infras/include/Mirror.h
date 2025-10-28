@@ -32,6 +32,9 @@
 #define MIRROR_CAN_NS_BUS_ONLINE ((Mirror_CanNetworkStateType)0x40)
 #define MIRROR_CAN_NS_ERROR_PASSIVE ((Mirror_CanNetworkStateType)0x20)
 #define MIRROR_CAN_NS_BUS_OFF ((Mirror_CanNetworkStateType)0x10)
+
+#define MIRROR_NS_FRAME_LOST ((uint8_t)0x80)
+
 /* Tx error counter, divided by 8 */
 #define MIRROR_CAN_NS_TX_ERROR_COUNTER_MASK ((Mirror_CanNetworkStateType)0x0F)
 /* ================================ [ TYPES     ] ============================================== */
@@ -112,6 +115,17 @@ void Mirror_DeInit(void);
 void Mirror_ReportCanFrame(uint8_t controllerId, Can_IdType canId, uint8_t length,
                            const uint8_t *payload);
 
+/** This is a AS specific extension API, not defined in the spec.
+ * @brief Mirror_ReportCanState
+ * @param[in] controllerId The CAN controller ID
+ * @param[in] NetworkState The CAN network state
+ * @note This function shall be called by CanIf/Can module when the CAN controller
+ * state changes. The NetworkState parameter is a bitmask composed by the following bits:
+ *       - Bit 6: BUS_ONLINE
+ *       - Bit 5: ERROR_PASSIVE
+ *       - Bit 4: BUS_OFF
+ *       - Bit 3-0: Tx error counter divided by 8
+ */
 void Mirror_ReportCanState(uint8_t controllerId, Mirror_CanNetworkStateType NetworkState);
 
 /* @SWS_Mirror_01027 */

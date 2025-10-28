@@ -206,6 +206,10 @@ static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
     unsigned int EventCount = 1;
     if (dlc > 8) {
       XLcanTxEvent Event;
+      if (sizeof(Event.tagData.canMsg.data) < dlc) {
+        ASLOG(WARN, ("CAN VXL port=%d request transmit message with dlc %u!\n", port, dlc));
+        dlc = sizeof(Event.tagData.canMsg.data);
+      }
       Event.tag = XL_TRANSMIT_MSG;
       Event.tagData.canMsg.canId = canid;
       Event.tagData.canMsg.msgFlags = 0;

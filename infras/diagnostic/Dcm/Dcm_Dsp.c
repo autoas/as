@@ -767,6 +767,7 @@ Std_ReturnType Dcm_DspRequestTransferExit(Dcm_MsgContextType *msgContext,
   return r;
 }
 #endif
+
 #ifdef DCM_USE_SERVICE_ECU_RESET
 Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
@@ -779,16 +780,11 @@ Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
   }
 
-  if (r == E_OK) {
+  if (E_OK == r) {
     switch (msgContext->reqData[0]) {
     case 0x01u: /* hard reset */
     case 0x03u: /* soft reset */
       context->resetType = msgContext->reqData[0];
-      if (rstConfig->delay == 0u) {
-        context->timer2Reset = 1u;
-      } else {
-        context->timer2Reset = rstConfig->delay;
-      }
       msgContext->resData[0] = context->resetType;
       msgContext->resDataLen = 1u;
       break;
@@ -801,7 +797,17 @@ Std_ReturnType Dcm_DspEcuReset(Dcm_MsgContextType *msgContext, Dcm_NegativeRespo
 
   if (E_OK == r) {
     r = rstConfig->GetEcuResetPermissionFnc(context->opStatus, nrc);
-    if ((E_OK == r) && (DCM_E_RESPONSE_PENDING == *nrc)) {
+    if (E_OK == r) {
+      if (DCM_E_RESPONSE_PENDING == *nrc) {
+        context->timer2Reset = 0;
+      } else {
+        if (rstConfig->delay == 0u) {
+          context->timer2Reset = 1u;
+        } else {
+          context->timer2Reset = rstConfig->delay;
+        }
+      }
+    } else {
       context->timer2Reset = 0;
     }
   }

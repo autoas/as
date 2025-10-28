@@ -12,12 +12,12 @@
 #define mp_init mempool_init
 #endif
 /* ================================ [ TYPES     ] ============================================== */
-typedef struct mp_pool_s {
-  SLIST_ENTRY(mp_pool_s) entry;
-} mp_pool_t;
+typedef struct mp_entry_s {
+  SLIST_ENTRY(mp_entry_s) entry;
+} mp_entry_t;
 
 typedef struct {
-  SLIST_HEAD(mp_head, mp_pool_s) head;
+  SLIST_HEAD(mp_head, mp_entry_s) head;
 } mempool_t;
 
 typedef struct {

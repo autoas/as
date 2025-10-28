@@ -10,10 +10,18 @@
 #include "Crc.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define SREC_MAX_ONE_LINE 512
+
+#define SREC_ADD_LINE(fpS, saddr, data, len)                                                       \
+  do {                                                                                             \
+    if (srec->type == SREC_SRECORD) {                                                              \
+      srec_add_line(fpS, saddr, data, len);                                                        \
+    } else {                                                                                       \
+      ihex_add_line(fpS, saddr, data, len);                                                        \
+    }                                                                                              \
+  } while (0)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-void ihex_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, uint32_t crc,
-                   uint32_t crcLen);
+void ihex_add_line(FILE *fpS, uint32_t saddr, uint8_t *data, uint32_t len);
 /* ================================ [ DATAS     ] ============================================== */
 static const char *const signTypeName[] = {
   "CRC16", "CRC32", "CRC16_V2", "CRC32_V2", "CRC16_V3", "CRC32_V3",
@@ -241,8 +249,8 @@ static void srec_add_line(FILE *fpS, uint32_t saddr, uint8_t *data, uint32_t len
   fputs(sline, fpS);
 }
 
-static void srec_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, uint32_t crc,
-                          uint32_t crcLen) {
+static void srec_add_sign(srec_t *srec, FILE *fpS, srec_sign_type_t signType, uint32_t saddr,
+                          uint32_t crc, uint32_t crcLen) {
   uint8_t data[4];
   uint32_t len;
 
@@ -258,7 +266,7 @@ static void srec_add_sign(FILE *fpS, srec_sign_type_t signType, uint32_t saddr, 
     len = 2;
   }
 
-  srec_add_line(fpS, saddr, data, len);
+  SREC_ADD_LINE(fpS, saddr, data, len);
 }
 
 static int srec_sign_v1(const char *path, size_t total, srec_sign_type_t signType) {
@@ -350,11 +358,7 @@ static int srec_sign_v1(const char *path, size_t total, srec_sign_type_t signTyp
       fputs(sline, fpS);
     }
 
-    if (srec->type == SREC_SRECORD) {
-      srec_add_sign(fpS, signType, saddr, crc, crcLen);
-    } else {
-      ihex_add_sign(fpS, signType, saddr, crc, crcLen);
-    }
+    srec_add_sign(srec, fpS, signType, saddr, crc, crcLen);
   }
 
   if (0 != r) {
@@ -432,40 +436,36 @@ static int srec_sign_v2(const char *path, size_t signAddr, srec_sign_type_t sign
       fputs(sline, fpS);
     }
 
-    if (srec->type == SREC_SRECORD) {
-      saddr = signAddr;
-      data[0] = (srec->numOfBlks >> 24) & 0xFF;
-      data[1] = (srec->numOfBlks >> 16) & 0xFF;
-      data[2] = (srec->numOfBlks >> 8) & 0xFF;
-      data[3] = srec->numOfBlks & 0xFF;
-      if (SREC_SIGN_CRC32_V2 == signType) {
-        data[4] = (crc >> 24) & 0xFF;
-        data[5] = (crc >> 16) & 0xFF;
-        data[6] = (crc >> 8) & 0xFF;
-        data[7] = crc & 0xFF;
-      } else {
-        data[4] = (crc >> 8) & 0xFF;
-        data[5] = crc & 0xFF;
-        data[6] = 0xFF;
-        data[7] = 0xFF;
-      }
-      srec_add_line(fpS, saddr, data, 8);
-      saddr += 8;
-
-      for (i = 0; i < srec->numOfBlks; i++) {
-        data[0] = (srec->blks[i].address >> 24) & 0xFF;
-        data[1] = (srec->blks[i].address >> 16) & 0xFF;
-        data[2] = (srec->blks[i].address >> 8) & 0xFF;
-        data[3] = srec->blks[i].address & 0xFF;
-        data[4] = (srec->blks[i].length >> 24) & 0xFF;
-        data[5] = (srec->blks[i].length >> 16) & 0xFF;
-        data[6] = (srec->blks[i].length >> 8) & 0xFF;
-        data[7] = srec->blks[i].length & 0xFF;
-        srec_add_line(fpS, saddr, data, 8);
-        saddr += 8;
-      }
+    saddr = signAddr;
+    data[0] = (srec->numOfBlks >> 24) & 0xFF;
+    data[1] = (srec->numOfBlks >> 16) & 0xFF;
+    data[2] = (srec->numOfBlks >> 8) & 0xFF;
+    data[3] = srec->numOfBlks & 0xFF;
+    if (SREC_SIGN_CRC32_V2 == signType) {
+      data[4] = (crc >> 24) & 0xFF;
+      data[5] = (crc >> 16) & 0xFF;
+      data[6] = (crc >> 8) & 0xFF;
+      data[7] = crc & 0xFF;
     } else {
-      r = ENOTSUP;
+      data[4] = (crc >> 8) & 0xFF;
+      data[5] = crc & 0xFF;
+      data[6] = 0xFF;
+      data[7] = 0xFF;
+    }
+    SREC_ADD_LINE(fpS, saddr, data, 8);
+    saddr += 8;
+
+    for (i = 0; i < srec->numOfBlks; i++) {
+      data[0] = (srec->blks[i].address >> 24) & 0xFF;
+      data[1] = (srec->blks[i].address >> 16) & 0xFF;
+      data[2] = (srec->blks[i].address >> 8) & 0xFF;
+      data[3] = srec->blks[i].address & 0xFF;
+      data[4] = (srec->blks[i].length >> 24) & 0xFF;
+      data[5] = (srec->blks[i].length >> 16) & 0xFF;
+      data[6] = (srec->blks[i].length >> 8) & 0xFF;
+      data[7] = srec->blks[i].length & 0xFF;
+      SREC_ADD_LINE(fpS, saddr, data, 8);
+      saddr += 8;
     }
   }
 
@@ -539,41 +539,37 @@ static int srec_sign_v3(const char *path, srec_sign_type_t signType) {
       fputs(sline, fpS);
     }
 
-    if (srec->type == SREC_SRECORD) {
-      saddr = signAddr;
-      for (i = 0; i < srec->numOfBlks; i++) {
-        data[0] = (srec->blks[i].address >> 24) & 0xFF;
-        data[1] = (srec->blks[i].address >> 16) & 0xFF;
-        data[2] = (srec->blks[i].address >> 8) & 0xFF;
-        data[3] = srec->blks[i].address & 0xFF;
-        data[4] = (srec->blks[i].length >> 24) & 0xFF;
-        data[5] = (srec->blks[i].length >> 16) & 0xFF;
-        data[6] = (srec->blks[i].length >> 8) & 0xFF;
-        data[7] = srec->blks[i].length & 0xFF;
-        srec_add_line(fpS, saddr, data, 8);
-        saddr += 8;
-      }
-      data[0] = (srec->numOfBlks >> 24) & 0xFF;
-      data[1] = (srec->numOfBlks >> 16) & 0xFF;
-      data[2] = (srec->numOfBlks >> 8) & 0xFF;
-      data[3] = srec->numOfBlks & 0xFF;
-      if (SREC_SIGN_CRC32_V3 == signType) {
-        data[4] = (crc >> 24) & 0xFF;
-        data[5] = (crc >> 16) & 0xFF;
-        data[6] = (crc >> 8) & 0xFF;
-        data[7] = crc & 0xFF;
-      } else {
-        data[4] = (crc >> 8) & 0xFF;
-        data[5] = crc & 0xFF;
-        data[6] = 0xFF;
-        data[7] = 0xFF;
-      }
-      memcpy(&data[8], "$BYASV3#", 8);
-      srec_add_line(fpS, saddr, data, 16);
+    saddr = signAddr;
+    for (i = 0; i < srec->numOfBlks; i++) {
+      data[0] = (srec->blks[i].address >> 24) & 0xFF;
+      data[1] = (srec->blks[i].address >> 16) & 0xFF;
+      data[2] = (srec->blks[i].address >> 8) & 0xFF;
+      data[3] = srec->blks[i].address & 0xFF;
+      data[4] = (srec->blks[i].length >> 24) & 0xFF;
+      data[5] = (srec->blks[i].length >> 16) & 0xFF;
+      data[6] = (srec->blks[i].length >> 8) & 0xFF;
+      data[7] = srec->blks[i].length & 0xFF;
+      SREC_ADD_LINE(fpS, saddr, data, 8);
       saddr += 8;
-    } else {
-      r = ENOTSUP;
     }
+    data[0] = (srec->numOfBlks >> 24) & 0xFF;
+    data[1] = (srec->numOfBlks >> 16) & 0xFF;
+    data[2] = (srec->numOfBlks >> 8) & 0xFF;
+    data[3] = srec->numOfBlks & 0xFF;
+    if (SREC_SIGN_CRC32_V3 == signType) {
+      data[4] = (crc >> 24) & 0xFF;
+      data[5] = (crc >> 16) & 0xFF;
+      data[6] = (crc >> 8) & 0xFF;
+      data[7] = crc & 0xFF;
+    } else {
+      data[4] = (crc >> 8) & 0xFF;
+      data[5] = crc & 0xFF;
+      data[6] = 0xFF;
+      data[7] = 0xFF;
+    }
+    memcpy(&data[8], "$BYASV3#", 8);
+    SREC_ADD_LINE(fpS, saddr, data, 16);
+    saddr += 8;
   }
 
   if (0 != r) {

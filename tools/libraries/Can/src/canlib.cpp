@@ -10,6 +10,7 @@
 #include <mutex>
 #include <map>
 #include <chrono>
+#include <memory>
 #include <condition_variable>
 #include "Std_Timer.h"
 #include "Std_Topic.h"
@@ -427,7 +428,7 @@ public:
   }
 };
 
-static CanLibInitializer g_CanLibInitializer;
+static std::shared_ptr<CanLibInitializer> g_CanLibInitializer = nullptr;
 /* ================================ [ FUNCTIONS ] ============================================== */
 bool can_is_perf_mode(void) {
   return bPerfMode;
@@ -438,9 +439,10 @@ int can_open(const char *device_name, uint32_t port, uint32_t baudrate) {
   int busid = -1;
   const Can_DeviceOpsType *ops;
 
-  (void)&g_CanLibInitializer;
-
   std::lock_guard<std::recursive_mutex> lg(canbusH.q_lock);
+  if (nullptr == g_CanLibInitializer) {
+    g_CanLibInitializer = std::make_shared<CanLibInitializer>();
+  }
   ops = search_ops(device_name);
   struct Can_Bus_s *b = getBusByName(device_name, port);
   rv = false;

@@ -68,7 +68,6 @@ typedef uint8_t SoAd_SoConTypeType;
 
 /* @ECUC_SoAd_00009 */
 typedef struct {
-  uint16_t *LocalPort; /* For UDP client */
   PduIdType RxPduId;
   SoAd_SoConIdType SoConId;
   uint16_t GID;
@@ -84,6 +83,7 @@ typedef struct {
   uint32_t Remote;          /* if not 0, this is the default remote server IPv4 address */
   SoAd_SoConIdType SoConId; /* where the accepted connection socket id start from*/
   uint16_t Port;
+  uint16_t LocalPort; /* only valid for client, others 0 */
   uint16_t headerLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
   TcpIp_LocalAddrIdType LocalAddrId;
   uint8_t numOfConnections; /* max number of accepted connections */

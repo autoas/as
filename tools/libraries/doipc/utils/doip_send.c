@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     return -2;
   }
 
-  r = doip_await_vehicle_announcement(client, &node, 1, 3000);
+  r = doip_await_vehicle_announcement(client, &node, 1, 100);
 
   if (r <= 0) {
     node = doip_request(client);

@@ -193,7 +193,7 @@ static Std_ReturnType doipHandleEntityStatusRequest(PduIdType RxPduId, DoIP_MsgT
 
   if (0u == msg->payloadLength) {
     msg->res[DOIP_HEADER_LENGTH] = config->NodeType;
-    msg->res[DOIP_HEADER_LENGTH + 1u] = config->MaxTesterConnections;
+    msg->res[DOIP_HEADER_LENGTH + 1u] = (uint8_t)config->MaxTesterConnections;
     for (i = 0u; i < config->MaxTesterConnections; i++) {
       if (DOIP_CON_OPEN == config->testerConnections[i].context->state) {
         curOpened++;
@@ -267,7 +267,7 @@ doipFindRoutingActivation(const DoIP_TesterType *tester, uint8_t activationType,
     if (tester->RoutingActivationRefs[i]->Number == activationType) {
       ra = tester->RoutingActivationRefs[i];
       if (NULL != raid) {
-        *raid = i;
+        *raid = (uint8_t)i;
       }
     }
   }
@@ -595,6 +595,7 @@ doipFindTargetAddress(const DoIP_TesterType *tester, const DoIP_TesterConnection
 
 static void doipRememberDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_MsgType *msg) {
   PduLengthType bufferSize;
+  PduLengthType copySize;
   if (DOIP_MSG_IDLE == connection->context->msg.state) {
     bufferSize = msg->payloadLength - 4;
     if (bufferSize > connection->context->TesterRef->NumByteDiagAckNack) {
@@ -607,9 +608,12 @@ static void doipRememberDiagMsg(const DoIP_TesterConnectionType *connection, DoI
     connection->context->msg.req = Net_MemAlloc(bufferSize);
     if (NULL != connection->context->msg.req) {
       /* save sa&ta and uds message */
+      copySize = msg->reqLen - 4u;
+      if (copySize > (bufferSize - DOIP_HEADER_LENGTH - 5u)) {
+        copySize = bufferSize - DOIP_HEADER_LENGTH - 5u;
+      }
       memcpy(&(connection->context->msg.req[DOIP_HEADER_LENGTH]), msg->req, 4);
-      memcpy(&(connection->context->msg.req[DOIP_HEADER_LENGTH + 5u]), &msg->req[4],
-             msg->reqLen - 4u);
+      memcpy(&(connection->context->msg.req[DOIP_HEADER_LENGTH + 5u]), &msg->req[4], copySize);
     }
   } else {
     if (NULL != connection->context->msg.req) {
@@ -916,6 +920,7 @@ static void doipHandleAliveCheckResponseTimer(void) {
 }
 
 static void doipHandleVehicleAnnouncement(void) {
+  Std_ReturnType ret;
   const DoIP_ConfigType *config = DOIP_CONFIG;
   uint16_t i;
   PduInfoType PduInfo;
@@ -930,12 +935,16 @@ static void doipHandleVehicleAnnouncement(void) {
           PduInfo.SduLength = doipSetupVehicleAnnouncementResponse(logcamMsg);
           PduInfo.SduDataPtr = logcamMsg;
           PduInfo.MetaDataPtr = NULL;
-          (void)SoAd_IfTransmit(config->UdpVehicleAnnouncementConnections[i].SoAdTxPdu, &PduInfo);
-          config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter++;
-          if (config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter <
-              config->VehicleAnnouncementCount) {
-            config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
-              config->VehicleAnnouncementInterval;
+          ret = SoAd_IfTransmit(config->UdpVehicleAnnouncementConnections[i].SoAdTxPdu, &PduInfo);
+          if (E_OK == ret) {
+            config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter++;
+            if (config->UdpVehicleAnnouncementConnections[i].context->AnnouncementCounter <
+                config->VehicleAnnouncementCount) {
+              config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
+                config->VehicleAnnouncementInterval;
+            }
+          } else { /* retry the next time as maybe lwip netif not linked up */
+            config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer = 1;
           }
         }
       }
@@ -948,26 +957,32 @@ static void doipHandleDiagMsgResponse(void) {
   BufReq_ReturnType bret;
   PduInfoType PduInfo;
   PduLengthType left;
+  PduLengthType offset;
   PduIdType TxPduId;
   const DoIP_TargetAddressType *TargetAddressRef;
+  const DoIP_TargetNodeType *targetNode = NULL;
   const DoIP_ConfigType *config = DOIP_CONFIG;
   const DoIP_TesterConnectionType *connection = NULL;
   uint16_t i;
+  uint16_t j;
   uint8_t *res;
   uint32_t resLen;
 
-  for (i = 0; i < (NULL == connection) && (config->MaxTesterConnections); i++) {
+  for (i = 0; (NULL == connection) && (i < config->MaxTesterConnections); i++) {
     connection = &config->testerConnections[i];
     if (DOIP_CON_CLOSED != connection->context->state) {
       TargetAddressRef = connection->context->msg.TargetAddressRef;
       if (NULL != TargetAddressRef) {
-        if (DOIP_MSG_TX == connection->context->msg.state) {
-          TxPduId = TargetAddressRef->TxPduId;
-          connection = &config->testerConnections[i];
-          resLen = connection->context->msg.TpSduLength - connection->context->msg.index;
-          res = Net_MemGet(&resLen);
-          if (NULL != res) {
-            ret = E_OK;
+        for (j = 0; (NULL == connection) && (j < TargetAddressRef->numTargetNodes); j++) {
+          targetNode = &TargetAddressRef->targetNodes[j];
+          if (DOIP_MSG_TX == targetNode->context->state) {
+            TxPduId = targetNode->TxPduId;
+            connection = &config->testerConnections[i];
+            resLen = targetNode->context->TpSduLength - targetNode->context->index;
+            res = Net_MemGet(&resLen);
+            if (NULL != res) {
+              ret = E_OK;
+            }
           }
         }
       }
@@ -977,15 +992,16 @@ static void doipHandleDiagMsgResponse(void) {
   if (E_OK == ret) {
     PduInfo.SduDataPtr = res;
     PduInfo.SduLength = resLen;
-    if (PduInfo.SduLength >
-        (connection->context->msg.TpSduLength - connection->context->msg.index)) {
-      PduInfo.SduLength = connection->context->msg.TpSduLength - connection->context->msg.index;
+    if (PduInfo.SduLength > (targetNode->context->TpSduLength - targetNode->context->index)) {
+      PduInfo.SduLength = targetNode->context->TpSduLength - targetNode->context->index;
     }
+    offset = targetNode->context->index;
+    PduInfo.MetaDataPtr = (uint8_t *)&offset;
     bret = PduR_DoIPCopyTxData(TxPduId, &PduInfo, NULL, &left);
     if (BUFREQ_OK == bret) {
       ret = doipTpSendResponse(connection, PduInfo.SduDataPtr, PduInfo.SduLength);
       if (E_OK != ret) {
-        connection->context->msg.state = DOIP_MSG_IDLE;
+        targetNode->context->state = DOIP_MSG_IDLE;
         PduR_DoIPTxConfirmation(TxPduId, E_NOT_OK);
       }
     } else {
@@ -993,8 +1009,9 @@ static void doipHandleDiagMsgResponse(void) {
     }
 
     if (E_OK == ret) {
-      if (PduInfo.SduLength >= connection->context->msg.TpSduLength) {
-        connection->context->msg.state = DOIP_MSG_IDLE;
+      targetNode->context->index += PduInfo.SduLength;
+      if (targetNode->context->index >= targetNode->context->TpSduLength) {
+        targetNode->context->state = DOIP_MSG_IDLE;
         PduR_DoIPTxConfirmation(TxPduId, E_OK);
         ASLOG(DOIP, ("[%d] send UDS response done\n", TxPduId));
       } else {
@@ -1008,6 +1025,7 @@ static void doipHandleDiagMsgResponse(void) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 void DoIP_Init(const DoIP_ConfigType *ConfigPtr) {
   uint16_t i;
+  uint16_t j;
   const DoIP_ConfigType *config = DOIP_CONFIG;
   for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
     memset(config->UdpVehicleAnnouncementConnections[i].context, 0,
@@ -1015,6 +1033,13 @@ void DoIP_Init(const DoIP_ConfigType *ConfigPtr) {
   }
   for (i = 0; i < config->MaxTesterConnections; i++) {
     memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
+  }
+
+  for (i = 0; i < config->numOfTargetAddresss; i++) {
+    for (j = 0; j < config->TargetAddresss[i].numTargetNodes; j++) {
+      memset(config->TargetAddresss[i].targetNodes[j].context, 0,
+             sizeof(DoIP_TargetNodeContextType));
+    }
   }
 }
 
@@ -1286,10 +1311,14 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   Std_ReturnType ret = E_NOT_OK;
   BufReq_ReturnType bret;
   uint16_t i;
+  uint16_t j;
   const DoIP_ConfigType *config = DOIP_CONFIG;
   DoIP_ContextType *context = &DoIP_Context;
   const DoIP_TesterConnectionType *connection = NULL;
+  const DoIP_TargetAddressType *TargetAddressRef;
+  const DoIP_TargetNodeType *targetNode = NULL;
   PduInfoType PduInfo;
+  PduLengthType offset;
   PduLengthType left;
   uint16_t sa, ta;
   uint8_t *res;
@@ -1299,9 +1328,13 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     for (i = 0; (NULL == connection) && (i < config->MaxTesterConnections); i++) {
       if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
         if (NULL != config->testerConnections[i].context->msg.TargetAddressRef) {
-          if (config->testerConnections[i].context->msg.TargetAddressRef->doipTxPduId == TxPduId) {
-            connection = &config->testerConnections[i];
-            ret = E_OK;
+          TargetAddressRef = config->testerConnections[i].context->msg.TargetAddressRef;
+          for (j = 0; (NULL == connection) && (j < TargetAddressRef->numTargetNodes); j++) {
+            if (TargetAddressRef->targetNodes[j].doipTxPduId == TxPduId) {
+              connection = &config->testerConnections[i];
+              targetNode = &TargetAddressRef->targetNodes[j];
+              ret = E_OK;
+            }
           }
         }
       }
@@ -1319,7 +1352,8 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   }
 
   if (E_OK == ret) {
-    ASLOG(DOIP, ("[%d] UDS response, len = %d\n", TxPduId, PduInfoPtr->SduLength));
+    ASLOG(DOIP, ("[%d] UDS response, len = %d, PduR Tx %u\n", TxPduId, PduInfoPtr->SduLength,
+                 targetNode->TxPduId));
     resLen = DOIP_HEADER_LENGTH + 4 + PduInfoPtr->SduLength;
     res = Net_MemGet(&resLen);
     if (NULL == res) {
@@ -1328,7 +1362,7 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   }
   if (E_OK == ret) {
     doipFillHeader(res, DOIP_DIAGNOSTIC_MESSAGE, PduInfoPtr->SduLength + 4);
-    sa = connection->context->msg.TargetAddressRef->TargetAddress;
+    sa = targetNode->TargetAddress;
     ta = connection->context->TesterRef->TesterSA;
     res[DOIP_HEADER_LENGTH + 0u] = (sa >> 8) & 0xFF;
     res[DOIP_HEADER_LENGTH + 1u] = sa & 0xFF;
@@ -1339,13 +1373,14 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     if (PduInfo.SduLength > (resLen - DOIP_HEADER_LENGTH - 4)) {
       PduInfo.SduLength = resLen - DOIP_HEADER_LENGTH - 4;
     }
-    bret = PduR_DoIPCopyTxData(connection->context->msg.TargetAddressRef->TxPduId, &PduInfo, NULL,
-                               &left);
+    offset = 0;
+    PduInfo.MetaDataPtr = (uint8_t *)&offset;
+    bret = PduR_DoIPCopyTxData(targetNode->TxPduId, &PduInfo, NULL, &left);
     if (BUFREQ_OK == bret) {
       resLen = DOIP_HEADER_LENGTH + PduInfo.SduLength + 4;
       ret = doipTpSendResponse(connection, res, resLen);
       if (E_OK != ret) {
-        PduR_DoIPTxConfirmation(connection->context->msg.TargetAddressRef->TxPduId, E_NOT_OK);
+        PduR_DoIPTxConfirmation(targetNode->TxPduId, E_NOT_OK);
       }
     } else {
       ret = E_NOT_OK;
@@ -1353,12 +1388,12 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
 
     if (E_OK == ret) {
       if (PduInfo.SduLength >= PduInfoPtr->SduLength) {
-        PduR_DoIPTxConfirmation(connection->context->msg.TargetAddressRef->TxPduId, E_OK);
+        PduR_DoIPTxConfirmation(targetNode->TxPduId, E_OK);
         ASLOG(DOIP, ("[%d] send UDS response done\n", TxPduId));
       } else {
-        connection->context->msg.state = DOIP_MSG_TX;
-        connection->context->msg.TpSduLength = PduInfoPtr->SduLength;
-        connection->context->msg.index = PduInfo.SduLength;
+        targetNode->context->state = DOIP_MSG_TX;
+        targetNode->context->TpSduLength = PduInfoPtr->SduLength;
+        targetNode->context->index = PduInfo.SduLength;
         ASLOG(DOIP, ("[%d] send UDS response on going\n", TxPduId));
       }
     }

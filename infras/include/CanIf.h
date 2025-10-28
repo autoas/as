@@ -84,6 +84,13 @@ Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringA
 Std_ReturnType CanIf_UserTxCallout(uint8_t ControllerId, Can_PduType *canPdu);
 Std_ReturnType CanIf_UserRxCallout(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr);
 
+/* @SWS_CANIF_91001 */
+Std_ReturnType CanIf_GetControllerErrorState(uint8_t ControllerId,
+                                             Can_ErrorStateType *ErrorStatePtr);
+
+/* @SWS_CANIF_91004 */
+Std_ReturnType CanIf_GetControllerTxErrorCounter(uint8_t ControllerId, uint8_t *TxErrorCounterPtr);
+
 #ifdef __cplusplus
 }
 #endif

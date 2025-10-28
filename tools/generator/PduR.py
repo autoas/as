@@ -64,6 +64,9 @@ def Gen_PduR(cfg, dir):
             for to, rts in grptos.items():
                 for rt in rts:
                     H.write("#define PDUR_%s %s\n" % (rt["name"], index))
+                    dest = rt.get("dest", rt["name"])
+                    if dest != rt["name"]:
+                        H.write("#define PDUR_%s %s\n" % (dest, index))
                     if "fake" in rt:
                         H.write("#define PDUR_%s %s\n" % (rt["fake"], index))
                     dsts = rt.get("destinations", [])
@@ -72,7 +75,7 @@ def Gen_PduR(cfg, dir):
                         if "fake" in dst:
                             H.write("#define PDUR_%s %s\n" % (dst["fake"], index))
                     index += 1
-
+    H.write("\n")
     if "memory" in cfg:
         MC.Gen_Macros(mcfg, H)
     H.write("%s#define PDUR_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", True) else "// "))
@@ -254,6 +257,8 @@ def Gen_PduR(cfg, dir):
             DestBufferSize = rt.get("DestBufferSize", 0)
             if DestBufferSize > 0:
                 C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (name, DestBufferSize))
+    for buf in cfg.get("buffers", []):
+        C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (buf["name"], buf["size"]))
     C.write("static const PduR_RoutingPathType PduR_RoutingPaths[] = {\n")
     index = 0
     for fr, grphls in groups.items():
@@ -275,9 +280,13 @@ def Gen_PduR(cfg, dir):
                             hasGw = True
                     if hasGw:
                         DestBufferSize = rt.get("DestBufferSize", 0)
+                        DestBuffer = rt.get("DestBuffer", None)
                         if DestBufferSize > 0:
                             a0 = "PduR_GwBuffer_%s" % (name)
                             a1 = "sizeof(PduR_GwBuffer_%s)" % (name)
+                        elif DestBuffer != None:
+                            a0 = "PduR_GwBuffer_%s" % (DestBuffer)
+                            a1 = "sizeof(PduR_GwBuffer_%s)" % (DestBuffer)
                         else:
                             a0 = "NULL"
                             a1 = 0
@@ -309,6 +318,8 @@ def extract(cfg, dir):
     cfg_ = {"class": "PduR", "routines": cfg.get("routines", [])}
     if "memory" in cfg:
         cfg_["memory"] = cfg["memory"]
+    if "buffers" in cfg:
+        cfg_["buffers"] = cfg["buffers"]
     bNew = False
     for network in cfg.get("networks", []):
         ignore = network.get("ignore", [])

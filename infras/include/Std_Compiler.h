@@ -11,14 +11,11 @@ extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 #if defined(__GNUC__)
-#elif defined(__CWCC__)
 #elif defined(__DCC__)
-#elif defined(__ICCHCS12__)
 #elif defined(__ICCARM__)
 #elif defined(__CC_ARM)
-#elif defined(__CSP__)
-#elif defined(__ghs__)
-#else
+#elif defined(__TASKING__)
+#else /* __CSP__, __ghs__, __ICCHCS12__, __CWCC__ */
 #define __weak
 #define __naked
 #define __packed

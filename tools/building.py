@@ -275,6 +275,40 @@ def Download(url, tgt=None):
             RunCommand("mv -v %s %s" % (tf, tgt))
 
 
+def SearchDir(dirPath, **kwargs):
+    objs = []
+    includes = []
+    dirPath = os.path.abspath(dirPath)
+    dirRoot = dirPath + os.sep
+    dirRoot = kwargs.get("dirRoot", dirRoot)
+    excludePath = kwargs.get("excludePath", [])
+    def lookup(root, f):
+        src = os.path.relpath(os.path.join(root, f), start=dirRoot)
+        obj = Glob(src)
+        if len(obj) == 0:
+            obj = PkgGlob(root, [f])
+        return obj
+    for root, dirs, files in os.walk(dirPath):
+        bSkip = False
+        for exPath in excludePath:
+            exPath = os.path.abspath(exPath)
+            if root.startswith(exPath):
+                bSkip = True
+                break
+        if bSkip:
+            continue
+        for f in files:
+            if f.endswith(".c") or f.endswith(".cpp"):
+                objs += lookup(root, f)
+            elif f.endswith(".S") or f.endswith(".s"):
+                objs += lookup(root, f)
+            elif f.endswith(".h"):
+                dirH = os.path.dirname(os.path.join(root, f))
+                if dirH not in includes:
+                    includes.append(dirH)
+    return objs, includes
+
+
 def PkgGlob(pkg, objs):
     assert os.path.isdir(pkg)
     pkg = os.path.abspath(pkg)
@@ -292,7 +326,12 @@ def PkgGlob(pkg, objs):
         if cstr != cstr2:
             with open(sc, "w") as f:
                 f.write(cstr)
-    return SConscript(sc, variant_dir="%s/%s" % (BUILD_DIR, pkg.replace(RootDir, "")), duplicate=0)
+    pkgDir = pkg
+    if IsPlatformWindows():
+        if ":" in pkg:
+            pkgDir = pkg.split(":")[-1]
+    variant_dir="%s/%s" % (BUILD_DIR, pkgDir.replace(RootDir, ""))
+    return SConscript(sc, variant_dir=variant_dir, duplicate=0)
 
 
 def __isInRemove__(x, remove):
@@ -1917,6 +1956,11 @@ class BuildBase:
 
     def is_object_library(self):
         ret = getattr(self, "object", False)
+        if False == ret:
+            env = self.ensure_env()
+            if "LINK_OPTION_FILE" in env:
+                # the linker support to read option from file
+                ret = True
         return ret
 
     def libName(self):
@@ -2267,6 +2311,23 @@ class Application(BuildBase):
                     LIBS.append(libName)
             LIBPATH += getattr(lib, "LIBPATH", [])
         LIBS += self.__extra_libs__
+        if "LINK_OPTION_FILE" in env:
+            global BUILD_DIR
+            with open(f"{BUILD_DIR}/objs_list.txt", "w") as fp:
+                for obj in objs:
+                    if type(obj) is SCons.Node.FS.File:
+                        obj_ = env.Object(
+                            obj,
+                            CPPPATH=CPPPATH,
+                            CPPDEFINES=CPPDEFINES,
+                            CPPFLAGS=CPPFLAGS,
+                            CXXFLAGS=CXXFLAGS,
+                        )
+                        fp.write("%s\n" % (obj_[0].get_abspath()))
+                    else:
+                        fp.write("%s\n" % (obj.get_abspath()))
+            LINKFLAGS.extend([env["LINK_OPTION_FILE"], "%s/objs_list.txt" % (BUILD_DIR)])
+            objs = []  # no need to link objs, the linker will read from file
         target = env.Program(
             appName,
             objs,
@@ -2285,6 +2346,10 @@ class Application(BuildBase):
         if "BIN" in env:
             BUILD_DIR = os.path.dirname(target[0].get_abspath())
             action = env["BIN"].format(target[0].get_abspath(), "%s/%s.bin" % (BUILD_DIR, appName))
+            env.AddPostAction(target, action)
+        if "HEX" in env:
+            BUILD_DIR = os.path.dirname(target[0].get_abspath())
+            action = env["HEX"].format(target[0].get_abspath(), "%s/%s.hex" % (BUILD_DIR, appName))
             env.AddPostAction(target, action)
         if "ELFSIZE" in env:
             BUILD_DIR = os.path.dirname(target[0].get_abspath())

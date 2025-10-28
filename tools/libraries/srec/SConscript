@@ -21,3 +21,14 @@ class ApplicationSRecCat(Application):
         self.LIBS = ["SRec", "Utils"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objsSrecCat
+
+
+objsSrecHexDump = Glob("utils/srec_hexdump.cpp")
+
+@register_application
+class ApplicationSRecHexdump(Application):
+    def config(self):
+        self.include = CWD
+        self.LIBS = ["SRec", "Utils"]
+        self.CPPPATH = ["$INFRAS"]
+        self.source = objsSrecHexDump

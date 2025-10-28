@@ -258,7 +258,7 @@
             { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
             { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
             { "name": "CMD", "type": "U8", "display": "dec", "default": 7, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 }
+            { "name": "network", "type": "U8", "display": "dec", "default": 3 }
           ],
           "receive": [
             { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },

@@ -7,6 +7,7 @@
 #ifndef _TCPIP_H
 #define _TCPIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#define STD_NO_ERRNO_H
 #include "Std_Types.h"
 #ifdef __cplusplus
 extern "C" {
@@ -103,7 +104,7 @@ Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t i
 uint32_t TcpIp_InetAddr(const char *ip);
 
 Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
-                               uint8 *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
+                               uint8_t *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
 
 Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr);
 
@@ -124,6 +125,8 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
                           uint16_t *PortPtr);
 
 Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *ipv4Addr);
+
+Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId);
 
 /* @SWS_TCPIP_00022 */
 Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
@@ -158,6 +161,9 @@ Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, ui
                                   uint32_t Count);
 
 uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId);
+
+boolean TcpIp_IsLinkedUp(void);
+
 #ifdef __cplusplus
 }
 #endif

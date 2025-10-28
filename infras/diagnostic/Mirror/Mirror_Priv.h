@@ -97,6 +97,7 @@ typedef struct { /* @ECUC_Mirror_00010 */
   uint8_t NumStaticFilters;
   uint8_t MaxDynamicFilters;
   uint8_t ControllerId;
+  uint8_t NetworkId;
 } Mirror_SourceNetworkCanType;
 
 typedef struct {
@@ -115,6 +116,7 @@ typedef struct { /* @ECUC_Mirror_00029 */
   uint8_t NumStaticFilters;
   uint8_t MaxDynamicFilters;
   NetworkHandleType Channel;
+  uint8_t NetworkId;
 } Mirror_SourceNetworkLinType;
 
 typedef struct {              /* @ECUC_Mirror_00055 */
