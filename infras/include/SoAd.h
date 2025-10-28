@@ -102,7 +102,7 @@ void SoAd_MainFunction(void);
 Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType SoConId);
 Std_ReturnType SoAd_SetNonBlock(SoAd_SoConIdType SoConId, boolean nonBlocked);
 Std_ReturnType SoAd_SetTimeout(SoAd_SoConIdType SoConId, uint32_t timeoutMs);
-Std_ReturnType SoAd_ControlRx(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t length);
+Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t *length);
 #ifdef __cplusplus
 }
 #endif

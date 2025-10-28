@@ -1,71 +1,81 @@
 from building import *
-Import('BUILD_DIR')
+
+Import("BUILD_DIR")
 CWD = GetCurrentDir()
 
-objs = Glob('src/*.cpp')
-objs += Glob('src/vring/*.cpp')
-objs += Glob('src/vring/*/*.cpp')
-objsWin = Glob('src/platform/win/*.cpp')
+objs = Glob("src/*.cpp")
+objs += Glob("src/vring/*.cpp")
+objs += Glob("src/vring/*/*.cpp")
+objsWin = Glob("src/platform/win/*.cpp")
 
 
 @register_library
 class LibraryVDDS(Library):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objs
-        self.LIBS += ['Utils']
-        self.Append(CPPDEFINES = ['USE_STD_PRINTF'])
+        self.LIBS += ["Utils"]
+        self.Append(CPPDEFINES=["USE_STD_PRINTF"])
         if IsBuildForWindows():
-            self.include += ['%s/src/platform/win/include' % (CWD)]
+            self.include += ["%s/src/platform/win/include" % (CWD)]
             self.source += objsWin
-            self.LIBS += ['ws2_32', 'iphlpapi', 'bcrypt']
+            self.LIBS += ["ws2_32", "iphlpapi", "bcrypt"]
         else:
-            self.LIBS += ['pthread', 'rt']
+            self.LIBS += ["pthread", "rt"]
 
 
-objsHwPub = Glob('examples/hello_world_publisher.cpp')
+objsHwPub = Glob("examples/hello_world_publisher.cpp")
+
+
 @register_application
 class ApplicationVDDSHwPub(Application):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsHwPub
-        self.LIBS += ['VDDS']
+        self.LIBS += ["VDDS"]
+
 
 @register_application
 class ApplicationVDDSHwSPub(Application):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsHwPub
-        self.LIBS += ['VDDS']
-        self.CPPDEFINES += ['VRING_WRITER=vring::spsc::Writer']
+        self.LIBS += ["VDDS"]
+        self.CPPDEFINES += ["VRING_WRITER=vring::spsc::Writer"]
 
 
-objsHwSub = Glob('examples/hello_world_subscriber.cpp')
+objsHwSub = Glob("examples/hello_world_subscriber.cpp")
+
+
 @register_application
 class ApplicationVDDSHwSub(Application):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsHwSub
-        self.LIBS += ['VDDS']
+        self.LIBS += ["VDDS"]
+
 
 @register_application
 class ApplicationVDDSHwSSub(Application):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsHwSub
-        self.LIBS += ['VDDS']
-        self.CPPDEFINES += ['VRING_READER=vring::spsc::Reader']
+        self.LIBS += ["VDDS"]
+        self.CPPDEFINES += ["VRING_READER=vring::spsc::Reader"]
 
-objsHwPS = Glob('examples/hello_world_ps.cpp')
+
+objsHwPS = Glob("examples/hello_world_ps.cpp")
+
+
 @register_application
 class ApplicationVDDSHwPS(Application):
     def config(self):
-        self.include = ['%s/include' % (CWD)]
-        self.CPPPATH = ['$INFRAS']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
         self.source = objsHwPS
-        self.LIBS += ['VDDS']
+        self.LIBS += ["VDDS"]

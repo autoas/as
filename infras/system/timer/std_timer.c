@@ -130,6 +130,21 @@ Std_ReturnType StbM_BusSetGlobalTime(StbM_SynchronizedTimeBaseType timeBaseId,
 uint8_t StbM_GetTimeBaseUpdateCounter(StbM_SynchronizedTimeBaseType timeBaseId) {
   return 0;
 }
+
+Std_ReturnType StbM_GetCurrentTime(StbM_SynchronizedTimeBaseType timeBaseId,
+                                   StbM_TimeTupleType *timeTuple, StbM_UserDataType *userData) {
+  Std_ReturnType ret = E_OK;
+  std_time_t tm;
+  if (0 == timeBaseId) {
+    tm = Std_GetTime();
+    timeTuple->globalTime.secondsHi = (tm / 1000000) >> 32;
+    timeTuple->globalTime.seconds = (tm / 1000000) & 0xFFFFFFFFul;
+    timeTuple->globalTime.nanoseconds = (tm % 1000000) * 1000;
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
 #endif /* USE_STBM_DFT */
 
 #if defined(linux) || defined(_WIN32)

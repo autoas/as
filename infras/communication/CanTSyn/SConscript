@@ -1,13 +1,12 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibraryCanTSyn(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', '$CanIf_Cfg', CWD]
-        self.LIBS = ['Crc']
+        self.CPPPATH = ["$INFRAS", "$CanIf_Cfg", CWD]
+        self.LIBS = ["Crc"]
         self.source = objs
-
-    

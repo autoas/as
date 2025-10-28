@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 
+#include "Std_Compiler.h"
 #include "Std_Timer.h"
 #include "Log.hpp"
 namespace as {
@@ -32,6 +33,13 @@ std::chrono::high_resolution_clock::time_point s_StartTimePoint =
 static std::mutex s_Lock;
 static std::map<std::string, int> s_LevelMap;
 /* ================================ [ LOCALS    ] ============================================== */
+INITIALIZER(init_logger) {
+  char *logName = getenv("SSAS_LOG_NAME");
+  if (nullptr != logName) {
+    Log::setName(logName);
+  }
+}
+
 static float get_abs_time(void) {
   auto now = std::chrono::high_resolution_clock::now();
   auto elapsed =

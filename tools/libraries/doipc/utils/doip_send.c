@@ -17,7 +17,7 @@
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -v AABBCCDDEEFF.. [-i UDP_TEST_EQUIPMENT_REQUEST] "
-         "[-p port] [-s sa] [-a activation type] [-t target address]\n",
+         "[-p port] [-s sa] [-a activation type] [-t target address] [-T casPem]\n",
          prog);
 }
 
@@ -41,12 +41,13 @@ static void vlog(const char *prefix, uint8_t *data, int length) {
 int main(int argc, char *argv[]) {
   int r = 0;
   int ch;
-  char *ip = "224.244.224.245";
+  const char *ip = "224.244.224.245";
+  const char *casPem = NULL;
   int port = 13400;
   doip_client_t *client;
   doip_node_t *node;
   uint16_t sa = 0xbeef;
-  uint8_t at = 0xda;
+  uint8_t at = 0x00;
   uint16_t ta = 0xdead;
   int length = 0;
   uint8_t data[4095];
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
   int i;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:hi:p:s:t:v:")) != -1) {
+  while ((ch = getopt(argc, argv, "a:hi:p:s:t:v:T:")) != -1) {
     switch (ch) {
     case 'a':
       at = strtoul(optarg, NULL, 16);
@@ -83,6 +84,9 @@ int main(int argc, char *argv[]) {
         data[i] = strtoul(bytes, NULL, 16);
       }
       break;
+    case 'T':
+      casPem = optarg;
+      break;
     default:
       break;
     }
@@ -92,7 +96,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  client = doip_create_client(ip, port);
+  client = doip_create_client(ip, port, casPem);
 
   if (NULL == client) {
     printf("Failed to clreate doip client <%s:%d>\n", ip, port);

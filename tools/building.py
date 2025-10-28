@@ -1048,7 +1048,7 @@ def CompilerArmCC(**kwargs):
     env["CXX"] = "%s/bin/armcc" % (cpl)
     env["AS"] = "%s/bin/armasm" % (cpl)
     env["LINK"] = "%s/bin/armlink" % (cpl)
-    env["S19"] = "%s/bin/fromelf --m32 {0} --output {1}" % (cpl)
+    env["S19"] = "%s/bin/fromelf --m32 --m32combined {0} --output {1}" % (cpl)
     env.Append(CPPFLAGS=["--split_sections"])
     env.Append(
         LINKFLAGS=[
@@ -1072,6 +1072,84 @@ def CompilerArmCC(**kwargs):
     )
     env["LIBDIRPREFIX"] = "--userlibpath="
     env["LIBLINKPREFIX"] = "--library="
+    return env
+
+
+@register_compiler
+def CompilerArmClang(**kwargs):
+    env = Environment(TOOLS=["ar", "as", "gcc", "g++", "gnulink"])
+    if not GetOption("strip"):
+        env.Append(CPPFLAGS=["-g"])
+    ArmClang = os.getenv("ArmClang")
+    if ArmClang != None:
+        cpl = ArmClang
+    else:
+        cpl = "C:/Keil_v5/ARM/ARMCLANG"
+    env["CC"] = "%s/bin/armclang" % (cpl)
+    env["CXX"] = "%s/bin/armclang" % (cpl)
+    env["AS"] = "%s/bin/armclang" % (cpl)
+    env["LINK"] = "%s/bin/armlink" % (cpl)
+    env["S19"] = "%s/bin/fromelf --m32 --m32combined {0} --output {1}" % (cpl)
+    env.Append(
+        CPPFLAGS=[
+            "-xc",
+            "-std=c99",
+            "-fno-rtti",
+            "-funsigned-char",
+            "-fshort-enums",
+            "-fshort-wchar",
+            "-gdwarf-3",
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-Wno-packed",
+            "-Wno-missing-variable-declarations",
+            "-Wno-missing-prototypes",
+            "-Wno-missing-noreturn",
+            "-Wno-sign-conversion",
+            "-Wno-nonportable-include-path",
+            "-Wno-reserved-id-macro",
+            "-Wno-unused-macros",
+            "-Wno-documentation-unknown-command",
+            "-Wno-documentation",
+            "-Wno-license-management",
+            "-Wno-parentheses-equality",
+        ]
+    )
+    env.Append(
+        ASFLAGS=[
+            "-c",
+            "-gdwarf-3",
+            "-x",
+            "assembler-with-cpp",
+            "-masm=auto",
+            "-Wa,armasm,--pd,__MICROLIB SETA 1",
+            "-Wa,armasm,--pd,__UVISION_VERSION SETA 533",
+        ]
+    )
+    env.Append(
+        LINKFLAGS=[
+            "--summary_stderr",
+            "--info",
+            "common",
+            "--info",
+            "debug",
+            "--info",
+            "summarysizes",
+            "--info",
+            "sizes",
+            "--info",
+            "totals",
+            "--info",
+            "unused",
+            "--info",
+            "veneers",
+            "--map",
+            "--load_addr_map_info",
+            "--xref",
+            "--callgraph",
+            "--symbols",
+        ]
+    )
     return env
 
 
@@ -1619,6 +1697,7 @@ class BuildBase:
         self.LIBS = []
         self.CPPDEFINES = []
         self.CPPFLAGS = []
+        self.CXXFLAGS = []
 
     def AddPostAction(self, action):
         if not hasattr(self, "__post_actions__"):
@@ -1987,6 +2066,7 @@ class Library(BuildBase):
         CFLAGS = list(env.get("CFLAGS", []))
         ASFLAGS = list(env.get("ASFLAGS", []))
         CPPFLAGS = getattr(self, "CPPFLAGS", []) + list(env.get("CPPFLAGS", []))
+        CXXFLAGS = getattr(self, "CXXFLAGS", []) + list(env.get("CXXFLAGS", []))
         CPPPATH = self.ProcessCPPPATH(CPPPATH) + list(env.get("CPPPATH", []))
         searched_libs = []
         CPPPATH += self.get_includes(searched_libs)
@@ -2021,7 +2101,9 @@ class Library(BuildBase):
             if str(c).endswith(".a") or str(c).endswith(".dll") or str(c).endswith(".so"):
                 objs.append(c)
             elif self.is_shared_library():
-                objs += env.SharedObject(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
+                objs += env.SharedObject(
+                    c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS, CXXFLAGS=CXXFLAGS
+                )
             else:
                 if "AS" in env and "gcc" in env["AS"]:
                     if str(c).endswith(".S"):
@@ -2029,7 +2111,9 @@ class Library(BuildBase):
                         ASFLAGS += ["-D%s" % (x) for x in CPPDEFINES]
                         objs += env.Object(c, ASFLAGS=ASFLAGS)
                         continue
-                objs += env.Object(c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS)
+                objs += env.Object(
+                    c, CPPPATH=CPPPATH, CPPDEFINES=CPPDEFINES, CPPFLAGS=CPPFLAGS, CFLAGS=CFLAGS, CXXFLAGS=CXXFLAGS
+                )
         return objs
 
     def build(self):
@@ -2127,6 +2211,7 @@ class Application(BuildBase):
         LIBS = env.get("LIBS", [])
         CPPDEFINES = getattr(self, "CPPDEFINES", []) + list(env.get("CPPDEFINES", []))
         CPPFLAGS = getattr(self, "CPPFLAGS", []) + list(env.get("CPPFLAGS", []))
+        CXXFLAGS = getattr(self, "CXXFLAGS", []) + list(env.get("CXXFLAGS", []))
         LINKFLAGS = getattr(self, "LINKFLAGS", []) + list(env.get("LINKFLAGS", []))
         CPPPATH = self.ProcessCPPPATH(getattr(self, "CPPPATH", []))
         CPPPATH += list(env.get("CPPPATH", []))
@@ -2188,6 +2273,7 @@ class Application(BuildBase):
             CPPPATH=CPPPATH,
             CPPDEFINES=CPPDEFINES,
             CPPFLAGS=CPPFLAGS,
+            CXXFLAGS=CXXFLAGS,
             LIBS=LIBS,
             LINKFLAGS=LINKFLAGS,
             LIBPATH=LIBPATH,

@@ -24,7 +24,6 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#if defined(PDUR_USE_MEMPOOL)
 BufReq_ReturnType PduR_LinTpGwCopyTxData(PduIdType id, const PduInfoType *info,
                                          const RetryInfoType *retry,
                                          PduLengthType *availableDataPtr) {
@@ -50,30 +49,29 @@ void PduR_LinTpGwRxIndication(PduIdType id, Std_ReturnType result) {
   LINTP_GW_USER_HOOK_RX_IND(id, result);
   PduR_GwRxIndication(id, result);
 }
-#endif
+
 BufReq_ReturnType PduR_LinTpCopyTxData(PduIdType id, const PduInfoType *info,
                                        const RetryInfoType *retry,
                                        PduLengthType *availableDataPtr) {
-  return PduR_CopyTxData(id + PDUR_CONFIG->lintpTxBaseID, info, retry, availableDataPtr);
+  return PduR_CopyTxData(id, info, retry, availableDataPtr);
 }
 
 void PduR_LinTpRxIndication(PduIdType id, Std_ReturnType result) {
-  PduR_TpRxIndication(id + PDUR_CONFIG->lintpRxBaseID, result);
+  PduR_TpRxIndication(id, result);
 }
 
 void PduR_LinTpTxConfirmation(PduIdType id, Std_ReturnType result) {
-  LINTP_GW_USER_HOOK_TX_CONFIRM(id + PDUR_CONFIG->lintpTxBaseID, result);
-  PduR_TxConfirmation(id + PDUR_CONFIG->lintpTxBaseID, result);
+  LINTP_GW_USER_HOOK_TX_CONFIRM(id, result);
+  PduR_TxConfirmation(id, result);
 }
 
 BufReq_ReturnType PduR_LinTpStartOfReception(PduIdType id, const PduInfoType *info,
                                              PduLengthType TpSduLength,
                                              PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id + PDUR_CONFIG->lintpRxBaseID, info, TpSduLength,
-                               bufferSizePtr);
+  return PduR_StartOfReception(id, info, TpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_LinTpCopyRxData(PduIdType id, const PduInfoType *info,
                                        PduLengthType *bufferSizePtr) {
-  return PduR_CopyRxData(id + PDUR_CONFIG->lintpRxBaseID, info, bufferSizePtr);
+  return PduR_CopyRxData(id, info, bufferSizePtr);
 }

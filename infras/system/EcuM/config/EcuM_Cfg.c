@@ -128,6 +128,12 @@ static const EcuM_DriverInitItemType EcuM_DriverInitListTwo[] = {
 #ifdef USE_E2E
   {(EcuM_DriverInitFncType)E2E_Init, NULL},
 #endif
+#ifdef USE_TLS
+  {(EcuM_DriverInitFncType)TLS_Init, NULL},
+#endif
+#ifdef USE_MIRROR
+  {(EcuM_DriverInitFncType)Mirror_Init, NULL},
+#endif
 };
 
 static const EcuM_DriverMainFncType EcuM_DriverMainList[] = {
@@ -189,6 +195,12 @@ static const EcuM_DriverMainFncType EcuM_DriverMainList[] = {
 #endif
 #ifdef USE_UDPNM
   UdpNm_MainFunction,
+#endif
+#ifdef USE_TLS
+  TLS_MainFunction,
+#endif
+#ifdef USE_MIRROR
+  Mirror_MainFunction,
 #endif
 };
 

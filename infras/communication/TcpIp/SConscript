@@ -1,16 +1,17 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibraryTcpIp(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
-        if GetOption('net').upper() == 'LWIP':
-            self.LIBS = ['LWIP']
-            self.CPPDEFINES = ['USE_LWIP']
+        self.CPPPATH = ["$INFRAS", CWD]
+        if GetOption("net").upper() == "LWIP":
+            self.LIBS = ["LWIP"]
+            self.CPPDEFINES = ["USE_LWIP"]
         else:
             if IsBuildForWindows():
-                self.LIBS = ['ws2_32', 'iphlpapi']
+                self.LIBS = ["ws2_32", "iphlpapi"]
         self.source = objs

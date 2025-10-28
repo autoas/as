@@ -37,7 +37,7 @@ typedef struct {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-doip_client_t *doip_create_client(const char *ip, int port);
+doip_client_t *doip_create_client(const char *ip, int port, const char* casPem);
 int doip_await_vehicle_announcement(doip_client_t *client, doip_node_t **nodes, int numOfNodes,
                                     uint32_t timeout /* unit ms */);
 doip_node_t *doip_request(doip_client_t *client);

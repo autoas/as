@@ -154,8 +154,8 @@ def Gen_ServerService(service, dir, source):
     mn = toMacro(service["name"])
     H = open("%s/SS_%s.h" % (dir, service["name"]), "w")
     GenHeader(H)
-    H.write("#ifndef _SS_%s_H\n" % (mn))
-    H.write("#define _SS_%s_H\n" % (mn))
+    H.write("#ifndef SS_%s_H\n" % (mn))
+    H.write("#define SS_%s_H\n" % (mn))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "SomeIp.h"\n')
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
@@ -190,7 +190,7 @@ def Gen_ServerService(service, dir, source):
                     "Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);\n"
                     % (beName)
                 )
-    H.write("#endif /* _SS_%s_H */\n" % (mn))
+    H.write("#endif /* SS_%s_H */\n" % (mn))
     H.close()
     C = open("%s/SS_%s.c" % (dir, service["name"]), "w")
     source["SS_%s" % (service["name"])] = ["%s/SS_%s.c" % (dir, service["name"])]
@@ -771,8 +771,8 @@ def Gen_ClientService(service, dir, source):
 def Gen_SD(cfg, dir):
     H = open("%s/Sd_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef _SD_CFG_H\n")
-    H.write("#define _SD_CFG_H\n")
+    H.write("#ifndef SD_CFG_H\n")
+    H.write("#define SD_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("#define SD_RX_PID_MULTICAST 0\n")
@@ -805,16 +805,16 @@ def Gen_SD(cfg, dir):
             H.write("#define SD_CONSUMED_EVENT_GROUP_%s_%s %s\n" % (mn, toMacro(ge["name"]), ID))
             ID += 1
     H.write("#ifndef SD_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define SD_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
+    H.write("#define SD_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define SD_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
-    H.write("  ((x + SD_MAIN_FUNCTION_PERIOD - 1) / SD_MAIN_FUNCTION_PERIOD)\n")
+    H.write("  (((x) + SD_MAIN_FUNCTION_PERIOD - 1u) / SD_MAIN_FUNCTION_PERIOD)\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* _SD_CFG_H */\n")
+    H.write("#endif /* SD_CFG_H */\n")
     H.close()
 
     C = open("%s/Sd_Cfg.c" % (dir), "w")
@@ -883,13 +883,13 @@ def Gen_SD(cfg, dir):
                 mcgn = toMacro("_".join([service["name"], ge["name"]]))
                 C.write("    SOAD_SOCKID_SOMEIP_%s, /* MulticastEventSoConRef */\n" % (mcgn))
                 C.write(
-                    "    {TCPIP_AF_INET, %s, {%s, %s, %s, %s}}, /* MulticastEventAddr */\n" % (Port, a1, a2, a3, a4)
+                    "    {%s, {%s, %s, %s, %s}}, /* MulticastEventAddr */\n" % (Port, a1, a2, a3, a4)
                 )
                 C.write("    SOAD_TX_PID_SOMEIP_%s, /* MulticastTxPduId */\n" % (mcgn))
                 C.write("    %s, /* MulticastThreshold */\n" % (ge.get("threshold", 1)))
             else:
                 C.write("    0, /* MulticastEventSoConRef */\n")
-                C.write("    {TCPIP_AF_INET, 0, {0, 0, 0, 0}}, /* MulticastEventAddr */\n")
+                C.write("    {0, {0, 0, 0, 0}}, /* MulticastEventAddr */\n")
                 C.write("    -1, /* MulticastTxPduId */\n")
                 C.write("    0, /* MulticastThreshold */\n")
             C.write("    &Sd_EventHandlerContext_%s[%d],\n" % (service["name"], ID))
@@ -1227,8 +1227,8 @@ def Gen_SOMEIPXF(cfg, dir):
 def Gen_SOMEIP(cfg, dir, source):
     H = open("%s/SomeIp_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef _SOMEIP_CFG_H\n")
-    H.write("#define _SOMEIP_CFG_H\n")
+    H.write("#ifndef SOMEIP_CFG_H\n")
+    H.write("#define SOMEIP_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     ID = 0
@@ -1299,17 +1299,19 @@ def Gen_SOMEIP(cfg, dir, source):
                 beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
                 H.write("#define SOMEIP_RX_EVT_%s %s\n" % (toMacro(beName), ID))
                 ID += 1
+    H.write("\n")
+    H.write("%s#define SOMEIP_USE_TP_BUF\n\n" % ("" if cfg.get("UseTpBuf", False) else "// "))
     H.write("#ifndef SOMEIP_MAIN_FUNCTION_PERIOD\n")
-    H.write("#define SOMEIP_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
+    H.write("#define SOMEIP_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
-    H.write("  ((x + SOMEIP_MAIN_FUNCTION_PERIOD - 1) / SOMEIP_MAIN_FUNCTION_PERIOD)\n")
+    H.write("  ((x + SOMEIP_MAIN_FUNCTION_PERIOD - 1u) / SOMEIP_MAIN_FUNCTION_PERIOD)\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* _SOMEIP_CFG_H */\n")
+    H.write("#endif /* SOMEIP_CFG_H */\n")
     H.close()
 
     C = open("%s/SomeIp_Cfg.c" % (dir), "w")
@@ -1349,6 +1351,7 @@ def Gen_SOMEIP(cfg, dir, source):
             if method.get("tp", False):
                 C.write("    SomeIp_%s_OnTpCopyRxData,\n" % (bName))
                 C.write("    SomeIp_%s_OnTpCopyTxData,\n" % (bName))
+                service["tp"] = True
             else:
                 C.write("    NULL,\n")
                 C.write("    NULL,\n")
@@ -1374,6 +1377,7 @@ def Gen_SOMEIP(cfg, dir, source):
                 C.write("    %s, /* interface version */\n" % (event["version"]))
                 if event.get("tp", False):
                     C.write("    SomeIp_%s_OnTpCopyTxData,\n" % (beName))
+                    service["tp"] = True
                 else:
                     C.write("  NULL,\n")
                 C.write("  },\n")
@@ -1392,6 +1396,7 @@ def Gen_SOMEIP(cfg, dir, source):
             if method.get("tp", False):
                 C.write("    SomeIp_%s_OnTpCopyRxData,\n" % (bName))
                 C.write("    SomeIp_%s_OnTpCopyTxData,\n" % (bName))
+                service["tp"] = True
             else:
                 C.write("    NULL,\n")
                 C.write("    NULL,\n")
@@ -1412,6 +1417,7 @@ def Gen_SOMEIP(cfg, dir, source):
                 C.write("    SomeIp_%s_OnNotification,\n" % (beName))
                 if event.get("tp", False):
                     C.write("    SomeIp_%s_OnTpCopyRxData,\n" % (beName))
+                    service["tp"] = True
                 else:
                     C.write("  NULL,\n")
                 C.write("  },\n")
@@ -1420,9 +1426,17 @@ def Gen_SOMEIP(cfg, dir, source):
         mn = toMacro(service["name"])
         if "reliable" in service:
             numOfConnections = service["listen"] if "listen" in service else 3
-            C.write("static SomeIp_TcpBufferType someIpTcpBuffer_%s[%s];\n\n" % (service["name"], numOfConnections))
+            if service.get("tp", False):
+                C.write("#ifdef SOMEIP_USE_TP_BUF\n")
+                C.write("static SomeIp_TpBufferType someIpTpBuffer_%s[%s];\n\n" % (service["name"], numOfConnections))
+                C.write("#endif\n")
+
         else:
             numOfConnections = 1
+            if service.get("tp", False): 
+                C.write("#ifdef SOMEIP_USE_TP_BUF\n")
+                C.write("static SomeIp_TpBufferType someIpTpBuffer_%s;\n\n" % (service["name"]))
+                C.write("#endif\n")
         C.write("static SomeIp_ServerContextType someIpServerContext_%s;\n\n" % (service["name"]))
         C.write(
             "static SomeIp_ServerConnectionContextType someIpServerConnectionContext_%s[%s];\n\n"
@@ -1436,13 +1450,25 @@ def Gen_SOMEIP(cfg, dir, source):
             C.write("  {\n")
             C.write("    &someIpServerConnectionContext_%s[%s],\n" % (service["name"], i))
             if "reliable" in service:
+                C.write("    SOMEIP_RX_PID_SOMEIP_%s%s,\n" % (mn, i))
                 C.write("    SOAD_TX_PID_SOMEIP_%s_APT%s,\n" % (mn, i))
                 C.write("    SOAD_SOCKID_SOMEIP_%s_APT%s,\n" % (mn, i))
-                C.write("    &someIpTcpBuffer_%s[%s],\n" % (service["name"], i))
+                C.write("    #ifdef SOMEIP_USE_TP_BUF\n")
+                if service.get("tp", False): 
+                    C.write("    &someIpTpBuffer_%s[%s],\n" % (service["name"], i))
+                else:
+                    C.write("    NULL\n")
+                C.write("    #endif\n")
             else:
+                C.write("    SOMEIP_RX_PID_SOMEIP_%s,\n" % (mn))
                 C.write("    SOAD_TX_PID_SOMEIP_%s,\n" % (mn))
                 C.write("    SOAD_SOCKID_SOMEIP_%s,\n" % (mn))
-                C.write("    NULL\n")
+                C.write("    #ifdef SOMEIP_USE_TP_BUF\n")
+                if service.get("tp", False): 
+                    C.write("    &someIpTpBuffer_%s,\n" % (service["name"]))
+                else:
+                    C.write("    NULL\n")
+                C.write("    #endif\n")
             C.write("  },\n")
         C.write("};\n\n")
         C.write("static const SomeIp_ServerServiceType someIpServerService_%s = {\n" % (service["name"]))
@@ -1472,8 +1498,10 @@ def Gen_SOMEIP(cfg, dir, source):
         C.write("};\n\n")
     for service in cfg.get("clients", []):
         mn = toMacro(service["name"])
-        if "reliable" in service or service.get("protocol", None) == "TCP":
-            C.write("static SomeIp_TcpBufferType someIpTcpBuffer_%s;\n\n" % (service["name"]))
+        if service.get("tp", False):
+            C.write("#ifdef SOMEIP_USE_TP_BUF\n")
+            C.write("static SomeIp_TpBufferType someIpTpBuffer_%s;\n\n" % (service["name"]))
+            C.write("#endif\n")
         C.write("static SomeIp_ClientServiceContextType someIpClientServiceContext_%s;\n" % (service["name"]))
         C.write("static const SomeIp_ClientServiceType someIpClientService_%s = {\n" % (service["name"]))
         C.write("  %s, /* serviceId */\n" % (service["service"]))
@@ -1494,10 +1522,12 @@ def Gen_SOMEIP(cfg, dir, source):
         C.write("  &someIpClientServiceContext_%s,\n" % (service["name"]))
         C.write("  SOAD_TX_PID_SOMEIP_%s,\n" % (mn))
         C.write("  SomeIp_%s_OnAvailability,\n" % (service["name"]))
-        if "reliable" in service or service.get("protocol", None) == "TCP":
-            C.write("  &someIpTcpBuffer_%s,\n" % (service["name"]))
+        C.write("    #ifdef SOMEIP_USE_TP_BUF\n")
+        if service.get("tp", False):
+            C.write("  &someIpTpBuffer_%s,\n" % (service["name"]))
         else:
             C.write("  NULL,\n")
+        C.write("    #endif\n")
         C.write("  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (service.get("SeparationTime", 10)))
         C.write("  SOMEIP_CONVERT_MS_TO_MAIN_CYCLES(%s),\n" % (service.get("ResponseTimeout", 1000)))
         C.write("};\n\n")

@@ -5,11 +5,9 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for CanIf
+# AUTOSAR CanIf Configuration Guide
 
-Below is 1 examples:
-
-* [application/CanIf.json](../../app/app/config/Com/CanIf.json)
+## Configuration Example
 
 ```json
 {
@@ -36,26 +34,33 @@ Below is 1 examples:
 }
 ```
 
-## networks
+## Network Configuration
 
-For CanIf, networks is a list to specify the RxPdus and TxPdus for a CAN controller, the CanIf ID is the index of the network, and the CanIf ID and CAN controller ID are equal.
+### Key Concepts
+- Each network entry represents a CAN controller configuration
+- The CanIf channel ID equals the network index and corresponds to the CAN controller ID
+- All RxPdu and TxPdu names must be unique across the configuration
 
-For the CanIf, each RxPdu and TxPdu must has a unique name, but as for the purpose to make things simple, the each network can be configure by specifiy the "dbc", but please note that all the message in the dbc must be the message for Com moudlue.
+### DBC File Usage
+- The "dbc" field specifies the database file for message definitions
+- **Important**: The DBC should only contain messages for the COM module
+- Remove diagnostic, NM, TP, or XCP-related frames from the DBC before use
 
-So if you have a dbc has Diagnotic/Nm/Tp or Xcp related Frame, please remove those frames from the dbc.
+### Node Identification
+- The "me" field specifies the ECU node name representing the current module
 
-And the "me" is use to specifiy the Ecu node name that represent myself.
+### Generated Configuration
+- The generator creates `GEN/CanIf.json` in the parent directory
+- This file contains all DBC messages converted to Rx/Tx PDUs
 
-And please note that, under the parent directory of CanIf.json, file GEN/CanIf.json will be generated, in which you can see that all message in dbc converted into Rx/Tx Pdus.
+## Hardware Object Handles (HOH)
 
-* [GEN/CanIf.json](../../app/app/config/Com/GEN/CanIf.json)
+### Definition
+- **TxPdu**: Represents CAN hardware transfer object handles
+- **RxPdu**: Represents CAN hardware receiving object handles
 
-For the "hoh", it represent the underlying CAN hardware object handle.
-
-For TxPdu, "hoh" is the CAN hardware transfer object handle.
-For RxPdu, "hoh" is the CAN hardware receiving object handle.
-
-And for mulitiple CAN networks. For example, both CAN0 has 4 transfer message boxs, so the hoh for transfer ID is as below:
+### Multiple Network Example
+For systems with multiple CAN networks (each with 4 message boxes):
 
 ```c
 enum {
@@ -70,25 +75,30 @@ enum {
 }
 ```
 
-### User defined CanIf
+## User-Defined CanIf Configuration
 
-The key "up" is a string must be started with "User", and always suggest that each should have a unique suffix, such as the above json example, but OK if they have the same suffix.
+### Naming Convention
+- The "up" field must begin with "User"
+- Recommended to use unique suffixes (e.g., "User0Rx", "User0Tx")
+- Identical suffixes are permitted but not recommended
 
-The callback API will be:
+### Callback API
 
+#### Receive Callback
 ```c
-// For Rx Pdu, the RxPduId will the CANIF symbol ID
-void ${up}_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void ${up}_RxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr);
+```
 
-// For Tx Pdu, the TxPduId will the CANIF symbol ID
+#### Transmission Callback
+```c
 void ${up}_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+```
 
-// and using the generated TX Pdu symbol in CanIf_Cfg.h to reqeust transmit
+#### Transmission Request
+```c
 ret = CanIf_Transmit(CANIF_USER0_TX, ...);
 ```
 
+## Generator Implementation
 
-
-## Genetator
-
-* [Genetator CanIf.py](../../tools/generator/CanIf.py)
+The configuration is processed by: [CanIf.py](../../tools/generator/CanIf.py)

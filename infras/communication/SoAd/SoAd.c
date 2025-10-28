@@ -6,6 +6,7 @@
  */
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "SoAd.h"
+#include "SoAd_Cfg.h"
 #include "SoAd_Priv.h"
 #include "Std_Debug.h"
 #include <string.h>
@@ -20,6 +21,10 @@
 #define SOAD_TX_ON_GOING 0x01
 
 #define SOAD_CONFIG (soAdConfigPtr)
+
+#ifndef SOAD_LOCAL_DATA_MAX_SIZE
+#define SOAD_LOCAL_DATA_MAX_SIZE 128
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const SoAd_ConfigType SoAd_Config;
@@ -31,19 +36,28 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   TcpIp_SocketIdType sockId;
+  TcpIp_SockAddrType addr;
   Std_ReturnType ret = E_OK;
 
   sockId = TcpIp_Create(conG->ProtocolType);
   if (sockId >= 0) {
-    if (IS_CON_TYPE_OF(connection,
-                       SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER | SOAD_SOCON_UDP_CLIENT)) {
-      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &context->RemoteAddr.port);
-      if ((E_OK == ret) && conG->IsMulitcast) {
-        ret = TcpIp_AddToMulticast(sockId, &context->RemoteAddr);
+    if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
+      TcpIp_SetupAddrFrom(&addr, conG->Remote, conG->Port);
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &addr.port);
+      if ((E_OK == ret) && (TRUE == conG->IsMulitcast)) {
+        ret = TcpIp_AddToMulticast(sockId, &addr);
       }
       if (E_OK != ret) {
         TcpIp_Close(sockId, TRUE);
       }
+    } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_CLIENT)) {
+      addr.port = TCPIP_PORT_ANY;
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &addr.port);
+      if (E_OK == ret) {
+        *connection->LocalPort = addr.port;
+      }
+    } else {
+      /* do nothing */
     }
   } else {
     ret = E_NOT_OK;
@@ -70,89 +84,105 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
       context->state = SOAD_SOCKET_ACCEPT;
     } else {
       context->state = SOAD_SOCKET_READY;
+      context->length = 0;
+      context->data = NULL;
     }
     context->sock = sockId;
     if (conG->SoConModeChgNotification) {
       conG->SoConModeChgNotification(SoConId, SOAD_SOCON_ONLINE);
     }
-    ASLOG(SOAD, ("[%d] create TcpIP socket %d, next state %d\n", SoConId, sockId, context->state));
+    ASLOG(SOAD, ("[%u] create TcpIP socket %d, next state %d\n", SoConId, sockId, context->state));
   } else {
-    ASLOG(SOADE, ("[%d] failed to creat socket with error %d\n", SoConId, sockId));
+    ASLOG(SOADE, ("[%u] failed to creat socket with error %d\n", SoConId, sockId));
     context->state = SOAD_SOCKET_CLOSED;
   }
 }
 
-static void soAdSocketIfRxNotify(SoAd_SocketContextType *context,
-                                 const SoAd_SocketConnectionType *connection, uint8_t *data,
-                                 uint16_t rxLen) {
-  const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
-  const SoAd_IfInterfaceType *IF = (const SoAd_IfInterfaceType *)conG->Interface;
-  PduInfoType PduInfo;
-  PduInfo.SduDataPtr = data;
-  PduInfo.SduLength = rxLen;
-  PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
-
-  if (IF->IfRxIndication) {
-    IF->IfRxIndication(connection->RxPduId, &PduInfo);
-  }
-}
-
-static void soAdSocketTpRxNotify(SoAd_SocketContextType *context,
-                                 const SoAd_SocketConnectionType *connection, uint8_t *data,
-                                 uint16_t rxLen) {
-  const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
-  const SoAd_TpInterfaceType *IF = (const SoAd_TpInterfaceType *)conG->Interface;
-  PduInfoType PduInfo;
-  PduInfo.SduDataPtr = data;
-  PduInfo.SduLength = rxLen;
-  PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
-  PduLengthType bufferSize;
-
-  if (IF->TpCopyRxData) {
-    IF->TpCopyRxData(connection->RxPduId, &PduInfo, &bufferSize);
-  }
-}
-
-static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId, uint8_t *dataIn,
-                                             uint32_t length) {
+static Std_ReturnType soAdSocketRecvStart(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret = E_NOT_OK;
   uint32_t rxLen;
   uint8_t *data = NULL;
+  PduInfoType PduInfo;
+  uint32_t length = 0; /* length of left data */
+  uint8_t header[SOAD_HEADER_MAX_LEN];
 
-  if (NULL == dataIn) {
-    rxLen = TcpIp_Tell(context->sock);
-    if (rxLen > 0) {
-      data = Net_MemAlloc((uint32_t)rxLen);
-      if (NULL != data) {
-        ret = E_OK;
-      } else {
-        ASLOG(SOADE, ("[%d] Failed to malloc for %d\n", SoConId, rxLen));
-      }
+  /* For some protocol, such as DoIP and SOMEIP, we need to know the actually packet size from its
+   * header */
+  rxLen = TcpIp_Tell(context->sock);
+  if (conG->headerLen > 0) {
+    if (rxLen >= conG->headerLen) {
+      rxLen = conG->headerLen;
+      data = header;
+    } else {
+      rxLen = 0; /* not enough data */
+    }
+  }
+
+  if (0 == rxLen) {
+    /* nothing there */
+  } else if (NULL == data) { /* allocate data if no header TP control */
+    data = Net_MemAlloc((uint32_t)rxLen);
+    if (NULL != data) {
+      ret = E_OK;
+    } else {
+      ASLOG(SOADE, ("[%u] Failed to malloc for %d\n", SoConId, rxLen));
     }
   } else {
-    data = dataIn;
-    rxLen = length;
     ret = E_OK;
   }
 
   if (E_OK == ret) {
-    ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, &rxLen);
+    length = rxLen;
+    if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
+      ret = TcpIp_Recv(context->sock, data, &rxLen);
+    } else {
+      ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, &rxLen);
+    }
     if (E_OK == ret) {
       if (rxLen > 0) {
-        ASLOG(SOAD, ("[%d] UDP read %d bytes\n", SoConId, rxLen));
-        if (conG->IsTP) {
-          soAdSocketTpRxNotify(context, connection, data, rxLen);
+        ASLOG(SOAD, ("[%u] read %d bytes\n", SoConId, rxLen));
+        PduInfo.SduDataPtr = data;
+        PduInfo.SduLength = rxLen;
+        PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
+        if (conG->headerLen > 0) {
+          ret = conG->IF->HeaderIndication(connection->RxPduId, &PduInfo, &length);
+          if (E_OK == ret) {
+            if (length > 0) { /* the length of left bytes need to be recived */
+              context->length = length;
+              context->offset = conG->headerLen;
+              context->data = Net_MemAlloc((uint32_t)conG->headerLen + length);
+              /* allow allocation failed thus the further rx logic to drop data */
+              if (NULL == context->data) {
+                ASLOG(SOADE, ("[%u] allocate %u rx buffer failed\n", SoConId,
+                              (uint32_t)conG->headerLen + length));
+              } else {
+                (void)memcpy(context->data, data, rxLen);
+              }
+            } else {
+              conG->IF->RxIndication(connection->RxPduId, &PduInfo);
+            }
+          }
         } else {
-          soAdSocketIfRxNotify(context, connection, data, rxLen);
+          if (NULL != conG->IF->RxIndication) {
+            conG->IF->RxIndication(connection->RxPduId, &PduInfo);
+          }
         }
+      } else {
+        ASLOG(SOADE, ("[%u] recv with 0 bytes, actual: %u\n", SoConId, length));
       }
     } else {
-      ASLOG(SOADE, ("[%d] UDP read failed\n", SoConId));
+      ASLOG(SOADE, ("[%u] socket read failed\n", SoConId));
+#if SOAD_ERROR_COUNTER_LIMIT > 0
+      context->errorCounter++;
+      if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+        SoAd_CloseSoCon(SoConId, TRUE);
+      }
+#endif
     }
-    if (data != dataIn) {
+    if (data != header) {
       Net_MemFree(data);
     }
   }
@@ -160,57 +190,68 @@ static Std_ReturnType soAdSocketUdpReadyMain(SoAd_SoConIdType SoConId, uint8_t *
   return ret;
 }
 
-static Std_ReturnType soAdSocketTcpReadyMain(SoAd_SoConIdType SoConId, uint8_t *dataIn,
-                                             uint32_t length) {
+static Std_ReturnType soAdSocketRecvLeft(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
-  Std_ReturnType ret;
+  Std_ReturnType ret = E_NOT_OK;
   uint32_t rxLen;
   uint8_t *data = NULL;
+  PduInfoType PduInfo;
+  uint8_t cache[SOAD_LOCAL_DATA_MAX_SIZE];
 
-  ret = TcpIp_IsTcpStatusOK(context->sock);
-  if (E_OK == ret) {
-    if (NULL == dataIn) {
-      rxLen = TcpIp_Tell(context->sock);
-      if (rxLen > 0) {
-        data = Net_MemAlloc((uint32_t)rxLen);
-        if (NULL == data) {
-          ret = E_NOT_OK;
-          ASLOG(SOADE, ("[%d] Failed to malloc for %d\n", SoConId, rxLen));
-        }
-      } else {
-        ret = E_NOT_OK;
-      }
+  rxLen = TcpIp_Tell(context->sock);
+  if (rxLen > 0) {
+    if (rxLen > context->length) {
+      rxLen = context->length;
+    }
+    if (NULL != context->data) {
+      data = &context->data[context->offset];
     } else {
-      data = dataIn;
-      rxLen = length;
+      data = cache;
+      if (rxLen > SOAD_LOCAL_DATA_MAX_SIZE) {
+        rxLen = SOAD_LOCAL_DATA_MAX_SIZE;
+      }
+      ASLOG(SOADE, ("[%u] drop %u bytes\n", SoConId, rxLen));
+    }
+    ret = E_OK;
+  }
+
+  if (E_OK == ret) {
+    if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
+      ret = TcpIp_Recv(context->sock, data, &rxLen);
+    } else {
+      ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, &rxLen);
     }
     if (E_OK == ret) {
-      ret = TcpIp_Recv(context->sock, data, &rxLen);
-      if (E_OK == ret) {
-        if (rxLen > 0) {
-          ASLOG(SOAD, ("[%d] TCP read %d bytes\n", SoConId, rxLen));
-          if (conG->IsTP) {
-            soAdSocketTpRxNotify(context, connection, data, rxLen);
-          } else {
-            soAdSocketIfRxNotify(context, connection, data, rxLen);
-          }
+      if (rxLen > 0) {
+        context->offset += rxLen;
+        if (context->length > rxLen) {
+          context->length -= rxLen;
+        } else {
+          context->length = 0;
         }
-      } else {
-        ASLOG(SOADE, ("[%d] TCP read failed\n", SoConId));
       }
-      if (data != dataIn) {
-        Net_MemFree(data);
+      if ((0 == context->length) && (NULL != context->data)) {
+        ASLOG(SOAD, ("[%u] read %d bytes\n", SoConId, rxLen));
+        PduInfo.SduDataPtr = context->data;
+        PduInfo.SduLength = context->offset;
+        PduInfo.MetaDataPtr = (uint8_t *)&context->RemoteAddr;
+        conG->IF->RxIndication(connection->RxPduId, &PduInfo);
+        if (NULL != context->data) {
+          Net_MemFree(context->data);
+          context->data = NULL;
+        }
       }
+    } else {
+      ASLOG(SOADE, ("[%u] socket read failed\n", SoConId));
+#if SOAD_ERROR_COUNTER_LIMIT > 0
+      context->errorCounter++;
+      if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+        SoAd_CloseSoCon(SoConId, TRUE);
+      }
+#endif
     }
-  } else {
-    TcpIp_Close(context->sock, TRUE);
-    if (conG->SoConModeChgNotification) {
-      conG->SoConModeChgNotification(SoConId, SOAD_SOCON_OFFLINE);
-    }
-    context->state = SOAD_SOCKET_CLOSED;
-    ASLOG(SOADE, ("[%d] close, goto accept\n", SoConId));
   }
 
   return ret;
@@ -220,13 +261,9 @@ static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
-  const SoAd_TpInterfaceType *IF = (const SoAd_TpInterfaceType *)conG->Interface;
-  PduInfoType PduInfo;
-  PduLengthType bufferSize;
   Std_ReturnType ret;
   TcpIp_SocketIdType SocketId;
   SoAd_SocketContextType *actCtx = NULL;
-  const SoAd_SocketConnectionType *actCnt = NULL;
   TcpIp_SockAddrType RemoteAddr;
   int i;
 
@@ -237,7 +274,6 @@ static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
       for (i = 0; i < conG->numOfConnections; i++) {
         if (SOAD_SOCKET_CLOSED == SOAD_CONFIG->Contexts[i + conG->SoConId].state) {
           actCtx = &SOAD_CONFIG->Contexts[i + conG->SoConId];
-          actCnt = &SOAD_CONFIG->Connections[i + conG->SoConId];
           actCtx->sock = SocketId;
           actCtx->RemoteAddr = RemoteAddr;
           actCtx->state = SOAD_SOCKET_READY;
@@ -246,55 +282,56 @@ static void soAdSocketAcceptMain(SoAd_SoConIdType SoConId) {
         }
       }
       if (E_OK != ret) {
-        ASLOG(SOADE, ("[%d] accept failed as no free slot\n", SoConId));
+        ASLOG(SOADE, ("[%u] accept failed as no free slot\n", SoConId));
         TcpIp_Close(SocketId, TRUE);
       } else {
-        ASLOG(SOAD, ("[%d] accept as new socket\n", i + conG->SoConId));
+        ASLOG(SOAD, ("[%u] accept as new socket\n", i + conG->SoConId));
       }
     }
     if (E_OK == ret) {
       if (conG->SoConModeChgNotification) {
         conG->SoConModeChgNotification(i + conG->SoConId, SOAD_SOCON_ONLINE);
       }
-      if (conG->IsTP && IF->TpStartOfReception) {
-        PduInfo.SduDataPtr = NULL;
-        PduInfo.SduLength = 0;
-        PduInfo.MetaDataPtr = (uint8_t *)&actCtx->RemoteAddr;
-        IF->TpStartOfReception(actCnt->RxPduId, &PduInfo, 0, &bufferSize);
-      }
     }
   } else {
-    ASLOG(SOADE, ("[%d] UDP can't do accept\n", SoConId));
+    ASLOG(SOADE, ("[%u] UDP can't do accept\n", SoConId));
   }
 }
 
 static void soAdSocketReadyMain(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
-  const SoAd_TpInterfaceType *tpIF = (const SoAd_TpInterfaceType *)conG->Interface;
-  const SoAd_IfInterfaceType *ifIF = (const SoAd_IfInterfaceType *)conG->Interface;
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   Std_ReturnType ret = E_OK;
 
   if (context->flag & SOAD_TX_ON_GOING) {
-    if (conG->IsTP) {
-      if (tpIF->TpTxConfirmation) {
-        tpIF->TpTxConfirmation(connection->RxPduId, E_OK);
-      }
-    } else {
-      if (ifIF->IfTxConfirmation) {
-        ifIF->IfTxConfirmation(connection->RxPduId, E_OK);
-      }
+    if (NULL != conG->IF->TxConfirmation) {
+      conG->IF->TxConfirmation(connection->RxPduId, E_OK);
     }
     context->flag &= ~SOAD_TX_ON_GOING;
   }
 
-  while (E_OK == ret) {
-    if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
-      ret = soAdSocketTcpReadyMain(SoConId, NULL, 0);
-    } else {
-      ret = soAdSocketUdpReadyMain(SoConId, NULL, 0);
+  if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
+    ret = TcpIp_IsTcpStatusOK(context->sock);
+    if (E_OK != ret) {
+      SoAd_CloseSoCon(SoConId, TRUE);
+      ASLOG(SOADE, ("[%u] close, goto accept\n", SoConId));
     }
+  }
+
+  while (E_OK == ret) {
+    if (0 == context->length) {
+      ret = soAdSocketRecvStart(SoConId);
+    } else {
+      ret = soAdSocketRecvLeft(SoConId);
+    }
+  }
+}
+
+static void soAdSocketTakeControlMain(SoAd_SoConIdType SoConId) {
+  SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
+  if (context->flag & SOAD_TX_ON_GOING) {
+    context->flag &= ~SOAD_TX_ON_GOING;
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -326,8 +363,11 @@ void SoAd_Init(const SoAd_ConfigType *ConfigPtr) {
         context->state = SOAD_SOCKET_CREATE;
       }
       TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
+      ASLOG(SOAD, ("[%u] init with %d.%d.%d.%d:%u\n", i, context->RemoteAddr.addr[0],
+                   context->RemoteAddr.addr[1], context->RemoteAddr.addr[2],
+                   context->RemoteAddr.addr[3], context->RemoteAddr.port));
     } else {
-      ASLOG(SOADE, ("[%d] Invalid GID\n", i));
+      ASLOG(SOADE, ("[%u] Invalid GID\n", i));
     }
   }
 }
@@ -347,6 +387,9 @@ void SoAd_MainFunction(void) {
       break;
     case SOAD_SOCKET_READY:
       soAdSocketReadyMain(i);
+      break;
+    case SOAD_SOCKET_TAKEN_CONTROL:
+      soAdSocketTakeControlMain(i);
       break;
     default:
       break;
@@ -388,14 +431,8 @@ Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
     }
 
     if (E_OK == ret) {
-      if (conG->IsTP) {
-        if (((const SoAd_TpInterfaceType *)conG->Interface)->TpTxConfirmation) {
-          context->flag |= SOAD_TX_ON_GOING;
-        }
-      } else {
-        if (((const SoAd_IfInterfaceType *)conG->Interface)->IfTxConfirmation) {
-          context->flag |= SOAD_TX_ON_GOING;
-        }
+      if (NULL != conG->IF->TxConfirmation) {
+        context->flag |= SOAD_TX_ON_GOING;
       }
     }
 
@@ -468,9 +505,15 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
       if (context->state >= SOAD_SOCKET_READY) {
         ret = TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
       }
-    } else { /* SOAD_SOCON_UDP_CLIENT */
+    } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_CLIENT)) {
+      ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
+      LocalAddrPtr->port = *connection->LocalPort;
+    } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
       LocalAddrPtr->port = conG->Port;
+    } else {
+      ASLOG(SOADE, ("Not supported connection type\n"));
+      ret = E_NOT_OK;
     }
   }
 
@@ -486,6 +529,9 @@ Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
     context = &SOAD_CONFIG->Contexts[SoConId];
     if (SOAD_SOCKET_CLOSED == context->state) {
       context->RemoteAddr = *RemoteAddrPtr;
+      ASLOG(SOAD, ("[%u] setup with %d.%d.%d.%d:%u\n", SoConId, context->RemoteAddr.addr[0],
+                   context->RemoteAddr.addr[1], context->RemoteAddr.addr[2],
+                   context->RemoteAddr.addr[3], context->RemoteAddr.port));
       ret = E_OK;
     }
   }
@@ -522,7 +568,7 @@ Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId) {
       context->state = SOAD_SOCKET_CREATE;
       ret = E_OK;
     } else {
-      ASLOG(SOADE, ("[%d] open failed as already in state %d\n", SoConId, context->state));
+      ASLOG(SOADE, ("[%u] open failed as already in state %d\n", SoConId, context->state));
     }
   }
 
@@ -547,7 +593,7 @@ Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort) {
         context->state = SOAD_SOCKET_CLOSED;
         TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
       } else {
-        ASLOG(SOADE, ("[%d] close fail: %d\n", SoConId, ret));
+        ASLOG(SOADE, ("[%u] close fail: %d\n", SoConId, ret));
       }
     }
   }
@@ -613,7 +659,7 @@ Std_ReturnType SoAd_SetTimeout(SoAd_SoConIdType SoConId, uint32_t timeoutMs) {
   return ret;
 }
 
-Std_ReturnType SoAd_ControlRx(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t length) {
+Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t *length) {
   SoAd_SocketContextType *context;
   const SoAd_SocketConnectionType *connection = &SOAD_CONFIG->Connections[SoConId];
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
@@ -623,9 +669,18 @@ Std_ReturnType SoAd_ControlRx(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t 
     context = &SOAD_CONFIG->Contexts[SoConId];
     if (SOAD_SOCKET_TAKEN_CONTROL == context->state) {
       if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
-        ret = soAdSocketTcpReadyMain(SoConId, data, length);
+        ret = TcpIp_Recv(context->sock, data, length);
+        if (E_OK != ret) {
+          ASLOG(SOADE, ("[%u] TCP read failed\n", SoConId));
+#if SOAD_ERROR_COUNTER_LIMIT > 0
+          context->errorCounter++;
+          if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+            SoAd_CloseSoCon(SoConId, TRUE);
+          }
+#endif
+        }
       } else {
-        ret = soAdSocketUdpReadyMain(SoConId, data, length);
+        ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, length);
       }
     }
   }

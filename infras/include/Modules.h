@@ -10,7 +10,6 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define MODULE_ID_CAN ((uint16_t)80)
 #define MODULE_ID_CANIF ((uint16_t)60)
-#define MODULE_ID_CANIF ((uint16_t)60)
 #define MODULE_ID_CANNM ((uint16_t)31)
 #define MODULE_ID_CANSM ((uint16_t)140)
 #define MODULE_ID_CANTRCV ((uint16_t)70)
@@ -41,6 +40,7 @@
 #define MODULE_ID_SECOC ((uint16_t)150)
 #define MODULE_ID_J1939TP ((uint16_t)37)
 #define MODULE_ID_E2E ((uint16_t)207)
+#define MODULE_ID_MIRROR ((uint16_t)48)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

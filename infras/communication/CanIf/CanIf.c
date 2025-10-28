@@ -14,7 +14,9 @@
 #ifdef USE_CANSM
 #include "CanSM_CanIf.h"
 #endif
-
+#ifdef USE_MIRROR
+#include "Mirror.h"
+#endif
 #include "mempool.h"
 #include "Std_Critical.h"
 #include <string.h>
@@ -24,35 +26,42 @@
 #define AS_LOG_CANIFI 2
 #define AS_LOG_CANIFE 3
 
-#ifndef CANIF_PACKET_RX_POOL_SIZE
-#define CANIF_PACKET_RX_POOL_SIZE 0
-#endif
-
-#ifndef CANIF_PATCKET_MAX_SIZE
-#define CANIF_PATCKET_MAX_SIZE 8
-#endif
-
 #ifdef CANIF_USE_PB_CONFIG
 #define CANIF_CONFIG canifConfig
 #else
 #define CANIF_CONFIG (&CanIf_Config)
 #endif
 /* ================================ [ TYPES     ] ============================================== */
-typedef struct CanIf_Packet_s {
-  STAILQ_ENTRY(CanIf_Packet_s) entry;
+typedef struct CanIf_RxPacket_s {
+  STAILQ_ENTRY(CanIf_RxPacket_s) entry;
   Can_HwType mailbox;
   PduLengthType SduLength;
-  uint8_t data[CANIF_PATCKET_MAX_SIZE];
-} CanIf_PacketType;
+  uint8_t data[CANIF_RX_PACKET_DATA_SIZE];
+} CanIf_RxPacketType;
 
-typedef STAILQ_HEAD(CanIf_PacketListHead_s, CanIf_Packet_s) CanIf_PacketListType;
+typedef struct CanIf_TxPacket_s {
+  STAILQ_ENTRY(CanIf_TxPacket_s) entry;
+  PduIdType TxPduId;
+  PduLengthType SduLength;
+  uint8_t data[CANIF_TX_PACKET_DATA_SIZE];
+} CanIf_TxPacketType;
+
+typedef STAILQ_HEAD(CanIf_RxPacketListHead_s, CanIf_RxPacket_s) CanIf_RxPacketListType;
+
+typedef STAILQ_HEAD(CanIf_TxPacketListHead_s, CanIf_TxPacket_s) CanIf_TxPacketListType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern const CanIf_ConfigType CanIf_Config;
 /* ================================ [ DATAS     ] ============================================== */
-#if CANIF_PACKET_RX_POOL_SIZE > 0
-static CanIf_PacketListType canIfRxPackets;
-static CanIf_PacketType canIfRxPacketSlots[CANIF_PACKET_RX_POOL_SIZE];
+#if CANIF_RX_PACKET_POOL_SIZE > 0
+static CanIf_RxPacketListType canIfRxPackets;
+static CanIf_RxPacketType canIfRxPacketSlots[CANIF_RX_PACKET_POOL_SIZE];
 static mempool_t canIfRxPacketPool;
+#endif
+
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+static CanIf_TxPacketListType canIfTxPackets;
+static CanIf_TxPacketType canIfTxPacketSlots[CANIF_TX_PACKET_POOL_SIZE];
+static mempool_t canIfTxPacketPool;
 #endif
 
 #ifdef CANIF_USE_PB_CONFIG
@@ -136,6 +145,73 @@ static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduIn
     ASLOG(CANIF, ("[%d] 0x%" PRIu32 " rx without dest, ignore it\n", Mailbox->ControllerId,
                   Mailbox->CanId));
   }
+#ifdef USE_MIRROR
+  if (TRUE == CANIF_CONFIG->CtrlContexts[Mailbox->ControllerId].bMirroringActive) {
+    Mirror_ReportCanFrame(Mailbox->ControllerId, Mailbox->CanId, PduInfoPtr->SduLength,
+                          PduInfoPtr->SduDataPtr);
+  }
+#endif
+}
+
+static Std_ReturnType CanIf_TransmitInternal(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+  Std_ReturnType ret = E_NOT_OK;
+  Can_PduType canPdu;
+  const CanIf_TxPduType *txPdu;
+  CanIf_CtrlContextType *context;
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
+  const CanIf_CtrlConfigType *ctrlCfg;
+#endif
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x49, CANIF_E_UNINIT, return E_NOT_OK);
+  /* @SWS_CANIF_00319 */
+  DET_VALIDATE(TxPduId < CANIF_CONFIG->numOfTxPdus, 0x49, CANIF_E_INVALID_TXPDUID, return E_NOT_OK);
+  /* @SWS_CANIF_00320 */
+  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x49,
+               CANIF_E_PARAM_POINTER, return E_NOT_OK);
+  context = &CANIF_CONFIG->CtrlContexts[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
+  ctrlCfg = &CANIF_CONFIG->CtrlConfigs[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
+#endif
+  if (CANIF_ONLINE == context->PduMode) {
+    canPdu.swPduHandle = TxPduId;
+    canPdu.length = PduInfoPtr->SduLength;
+    canPdu.sdu = PduInfoPtr->SduDataPtr;
+    txPdu = &CANIF_CONFIG->txPdus[TxPduId];
+    if (NULL != txPdu->p_canid) {
+      if (NULL != PduInfoPtr->MetaDataPtr) {
+        canPdu.id = *(Can_IdType *)PduInfoPtr->MetaDataPtr;
+      } else {
+        canPdu.id = *txPdu->p_canid;
+      }
+    } else {
+      canPdu.id = txPdu->canid;
+    }
+#ifdef CANIF_USE_TX_CALLOUT
+    ret = CanIf_UserTxCallout(CANIF_CONFIG->txPdus[TxPduId].ControllerId, &canPdu);
+    if (E_OK == ret) {
+#endif
+      ret = Can_Write(txPdu->hoh, &canPdu);
+#ifdef CANIF_USE_TX_CALLOUT
+    }
+#endif
+#ifdef USE_MIRROR
+    if (E_OK == ret) {
+      if (TRUE ==
+          CANIF_CONFIG->CtrlContexts[CANIF_CONFIG->txPdus[TxPduId].ControllerId].bMirroringActive) {
+        Mirror_ReportCanFrame(CANIF_CONFIG->txPdus[TxPduId].ControllerId, canPdu.id,
+                              PduInfoPtr->SduLength, PduInfoPtr->SduDataPtr);
+      }
+    }
+#endif
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
+    if (E_OK == ret) {
+      if (0u == context->txTimeoutTimer) {
+        context->txTimeoutTimer = ctrlCfg->txTimerout;
+      }
+    }
+#endif
+  }
+
+  return ret;
 }
 
 #if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
@@ -175,11 +251,22 @@ void CanIf_Init(const CanIf_ConfigType *ConfigPtr) {
 #endif
   for (i = 0; i < CANIF_CONFIG->numOfCtrls; i++) {
     CANIF_CONFIG->CtrlContexts[i].PduMode = CANIF_OFFLINE;
+#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
+    CANIF_CONFIG->CtrlContexts[i].txTimeoutTimer = 0;
+#endif
+#ifdef USE_MIRROR
+    CANIF_CONFIG->CtrlContexts[i].bMirroringActive = FALSE;
+#endif
   }
-#if CANIF_PACKET_RX_POOL_SIZE > 0
+#if CANIF_RX_PACKET_POOL_SIZE > 0
   STAILQ_INIT(&canIfRxPackets);
-  mp_init(&canIfRxPacketPool, (uint8_t *)&canIfRxPacketSlots, sizeof(CanIf_PacketType),
+  mp_init(&canIfRxPacketPool, (uint8_t *)&canIfRxPacketSlots, sizeof(CanIf_RxPacketType),
           ARRAY_SIZE(canIfRxPacketSlots));
+#endif
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  STAILQ_INIT(&canIfTxPackets);
+  mp_init(&canIfTxPacketPool, (uint8_t *)&canIfTxPacketSlots, sizeof(CanIf_TxPacketType),
+          ARRAY_SIZE(canIfTxPacketSlots));
 #endif
 }
 
@@ -195,6 +282,13 @@ Std_ReturnType CanIf_SetControllerMode(uint8_t ControllerId,
                  (CAN_CS_SLEEP == ControllerMode),
                0x03, CANIF_E_PARAM_CTRLMODE, return E_NOT_OK);
 
+#ifdef USE_MIRROR
+  if (TRUE == CANIF_CONFIG->CtrlContexts[ControllerId].bMirroringActive) {
+    if (CAN_CS_STARTED == ControllerMode) {
+      Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_ONLINE);
+    }
+  }
+#endif
   return Can_SetControllerMode(ControllerId, ControllerMode);
 }
 
@@ -227,6 +321,15 @@ Std_ReturnType CanIf_SetPduMode(uint8_t ControllerId, CanIf_PduModeType PduModeR
   }
 #endif
 
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  if (CANIF_ONLINE != PduModeRequest) { /* drop any message that in tx queue */
+    EnterCritical();
+    STAILQ_INIT(&canIfTxPackets);
+    mp_init(&canIfTxPacketPool, (uint8_t *)&canIfTxPacketSlots, sizeof(CanIf_TxPacketType),
+            ARRAY_SIZE(canIfTxPacketSlots));
+    ExitCritical();
+  }
+#endif
   return ret;
 }
 
@@ -247,42 +350,29 @@ Std_ReturnType CanIf_GetPduMode(uint8_t ControllerId, CanIf_PduModeType *PduMode
 
 Std_ReturnType CanIf_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
   Std_ReturnType ret = E_NOT_OK;
-  Can_PduType canPdu;
-  const CanIf_TxPduType *txPdu;
-  CanIf_CtrlContextType *context;
-#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
-  const CanIf_CtrlConfigType *ctrlCfg;
-#endif
-  DET_VALIDATE(NULL != CANIF_CONFIG, 0x49, CANIF_E_UNINIT, return E_NOT_OK);
-  /* @SWS_CANIF_00319 */
-  DET_VALIDATE(TxPduId < CANIF_CONFIG->numOfTxPdus, 0x49, CANIF_E_INVALID_TXPDUID, return E_NOT_OK);
-  /* @SWS_CANIF_00320 */
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x49,
-               CANIF_E_PARAM_POINTER, return E_NOT_OK);
-  context = &CANIF_CONFIG->CtrlContexts[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
-#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
-  ctrlCfg = &CANIF_CONFIG->CtrlConfigs[CANIF_CONFIG->txPdus[TxPduId].ControllerId];
-#endif
-  if (CANIF_ONLINE == context->PduMode) {
-    canPdu.swPduHandle = TxPduId;
-    canPdu.length = PduInfoPtr->SduLength;
-    canPdu.sdu = PduInfoPtr->SduDataPtr;
-    txPdu = &CANIF_CONFIG->txPdus[TxPduId];
-    if (NULL != txPdu->p_canid) {
-      canPdu.id = *txPdu->p_canid;
-    } else {
-      canPdu.id = txPdu->canid;
-    }
 
-    ret = Can_Write(txPdu->hoh, &canPdu);
-#if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
-    if (E_OK == ret) {
-      if (0u == context->txTimeoutTimer) {
-        context->txTimeoutTimer = ctrlCfg->txTimerout;
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  CanIf_TxPacketType *packet = NULL;
+#endif
+
+  ret = CanIf_TransmitInternal(TxPduId, PduInfoPtr);
+
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  if (CAN_BUSY == ret) {
+    if (PduInfoPtr->SduLength <= CANIF_TX_PACKET_DATA_SIZE) {
+      packet = (CanIf_TxPacketType *)mp_alloc(&canIfTxPacketPool);
+      if (NULL != packet) {
+        packet->TxPduId = TxPduId;
+        packet->SduLength = PduInfoPtr->SduLength;
+        (void)memcpy(packet->data, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+        EnterCritical();
+        STAILQ_INSERT_TAIL(&canIfTxPackets, packet, entry);
+        ExitCritical();
+        ret = E_OK;
       }
     }
-#endif
   }
+#endif
 
   return ret;
 }
@@ -319,29 +409,40 @@ void CanIf_TxConfirmation(PduIdType CanTxPduId) {
 }
 
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
+#ifdef CANIF_USE_RX_CALLOUT
+  Std_ReturnType ret;
+#endif
   /* @SWS_CANIF_00419 */
   DET_VALIDATE(NULL != CANIF_CONFIG, 0x14, CANIF_E_UNINIT, return);
   DET_VALIDATE((NULL != Mailbox) && (NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x14,
                CANIF_E_PARAM_POINTER, return);
 
-#if CANIF_PACKET_RX_POOL_SIZE > 0
-  CanIf_PacketType *packet = NULL;
-  if (PduInfoPtr->SduLength <= CANIF_PATCKET_MAX_SIZE) {
-    packet = (CanIf_PacketType *)mp_alloc(&canIfRxPacketPool);
-    if (NULL != packet) {
-      packet->mailbox = *Mailbox;
-      packet->SduLength = PduInfoPtr->SduLength;
-      memcpy(packet->data, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
-      EnterCritical();
-      STAILQ_INSERT_TAIL(&canIfRxPackets, packet, entry);
-      ExitCritical();
+#ifdef CANIF_USE_RX_CALLOUT
+  ret = CanIf_UserRxCallout(Mailbox, PduInfoPtr);
+  if (E_OK == ret) {
+#endif
+#if CANIF_RX_PACKET_POOL_SIZE > 0
+    CanIf_RxPacketType *packet = NULL;
+    if (PduInfoPtr->SduLength <= CANIF_RX_PACKET_DATA_SIZE) {
+      packet = (CanIf_RxPacketType *)mp_alloc(&canIfRxPacketPool);
+      if (NULL != packet) {
+        packet->mailbox = *Mailbox;
+        packet->SduLength = PduInfoPtr->SduLength;
+        (void)memcpy(packet->data, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
+        EnterCritical();
+        STAILQ_INSERT_TAIL(&canIfRxPackets, packet, entry);
+        ExitCritical();
+      }
     }
-  }
-  if (NULL == packet) {
-    CanIf_RxDispatch(Mailbox, PduInfoPtr);
-  }
+    if (NULL == packet) {
+      CanIf_RxDispatch(Mailbox, PduInfoPtr);
+    }
 #else
   CanIf_RxDispatch(Mailbox, PduInfoPtr);
+#endif
+
+#ifdef CANIF_USE_RX_CALLOUT
+  }
 #endif
 }
 
@@ -352,29 +453,65 @@ void CanIf_ControllerBusOff(uint8_t ControllerId) {
 #ifdef USE_CANSM
   CanSM_ControllerBusOff(ControllerId);
 #endif
+
+#ifdef USE_MIRROR
+  if (TRUE == CANIF_CONFIG->CtrlContexts[ControllerId].bMirroringActive) {
+    Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_OFF);
+  }
+#endif
 }
 
 void CanIf_MainFunction_Fast(void) {
-#if CANIF_PACKET_RX_POOL_SIZE > 0
-  CanIf_PacketType *packet = NULL;
+#if CANIF_RX_PACKET_POOL_SIZE > 0
+  CanIf_RxPacketType *rxPacket = NULL;
+#endif
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  Std_ReturnType ret;
+  CanIf_TxPacketType *txPacket = NULL;
+#endif
+
+#if (CANIF_TX_PACKET_POOL_SIZE > 0) || (CANIF_RX_PACKET_POOL_SIZE > 0)
   PduInfoType pduInfo;
 #endif
 
   DET_VALIDATE(NULL != CANIF_CONFIG, 0xF1, CANIF_E_UNINIT, return);
 
-#if CANIF_PACKET_RX_POOL_SIZE > 0
+#if CANIF_RX_PACKET_POOL_SIZE > 0
   EnterCritical();
-  packet = STAILQ_FIRST(&canIfRxPackets);
-  while (NULL != packet) {
+  rxPacket = STAILQ_FIRST(&canIfRxPackets);
+  while (NULL != rxPacket) {
     STAILQ_REMOVE_HEAD(&canIfRxPackets, entry);
     InterLeaveCritical();
-    pduInfo.SduDataPtr = packet->data;
-    pduInfo.SduLength = packet->SduLength;
-    pduInfo.MetaDataPtr = (uint8_t *)&packet->mailbox;
-    CanIf_RxDispatch(&packet->mailbox, &pduInfo);
-    mp_free(&canIfRxPacketPool, (uint8_t *)packet);
+    pduInfo.SduDataPtr = rxPacket->data;
+    pduInfo.SduLength = rxPacket->SduLength;
+    pduInfo.MetaDataPtr = (uint8_t *)&rxPacket->mailbox;
+    CanIf_RxDispatch(&rxPacket->mailbox, &pduInfo);
+    mp_free(&canIfRxPacketPool, (uint8_t *)rxPacket);
     InterEnterCritical();
-    packet = STAILQ_FIRST(&canIfRxPackets);
+    rxPacket = STAILQ_FIRST(&canIfRxPackets);
+  }
+  ExitCritical();
+#endif
+
+#if CANIF_RX_PACKET_POOL_SIZE > 0
+  EnterCritical();
+  txPacket = STAILQ_FIRST(&canIfTxPackets);
+  while (NULL != txPacket) {
+    STAILQ_REMOVE_HEAD(&canIfTxPackets, entry);
+    InterLeaveCritical();
+    pduInfo.SduDataPtr = txPacket->data;
+    pduInfo.SduLength = txPacket->SduLength;
+    pduInfo.MetaDataPtr = NULL;
+    ret = CanIf_TransmitInternal(txPacket->TxPduId, &pduInfo);
+    if (E_OK == ret) {
+      mp_free(&canIfTxPacketPool, (uint8_t *)txPacket);
+    }
+    InterEnterCritical();
+    if (E_OK == ret) {
+      txPacket = STAILQ_FIRST(&canIfTxPackets);
+    } else {
+      break;
+    }
   }
   ExitCritical();
 #endif
@@ -390,3 +527,15 @@ void CanIf_MainFunction(void) {
   CanIf_MainFunction_TxTimeout();
 #endif
 }
+
+#ifdef USE_MIRROR
+Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringActive) {
+  Std_ReturnType ret = E_OK;
+  DET_VALIDATE(NULL != CANIF_CONFIG, 0x4c, CANIF_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(ControllerId < CANIF_CONFIG->numOfCtrls, 0x4c, CANIF_E_PARAM_CONTROLLERID,
+               return E_NOT_OK);
+
+  CANIF_CONFIG->CtrlContexts[ControllerId].bMirroringActive = MirroringActive;
+  return ret;
+}
+#endif

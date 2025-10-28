@@ -26,6 +26,7 @@
     {
       "name" : "Write",
       "nodes" : [
+        "WriteCheckDataChanged",
         "WriteAdmin",
         "WriteData"
       ]

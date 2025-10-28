@@ -68,9 +68,9 @@ uint8_t *mc_alloc(const mem_cluster_t *mc, uint32_t size) {
         break;
       }
     }
-
     if (mp != NULL) {
       buffer = mp_alloc(mp);
+      i++;
     }
   } while ((i < mc->numOfPools) && (NULL == buffer));
 

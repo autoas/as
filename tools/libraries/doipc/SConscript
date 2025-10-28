@@ -9,7 +9,7 @@ class LibraryDoIPClient(Library):
     def config(self):
         self.CPPDEFINES = []
         self.include = "%s/include" % (CWD)
-        self.LIBS = ["StdTimer", "TcpIp", "Simulator"]
+        self.LIBS = ["StdTimer", "TcpIp", "Simulator", "MbedTls"]
         self.CPPPATH = ["$INFRAS"]
         self.source = objs
 

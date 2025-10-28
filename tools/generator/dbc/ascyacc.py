@@ -8,7 +8,7 @@ from .asclex import *
 precedence = (("left", "PLUS", "MINUS"), ("left", "TIMES", "DIVIDE"), ("left", "POWER"))
 
 
-def str2int(cstr):
+def str2value(cstr):
     cstr = str(cstr).replace(" ", "").replace("\n", "")
     if cstr[0:2] == "0x" or cstr[0:2] == "0X":
         return int(cstr, 16)
@@ -44,10 +44,12 @@ def p_object(p):
     | cmList
     | baList
     | badefList
-    | badefDefList"""
+    | badefDefList
+    | END"""
     if not p[0]:
         p[0] = {}
-    p[0].update(p[1])
+    if type(p[1]) is dict:
+        p[0].update(p[1])
 
 
 def p_version(p):
@@ -333,9 +335,9 @@ def p_digit(p):
     | MINUS INTEGER
     | MINUS DIGIT"""
     if len(p) == 2:
-        p[0] = str2int(p[1])
+        p[0] = str2value(p[1])
     else:
-        p[0] = -str2int(p[2])
+        p[0] = -str2value(p[2])
 
 
 def p_END(p):
@@ -358,12 +360,12 @@ bparser = None
 def p_error(p):
     if not p:
         raise Exception("SYNTAX ERROR AT EOF")
-    else:
+    elif p.type != "EOL":
         try:
             print("SYNTAX ERROR AT LINE(%s) %s" % (p.lineno, p))
         except:
             print("SYNTAX ERROR AT LINE(%s) %s" % (int(p), p))
-    # sys.exit()
+    # exit()
     while 1:
         tok = bparser.token()  # Get the next token
         if not tok or tok.type == "EOL":

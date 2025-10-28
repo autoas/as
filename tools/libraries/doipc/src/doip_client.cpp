@@ -5,20 +5,36 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <Std_Types.h>
 #include <Std_Timer.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
 #include <sys/queue.h>
+#include <assert.h>
+
 #include "TcpIp.h"
 #include "doip_client.h"
 #include "Std_Debug.h"
 #include "Std_Timer.h"
 
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/x509.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/error.h"
+#include "mbedtls/debug.h"
+#if defined(MBEDTLS_SSL_CACHE_C)
+#include "mbedtls/ssl_cache.h"
+#endif
+
 #include <mutex>
 #include <thread>
 #include <chrono>
+#include <string>
+#include <vector>
 
 #include "Semaphore.hpp"
 
@@ -28,6 +44,12 @@ using namespace std::literals::chrono_literals;
 #define AS_LOG_DOIP 0
 #define AS_LOG_DOIPI 2
 #define AS_LOG_DOIPE 3
+
+#define AS_LOG_MBEDTLS 0
+
+#define MBEDTLS_DEBUG_LEVEL AS_LOG_LEVEL(MBEDTLS)
+
+#define SERVER_NAME "localhost"
 
 #define DOIP_PROTOCOL_VERSION 2
 #define DOIP_HEADER_LENGTH 8u
@@ -60,7 +82,7 @@ struct doip_node_s {
   uint16_t SA;
   uint16_t LA;
   TcpIp_SockAddrType RemoteAddr;
-  TcpIp_SocketIdType sock;
+  TcpIp_SocketIdType sock; /* The DoIP TCP socket */
   bool connected;
   bool activated;
   std::thread thread;
@@ -76,6 +98,13 @@ struct doip_node_s {
   struct doip_client_s *client;
   STAILQ_ENTRY(doip_node_s) entry;
   uint8_t buffer[4096];
+
+  /* TLS related */
+  mbedtls_entropy_context entropy;
+  mbedtls_ctr_drbg_context ctr_drbg;
+  mbedtls_ssl_context ssl;
+  mbedtls_ssl_config conf;
+  mbedtls_x509_crt cacert;
 };
 
 struct doip_client_s {
@@ -94,12 +123,53 @@ struct doip_client_s {
   STAILQ_HEAD(, doip_node_s) nodes;
   uint32_t numOfNodes;
   uint8_t buffer[4096];
+  /* TLS related */
+  /* path to concatenation of all available CA certificates in PEM format */
+  std::vector<char> casPem;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, uint16_t length);
 /* ================================ [ DATAS     ] ============================================== */
 static boolean l_initialized = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
+static Std_ReturnType TcpIp_TlsRecv(struct doip_node_s *node, uint8_t *buffer, uint32_t *length) {
+  Std_ReturnType ret = E_OK;
+
+  if (node->client->casPem.size() > 0) {
+    int rc;
+    rc = mbedtls_ssl_read(&node->ssl, buffer, *length);
+    *length = 0;
+    if (rc >= 0) {
+      *length = rc;
+    } else if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE)) {
+      ASLOG(DOIPE, ("mbedtls_ssl_read returned %d\n", rc));
+      ret = E_NOT_OK;
+    } else {
+      /* OK */
+    }
+  } else {
+    ret = TcpIp_Recv(node->sock, buffer, length);
+  }
+
+  return ret;
+}
+
+static Std_ReturnType TcpIp_TlsSend(struct doip_node_s *node, uint8_t *buffer, uint32_t length) {
+  Std_ReturnType ret = E_NOT_OK;
+
+  if (node->client->casPem.size() > 0) {
+    int rc;
+    rc = mbedtls_ssl_write(&node->ssl, buffer, length);
+    if (rc == (int)length) {
+      ret = E_OK;
+    }
+  } else {
+    ret = TcpIp_Send(node->sock, buffer, length);
+  }
+
+  return ret;
+}
+
 static void doip_init(void) {
   TcpIp_Init(NULL);
 }
@@ -178,9 +248,10 @@ static void doip_handle_udp_message(doip_client_t *client, TcpIp_SockAddrType *R
   uint32_t payloadLength;
   int r = 0;
 
-  ASLOG(DOIP,
-        ("udp message from %d.%d.%d.%d:%d, length=%d\n", RemoteAddr->addr[0], RemoteAddr->addr[1],
-         RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port, length));
+  ASHEXDUMP(DOIP,
+            ("udp message from %d.%d.%d.%d:%d", RemoteAddr->addr[0], RemoteAddr->addr[1],
+             RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port),
+            data, length);
 
   if ((length >= DOIP_HEADER_LENGTH) && (DOIP_PROTOCOL_VERSION == data[0]) &&
       (data[0] = ((~data[1])) & 0xFF)) {
@@ -248,28 +319,184 @@ static void doip_daemon(void *arg) {
 static void doip_alive_check_request(struct doip_node_s *node) {
   Std_ReturnType ret;
   doip_fill_header(node->buffer, DOIP_ALIVE_CHECK_REQUEST, 0);
-  ret = TcpIp_Send(node->sock, node->buffer, DOIP_HEADER_LENGTH);
+  ret = TcpIp_TlsSend(node, node->buffer, DOIP_HEADER_LENGTH);
   if (E_OK != ret) {
     ASLOG(DOIPE, ("send alive check request failed: %d\n", ret));
     node->stopped = true;
   }
 }
 
+static void TLS_Debug(void *ctx, int level, const char *file, int line, const char *str) {
+  ((void)level);
+
+  ASPRINT(DOIP, ("%s:%04d: %s", file, line, str));
+}
+
+static int TLS_NetSend(void *ctx, const unsigned char *buf, size_t len) {
+  int rc = MBEDTLS_ERR_SSL_WANT_WRITE;
+  Std_ReturnType ret;
+  struct doip_node_s *node = (struct doip_node_s *)ctx;
+
+  ret = TcpIp_Send(node->sock, buf, len);
+  if (E_OK == ret) {
+    rc = (int)len;
+  }
+
+  return rc;
+}
+
+static int TLS_NetRecv(void *ctx, unsigned char *buf, size_t len) {
+  int rc = 0;
+  Std_ReturnType ret;
+  uint32_t length = (uint32_t)len;
+  struct doip_node_s *node = (struct doip_node_s *)ctx;
+
+  ret = TcpIp_Recv(node->sock, buf, &length);
+  if (E_OK == ret) {
+    rc = (int)length;
+  }
+
+  if (0 == rc) {
+    rc = MBEDTLS_ERR_SSL_WANT_READ;
+  }
+
+  return rc;
+}
+
+static void node_tls_setup(struct doip_node_s *node) {
+  int ret = 0;
+  const char *pers = "doip_ssl_client";
+
+  ASLOG(DOIPI, ("DoIP TLS setup\n"));
+
+#if defined(MBEDTLS_DEBUG_C)
+  mbedtls_debug_set_threshold(MBEDTLS_DEBUG_LEVEL);
+#endif
+
+  mbedtls_ssl_init(&node->ssl);
+  mbedtls_ssl_config_init(&node->conf);
+  mbedtls_x509_crt_init(&node->cacert);
+  mbedtls_ctr_drbg_init(&node->ctr_drbg);
+  mbedtls_entropy_init(&node->entropy);
+
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
+  psa_status_t status = psa_crypto_init();
+  if (status != PSA_SUCCESS) {
+    ASLOG(DOIPE, ("Failed to initialize PSA Crypto implementation: %d\n", (int)status));
+    ret = -1;
+  }
+#endif /* MBEDTLS_USE_PSA_CRYPTO */
+
+  if (0 == ret) {
+    ret = mbedtls_ctr_drbg_seed(&node->ctr_drbg, mbedtls_entropy_func, &node->entropy,
+                                (const unsigned char *)pers, strlen(pers));
+    if (0 != ret) {
+      ASLOG(DOIPE, ("mbedtls_ctr_drbg_seed returned %d\n", ret));
+    }
+  }
+
+  if (0 == ret) {
+    ret = mbedtls_x509_crt_parse(&node->cacert, (const unsigned char *)node->client->casPem.data(),
+                                 node->client->casPem.size());
+    if (ret < 0) {
+      ASLOG(DOIPE, ("mbedtls_x509_crt_parse returned -0x%x\n", (unsigned int)-ret));
+    }
+  }
+
+  if (0 == ret) {
+    ret = mbedtls_ssl_config_defaults(&node->conf, MBEDTLS_SSL_IS_CLIENT,
+                                      MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+    if (0 != ret) {
+      ASLOG(DOIPE, ("mbedtls_ssl_config_defaults returned %d\n\n", ret));
+    }
+  }
+
+  if (0 == ret) {
+    /* OPTIONAL is not optimal for security,
+     * but makes interop easier in this simplified example */
+    mbedtls_ssl_conf_authmode(&node->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    mbedtls_ssl_conf_ca_chain(&node->conf, &node->cacert, NULL);
+    mbedtls_ssl_conf_rng(&node->conf, mbedtls_ctr_drbg_random, &node->ctr_drbg);
+    mbedtls_ssl_conf_dbg(&node->conf, TLS_Debug, node);
+  }
+
+  if (0 == ret) {
+    ret = mbedtls_ssl_setup(&node->ssl, &node->conf);
+    if (0 != ret) {
+      ASLOG(DOIPE, ("mbedtls_ssl_setup returned %d\n\n", ret));
+    }
+  }
+
+  if (0 == ret) {
+    ret = mbedtls_ssl_set_hostname(&node->ssl, SERVER_NAME);
+    if (0 != ret) {
+      ASLOG(DOIPE, ("mbedtls_ssl_set_hostname returned %d\n", ret));
+    }
+  }
+
+  if (0 == ret) {
+    mbedtls_ssl_set_bio(&node->ssl, node, TLS_NetSend, TLS_NetRecv, NULL);
+  }
+
+  while ((ret = mbedtls_ssl_handshake(&node->ssl)) != 0) {
+    if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+      ASLOG(DOIPE, ("mbedtls_ssl_handshake returned -0x%x\n\n", (unsigned int)-ret));
+      break;
+    }
+  }
+
+  if (0 != ret) {
+    node->stopped = true;
+    ASLOG(DOIPE, ("DoIP TLS setup failed\n"));
+  }
+}
+
 static void node_daemon(void *arg) {
   Std_ReturnType ret;
   struct doip_node_s *node = (struct doip_node_s *)arg;
-  uint32_t length;
-  ASLOG(DOIPI, ("DoIP node online\n"));
-  node->connected = true;
-  Std_TimerStart(&node->alive_request_timer);
-  Std_TimerStart(&node->alive_timer);
+  uint32_t length = 0;
+  uint32_t offset = 0;
+  uint32_t payloadLength = UINT16_MAX;
+
+  if (node->client->casPem.size() > 0) {
+    node_tls_setup(node);
+  }
+
+  if (false == node->stopped) {
+    ASLOG(DOIPI, ("DoIP node online\n"));
+    node->connected = true;
+    Std_TimerStart(&node->alive_request_timer);
+    Std_TimerStart(&node->alive_timer);
+  }
   node->sem.post();
   while (false == node->stopped) {
-    length = sizeof(node->buffer);
+    if (offset < DOIP_HEADER_LENGTH) {
+      length = DOIP_HEADER_LENGTH - offset;
+    } else {
+      length = payloadLength - (offset - DOIP_HEADER_LENGTH);
+    }
     node->lock.lock();
-    ret = TcpIp_Recv(node->sock, node->buffer, &length);
+    ret = TcpIp_TlsRecv(node, &node->buffer[offset], &length);
     if ((E_OK == ret) && (length > 0)) {
-      doip_handle_tcp_response(node, node->buffer, length);
+      ASHEXDUMP(DOIP, ("recv :"), &node->buffer[offset], length);
+      offset += length;
+      if (offset >= DOIP_HEADER_LENGTH) {
+        if ((DOIP_PROTOCOL_VERSION == node->buffer[0]) &&
+            (node->buffer[0] = ((~node->buffer[1])) & 0xFF)) {
+          payloadLength = ((uint32_t)node->buffer[4] << 24) + ((uint32_t)node->buffer[5] << 16) +
+                          ((uint32_t)node->buffer[6] << 8) + node->buffer[7];
+        } else {
+          offset = 0;
+          ASLOG(DOIPE, ("invalid tcp message\n"));
+        }
+      }
+      if (offset >= (payloadLength + DOIP_HEADER_LENGTH)) {
+        doip_handle_tcp_response(node, node->buffer, offset);
+        offset = 0;
+        payloadLength = UINT16_MAX;
+      } else {
+        /* wait a full DoIP message received */;
+      }
     }
     if (Std_GetTimerElapsedTime(&node->alive_request_timer) > DOIP_ALIVE_CHECK_TIME) {
       doip_alive_check_request(node);
@@ -376,12 +603,13 @@ static void doip_handle_tcp_response(struct doip_node_s *node, uint8_t *data, ui
   int r = 0;
   uint16_t payloadType = (uint16_t)-1;
   uint32_t payloadLength;
-
+  // TODO: the data possible contains multiply response
   if ((length >= DOIP_HEADER_LENGTH) && (DOIP_PROTOCOL_VERSION == data[0]) &&
       (data[0] = ((~data[1])) & 0xFF)) {
     payloadType = ((uint16_t)data[2] << 8) + data[3];
     payloadLength =
       ((uint32_t)data[4] << 24) + ((uint32_t)data[5] << 16) + ((uint32_t)data[6] << 8) + data[7];
+    ASHEXDUMP(DOIP, ("payload %u:", payloadType), &data[DOIP_HEADER_LENGTH], payloadLength);
     if ((payloadLength + DOIP_HEADER_LENGTH) <= length) {
       switch (payloadType) {
       case DOIP_GENERAL_HEADER_NEGATIVE_ACK:
@@ -469,11 +697,12 @@ static void doip_client_clear(doip_client_t *client) {
   } while (0 == r);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-doip_client_t *doip_create_client(const char *ip, int port) {
+doip_client_t *doip_create_client(const char *ip, int port, const char *casPem) {
   doip_client_t *client = NULL;
   TcpIp_SocketIdType discovery;
   TcpIp_SocketIdType test_equipment_request;
   Std_ReturnType ret = E_OK;
+  uint16_t u16PortAny = TCPIP_PORT_ANY;
   uint16_t u16Port = port;
   TcpIp_SockAddrType ipv4Addr;
   uint32_t ipAddr = TcpIp_InetAddr(ip);
@@ -499,7 +728,7 @@ doip_client_t *doip_create_client(const char *ip, int port) {
           TcpIp_Close(discovery, TRUE);
           ret = E_NOT_OK;
         } else {
-          TcpIp_Bind(test_equipment_request, 0, &u16Port);
+          TcpIp_Bind(test_equipment_request, TCPIP_LOCALADDRID_ANY, &u16PortAny);
         }
       }
     }
@@ -516,6 +745,17 @@ doip_client_t *doip_create_client(const char *ip, int port) {
       strcpy(client->ip, ip);
       client->port = port;
       client->numOfNodes = 0;
+      if (nullptr != casPem) {
+        FILE *fp = fopen(casPem, "rb");
+        assert(nullptr != fp);
+        fseek(fp, 0, SEEK_END);
+        size_t sz = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        client->casPem.resize(sz + 1);
+        fread(client->casPem.data(), sz, 1, fp);
+        client->casPem[sz] = '\0';
+        fclose(fp);
+      }
       STAILQ_INIT(&client->nodes);
     } else {
       ASLOG(DOIPE, ("Failed to allocate memory\n"));
@@ -615,6 +855,10 @@ int doip_connect(doip_node_t *node) {
       n->sock = sockId;
       n->thread = std::thread(node_daemon, (void *)n);
       n->sem.wait();
+      if (true != n->connected) {
+        ASLOG(DOIPE, ("Failed to connect\n"));
+        ret = E_NOT_OK;
+      }
     } else {
       r = DOIP_E_NODEV;
     }
@@ -642,13 +886,17 @@ int doip_activate(doip_node_t *node, uint16_t sa, uint8_t at, uint8_t *oem, uint
     doip_node_clear(n);
     n->lock.lock();
     doip_fill_header(n->buffer, DOIP_ROUTING_ACTIVATION_REQUEST, 7 + oem_len);
-    n->buffer[DOIP_HEADER_LENGTH] = (sa >> 8) & 0xFF;
+    n->buffer[DOIP_HEADER_LENGTH + 0] = (sa >> 8) & 0xFF;
     n->buffer[DOIP_HEADER_LENGTH + 1] = sa & 0xFF;
     n->buffer[DOIP_HEADER_LENGTH + 2] = at;
+    n->buffer[DOIP_HEADER_LENGTH + 3] = 0;
+    n->buffer[DOIP_HEADER_LENGTH + 4] = 0;
+    n->buffer[DOIP_HEADER_LENGTH + 5] = 0;
+    n->buffer[DOIP_HEADER_LENGTH + 6] = 0;
     if (oem_len > 0) {
-      memcpy(&n->buffer[DOIP_HEADER_LENGTH + 3], oem, oem_len);
+      memcpy(&n->buffer[DOIP_HEADER_LENGTH + 7], oem, oem_len);
     }
-    ret = TcpIp_Send(n->sock, n->buffer, DOIP_HEADER_LENGTH + 7 + oem_len);
+    ret = TcpIp_TlsSend(n, n->buffer, DOIP_HEADER_LENGTH + 7 + oem_len);
     if (E_OK == ret) {
       r = doip_node_wait(n);
       if ((0 == r) && (DOIP_ROUTING_ACTIVATION_RESPONSE == n->R.payload_type)) {
@@ -686,7 +934,7 @@ int doip_transmit(doip_node_t *node, uint16_t ta, const uint8_t *txBuffer, size_
     n->buffer[DOIP_HEADER_LENGTH + 2] = (ta >> 8) & 0xFF;
     n->buffer[DOIP_HEADER_LENGTH + 3] = ta & 0xFF;
     memcpy(&n->buffer[DOIP_HEADER_LENGTH + 4], txBuffer, txSize);
-    ret = TcpIp_Send(n->sock, n->buffer, DOIP_HEADER_LENGTH + 4 + txSize);
+    ret = TcpIp_TlsSend(n, n->buffer, DOIP_HEADER_LENGTH + 4 + txSize);
     if (E_OK == ret) {
       r = doip_node_wait(n);
       if ((0 == r) && (DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK == n->R.payload_type)) {

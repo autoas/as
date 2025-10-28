@@ -19,15 +19,21 @@ def Gen_CanIf(cfg, dir):
                 modules.append(pdu["up"])
     H = open("%s/CanIf_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef __CANIF_CFG_H\n")
-    H.write("#define __CANIF_CFG_H\n")
+    H.write("#ifndef CANIF_CFG_H\n")
+    H.write("#define CANIF_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
+    ID = 0
+    for network in cfg["networks"]:
+        H.write("#define CANIF_CHL_%s %su\n" % (network["name"], ID))
+        ID += 1
+    H.write("\n")
     ID = 0
     for network in cfg["networks"]:
         for pdu in network["RxPdus"]:
             H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
             ID += 1
+    H.write("\n")
     ID = 0
     for network in cfg["networks"]:
         for pdu in network["TxPdus"]:
@@ -43,12 +49,26 @@ def Gen_CanIf(cfg, dir):
             H.write("#define CANIF_USE_TX_TIMEOUT\n\n")
             break
     H.write("%s#define CANIF_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
+    H.write("%s#define CANIF_USE_TX_CALLOUT\n\n" % ("" if cfg.get("UseTxCallout", False) else "// "))
+    H.write("%s#define CANIF_USE_RX_CALLOUT\n\n" % ("" if cfg.get("UseRxCallout", False) else "// "))
+    H.write("#ifndef CANIF_RX_PACKET_POOL_SIZE\n")
+    H.write("#define CANIF_RX_PACKET_POOL_SIZE %su\n" % (cfg.get("RxPacketPoolSize", 0)))
+    H.write("#endif\n\n")
+    H.write("#ifndef CANIF_TX_PACKET_POOL_SIZE\n")
+    H.write("#define CANIF_TX_PACKET_POOL_SIZE %su\n" % (cfg.get("TxPacketPoolSize", 0)))
+    H.write("#endif\n\n")
+    H.write("#ifndef CANIF_RX_PACKET_DATA_SIZE\n")
+    H.write("#define CANIF_RX_PACKET_DATA_SIZE %su\n" % (cfg.get("RxPacketDataSize", 64)))
+    H.write("#endif\n\n")
+    H.write("#ifndef CANIF_TX_PACKET_DATA_SIZE\n")
+    H.write("#define CANIF_TX_PACKET_DATA_SIZE %su\n" % (cfg.get("TxPacketDataSize", 64)))
+    H.write("#endif\n\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* __CANIF_CFG_H */\n")
+    H.write("#endif /* CANIF_CFG_H */\n")
     H.close()
 
     C = open("%s/CanIf_Cfg.c" % (dir), "w")
@@ -128,6 +148,9 @@ def Gen_CanIf(cfg, dir):
                 C.write("    NULL, /* p_canid */\n")
             C.write("    %s, /* hoh */\n" % (pdu.get("hoh", 0)))
             C.write("    %s, /* ControllerId */\n" % (netId))
+            C.write("    #if CANIF_TX_PACKET_POOL_SIZE > 0\n")
+            C.write("    %s, /* bUseTxPool */\n" % (str(pdu.get("UseTxPool", False)).upper()))
+            C.write("    #endif\n")
             C.write("  },\n")
     C.write("};\n\n")
     C.write("static CanIf_CtrlContextType CanIf_CtrlContexts[%s];\n" % (len(cfg["networks"])))
@@ -156,11 +179,13 @@ def Gen_CanIf(cfg, dir):
 
 
 def extract(cfg, dir):
-    cfg_ = {"class": "CanIf", "networks": []}
+    cfg_ = dict(cfg)
+    cfg_["networks"] = []
     bNew = False
     hrh = 0
     hth = 0
     for network in cfg["networks"]:
+        E2E = network.get("E2E", [])
         NumHrh = network.get("NumHrh", 1)
         NumHth = network.get("NumHth", 1)
         ignore = network.get("ignore", [])
@@ -184,7 +209,8 @@ def extract(cfg, dir):
                     if "TX" not in rn:
                         rn += "_TX"
                     kl = "TxPdus"
-                    pdu = {"name": rn, "id": msg["id"], "hoh": hth, "up": "PduR"}
+                    UseTxPool = msg["name"] in E2E
+                    pdu = {"name": rn, "id": msg["id"], "hoh": hth, "up": "PduR", "UseTxPool": UseTxPool}
                 else:
                     if "RX" not in rn:
                         rn += "_RX"

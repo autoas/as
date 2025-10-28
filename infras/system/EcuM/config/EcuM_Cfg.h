@@ -42,6 +42,10 @@
 #include "Csm.h"
 #include "SecOC.h"
 #include "E2E.h"
+
+#include "TLS.h"
+
+#include "Mirror.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define ECUM_MAIN_FUNCTION_PERIOD 10
 #define ECUM_CONVERT_MS_TO_MAIN_CYCLES(x)                                                          \

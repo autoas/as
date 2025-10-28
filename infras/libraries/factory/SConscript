@@ -2,12 +2,11 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibraryFactory(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
         self.source = objs
-
-    

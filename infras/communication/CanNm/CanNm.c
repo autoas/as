@@ -154,6 +154,7 @@ static void nmSendMessage(CanNm_ChannelContextType *context, const CanNm_Channel
 
     pdu.SduLength = sizeof(context->data);
     pdu.SduDataPtr = context->data;
+    pdu.MetaDataPtr = NULL;
     ret = CanIf_Transmit(config->TxPdu, &pdu);
     if (E_OK == ret) { /* @SWS_CanNm_00064 */
       nmSetAlarm(TxTimeout, config->MsgTimeoutTime);

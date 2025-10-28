@@ -6,32 +6,32 @@ CWD = GetCurrentDir()
 @register_application
 class ApplicationASN1Ex1(Application):
     def config(self):
-        asn1c = '%s/build/%s/GCC/ASN1C/ASN1C' % (RootDir, os.name)
-        RunCommand('cd %s/ex1 && %s MyModule.asn1' % (CWD, asn1c))
-        objs = PkgGlob('%s/ex1' % (CWD), ['*.c'])
+        asn1c = "%s/build/%s/GCC/ASN1C/ASN1C" % (RootDir, os.name)
+        RunCommand("cd %s/ex1 && %s MyModule.asn1" % (CWD, asn1c))
+        objs = PkgGlob("%s/ex1" % (CWD), ["*.c"])
         self.source = objs
-        self.LIBS = ['ASN1C']
+        self.LIBS = ["ASN1C"]
 
 
 @register_application
 class ApplicationASN1X509(Application):
     def config(self):
-        asn1c = '%s/build/%s/GCC/ASN1C/ASN1C' % (RootDir, os.name)
-        if not os.path.exists('%s/x509/Certificate.c' % (CWD)):
-            RunCommand('cd %s/x509 && %s x509.asn1' % (CWD, asn1c))
-        objs = PkgGlob('%s/x509' % (CWD), ['*.c'])
+        asn1c = "%s/build/%s/GCC/ASN1C/ASN1C" % (RootDir, os.name)
+        if not os.path.exists("%s/x509/Certificate.c" % (CWD)):
+            RunCommand("cd %s/x509 && %s x509.asn1" % (CWD, asn1c))
+        objs = PkgGlob("%s/x509" % (CWD), ["*.c"])
         self.source = objs
-        self.LIBS = ['ASN1C']
+        self.LIBS = ["ASN1C"]
 
 
 @register_library
 class LibraryASN1X509(Library):
     def config(self):
-        asn1c = '%s/build/%s/GCC/ASN1C/ASN1C' % (RootDir, os.name)
-        if not os.path.exists('%s/x509/Certificate.c' % (CWD)):
-            RunCommand('cd %s/x509 && %s -fwide-types x509.asn1' % (CWD, asn1c))
-        objs = PkgGlob('%s/x509' % (CWD), ['*.c', '*.cpp'])
-        SrcRemove(objs, ['main.c'])
+        asn1c = "%s/build/%s/GCC/ASN1C/ASN1C" % (RootDir, os.name)
+        if not os.path.exists("%s/x509/Certificate.c" % (CWD)):
+            RunCommand("cd %s/x509 && %s -fwide-types x509.asn1" % (CWD, asn1c))
+        objs = PkgGlob("%s/x509" % (CWD), ["*.c", "*.cpp"])
+        SrcRemove(objs, ["main.c"])
         self.source = objs
-        self.include = ['%s/x509' % (CWD)]
-        self.LIBS = ['ASN1C', 'CryptoIf', 'Utils']
+        self.include = ["%s/x509" % (CWD)]
+        self.LIBS = ["ASN1C", "CryptoIf", "Utils"]

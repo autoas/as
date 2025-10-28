@@ -5,62 +5,90 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for PduR
+# AUTOSAR PduR Configuration Overview
 
-Below is 1 examples:
+The **PDU Router (PduR)** in AUTOSAR manages communication between software modules (e.g., `CanTp`, `Dcm`, `LinTp`) by routing Protocol Data Units (PDUs) across the system. This document explains how to configure PduR networks and routines, leveraging JSON definitions and automated code generation.
 
-* [application/PduR.json](../../app/app/config//Com/PduR.json)
+---
 
+## 1. Core Concepts
+
+### 1.1 What is PduR?  
+PduR acts as a software router that:  
+- Routes PDUs between upper-layer modules (e.g., `Dcm` ? `CanTp`).  
+- Supports gateway scenarios (e.g., routing a CAN0 PDU to a CAN1 PDU via `CanIf`).  
+- Relies on `Com` and `CanIf` for physical bus communication (PduR itself does not handle hardware).  
+
+### 1.2 Key Components  
+- **Networks**: Define logical communication channels between modules (e.g., `CAN0` for CAN-based PDUs).  
+- **Routines**: Map PDU names to their source/destination modules (e.g., route `CAN0_MSG0` from `CanIf` to `Dcm`).  
+
+---
+
+## 2. PduR JSON Configuration Example
+
+A typical PduR configuration includes `networks` (bus definitions) and `routines` (PDU routing rules).  
+
+### Example: [application/PduR.json](../../app/app/config/Com/PduR.json)
 ```json
 {
-  "class": "PduR",
-  "routines" : [
+  "class": "PduR",       // Fixed class identifier for PduR configurations
+  "routines": [          // List of PDU routing rules
     {
-      "name": "P2P_RX",
-      "from": "CanTp",
-      "to": "Dcm"
+      "name": "P2P_RX",  // Routine name (P2P = Peer-to-Peer)
+      "from": "CanTp",   // Source module (e.g., CanTp forward received PDU to Dcm)
+      "to": "Dcm"        // Destination module
     },
     {
-      "name": "P2P_TX",
-      "from": "Dcm",
+      "name": "P2P_TX",  // Routine name
+      "from": "Dcm",     // Source module (Dcm sends PDU to CanTp)
       "to": "CanTp"
     },
     {
-      "name": "P2A_RX",
-      "from": "CanTp",
-      "to": "Dcm"
+      "name": "P2A_RX",  // Routine name (P2A = Peer-to-Application)
+      "from": "CanTp",   // Source: CanTp
+      "to": "Dcm"        // Destination: Dcm
     },
     {
-      "name": "P2A_TX",
-      "from": "Dcm",
-      "to": "CanTp"
+      "name": "P2A_TX",  // Routine name
+      "from": "Dcm",     // Source: Dcm
+      "to": "CanTp"      // Destination: CanTp
     }
   ],
-  "networks": [
+  "networks": [          // List of logical networks (bus interfaces)
     {
-      "name": "CAN0",
-      "network": "CAN",
-      "me": "AS",
-      "dbc": "CAN0.dbc"
+      "name": "CAN0",    // Logical network name (matches DBC file)
+      "network": "CAN",  // Physical network type (e.g., "CAN", "LIN")
+      "me": "AS",        // Module entity (e.g., "AS" = Application Software)
+      "dbc": "CAN0.dbc"  // Path to DBC file defining CAN messages
     }
   ]
 }
 ```
 
+---
 
-## networks
+## 3. Networks Configuration
 
-For PduR, networks are used to specify those Pdus from/to the Com module, almost the same as [CanIf networks configuration](./CanIf.md#L37) but without RxPdu and TxPdu list.
+### 3.1 Purpose of Networks  
+Networks in PduR define **logical communication channels** (e.g., CAN0, LIN0) and link them to physical bus parameters (via DBC files). Unlike `CanIf` (which handles physical bus configuration), PduR networks focus on **inter-module routing**.  
 
-So the routines, are use to specify those message from/to CanTp/Dcm/Nm/LinTp, etc.
+### 3.2 Key Attributes  
+| Attribute | Type       | Description                                                                 |
+|-----------|------------|-----------------------------------------------------------------------------|
+| `name`    | String     | Logical name of the network (e.g., `CAN0`).     |
+| `network` | String     | Physical network type (e.g., `"CAN"` for Controller Area Network).          |
+| `me`      | String     | Module entity (e.g., `"AS"` = Application Software; maps to ECU architecture).|
+| `dbc`     | String     | Path to the DBC file defining messages, IDs, and signals for this network.   |
 
+---
 
-And please note that, under the parent directory of PduR.json, file GEN/PduR.json will be generated, in which you can see that all message in dbc converted into routines.
+## 4. Routines Configuration
 
-* [GEN/PduR.json](../../app/app/config/Com/GEN/PduR.json)
+### 4.1 Purpose of Routines  
+Routines define **how PDUs are routed between modules**. Each routine maps a PDU name to its source and destination modules.  
 
-
-## routines
+### 4.2 Routine Structure
 
 ```json
     {
@@ -71,73 +99,44 @@ And please note that, under the parent directory of PduR.json, file GEN/PduR.jso
     },
 ```
 
-The "dest" is optional, as generally, the "dest" is the same as "name".
+A routine is defined by:  
+- `name`: Unique identifier for the routing rule (often derived from the PDU name).  
+- `from`: Source module (e.g., `CanTp`, `Dcm`).  
+- `to`: Destination module (e.g., `Dcm`, `CanTp`).  
+- `dest` (Optional): Renamed PDU at the destination (defaults to `name` if omitted).  
 
-But for some PduR gateway case, such as a message from CAN0 routine to CAN1, below is a configuration example:
+### 4.3 Example Scenarios  
 
-
+#### Basic Peer-to-Peer Routing  
+Route a PDU from `CanTp` to `Dcm` (common for diagnostic requests):  
 ```json
-    {
-      "name": "CAN0_MSG0",
-      "from": "CanIf",
-      "to": "CanIf",
-      "dest": "CAN1_MSG0"
-    },
+{
+  "name": "P2P_RX",
+  "from": "CanTp",
+  "to": "Dcm"
+}
 ```
 
-Please note that for now, PduR doesn't support gateway between LinIf and CanIf.
-
-
-## Genetator
-
-* [Genetator PduR.py](../../tools/generator/PduR.py)
-
-
-### Design notes for PduR
-
+#### Gateway Routing (CAN0 ¡ú CAN1)  
+Route a CAN0 PDU to a CAN1 PDU (e.g., for cross-bus communication):  
+```json
+{
+  "name": "CAN0_MSG0",
+  "from": "CanIf",
+  "to": "CanIf",
+  "dest": "CAN1_MSG0"  // Rename PDU to match CAN1's DBC definition
+}
 ```
-  The PduR Base Ids looks very weird and it's really not a good design, and it can cover only some simple routines.
- And the routines must be specially configured with correct sorted orders.
- But the reason for this is that LinTp/CanTp and Dcm are channel based design to make it simple, and this issue can
- be resolved that each module hold the right routine table Id when call PduR API, thus can configure all the base id as 0.
-                                              `  To Make things simple, the PduR routines are grouped according to "from"/"to"
-   +-------+                                  `   [x]: x is the routine path id.
-   |  Dcm  |                                  `   [0] = { from: DoIp  0, to: Dcm   0 }  <- DOIP_RX_BASE_ID
-   +---0---+                                  `   [1] = { from: DoIp  1, to: CanTp 0 }  <- CANTP_TX_BASE_ID
-      ^ |                                     `   [2] = { from: DoIp  2, to: CanTp 1 }
-      | v                                     `   [3] = { from: Dcm   0, to: DoIp  0 }  <- DOIP_TX_BASE_ID / DCM_TX_BASE_ID
-  +---|-|----------------------------------+  `   [4] = { from: CanTp 0, to: DoIp  1 }  <- CANTP_RX_BASE_ID
-  |   | |          PduR                    |  `   [5] = { from: CanTp 1, to: DoIp  2 }
-  |   | |  +--------------------------+    |  `
-  |   | |  | +----------------------+ |    |  `  The DoIP 1 get a request, thus forward it to CanTp 1, CanTp 1 will call PduR Tx
-  |   | |  | |   +---------------+  | |    |  ` Related API with PduId 1, and the PduR will add the PduId with CANTP_TX_BASE_ID,
-  |   | |  | |   | +-----------+ |  | |    |  ` thus in this case, get the correct routine path id 2.
-  +---|-|--|-|---|-|-----------|-|--|-|----+  `  Thus, when CanTp 1 has a response, it calls PduR Rx related API with PduId 1,
-      ^ |  ^ |   ^ |           ^ |  ^ |       ` and the PduR will add the PduId with CANTP_RX_BASE_ID, thus in this case, get
-      | V  | V   | V           | V  | V       ` the correct routine path id 5.
-  +----0----1-----2----+    +---0----1---+    `
-  |       DoIP         |    |   CanTp    |    `
-  +--------------------+    +------------+    `
 
- This design works for gateway cross TP, it will not works for routines in the same TP as below case.
+### 4.4 Limitations  
+- **No LinIf-CANIF Gateway**: PduR currently does not support routing between `LinIf` (LIN) and `CanIf` (CAN).  
+- **No Physical Bus Handling**: PduR relies on `CanIf`/`LinIf` for physical bus communication (e.g., bit timing, arbitration).  
 
-                                              `
-   +-------+                                  `   [x]: x is the routine path id.
-   |  Dcm  |                                  `   [0] = { from: CanTp 0, to: Dcm   0 }  <- CANTP_RX_BASE_ID
-   +---0---+                                  `   [1] = { from: CanTp 1, to: CanTp 4 }  <- CANTP_TX_BASE_ID
-      ^ |                                     `   [2] = { from: CanTp 2, to: CanTp 3 }
-      | v                                     `   [3] = { from: CanTp 3, to: CanTp 2 }
-  +---|-|----------------------------------+  `   [4] = { from: CanTp 4, to: CanTp 1 }
-  |   | |          PduR                    |  `   [5] = { from: Dcm   0, to: CanTp 0 }  <- DCM_TX_BASE_ID
-  |   | |  +--------------------------+    |  `
-  |   | |  | +----------------------+ |    |  `  e.g: CanTp 3 call PduR Tx Api with PduId 3, thus routine path id is 3+1 which is 4,
-  |   | |  | |   +---------------+  | |    |  ` it's totally wrong, the correct routine path id is 1 in this case.
-  |   | |  | |   | +-----------+ |  | |    |  `
-  +---|-|--|-|---|-|-----------|-|--|-|----+  `  So in thus case, all the PduR based id must be configured with 0, and each module
-      ^ |  ^ |   ^ |           ^ |  ^ |       ` must call PduR API with the right routhine path id.
-      | V  | V   | V           | V  | V       `
-  +----0----1-----2---------- --3----4----+   `  And for the underlying Tp, for example for the TP pair 2&3, the TP configuration:
-  |               CanTp                   |   `    TP Channel 2: { Rx: PDUR_ID_2_RX=[2], Tx: PDUR_ID_3_RX=[3] }
-  +---------------------------------------+   `    TP Channel 3: { Rx: PDUR_ID_3_RX=[3], Tx: PDUR_ID_2_RX=[2] }
-                                              `  Please note that the TP Channel Tx referece to the peer.
-```
+---
+
+## 5. Code Generation with `PduR.py`  
+
+The [Generator PduR.py](../../tools/generator/PduR.py) script automates PduR configuration by:  
+1. **Parsing DBC Files**: Converts message definitions from `CAN0.dbc` (or other DBCs) into PduR routines.  
+2. **Generating GEN/PduR.json**: Produces a system-ready configuration file that maps DBC messages to PduR routines.  
+3. **Validating Syntax**: Ensures JSON compliance and correct module references.  

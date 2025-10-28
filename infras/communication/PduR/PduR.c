@@ -20,7 +20,7 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void PduR_Init(const PduR_ConfigType *ConfigPtr) {
-  (void) ConfigPtr;
+  (void)ConfigPtr;
 #if defined(PDUR_USE_MEMPOOL)
   PduR_MemInit();
 #endif
@@ -230,7 +230,7 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
 
-  (void) retry;
+  (void)retry;
 
   ASLOG(PDUR, ("PduR_GwCopyTxData %d\n", pathId));
   if ((pathId < config->numOfRoutingPaths) &&
@@ -246,20 +246,26 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   return ret;
 }
 
-#if defined(PDUR_USE_MEMPOOL)
 void PduR_GwTxConfirmation(PduIdType pathId, Std_ReturnType result) {
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
+  const PduR_RoutingPathType *RoutingPath;
 
-  (void) result;
+  (void)result;
 
   DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF2, PDUR_E_PDU_ID_INVALID, return);
 
+  RoutingPath = &config->RoutingPaths[pathId];
+
   ASLOG(PDUR, ("PduR_GwTxConfirmation %d\n", pathId));
-  if (NULL != config->RoutingPaths[pathId].DestTxBufferRef) {
-    buffer = config->RoutingPaths[pathId].DestTxBufferRef;
+  if (NULL != RoutingPath->DestTxBufferRef) {
+    buffer = RoutingPath->DestTxBufferRef;
     if (NULL != buffer->data) {
-      PduR_MemFree(buffer->data);
+#if defined(PDUR_USE_MEMPOOL)
+      if (buffer->data != RoutingPath->GwBuffer) {
+        PduR_MemFree(buffer->data);
+      }
+#endif
       buffer->data = NULL;
     }
   }
@@ -269,25 +275,39 @@ BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *i
                                           PduLengthType TpSduLength, PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
+  const PduR_RoutingPathType *RoutingPath;
   PduR_BufferType *buffer;
 
-  (void) info;
+  (void)info;
 
   DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF3, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
+  RoutingPath = &config->RoutingPaths[pathId];
+
   ASLOG(PDUR, ("PduR_GwStartOfReception %d\n", pathId));
-  if (NULL != config->RoutingPaths[pathId].DestTxBufferRef) {
-    buffer = config->RoutingPaths[pathId].DestTxBufferRef;
-    if (buffer->data != NULL) {
-      PduR_MemFree(buffer->data);
-    }
-    buffer->data = PduR_MemAlloc(TpSduLength);
-    if (NULL != buffer->data) {
+  if (NULL != RoutingPath->DestTxBufferRef) {
+    buffer = RoutingPath->DestTxBufferRef;
+    if ((NULL != RoutingPath->GwBuffer) && (RoutingPath->GwBufferSize >= TpSduLength)) {
+      buffer->data = RoutingPath->GwBuffer;
       buffer->size = TpSduLength;
       buffer->index = 0;
       *bufferSizePtr = TpSduLength;
       ret = BUFREQ_OK;
+    } else { /* no static buffer or size too small */
+#if defined(PDUR_USE_MEMPOOL)
+      if ((buffer->data != NULL) && (buffer->data != RoutingPath->GwBuffer)) {
+        PduR_MemFree(buffer->data);
+        ASLOG(PDURE, ("[%u] Free old buffer\n", pathId));
+      }
+      buffer->data = PduR_MemAlloc(TpSduLength);
+      if (NULL != buffer->data) {
+        buffer->size = TpSduLength;
+        buffer->index = 0;
+        *bufferSizePtr = TpSduLength;
+        ret = BUFREQ_OK;
+      }
+#endif
     }
   }
   return ret;
@@ -327,15 +347,18 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
   PduInfoType PduInfo;
   uint16_t i;
   PduLengthType bufferSize;
-  Std_ReturnType ret = E_OK;
+  Std_ReturnType ret = result;
+  const PduR_RoutingPathType *RoutingPath;
 
   DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF5, PDUR_E_PDU_ID_INVALID, return);
 
+  RoutingPath = &config->RoutingPaths[pathId];
+
   ASLOG(PDUR, ("PduR_GwRxIndication %d\n", pathId));
-  if (NULL != config->RoutingPaths[pathId].DestTxBufferRef) {
-    for (i = 0; (i < config->RoutingPaths[pathId].numOfDestPdus) && (E_OK == ret); i++) {
-      DestPduRef = &config->RoutingPaths[pathId].DestPduRef[i];
-      buffer = config->RoutingPaths[pathId].DestTxBufferRef;
+  if (NULL != RoutingPath->DestTxBufferRef) {
+    for (i = 0; (i < RoutingPath->numOfDestPdus) && (E_OK == ret); i++) {
+      DestPduRef = &RoutingPath->DestPduRef[i];
+      buffer = RoutingPath->DestTxBufferRef;
       if ((E_OK == result) && (NULL != buffer->data)) {
         PduInfo.SduDataPtr = buffer->data;
         PduInfo.SduLength = buffer->size;
@@ -353,6 +376,7 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
             }
           } else {
             ASLOG(PDURE, ("null ISOTP RX API\n"));
+            ret = E_NOT_OK;
           }
         } else { /* Gateway to others, Note this version only support 1 by 1 gateway only*/
           if (NULL != DestPduRef->api->Transmit) {
@@ -366,11 +390,12 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
       }
     }
     if (E_NOT_OK == ret) {
-      if (NULL != buffer->data) {
+#if defined(PDUR_USE_MEMPOOL)
+      if ((buffer->data != NULL) && (buffer->data != RoutingPath->GwBuffer)) {
         PduR_MemFree(buffer->data);
         buffer->data = NULL;
       }
+#endif
     }
   }
 }
-#endif /* defined(PDUR_USE_MEMPOOL) */

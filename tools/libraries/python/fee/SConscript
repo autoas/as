@@ -13,11 +13,13 @@ class LibraryPyFee(Library):
         self.LIBS = ["Fee", "Fls", "FlsAc", "Utils"]
         self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "USE_FLS"])
         self.Append(CPPDEFINES=["FLS_AC_RAM_ONLY"])
-        self.Append(CPPDEFINES=["FEE_PAGE_SIZE=256"])
-        # self.Append(CPPDEFINES=["FLS_DATA_DIRECT_ACCESS"])
+        self.Append(CPPDEFINES=["FEE_USE_FAULTS", "FEE_USE_CONTEXT_CRC"])
+        self.Append(CPPDEFINES=["FEE_PAGE_SIZE=8"])
+        self.Append(CPPDEFINES=["FLS_DIRECT_ACCESS"])
         # self.Append(CPPDEFINES=['FEE_USE_BLANK_CHECK', 'FLS_ERASED_VALUE=0xFF'])
         self.Append(CPPDEFINES=["AS_LOG_DEFAULT=0"])
         self.CPPPATH = ["$INFRAS"]
+        self.Append(CPPPATH=["%s/config" % (CWD)])
         self.source = objs
         if IsBuildForWindows():
             cmd = "cp -v %s/PyFee.dll %s/PyFee.pyd" % (BUILD_DIR, CWD)

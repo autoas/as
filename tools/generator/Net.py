@@ -46,6 +46,9 @@ def ProcDoIp(cfg, mod):
         "listen": mod["max_connections"],
         "RxPduId": "DOIP_RX_PID_TCP",
     }
+    if mod.get("EnableTLS", False):
+        sock["up"] = "TLS"
+        sock["RxPduId"] = "TLS_RX_PID_DOIP_TCP"
     cfg["sockets"].append(sock)
 
 

@@ -362,6 +362,12 @@ static void CanTp_HandleCF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
   context = &(CANTP_CONFIG->channelContexts[RxPduId]);
   config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
 
+  /* A robust logic to handle cases where TxConfirm occurs after RxInd or is missing. */
+  if (CANTP_WAIT_FC_CTS_TX_COMPLETED == context->state) {
+    ASLOG(CANTPE, ("[%d]CF received before FC CTS TxConfirm\n", RxPduId));
+    context->state = CANTP_WAIT_CF;
+  }
+
   if (CANTP_EXTENDED == config->AddressingFormat) {
     cfLen = config->LL_DL - 2u;
   } else {
@@ -430,6 +436,22 @@ static void CanTp_HandleFC(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
 
   context = &(CANTP_CONFIG->channelContexts[RxPduId]);
   config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+
+  /* A robust logic to handle cases where TxConfirm occurs after RxInd or is missing. */
+  if (CANTP_WAIT_FF_TX_COMPLETED == context->state) {
+    ASLOG(CANTPE, ("[%d]FC received before FF TxConfirm\n", RxPduId));
+    context->state = CANTP_WAIT_FIRST_FC;
+  } else if (CANTP_WAIT_CF_TX_COMPLETED == context->state) {
+    if (1u == context->BS) {
+      ASLOG(CANTPE, ("[%d]FC received before CF TxConfirm\n", RxPduId));
+      context->BS = context->cfgBS;
+      context->state = CANTP_WAIT_FC;
+      context->WftCounter = 0u;
+      CanTpSetAlarm(config->N_Bs);
+    }
+  } else {
+    /* OK, do nothing */
+  }
 
   if ((context->state != CANTP_WAIT_FIRST_FC) && (context->state != CANTP_WAIT_FC)) {
     ASLOG(CANTPE, ("[%d]FC received when in state %d.\n", RxPduId, context->state));

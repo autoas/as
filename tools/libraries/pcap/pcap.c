@@ -309,7 +309,7 @@ void PCap_SD(uint8_t *data, uint32_t length, const TcpIp_SockAddrType *RemoteAdd
   uint8_t *entries;
   uint8_t *options;
   float rtim;
-  static const TcpIp_SockAddrType broadcast = {TCPIP_IPPROTO_UDP, 30490, {224, 244, 224, 245}};
+  static const TcpIp_SockAddrType broadcast = {30490, {224, 244, 224, 245}};
   if (NULL == RemoteAddr) {
     RemoteAddr = &broadcast;
   }

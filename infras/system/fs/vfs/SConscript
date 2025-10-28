@@ -10,10 +10,11 @@ objs = Glob("*.c")
 objsEx = Glob("example/*.c")
 
 
-call=None
+call = None
+
+
 @register_os
 class LibraryVFS(Library):
-
     def config(self):
         self.source = objs
         self.include += [CWD]

@@ -1,0 +1,40 @@
+{
+  "class": "Mirror",
+  "SourceNetworkCan": [
+    {
+      "name": "CAN0",
+      "StaticFilters": [
+         { "type": "range", "lower":0, "upper": "0x100" },
+         { "type": "mask", "code":"0x700", "mask": "0x700" }
+       ],
+       "MaxDynamicFilters": 128,
+       "ControllerId": 0
+    }
+  ],
+  "SourceNetworkLin": [
+    {
+      "name": "LIN0",
+      "StaticFilters": [
+         { "type": "range", "lower":0, "upper": "0x10" },
+         { "type": "mask", "code":"0x20", "mask": "0x70" }
+       ],
+       "MaxDynamicFilters": 32,
+       "ControllerId": 0
+    }
+  ],
+  "DestNetworkIp": [
+    {
+      "name": "AS",
+      "DestQueueSize": 2,
+      "DestBufferSize": 1400,
+      "SoAd": "SOAD_TX_PID_MIRROR_CLIENT_0"
+    }
+  ],
+  "DestNetworkCan": [
+    {
+      "name": "AS",
+      "DestQueueSize": 128,
+      "TxPduId": "MIRROR_TX"
+    }
+  ]
+}

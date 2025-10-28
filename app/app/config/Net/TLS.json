@@ -1,0 +1,16 @@
+{
+  "class": "TLS",
+  "servers": [
+    {
+      "name": "DOIP_TCP",
+      "ServerCerts": "Cert/TLS0_ServerCerts.pem",
+      "CasCerts": "Cert/TLS0_CasCerts.pem",
+      "ServerKey": "Cert/TLS0_ServerKey.pem",
+      "MaxSize": 512,
+      "up": "DoIP",
+      "SoConId": "DOIP_TCP_APT",
+      "RxPduId": "DOIP_RX_PID_TCP",
+      "repeat": 3
+    }
+  ]
+}

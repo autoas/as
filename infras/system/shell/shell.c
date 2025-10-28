@@ -37,7 +37,7 @@ Shell_CmdType __ssymtab_start[1024];
 Shell_CmdType *__ssymtab_end = &__ssymtab_start[0];
 static OSAL_ThreadType lStdinThread = NULL;
 #else
-#ifdef __CC_ARM
+#if defined(__CC_ARM) || defined(__ARMCC_VERSION)
 extern const Shell_CmdType ShellCmdTab$$Base;
 extern const Shell_CmdType ShellCmdTab$$Limit;
 #define __ssymtab_start &ShellCmdTab$$Base

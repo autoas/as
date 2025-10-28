@@ -8,8 +8,9 @@ from .helper import *
 __all__ = ["Gen_SoAd"]
 
 
-def Gen_Sock(C, RxPduId, SoConId, GID, SoConType):
+def Gen_Sock(C, RxPduId, SoConId, GID, SoConType, LocalPort="NULL"):
     C.write("  {\n")
+    C.write("    %s, /* LocalPort */\n" % (LocalPort))
     C.write("    %s, /* RxPduId */\n" % (RxPduId))
     C.write("    %s, /* SoConId */\n" % (SoConId))
     C.write("    %s, /* GID */\n" % (GID))
@@ -55,6 +56,19 @@ def Gen_SoAd(cfg, dir):
         elif "client" in sock:
             H.write("#define SOAD_TX_PID_%s %s\n" % (mn, ID))
             ID += 1
+    headerMaxLen = 1
+    for GID, sock in enumerate(cfg["sockets"]):
+        headerLen = 0
+        if sock["up"] == "DoIP":
+            headerLen = 8
+        elif sock["up"] == "SD":
+            headerLen = 8
+        elif sock["up"] == "SOMEIP":
+            headerLen = 8
+        if headerLen > headerMaxLen:
+            headerMaxLen = headerLen
+    H.write("\n")
+    H.write("#define SOAD_HEADER_MAX_LEN %su\n" % (headerMaxLen))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -80,55 +94,59 @@ def Gen_SoAd(cfg, dir):
         C.write('#include "SomeIp_Cfg.h"\n')
     if any(sock["up"] == "UdpNm" for sock in cfg["sockets"]):
         C.write('#include "UdpNm.h"\n')
-        C.write('#include "../UdpNm_Cfg.h"\n')
+        C.write('#include "UdpNm_Cfg.h"\n')
+    if any(sock["up"] == "TLS" for sock in cfg["sockets"]):
+        C.write('#include "TLS.h"\n')
+        C.write('#include "TLS_Cfg.h"\n')
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     if any(sock["up"] == "DoIP" for sock in cfg["sockets"]):
-        C.write("static const SoAd_IfInterfaceType SoAd_DoIP_IF = {\n")
-        C.write("  DoIP_SoAdIfRxIndication,\n")
-        C.write("  NULL,\n")
-        C.write("  DoIP_SoAdIfTxConfirmation,\n")
-        C.write("};\n\n")
-
-        C.write("static const SoAd_TpInterfaceType SoAd_DoIP_TP_IF = {\n")
-        C.write("  DoIP_SoAdTpStartOfReception,\n")
-        C.write("  DoIP_SoAdTpCopyRxData,\n")
-        C.write("  NULL,\n")
-        C.write("  NULL,\n")
+        C.write("static const SoAd_InterfaceType SoAd_DoIP_IF = {\n")
+        C.write("  DoIP_HeaderIndication,\n")
+        C.write("  DoIP_RxIndication,\n")
         C.write("  NULL,\n")
         C.write("};\n\n")
 
     if any(sock["up"] == "SD" for sock in cfg["sockets"]):
-        C.write("static const SoAd_IfInterfaceType SoAd_SD_IF = {\n")
+        C.write("static const SoAd_InterfaceType SoAd_SD_IF = {\n")
+        C.write("  Sd_HeaderIndication,\n")
         C.write("  Sd_RxIndication,\n")
-        C.write("  NULL,\n")
         C.write("  NULL,\n")
         C.write("};\n\n")
 
     if any(sock["up"] == "UdpNm" for sock in cfg["sockets"]):
-        C.write("static const SoAd_IfInterfaceType SoAd_UdpNm_IF = {\n")
-        C.write("  UdpNm_SoAdIfRxIndication,\n")
+        C.write("static const SoAd_InterfaceType SoAd_UdpNm_IF = {\n")
         C.write("  NULL,\n")
+        C.write("  UdpNm_SoAdIfRxIndication,\n")
         C.write("  UdpNm_SoAdIfTxConfirmation,\n")
         C.write("};\n\n")
 
-    if any(sock["up"] == "SOMEIP" and sock["protocol"] == "UDP" for sock in cfg["sockets"]):
-        C.write("static const SoAd_IfInterfaceType SoAd_SOMEIP_IF = {\n")
+    if any(sock["up"] == "SOMEIP" for sock in cfg["sockets"]):
+        C.write("static const SoAd_InterfaceType SoAd_SOMEIP_IF = {\n")
+        C.write("  SomeIp_HeaderIndication,\n")
         C.write("  SomeIp_RxIndication,\n")
         C.write("  NULL,\n")
-        C.write("  NULL,\n")
         C.write("};\n\n")
-    if any(sock["up"] == "SOMEIP" and sock["protocol"] == "TCP" for sock in cfg["sockets"]):
-        C.write("static const SoAd_TpInterfaceType SoAd_SOMEIP_TP_IF = {\n")
-        C.write("  SomeIp_SoAdTpStartOfReception,\n")
-        C.write("  SomeIp_SoAdTpCopyRxData,\n")
+
+    if any(sock["up"] == "TLS" for sock in cfg["sockets"]):
+        C.write("static const SoAd_InterfaceType SoAd_TLS_IF = {\n")
         C.write("  NULL,\n")
         C.write("  NULL,\n")
         C.write("  NULL,\n")
         C.write("};\n\n")
 
+    if any(sock["up"] == "Mirror" for sock in cfg["sockets"]):
+        C.write("static const SoAd_InterfaceType SoAd_Mirror_IF = {\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("};\n\n")
+
+    for sock in cfg["sockets"]:
+        if sock["protocol"] == "UDP" and "client" in sock:
+            C.write("static uint16_t SoAd_LocalPort%s = 0;\n" % (sock["name"]))
     C.write("static const SoAd_SocketConnectionType SoAd_SocketConnections[] = {\n")
     for GID, sock in enumerate(cfg["sockets"]):
         RxPduId = sock["RxPduId"]
@@ -141,7 +159,11 @@ def Gen_SoAd(cfg, dir):
             RxPduId = -1
         elif "client" in sock:
             SoConId = "SOAD_SOCKID_%s" % (mn)
-        Gen_Sock(C, RxPduId, SoConId, GID, SoConType)
+        if sock["protocol"] == "UDP" and "client" in sock:
+            LocalPort = "&SoAd_LocalPort%s" % (sock["name"])
+        else:
+            LocalPort = "NULL"
+        Gen_Sock(C, RxPduId, SoConId, GID, SoConType, LocalPort)
         if ("server" in sock) and (sock["protocol"] == "TCP"):
             for i in range(sock["listen"]):
                 RxPduId = "%s%s" % (sock["RxPduId"], i)
@@ -158,7 +180,6 @@ def Gen_SoAd(cfg, dir):
         SoConModeChgNotification = "TODO"
         SoConId = -1
         numOfConnections = 1
-        IsTP = "FALSE"
         if sock["protocol"] == "UDP":
             pass
         elif "server" in sock:
@@ -166,28 +187,32 @@ def Gen_SoAd(cfg, dir):
             SoConId = "SOAD_SOCKID_%s_APT0" % (mn)
         elif "client" in sock:
             pass
+        headerLen = 0
         if sock["up"] == "DoIP":
             SoConModeChgNotification = "DoIP_SoConModeChg"
-            if sock["protocol"] == "UDP":
-                IF = "SoAd_DoIP_IF"
-            else:
-                IF = "SoAd_DoIP_TP_IF"
-                IsTP = "TRUE"
+            IF = "SoAd_DoIP_IF"
+            headerLen = 8
         elif sock["up"] == "SD":
             SoConModeChgNotification = "Sd_SoConModeChg"
             IF = "SoAd_SD_IF"
+            headerLen = 8
         elif sock["up"] == "SOMEIP":
             SoConModeChgNotification = "SomeIp_SoConModeChg"
-            if sock["protocol"] == "UDP":
-                IF = "SoAd_SOMEIP_IF"
-            else:
-                IF = "SoAd_SOMEIP_TP_IF"
-                IsTP = "TRUE"
+            IF = "SoAd_SOMEIP_IF"
+            headerLen = 8
         elif sock["up"] == "UdpNm":
             SoConModeChgNotification = "NULL"
             IF = "SoAd_UdpNm_IF"
+        elif sock["up"] == "TLS":
+            SoConModeChgNotification = "TLS_SoConModeChg"
+            IF = "SoAd_TLS_IF"
+        elif sock["up"] == "Mirror":
+            SoConModeChgNotification = "NULL"
+            IF = "SoAd_Mirror_IF"
         else:
             raise
+        if sock["protocol"] == "UDP":
+            headerLen = 0  # for UDP, I see on windows, must read the full packet
         if "ModeChg" in sock:
             SoConModeChgNotification = "%s_SoConModeChg" % (sock["ModeChg"])
         if "server" in sock:
@@ -207,16 +232,16 @@ def Gen_SoAd(cfg, dir):
         AutomaticSoConSetup = str(sock.get("AutomaticSoConSetup", False)).upper()
         C.write("  {\n")
         C.write("    /* %s: %s */\n" % (GID, sock["name"]))
-        C.write("    &%s, /* Interface */\n" % (IF))
+        C.write("    &%s, /* IF */\n" % (IF))
         C.write("    %s, /* SoConModeChgNotification */\n" % (SoConModeChgNotification))
         C.write("    TCPIP_IPPROTO_%s, /* ProtocolType */\n" % (sock["protocol"]))
         C.write("    %s, /* Remote */\n" % (IpAddress))
         C.write("    %s, /* SoConId */\n" % (SoConId))
         C.write("    %s, /* Port */\n" % (Port))
+        C.write("    %s, /* headerLen */\n" % (headerLen))
         C.write("    %s, /* LocalAddrId */\n" % (LocalAddrId))
         C.write("    %s, /* numOfConnections */\n" % (numOfConnections))
         C.write("    %s, /* AutomaticSoConSetup */\n" % (AutomaticSoConSetup))
-        C.write("    %s, /* IsTP */\n" % (IsTP))
         C.write("    %s, /* IsMulitcast */\n" % (multicast))
         C.write("  },\n")
     C.write("};\n\n")

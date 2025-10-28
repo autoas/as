@@ -18,18 +18,18 @@
       "trigger": ["CanNmUserData"],
       "messages": [
         {
-          "name": "SECOC_MSG0", "id": "0x99", "dlc": 32,
+          "name": "SECOC_MSG0", "id": "0x99", "dlc": 36,
           "node": "AS", "CycleTime": 1000,
           "signals": [
-            { "name": "VehicleConfig", "start": 7, "size": 256, "endian": "big", "InitialValue": "[i for i in range(32)]",
+            { "name": "VehicleConfig", "start": 7, "size": 288, "endian": "big", "InitialValue": "[i for i in range(32)]",
               "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "Other"] }
           ]
         },
         {
-          "name": "SECOC_MSG1", "id": "0x98", "dlc": 32,
+          "name": "SECOC_MSG1", "id": "0x98", "dlc": 36,
           "node": "Other",
           "signals": [
-            { "name": "VehicleConfig2", "start": 7, "size": 256, "endian": "big",
+            { "name": "VehicleConfig2", "start": 7, "size": 288, "endian": "big",
               "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "AS"] }
           ]
         }

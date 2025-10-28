@@ -4,17 +4,17 @@
  *
  * ref: Specification of Service Discovery AUTOSAR CP Release 4.4.0
  */
-#ifndef _SD_PRIV_H
-#define _SD_PRIV_H
+#ifndef SD_PRIV_H
+#define SD_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "SoAd.h"
 #include "Sd.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define DEFAULT_TTL 0xFFFFFF /* @SWS_SD_00514, until next reboot */
+#define DEFAULT_TTL 0xFFFFFFu /* @SWS_SD_00514, until next reboot */
 
-#define SD_ANY_MAJOR_VERSION 0xFF
-#define SD_ANY_MINOR_VERSION 0xFFFFFFFF
+#define SD_ANY_MAJOR_VERSION 0xFFu
+#define SD_ANY_MINOR_VERSION 0xFFFFFFFFu
 /* ================================ [ TYPES     ] ============================================== */
 typedef enum {
   SD_PHASE_DOWN,
@@ -70,7 +70,7 @@ typedef struct {
 
 typedef struct {
   Sd_EventHandlerSubscriberListType listEventHandlerSubscribers;
-  bool isMulticastOpened;
+  boolean isMulticastOpened;
 } Sd_EventHandlerContextType;
 
 typedef void (*SomeIp_EventGroupOnSubscribeFncType)(boolean isSubscribe,
@@ -206,4 +206,4 @@ struct Sd_Config_s {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _SD_PRIV_H */
+#endif /* SD_PRIV_H */

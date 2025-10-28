@@ -50,6 +50,13 @@ typedef struct {
   uint8_t userByte1;
   uint8_t userByte2;
 } StbM_UserDataType;
+
+/* @SWS_StbM_91013 */
+typedef struct {
+  StbM_VirtualLocalTimeType virtualLocalTime;
+  StbM_TimeStampType globalTime;
+  StbM_TimeBaseStatusType timeBaseStatus;
+} StbM_TimeTupleType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -66,6 +73,9 @@ Std_ReturnType StbM_BusGetCurrentTime(StbM_SynchronizedTimeBaseType timeBaseId,
                                       StbM_TimeStampType *globalTimePtr,
                                       StbM_VirtualLocalTimeType *localTimePtr,
                                       StbM_UserDataType *userData);
+
+Std_ReturnType StbM_GetCurrentTime(StbM_SynchronizedTimeBaseType timeBaseId,
+                                   StbM_TimeTupleType *timeTuple, StbM_UserDataType *userData);
 
 /* @SWS_StbM_00233 */
 Std_ReturnType StbM_BusSetGlobalTime(StbM_SynchronizedTimeBaseType timeBaseId,

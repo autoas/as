@@ -135,9 +135,11 @@ static bool init_socket(int port) {
   return TRUE;
 }
 
-static void log_msg(Lin_FrameType *frame, float rtim) {
-  int bOut = FALSE;
+static void log_msg(Lin_FrameType *frame, double rtim) {
+  static double preTime = 0.f;
 
+  int bOut = FALSE;
+  double deltaTime = 0.f;
   struct Lin_Filter_s *filter;
 
   if (NULL == linFilterH) {
@@ -172,7 +174,13 @@ static void log_msg(Lin_FrameType *frame, float rtim) {
       }
     }
 
-    printf("] @ %f s\n", rtim);
+    if (0.f != preTime) {
+      deltaTime = (rtim - preTime) * 1000;
+    }
+
+    printf("] @ %f s %.1f ms \n", (float)rtim, (float)deltaTime);
+
+    preTime = rtim;
   }
 }
 
@@ -190,7 +198,7 @@ static void try_recv(void) {
   len = sizeof(lframe);
   ret = TcpIp_RecvFrom(socketH->s, &RemoteAddr, (void *)&lframe, &len);
   if ((E_OK == ret) && (sizeof(lframe) == len)) {
-    float rtim = (float)Std_GetTimerElapsedTime(&timer0) / STD_TIMER_ONE_SECOND;
+    double rtim = (double)Std_GetTimerElapsedTime(&timer0) / STD_TIMER_ONE_SECOND;
     frame = lframe.frame;
     if ((frame.type == LIN_TYPE_HEADER) || (frame.type == LIN_TYPE_EXT_HEADER)) {
       printf("%c: ", (char)frame.type);
@@ -228,7 +236,7 @@ static void schedule(void) {
   try_recv();
 
   if (socketH->frame.type != LIN_TYPE_INVALID) {
-    float rtim = (float)Std_GetTimerElapsedTime(&socketH->timer) / STD_TIMER_ONE_SECOND;
+    double rtim = (double)Std_GetTimerElapsedTime(&socketH->timer) / STD_TIMER_ONE_SECOND;
     if (rtim > 1) {
       printf("Lin Error: timeout type %c pid=0x%02X\n", (char)socketH->frame.type,
              socketH->frame.pid);

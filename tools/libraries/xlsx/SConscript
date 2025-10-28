@@ -2,6 +2,7 @@ from building import *
 
 CWD = GetCurrentDir()
 
+
 def GetOpenXLSXPackage():
     pkg = Package(
         "https://github.com/troldal/OpenXLSX.git",
@@ -45,11 +46,13 @@ class LibraryXLTester(Library):
         self.LIBS = ["OpenXLSX", "AsOne"]
         self.source = objsXLT
 
+
 objsXLTester = Glob("utils/main.cpp")
+
 
 @register_application
 class ApplicationXLTester(Application):
     def config(self):
         self.LIBS = ["XLTester"]
         self.source = objsXLTester
-        self.Install('../one')
+        self.Install("../one")

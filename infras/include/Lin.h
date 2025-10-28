@@ -31,6 +31,18 @@ extern "C" {
 #define LIN_E_INVALID_POINTER 0x03
 #define LIN_E_STATE_TRANSITION 0x04
 #define LIN_E_PARAM_POINTER 0x05
+
+#define LIN_NOT_OK ((Lin_StatusType)0)
+#define LIN_TX_OK ((Lin_StatusType)1)
+#define LIN_TX_BUSY ((Lin_StatusType)2)
+#define LIN_TX_HEADER_ERROR ((Lin_StatusType)3)
+#define LIN_TX_ERROR ((Lin_StatusType)4)
+#define LIN_RX_OK ((Lin_StatusType)5)
+#define LIN_RX_BUSY ((Lin_StatusType)6)
+#define LIN_RX_ERROR ((Lin_StatusType)7)
+#define LIN_RX_NO_RESPONSE ((Lin_StatusType)8)
+#define LIN_OPERATIONAL ((Lin_StatusType)9)
+#define LIN_CH_SLEEP ((Lin_StatusType)10)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Lin_00228 */
 #ifdef LIN_USE_EXT_ID
@@ -57,19 +69,7 @@ typedef struct {
 } Lin_PduType;
 
 /* @SWS_Lin_00233 */
-typedef enum {
-  LIN_NOT_OK,
-  LIN_TX_OK,
-  LIN_TX_BUSY,
-  LIN_TX_HEADER_ERROR,
-  LIN_TX_ERROR,
-  LIN_RX_OK,
-  LIN_RX_BUSY,
-  LIN_RX_ERROR,
-  LIN_RX_NO_RESPONSE,
-  LIN_OPERATIONAL,
-  LIN_CH_SLEEP
-} Lin_StatusType;
+typedef uint8_t Lin_StatusType;
 
 /* @SWS_Lin_91140 */
 typedef enum {

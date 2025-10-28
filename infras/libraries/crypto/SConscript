@@ -33,12 +33,12 @@ class LibraryTomCrypt(Library):
 @register_library
 class LibraryMbedTls(Library):
     def config(self):
-        version = os.getenv("MBEDTSL_VERSION", "v3.6.0")
+        version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
         mbedtls = Package(
             url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
         )
         objs = PkgGlob(mbedtls, ["library/*.c"])
-        self.include += ["%s/include" % (mbedtls), "%s/tests/include/alt-dummy" % (mbedtls)]
+        self.include += ["%s/include" % (mbedtls), "%s/library" % (mbedtls), "%s/tests/include/alt-dummy" % (mbedtls)]
         self.Append(CPPDEFINES=["USE_MBEDTLS"])
         if version[:3] == "v2.":
             self.Append(CPPDEFINES=["USE_MBEDTLS_V2"])
@@ -46,6 +46,8 @@ class LibraryMbedTls(Library):
             self.Append(CPPDEFINES=["USE_MBEDTLS_V3"])
         if IsBuildForWindows(self.GetCompiler()):
             self.LIBS += ["bcrypt"]
+        elif IsBuildForHost(self.GetCompiler()):
+            pass
         else:
             SrcRemove(objs, ["ssl_.*.c", "psa_crypto_storage.c", "entropy_poll.c", "platform_util.c", "timing.c"])
         self.source = objs
@@ -88,3 +90,33 @@ class LibraryCryptoIf(Library):
             self.LIBS += ["MbedTls"]
         else:
             raise
+
+
+@register_application
+class ApplicationMbedTlsServer(Application):
+    def config(self):
+        version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
+        mbedtls = Package(
+            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+        )
+        self.LIBS = ["MbedTls", "Utils"]
+        self.LIBS += ["ws2_32", "wsock32", "gdi32"]
+        self.CPPPATH = ["%s/tests/include" % (mbedtls)]
+        objs = PkgGlob(mbedtls, ["programs/ssl/ssl_server.c", "tests/src/certs.c"])
+        self.Append(CPPDEFINES=["MBEDTLS_USE_PSA_CRYPTO", "MBEDTLS_NET_C"])
+        self.source = objs
+
+
+@register_application
+class ApplicationMbedTlsClient(Application):
+    def config(self):
+        version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
+        mbedtls = Package(
+            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+        )
+        self.LIBS = ["MbedTls", "Utils"]
+        self.LIBS += ["ws2_32", "wsock32", "gdi32"]
+        self.CPPPATH = ["%s/tests/include" % (mbedtls)]
+        objs = PkgGlob(mbedtls, ["programs/ssl/ssl_client1.c", "tests/src/certs.c"])
+        self.Append(CPPDEFINES=["MBEDTLS_USE_PSA_CRYPTO", "MBEDTLS_NET_C"])
+        self.source = objs

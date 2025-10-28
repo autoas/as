@@ -77,6 +77,13 @@ Std_ReturnType CanIf_GetTrcvMode(uint8_t TransceiverId, CanTrcv_TrcvModeType *Tr
 void CanIf_MainFunction(void);
 
 void CanIf_MainFunction_Fast(void);
+
+/* @SWS_CANIF_91005 */
+Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringActive);
+
+Std_ReturnType CanIf_UserTxCallout(uint8_t ControllerId, Can_PduType *canPdu);
+Std_ReturnType CanIf_UserRxCallout(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr);
+
 #ifdef __cplusplus
 }
 #endif

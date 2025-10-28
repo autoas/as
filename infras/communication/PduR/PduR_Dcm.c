@@ -15,5 +15,5 @@
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
-  return PduR_TpTransmit(TxPduId + PDUR_CONFIG->dcmTxBaseID, PduInfoPtr);
+  return PduR_TpTransmit(TxPduId, PduInfoPtr);
 }

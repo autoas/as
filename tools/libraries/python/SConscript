@@ -1,25 +1,26 @@
 from building import *
-for sc in Glob('*/SConscript'):
+
+for sc in Glob("*/SConscript"):
     SConscript(sc)
 
 CWD = GetCurrentDir()
-objs = Glob('*.cpp') + Glob('../../asone/src/one/bitarray.cpp')
+objs = Glob("*.cpp") + Glob("../../asone/src/one/bitarray.cpp")
 
 
 @register_library
 class LibraryAsPy(Library):
     shared = True
-    compiler = 'PYCC'
+    compiler = "PYCC"
 
     def config(self):
-        self.Append(CPPDEFINES=['USE_STD_DEBUG', 'USE_STD_PRINTF'])
-        self.CPPPATH = ['$INFRAS', '%s/../../asone/src/one/include' % (CWD)]
-        self.LIBS = ['CanLib', 'LinLib', 'IsoTp', 'DevLib', 'Loader', 'Utils', 'StdBit', 'LUA']
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF"])
+        self.CPPPATH = ["$INFRAS", "%s/../../asone/src/one/include" % (CWD)]
+        self.LIBS = ["CanLib", "LinLib", "IsoTp", "DevLib", "Loader", "Utils", "StdBit", "LUA"]
         self.source = objs
-        INSTALL_DIR = os.path.abspath('%s/../../asone/one' % (CWD))
+        INSTALL_DIR = os.path.abspath("%s/../../asone/one" % (CWD))
         if IsBuildForWindows():
-            cmd = 'cp -v %s/AsPy.dll %s/AsPy.pyd' % (BUILD_DIR, INSTALL_DIR)
+            cmd = "cp -v %s/AsPy.dll %s/AsPy.pyd" % (BUILD_DIR, INSTALL_DIR)
             self.AddPostAction(cmd)
         else:
-            cmd = 'cp -v %s/libAsPy.so %s/AsPy.so' % (BUILD_DIR, INSTALL_DIR)
+            cmd = "cp -v %s/libAsPy.so %s/AsPy.so" % (BUILD_DIR, INSTALL_DIR)
             self.AddPostAction(cmd)

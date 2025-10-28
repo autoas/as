@@ -44,7 +44,11 @@ def Gen_DoIp(cfg, dir):
     C.write('#include "DoIP_Cfg.h"\n')
     C.write('#include "DoIP_Priv.h"\n')
     C.write('#include "SoAd_Cfg.h"\n')
+    C.write('#include "PduR_Cfg.h"\n')
     C.write('#include "Dcm.h"\n')
+    C.write("#ifdef USE_TLS\n")
+    C.write('#include "TLS_Cfg.h"\n')
+    C.write("#endif\n")
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("#define DOIP_INITIAL_INACTIVITY_TIME 5000\n")
     C.write("#define DOIP_GENERAL_INACTIVITY_TIME 5000\n")
@@ -73,8 +77,9 @@ def Gen_DoIp(cfg, dir):
     for target in cfg["targets"]:
         C.write("  {\n")
         C.write("    %s, /* TargetAddress */\n" % (target["address"]))
-        C.write("    DOIP_%s_RX, /* RxPduId */\n" % (toMacro(target["name"])))
-        C.write("    DOIP_%s_TX, /* TxPduId */\n" % (toMacro(target["name"])))
+        C.write("    PDUR_%s_RX, /* RxPduId */\n" % (toMacro(target["name"])))
+        C.write("    PDUR_%s_TX, /* TxPduId */\n" % (toMacro(target["name"])))
+        C.write("    DOIP_%s_TX, /* doipTxPduId */\n" % (toMacro(target["name"])))
         C.write("  },\n")
     C.write("};\n\n")
 
@@ -116,11 +121,18 @@ def Gen_DoIp(cfg, dir):
 
     C.write("static DoIP_TesterConnectionContextType DoIP_TesterConnectionContext[DOIP_MAX_TESTER_CONNECTIONS];\n\n")
     C.write("static const DoIP_TesterConnectionType DoIP_TesterConnections[DOIP_MAX_TESTER_CONNECTIONS] = {\n")
+    bEnableTLS = cfg.get("EnableTLS", False)
     for i in range(cfg["max_connections"]):
         C.write("  {\n")
         C.write("    &DoIP_TesterConnectionContext[%s],\n" % (i))
         C.write("    SOAD_SOCKID_DOIP_TCP_APT%s,\n" % (i))
-        C.write("    SOAD_TX_PID_DOIP_TCP_APT%s,\n" % (i))
+        if bEnableTLS:
+            C.write("    TLS_TX_PID_DOIP_TCP%s,\n" % (i))
+        else:
+            C.write("    SOAD_TX_PID_DOIP_TCP_APT%s,\n" % (i))
+        C.write("    #ifdef USE_TLS\n")
+        C.write("    %s, /* bEnableTLS */\n" % (str(bEnableTLS).upper()))
+        C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
 

@@ -1,0 +1,12 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.c")
+
+
+@register_library
+class LibraryTLS(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", CWD, "$SoAd_Cfg"]
+        self.LIBS = ["MbedTls", "MemPool"]
+        self.source = objs

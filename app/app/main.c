@@ -11,9 +11,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #endif
-
 #ifdef USE_LINIF
 #include "LinIf_Cfg.h"
+#endif
+
+#ifdef USE_CANIF
+#include "CanIf_Cfg.h"
 #endif
 
 #include "EcuM.h"
@@ -361,6 +364,13 @@ void EcuM_AL_EnterRUN(void) {
 #if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
   LinIf_ScheduleRequest(1, LINIF_SCHTBL_LIN1);
 #endif
+#endif
+#endif
+
+#ifdef USE_MIRROR
+#ifdef CANIF_CHL_CAN2
+  Can_SetControllerMode(CANIF_CHL_CAN2, CAN_CS_STARTED);
+  CanIf_SetPduMode(CANIF_CHL_CAN2, CANIF_ONLINE);
 #endif
 #endif
 }

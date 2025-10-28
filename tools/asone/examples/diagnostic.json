@@ -248,6 +248,160 @@
       "DTC" : {
         "path" : "../../app/app/config/Dem.json"
       }
+    },
+    "Bus Mirror": {
+      "Services":[
+        {
+          "name": "Switch Dest Network",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 7, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          ]
+        },
+        {
+          "name": "Start/Stop Source Network",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 8, "visible": false },
+            { "name": "", "type": "U8Select", "display": "hex", "default": "0x01",
+                          "Select": [ { "name": "stop", "value": "0x00" },
+                                      { "name": "start", "value": "0x01" }] },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          ]
+        },
+        {
+          "name": "Set Static Filter State",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 0, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "isActive", "type": "U8Select", "display": "hex", "default": "0x01",
+              "Select": [ { "name": "false", "value": "0x00" },
+                          { "name": "true", "value": "0x01" }] }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          ]
+        },
+        {
+          "name": "Get Static Filter State",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 1, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "isActive", "type": "U8Select", "display": "hex", "default": "0x00",
+                          "Select": [ { "name": "false", "value": "0x00" },
+                                      { "name": "true", "value": "0x01" }] }
+          ]
+        },
+        {
+          "name": "Add Can Range Filter",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 2, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "lower", "type": "U32", "display": "hex", "default": 0 },
+            { "name": "upper", "type": "U32", "display": "hex", "default": "0xFFFFFFFF" }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ]
+        },
+        {
+          "name": "Add Can Mask Filter",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 3, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "code", "type": "U32", "display": "hex", "default": 0 },
+            { "name": "mask", "type": "U32", "display": "hex", "default": "0xFFFFFFFF" }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ]
+        },
+        {
+          "name": "Add Lin Range Filter",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 4, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "lower", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "upper", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ]
+        },
+        {
+          "name": "Add Lin Mask Filter",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 5, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "code", "type": "U8", "display": "hex", "default": 0 },
+            { "name": "mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ]
+        },
+        {
+          "name": "Remove Filter",
+          "SID": "0x31",
+          "transmit": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
+            { "name": "CMD", "type": "U8", "display": "dec", "default": 6, "visible": false },
+            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
+            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          ],
+          "receive": [
+            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
+            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          ]
+        }
+      ]
     }
   }
 }

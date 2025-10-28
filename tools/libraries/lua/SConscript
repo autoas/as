@@ -27,6 +27,7 @@ class LibraryLUA(Library):
         SrcRemove(luaObjs, ["lua.c", "onelua.c"])
         self.source = objs + luaObjs
 
+
 @register_application
 class ApplicationLua(Application):
     def config(self):
@@ -36,4 +37,4 @@ class ApplicationLua(Application):
         self.LIBS += ["LUA"]
         luaMain = PkgGlob(pkg, ["lua.c"])
         self.source = luaMain
-        self.Install('../one')
+        self.Install("../one")

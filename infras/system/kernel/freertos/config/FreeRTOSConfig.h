@@ -64,4 +64,8 @@
 #define INCLUDE_xTimerPendFunctionCall 1
 #define INCLUDE_xTaskAbortDelay 1
 
+#if defined(linux)
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
+#endif
+
 #endif /* FREERTOS_CONFIG_H */

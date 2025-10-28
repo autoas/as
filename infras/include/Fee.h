@@ -24,7 +24,7 @@ extern "C" {
 typedef struct Fee_Config_s Fee_ConfigType;
 
 typedef struct {
-  uint32_t eraseNumber;
+  uint32_t erasedNumber;
   uint32_t adminFreeAddr;
   uint32_t dataFreeAddr;
   uint8_t curWrokingBank;
@@ -50,6 +50,8 @@ void Fee_JobErrorNotification(void);
 void Fee_MainFunction(void);
 
 void Fee_GetAdminInfo(Fee_AdminInfoType *pAdminInfo);
+
+void Fee_PanicUserAction(uint8_t fault);
 #ifdef __cplusplus
 }
 #endif

@@ -10,6 +10,9 @@
 #include "Std_Debug.h"
 #include "Std_Timer.h"
 #include "Lin_Cfg.h"
+#ifdef USE_LINIF
+#include "LinIf_Cfg.h"
+#endif
 #include "Lin_Priv.h"
 #include <stdio.h>
 #include <string.h>
@@ -276,7 +279,7 @@ Lin_StatusType Lin_GetStatus(uint8_t Channel, uint8_t **Lin_SduPtr) {
     break;
   case LIN_STATE_HEADER_TRANSMITTING:
   case LIN_STATE_WAITING_RESPONSE:
-    status = LIN_RX_NO_RESPONSE;
+    status = LIN_RX_BUSY;
     break;
   case LIN_STATE_ONLY_HEADER_TRANSMITTING:
   case LIN_STATE_FULL_TRANSMITTING:
@@ -357,6 +360,9 @@ void Lin_MainFunction_Read(void) {
         } else if ((context->state == LIN_STATE_WAITING_RESPONSE) ||
                    (context->state == LIN_STATE_HEADER_TRANSMITTING)) {
           context->state = LIN_STATE_RESPONSE_RECEIVED;
+#ifdef LINIF_SCHED_MODE_INTERRUPT
+          LinIf_RxIndication(i, context->frame.data);
+#endif
         } else if (context->state == LIN_STATE_WAITING_DATA) {
           LinIf_RxIndication(i, context->frame.data);
         } else {
@@ -445,6 +451,9 @@ void Lin_MainFunction_Read(void) {
       break;
     case LIN_STATE_FULL_TRANSMITTING:
       context->state = LIN_STATE_FULL_TRANSMITTED;
+#ifdef LINIF_SCHED_MODE_INTERRUPT
+      LinIf_TxConfirmation(i);
+#endif
       break;
     default:
       break;

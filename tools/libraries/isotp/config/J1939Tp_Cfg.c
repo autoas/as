@@ -45,7 +45,7 @@ INITIALIZER(_isotp_j1939tp_init) {
     J1939Tp_TxChannels[i].context = &J1939Tp_TxChannelContexts[i];
     J1939Tp_TxChannels[i].data = u8TxData[i];
     J1939Tp_TxChannels[i].TxPgPGN = 0;
-    J1939Tp_TxChannels[i].PduR_TxPduId = i;
+    J1939Tp_TxChannels[i].PduR_TxPduId = 2 * CANTP_MAX_CHANNELS + i;
     J1939Tp_TxChannels[i].CanIf_TxCmNPdu = CANTP_MAX_CHANNELS + 3 * i + 0;
     J1939Tp_TxChannels[i].CanIf_TxDtNPdu = CANTP_MAX_CHANNELS + 3 * i + 1;
     J1939Tp_TxChannels[i].CanIf_TxDirectNPdu = CANTP_MAX_CHANNELS + 3 * i + 2;
@@ -66,7 +66,7 @@ INITIALIZER(_isotp_j1939tp_init) {
   for (i = 0; i < J1939TP_MAX_CHANNELS; i++) {
     J1939Tp_RxChannels[i].context = &J1939Tp_RxChannelContexts[i];
     J1939Tp_RxChannels[i].data = u8RxData[i];
-    J1939Tp_RxChannels[i].PduR_RxPduId = i;
+    J1939Tp_RxChannels[i].PduR_RxPduId = CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS + i;
     J1939Tp_RxChannels[i].CanIf_TxCmNPdu = CANTP_MAX_CHANNELS + 3 * i + 3;
     J1939Tp_RxChannels[i].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(200);
     J1939Tp_RxChannels[i].T1 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(750);

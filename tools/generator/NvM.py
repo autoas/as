@@ -158,6 +158,8 @@ def Gen_Fee(cfg, dir):
     H.write("#ifndef FEE_CONST\n")
     H.write("#define FEE_CONST\n")
     H.write("#endif\n")
+    H.write("%s#define FEE_USE_CONTEXT_CRC\n\n" % ("" if cfg.get("UseContextCrc", True) else "// "))
+    H.write("%s#define FEE_USE_FAULTS\n\n" % ("" if cfg.get("UseFaults", True) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     GenTypes(H, cfg)
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")

@@ -155,3 +155,8 @@ void Nm_StateChangeNotification(NetworkHandleType nmNetworkHandle, Nm_StateType 
 void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle) {
 }
 #endif
+
+
+void Fee_PanicUserAction(uint8_t fault) {
+  /* user must handle this, this means Fee fault error and can't recover */
+}

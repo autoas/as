@@ -2,14 +2,14 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob('*.c')
+objs = Glob("*.c")
 
 
 @register_library
 class LibraryShell(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS']
-        self.LIBS = ['RingBuffer']
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS = ["RingBuffer"]
         if IsBuildForHost(self.GetCompiler()):
-            self.LIBS += ['OSAL']
+            self.LIBS += ["OSAL"]
         self.source = objs

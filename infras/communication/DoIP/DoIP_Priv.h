@@ -34,6 +34,26 @@
 #define DOIP_NO_BUF_AVAIL_NACK 0x03u           /* @SWS_DoIP_00018 */
 #define DOIP_INVALID_PAYLOAD_LENGTH_NACK 0x04u /* @SWS_DoIP_00019 */
 
+/* @ISO13400-2-2019 Table 49 - Routing activation response code values */
+#define DOIP_RA_UNKNOWN_SA 0x00u
+#define DOIP_RA_TCP_DATA_SOCKETS_FULL 0x01u
+#define DOIP_RA_CONNECTION_IN_USE 0x02u
+#define DOIP_RA_SA_ALREADY_ACTIVE 0x03u
+#define DOIP_RA_AUTHENTICATION_FAILED 0x04u
+#define DOIP_RA_REJECTED_CONFIRMATION 0x05u
+#define DOIP_RA_UNSUPPORTED_TYPE 0x06u
+#define DOIP_RA_OK 0x10u
+#define DOIP_RA_PENDING_CONFIRMATION 0x11u
+
+/* Diagnostic message negative acknowledge codes */
+#define DOIP_DIAG_INVALID_SA 0x02u
+#define DOIP_DIAG_UNKNOWN_TA 0x03u
+#define DOIP_DIAG_MSG_TOO_LARGE 0x04u
+#define DOIP_DIAG_OUT_OF_MEMORY 0x05u
+#define DOIP_DIAG_TARGET_UNREACHABLE 0x06u
+#define DOIP_DIAG_UNKNOWN_NETWORK 0x07u
+#define DOIP_DIAG_TP_ERROR 0x08u
+
 #define DOIP_INVALID_PAYLOAD_TYPE 0xFFFFu
 
 #define DOIP_INVALID_INDEX ((uint8_t)-1)
@@ -44,6 +64,15 @@
 
 #define DOIP_GATEWAY 0x00
 #define DOIP_NODE 0x01
+
+/* further action code values */
+#define DOIP_NO_FURTHER_ACTION_REQUIRED 0x00u
+#define DOIP_ROUTING_ACTIVATION_REQUIRED_TO_INITATE_CENTRAL_SECURITY 0x10u
+
+/* VIN/GID synchronization status code values */
+#define DOIP_VIN_GID_ARE_SYNCHRONIZED 0x00u
+#define DOIP_VIN_GID_INCOMPLETE_NOT_SYNCHRONIZED 0x10u
+
 /* ================================ [ TYPES     ] ============================================== */
 /* Architecture of DoIP
  *  SoAd provides one DOIP_UDP socket, which will be used both for broadcast vehicle
@@ -81,8 +110,9 @@ typedef enum {
 /* @ECUC_DoIP_00053 */
 typedef struct {
   uint16_t TargetAddress;
-  PduIdType RxPduId;
-  PduIdType TxPduId;
+  PduIdType RxPduId;     /* PduR ID */
+  PduIdType TxPduId;     /* PduR ID */
+  PduIdType doipTxPduId; /* DoIP ID called by PduR */
 } DoIP_TargetAddressType;
 
 typedef struct {
@@ -136,6 +166,9 @@ typedef struct {
   DoIP_TesterConnectionContextType *context;
   SoAd_SoConIdType SoConId;
   PduIdType SoAdTxPdu;
+#ifdef USE_TLS
+  boolean bEnableTLS;
+#endif
 } DoIP_TesterConnectionType;
 
 /* @ECUC_DoIP_00031 */

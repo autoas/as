@@ -57,6 +57,7 @@ libsForCanApp = {
     "Csm": Glob("config/Csm/Csm.json"),
     "SecOC": Glob("config/SecOC/SecOC.json"),
     "E2E": Glob("config/E2E/E2E.json"),
+    "Mirror": Glob("config/Mirror/Mirror.json"),
 }
 libsForCanApp.update(libsCommon)
 
@@ -81,7 +82,18 @@ class ApplicationCanApp(ApplicationApp):
         # self.Append(CPPDEFINES=["USE_STD_PRINTF", "USE_STDIO_CAN", "USE_STDIO_CAN_FLUSH"])
         self.Append(CPPFLAGS=["-O0"])
 
+    def gencfg(self):
+        source = self.Generate(
+            ["%s/config/Mirror/Network/Network.json" % (CWD), "%s/config/Mirror/Network/Mempool.json" % (CWD)]
+        )
+        libs = {"SoAd": source["SoAd"] + source["MemCluster"]}
+        libsForCanApp.update(libs)
+        self.LIBS = ["TcpIp"]
+        self.Append(CPPDEFINES=["USE_TCPIP"])
+
     def config(self):
+        if "Mirror" in libsForCanApp:
+            self.gencfg()
         if LL_DL != None:
             self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
         self.libsForApp = libsForCanApp
@@ -138,6 +150,7 @@ class ApplicationOsekNm(ApplicationApp):
 libsForLinApp = {
     "LinIf": Glob("../bootloader/config/LinIf/LinIf.json"),
     "LinTp": Glob("../bootloader/config/LinTp/LinTp.json"),
+    "Mirror": Glob("config/Mirror/Mirror.json"),
 }
 libsForLinApp.update(libsCommon)
 
@@ -161,7 +174,9 @@ libsForNetApp = {
     "PduR": Glob("config/Net/PduR.json"),
     "CanTp": Glob("config/Net/CanTp.json"),
     "CanIf": Glob("config/Net/CanIf.json"),
+    "TLS": Glob("config/Net/TLS.json") + Glob("config/Net/TLS*.c"),
     "UdpNm": Glob("config/Net/UdpNm_Cfg.c"),
+    "Mirror": Glob("config/Mirror/Mirror.json"),
 }
 libsForNetApp.update(libsCommon)
 
@@ -171,7 +186,7 @@ class ApplicationNetApp(Application):
     mylibs = libsForNetApp
 
     def platform_config(self):
-        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_PLUGIN"])
+        self.Append(CPPDEFINES=["USE_STD_PRINTF", "USE_STD_DEBUG", "USE_PLUGIN"])
         # self.Append(CPPDEFINES=['DISABLE_NET_MEM'])
         if LL_DL != None:
             self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
@@ -204,6 +219,7 @@ class ApplicationNetApp(Application):
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+
 
 @register_application
 class ApplicationNetAppT(query_application("NetApp")):

@@ -21,6 +21,8 @@
 #define CANTP_MAX_CHANNELS 32
 #endif
 
+#define ISOTP_DEFAULT_TIMEOUT 5000000
+
 #define AS_LOG_ISOTP 0
 #define AS_LOG_ISOTPE 3
 
@@ -153,6 +155,7 @@ isotp_t *isotp_can_create(isotp_parameter_t *params) {
 
   if (NULL != isotp) {
     isotp->params = *params;
+    isotp->errorTimeout = ISOTP_DEFAULT_TIMEOUT;
     Std_TimerStop(&isotp->timerErrorNotify);
     isotp->serverThread = std::thread(can_server_main, isotp);
     isotp->sem.wait();
@@ -182,7 +185,6 @@ int isotp_can_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
   {
     std::lock_guard<std::mutex> lg(isotp->mutex);
     isotp->result = -__LINE__;
-    isotp->errorTimeout = 5000000;
     Std_TimerStart(&isotp->timerErrorNotify);
     isotp->TX.data = (uint8_t *)txBuffer;
     isotp->TX.length = txSize;
@@ -217,7 +219,6 @@ int isotp_can_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
   {
     std::lock_guard<std::mutex> lg(isotp->mutex);
-    isotp->errorTimeout = 5000000;
     Std_TimerStart(&isotp->timerErrorNotify);
   }
 
@@ -255,6 +256,13 @@ int isotp_can_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
       r = 0;
     }
     break;
+  case ISOTP_IOCTL_SET_TIMEOUT:
+    if ((NULL != data) && (size == sizeof(uint32_t))) {
+      uint32_t timeoutUs = *(uint32_t *)data;
+      *(uint32_t *)data = isotp->errorTimeout;
+      isotp->errorTimeout = timeoutUs;
+      r = 0;
+    }
   default:
     break;
   }

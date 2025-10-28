@@ -5,7 +5,6 @@
 #ifndef PORT_CFG_H
 #define PORT_CFG_H
 /* ================================ [ INCLUDES  ] ============================================== */
-#include "PORT.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

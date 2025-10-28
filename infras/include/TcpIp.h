@@ -59,7 +59,7 @@ typedef enum {
 
 /* @SWS_TCPIP_00012 */
 typedef struct {
-  TcpIp_DomainType dormain;
+  // TcpIp_DomainType dormain;
   uint16_t port;
   uint8_t addr[4]; /* NOTE: now only support IPv4 */
 } TcpIp_SockAddrType;

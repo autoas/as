@@ -697,17 +697,17 @@ def post(cfg, e2eCfg={}):
             for msg in network["messages"]:
                 if msg["name"] == e2e["name"]:
                     if msg["node"] == network["me"]:
-                        typ = 'Protect'
+                        typ = "Protect"
                     else:
-                        typ = 'Check'
+                        typ = "Check"
                     name, profile = e2e["name"], e2e["profile"]
                     ecfg = None
-                    for ec in e2eCfg.get('%s%s'%(typ, profile), []):
-                        if name == ec['name']:
+                    for ec in e2eCfg.get("%s%s" % (typ, profile), []):
+                        if name == ec["name"]:
                             ecfg = ec
                     if ecfg == None:
-                        raise Exception("E2E profile %s %s for %s is not configured"%(typ, profile, name))
-                    for key,value in ecfg.items():
+                        raise Exception("E2E profile %s %s for %s is not configured" % (typ, profile, name))
+                    for key, value in ecfg.items():
                         if key in ["DataID", "DataIDList"]:
                             e2e[key] = eval(str(value))
                         else:
@@ -869,6 +869,7 @@ def extract(cfg, dir):
 def GenRTE(cfg, dir):
     fp = open("%s/bswcom.py" % (dir), "w")
     fp.write("from generator import asar\n\n")
+    fp.write('NAMESPACE = "Default"\n\n')
     sigL = []
     for network in cfg["networks"]:
         for msg in network["messages"]:
@@ -879,30 +880,23 @@ def GenRTE(cfg, dir):
                 sig[".type"] = t0
                 if t0 in ["UINT8N", "SINT8N"]:
                     InitialValue = sig.get("InitialValue", [0])
-                    continue # TODO: has issue
+                    continue  # TODO: has issue
                 else:
                     InitialValue = sig.get("InitialValue", 0)
                 sig[".init"] = InitialValue
                 sigL.append(sig)
     for sig in sigL:
+        fp.write("{0}_IV = asar.factory.ConstantTemplate('{0}_IV', NAMESPACE, {1})\n".format(sig["name"], sig[".init"]))
+    fp.write("\n")
+    for sig in sigL:
         fp.write(
-            "C_{0}_IV = asar.createConstantTemplateFromPhysicalType('C_{0}_IV', asar.{1}_T, {2})\n".format(
-                sig["name"], sig[".type"], sig[".init"]
+            "{0}_I = asar.factory.SenderReceiverInterfaceTemplate('{0}_I', NAMESPACE, asar.platform.ImplementationTypes.{1})\n".format(
+                sig["name"], sig[".type"].lower()
             )
         )
-    fp.write("\n")
     fp.write("COM_D = []\n")
     for sig in sigL:
-        fp.write("COM_D.append(asar.createDataElementTemplate('{0}', asar.{1}_T))\n".format(sig["name"], sig[".type"]))
-    fp.write("\n")
-    fp.write("COM_I = asar.createSenderReceiverInterfaceTemplate('Com_I', COM_D)\n")
-    fp.write("\n")
-    for sig in sigL:
-        fp.write(
-            "{0} = asar.createSenderReceiverPortTemplate('Com', COM_I, C_{0}_IV, aliveTimeout=30, elemName='{0}')\n".format(
-                sig["name"]
-            )
-        )
+        fp.write("COM_D.append('{0}')\n" .format (sig["name"]))
     fp.close()
 
 

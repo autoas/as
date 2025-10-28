@@ -59,16 +59,14 @@ INITIALIZER(_auth_init) {
 #endif
       crypto_base64_decode((uint8_t *)publicKeyTxt, sz, lCAPublicKey, &outlen);
       lCAPublicKeyLen = outlen;
-      ASLOG(INFO, ("load CA public key <%s> length=%d OK\n", publicKeyTxt, (int)lCAPublicKeyLen));
-      ASHEXDUMP(INFO, ("CA public key"), lCAPublicKey, lCAPublicKeyLen);
+      printf("load CA public key <%s> length=%d OK\n", publicKeyTxt, (int)lCAPublicKeyLen);
       free(publicKeyTxt);
     } else {
-      ASLOG(ERROR, ("OoM for CA public key <%s>\n", publicKeyPath));
+      printf("OoM for CA public key <%s>\n", publicKeyPath);
     }
     fclose(fp);
   } else {
-    ASLOG(ERROR,
-          ("Authentication CA public key <%s> not found, use env CA_PUBLIC_KEY\n", publicKeyPath));
+    printf("Authentication CA public key <%s> not found, use env CA_PUBLIC_KEY\n", publicKeyPath);
   }
 }
 #endif

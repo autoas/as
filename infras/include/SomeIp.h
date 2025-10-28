@@ -4,8 +4,8 @@
  *
  * Ref: Specification of SOME/IP Transformer AUTOSAR CP Release 4.4.0
  */
-#ifndef _SOMEIP_H
-#define _SOMEIP_H
+#ifndef SOMEIP_H
+#define SOMEIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "SoAd.h"
@@ -21,15 +21,15 @@ extern "C" {
 #define SOMEIP_E_BUSY 104
 
 /* @SWS_SomeIpXf_00168 @SWS_SomeIpXf_00115 @PRS_SOMEIP_00191 */
-#define SOMEIPXF_E_UNKNOWN_SERVICE 0x02
-#define SOMEIPXF_E_UNKNOWN_METHOD 0x03
-#define SOMEIPXF_E_NOT_READY 0x04
-#define SOMEIPXF_E_NOT_REACHABLE 0x05
-#define SOMEIPXF_E_TIMEOUT 0x06
-#define SOMEIPXF_E_WRONG_PROTOCOL_VERSION 0x07
-#define SOMEIPXF_E_WRONG_INTERFACE_VERSION 0x08
-#define SOMEIPXF_E_MALFORMED_MESSAGE 0x09
-#define SOMEIPXF_E_WRONG_MESSAGE_TYPE 0x0a
+#define SOMEIP_E_UNKNOWN_SERVICE 0x02
+#define SOMEIP_E_UNKNOWN_METHOD 0x03
+#define SOMEIP_E_NOT_READY 0x04
+#define SOMEIP_E_NOT_REACHABLE 0x05
+#define SOMEIP_E_TIMEOUT 0x06
+#define SOMEIP_E_WRONG_PROTOCOL_VERSION 0x07
+#define SOMEIP_E_WRONG_INTERFACE_VERSION 0x08
+#define SOMEIP_E_MALFORMED_MESSAGE 0x09
+#define SOMEIP_E_WRONG_MESSAGE_TYPE 0x0a
 
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
@@ -68,8 +68,12 @@ void SomeIp_MainFunction(void);
 
 Std_ReturnType SomeIp_ConnectionTakeControl(uint16_t serviceId, uint16_t conId);
 Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId, uint8_t *data,
-                                          uint32_t length);
+                                          uint32_t *length);
+
+Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+                                       uint32_t *payloadLength);
+void SomeIp_RxIndication(PduIdType RxPduId, const PduInfoType *info);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _SOMEIP_H */
+#endif /* SOMEIP_H */

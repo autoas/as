@@ -1,0 +1,11 @@
+from building import *
+
+CWD = GetCurrentDir()
+objs = Glob("*.c")
+
+
+@register_library
+class LibraryMirror(Library):
+    def config(self):
+        self.CPPPATH = ["$INFRAS", CWD, "$SoAd_Cfg", "$PduR_Cfg"]
+        self.source = objs

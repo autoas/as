@@ -13,11 +13,18 @@
 #define LINIF_MAX_DATA_LENGHT 8
 #endif
 
+#if !defined(LINIF_SCHED_MODE_POLLING) && !defined(LINIF_SCHED_MODE_INTERRUPT)
+#define LINIF_SCHED_MODE_POLLING
+#endif
+
 #define LINIF_CHANNEL_UNINIT ((LinIf_ChannelStateType)0)
 #define LINIF_CHANNEL_OPERATIONAL ((LinIf_ChannelStateType)1)
 #define LINIF_CHANNEL_SLEEP ((LinIf_ChannelStateType)2)
 #define LINIF_CHANNEL_SLEEP_PENDING ((LinIf_ChannelStateType)3)
 #define LINIF_CHANNEL_SLEEP_COMMAND ((LinIf_ChannelStateType)4)
+
+#define LINIF_MASTER ((LinIf_NodeTypeType)0)
+#define LINIF_SLAVE ((LinIf_NodeTypeType)1)
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   Lin_FramePidType id;
@@ -51,23 +58,23 @@ typedef struct {
   LinIf_SchHandleType scheduleRequested;
 #endif
   uint8_t data[LINIF_MAX_DATA_LENGHT];
+#ifdef USE_MIRROR
+  boolean bMirroringActive;
+#endif
 } LinIf_ChannelContextType;
 
 /* @ECUC_LinIf_00654 */
-typedef enum {
-  LINIF_MASTER,
-  LINIF_SLAVE
-} LinIf_NodeTypeType;
+typedef uint8_t LinIf_NodeTypeType;
 
 typedef struct {
 #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
   const LinIf_ScheduleTableType *scheduleTable;
 #endif
+  uint16_t timeout;
+  NetworkHandleType linChannel;
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
   LinIf_NodeTypeType nodeType;
 #endif
-  uint16_t timeout;
-  NetworkHandleType linChannel;
 } LinIf_ChannelConfigType;
 
 struct LinIf_Config_s {

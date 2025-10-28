@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdint.h>
+
+#include "Std_Compiler.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define TM_PRINTF_LONGLONG
 #define TM_PRINTF_PRECISION
@@ -194,7 +196,7 @@ static char *print_number(char *buf, char *end, long num, int base, int s, int t
   return buf;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list args) {
+int std_vsnprintf(char *buf, size_t size, const char *fmt, va_list args) {
 #ifdef TM_PRINTF_LONGLONG
   unsigned long long num;
 #else
@@ -451,12 +453,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args) {
  * @param size the size of buffer
  * @param fmt the format
  */
-int snprintf(char *buf, size_t size, const char *fmt, ...) {
+int std_snprintf(char *buf, size_t size, const char *fmt, ...) {
   int n;
   va_list args;
 
   va_start(args, fmt);
-  n = vsnprintf(buf, size, fmt, args);
+  n = std_vsnprintf(buf, size, fmt, args);
   va_end(args);
 
   return n;
@@ -469,8 +471,8 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
  * @param arg_ptr the arg_ptr
  * @param format the format
  */
-int vsprintf(char *buf, const char *format, va_list arg_ptr) {
-  return vsnprintf(buf, INT16_MAX, format, arg_ptr);
+int std_vsprintf(char *buf, const char *format, va_list arg_ptr) {
+  return std_vsnprintf(buf, INT16_MAX, format, arg_ptr);
 }
 
 /**
@@ -479,12 +481,12 @@ int vsprintf(char *buf, const char *format, va_list arg_ptr) {
  * @param buf the buffer to save formatted string
  * @param format the format
  */
-int sprintf(char *buf, const char *format, ...) {
+int std_sprintf(char *buf, const char *format, ...) {
   int n;
   va_list arg_ptr;
 
   va_start(arg_ptr, format);
-  n = vsprintf(buf, format, arg_ptr);
+  n = std_vsprintf(buf, format, arg_ptr);
   va_end(arg_ptr);
 
   return n;
@@ -495,17 +497,13 @@ int sprintf(char *buf, const char *format, ...) {
  *
  * @param fmt the format
  */
-#ifdef USE_STD_PRINTF
-int std_printf(const char *fmt, ...) {
-#else
-int printf(const char *fmt, ...) {
-#endif
+int __weak std_printf(const char *fmt, ...) {
   va_list args;
   unsigned long length;
 
   va_start(args, fmt);
 
-  length = vsnprintf(NULL, INT16_MAX, fmt, args);
+  length = std_vsnprintf(NULL, INT16_MAX, fmt, args);
 
   va_end(args);
 
@@ -514,11 +512,7 @@ int printf(const char *fmt, ...) {
 
 #ifndef STD_NO_PUTS
 int puts(const char *pstr) {
-#ifdef USE_STD_PRINTF
   return std_printf("%s\n", pstr);
-#else
-  return printf("%s\n", pstr);
-#endif
 }
 
 #ifdef putchar

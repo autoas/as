@@ -64,6 +64,7 @@ def post_process_id_type(p):
 
 
 def parse(file):
+    print(f"DBC: {file}")
     fp = open(file, "r")
     data = fp.read()
     fp.close()

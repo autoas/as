@@ -11,6 +11,14 @@
         { "name": "GW_P2P_TX", "id": "0x731", "hoh": 0, "up": "CanTp" },
         { "name": "GW_P2A_TX", "id": "0x7DF", "hoh": 0, "up": "CanTp" }
       ]
+    },
+    {
+      "name": "CAN2",
+      "me": "AS",
+      "RxPdus": [],
+      "TxPdus": [
+        { "name": "MIRROR_TX", "id": "0x300", "dynamic": true, "hoh": 2, "up": "PduR" }
+      ]
     }
   ]
 }

@@ -41,6 +41,11 @@
       "name": "CAN0_SECOC_MSG1_RX",
       "from": "SecOC",
       "to": "Com"
+    },
+    {
+      "name": "MIRROR_TX",
+      "from": "Mirror",
+      "to": "CanIf"
     }
   ],
   "backup-routines-secoc-test-over-cantp": [

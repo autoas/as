@@ -60,7 +60,7 @@ void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType *params) {
   if (Channel < ARRAY_SIZE(CanTpChannelConfigs)) {
     CanTpChannelConfigs[Channel].AddressingFormat = CANTP_STANDARD;
     CanTpChannelConfigs[Channel].CanIfTxPduId = Channel;
-    CanTpChannelConfigs[Channel].PduR_RxPduId = Channel;
+    CanTpChannelConfigs[Channel].PduR_RxPduId = CANTP_MAX_CHANNELS + Channel;
     CanTpChannelConfigs[Channel].PduR_TxPduId = Channel;
     CanTpChannelConfigs[Channel].N_As = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As);
     CanTpChannelConfigs[Channel].N_Bs = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs);

@@ -5,118 +5,155 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for DCM
+# Configuration Notes for AUTOSAR DCM Module
 
-Below 2 are examples:
+The Diagnostic Communication Manager (DCM) handles diagnostic requests, session management, security access, and data exchange in AUTOSAR systems. This document outlines key configuration parameters, including session definitions, security levels, service mappings, and memory access rules.
 
-* [bootloader/Dcm.json](../../app/bootloader/config/Dcm.json)
-* [application/Dcm.json](../../app/app/config/Dcm/Dcm.json)
+---
 
+## 1. Example Configurations
+For practical implementations, see:  
+- [Bootloader Dcm.json](../../app/bootloader/config/Dcm.json) (Bootloader-specific DCM setup)  
+- [Application Dcm.json](../../app/app/config/Dcm/Dcm.json) (Application-layer DCM configuration)  
 
-## Session definitions
+---
 
-A list to describe all the supported sessions and its id value, simple and straight forward.
+## 2. Session Configuration
+Define supported diagnostic sessions with unique IDs. Sessions control access to services and security levels.
 
+### Example Session Definitions:
 ```json
-  "sessions": [
-    { "name": "Default", "id": "0x01" },
-    { "name": "Program", "id": "0x02" },
-    { "name": "Extended", "id": "0x03" },
-    { "name": "Factory", "id": "0x50" }
-  ]
+"sessions": [
+  { "name": "Default", "id": "0x01" },    // Default session (e.g., normal operation)
+  { "name": "Program", "id": "0x02" },   // Programming session (e.g., ECU flashing)
+  { "name": "Extended", "id": "0x03" },  // Extended diagnostic session
+  { "name": "Factory", "id": "0x50" }    // Factory calibration session
+]
 ```
 
-## Security Level definition
+---
 
+## 3. Security Level Configuration
+Configure security access requirements for specific sessions, including seed/key APIs for authentication.
+
+### Example Security Definitions:
 ```json
-  "securities": [
-    { "name": "Extended", "level": 1, "size": 4, "sessions": ["Extended"],
-      "API": { "seed": "App_GetExtendedSessionSeed", "key": "App_CompareExtendedSessionKey"} },
-    { "name": "Program", "level": 2, "size": 4, "sessions": ["Program"], 
-      "API": { "seed": "App_GetProgramSessionSeed", "key": "App_CompareProgramSessionKey"} }
-  ],
+"securities": [
+  { 
+    "name": "Extended", 
+    "level": 1,                // Security level (0¨C255; 0 = no security)
+    "size": 4,                 // Size of seed/key (bytes)
+    "sessions": ["Extended"],  // Sessions requiring this security level
+    "API": { 
+      "seed": "App_GetExtendedSessionSeed",  // Function to generate seed
+      "key": "App_CompareExtendedSessionKey" // Function to validate key
+    } 
+  },
+  { 
+    "name": "Program", 
+    "level": 2, 
+    "size": 4, 
+    "sessions": ["Program"],   // Only "Program" session requires this security
+    "API": { 
+      "seed": "App_GetProgramSessionSeed", 
+      "key": "App_CompareProgramSessionKey"
+    } 
+  }
+]
 ```
 
-## Service definition
+---
 
-To know the details of how to define a serice, maybe better to understand how the Dcm generator works. This generator has a map "ServiceMap" which list all the supported service by this Dcm. 
+## 4. Service Configuration
+The DCM generator uses a `ServiceMap` to map service IDs to their implementation details. Services define how diagnostic requests (e.g., read data, write memory) are processed.
 
-[generator/Dcm.py](../../tools/generator/Dcm.py)
+### Common Service Attributes:
+| Attribute | Required? | Description                                                                 |
+|-----------|-----------|-----------------------------------------------------------------------------|
+| `name`    | No        | Human-readable name for documentation (e.g., "read_did").                   |
+| `id`      | Yes       | Unique service ID (e.g., `0x22` for Read Data by Identifier).               |
+| `sessions`| No        | Allowed sessions (empty = all sessions).                                    |
+| `securities`| No       | Required security levels (empty = no security).                             |
+| `access`  | No        | Access type: `"physical"`, `"functional"`, or both (default: both if empty). |
+| `API`     | Conditional| Service-specific callback definitions (e.g., seed/key functions for security). |
 
-Common attributes for a service:
-
+### Example: Read Data by Identifier (0x22)
+This service reads data by Data Identifier (DID) and requires mapping DIDs to their storage locations/APIs.  
 ```json
-    {
-      "name": "service_name", "id": "service_id",
-      "sessions":[...],
-      "securities": [...],
-      "access": [...]
-      "API": ...
+{
+  "name": "read_did",
+  "id": "0x22",
+  "DIDs": [  // List of supported DIDs for this service
+    { 
+      "name": "FingerPrint", 
+      "id": "0xF15B", 
+      "size": 10, 
+      "API": "App_ReadFingerPrint"  // Callback to read FingerPrint DID
     },
-```
-
-| attibute | required | comments |
-| --------- | ----------- |----|
-| name | false | optional, can be anything,  just use it for easy reading purpose|
-| service_id | true | must be unique and valid |
-| sessions | false | a list of name of defined sessions that this service can be accessed, if empty, mean this service can be accessed in any session | 
-| securities | false | a list of name of defined securities that this service can be accessed, if empty, mean this service can be accessed in any security level |
-| access | false | supported choice "physical" or "functional", if empty, mean this service can be access by both physical and functional addressing mode |
-| API | depends | API maybe optional, for different service it has different defintions |
-
-For detailed how to define a service, check the above 2 examples.
-
-### service Read Data By Identifier 0x22
-
-Below is an example, you can see for this service, the attributes "sessions", "securities", "access" are missing. But it has another dedicated attribute "DIDs" which define a list of DID for this service.
-```json
-    {
-      "name": "read_did", "id": "0x22",
-      "DIDs":[
-        { "name": "FingerPrint", "id":"0xF15B", "size": 10, "API": "App_ReadFingerPrint" },
-        { "name": "TestDID1", "id":"0xAB01", "size": 10, "API": "App_ReadAB01" },
-        { "name": "TestDID2", "id":"0xAB02", "size": 10, "API": "App_ReadAB02" }
-      ]
-    },
-```
-
-Common things for DID definition, please note it can also has attributes "sessions", "securities", "access" but which are all optional and which has the same meaning as the service definitions
-```json
-  { "name": "DID name", "id":"DID ID", "size": "DID size", "API": "DID callout API",
-    "sessions":[...], "securities": [...], "access": [...] },
-```
-
-| attibute | required | comments |
-| --------- | ----------- |----|
-| name | false | optional, can be anything,  just use it for easy reading purpose|
-| sessions | false | a list of name of defined sessions that this DID can be accessed, if empty, mean this DID can be accessed in any session | 
-| securities | false | a list of name of defined securities that this DID can be accessed, if empty, mean this DID can be accessed in any security level |
-| access | false | supported choice "physical" or "functional", if empty, mean this DID can be access by both physical and functional addressing mode |
-
-### Memory Read/Write service
-
-Below is a example:
-
-```json
-  "memories": [
-    { "name": "Memory1", "low": 0, "high": "0x100000", "attr": "rw" },
-    { "name": "Memory2", "low": "0x300000", "high": "0x400000", "attr": "r" }
-  ],
-  "memory.format": ["0x44"],
-  "services": [
-    { "name": "read_memory_by_address", "id": "0x23" },
-    { "name": "write_memory_by_address", "id": "0x3D" }
+    { 
+      "name": "TestDID1", 
+      "id": "0xAB01", 
+      "size": 10, 
+      "API": "App_ReadAB01"  // Callback to read TestDID1
+    }
   ]
+}
 ```
 
-Common things for memory definition, please note it can also has attributes "sessions", "securities", "access" but which are all optional and which has the same meaning as the service definition.
-
+### DID Configuration:
+Individual DIDs can also be defined with granular access controls:  
 ```json
-  { "name": "MemoryName", "low": "low address", "high": "high address", "attr": "attributes, r means read, w mean write",
-    "sessions":[...], "securities": [...], "access": [...] },
+{ 
+  "name": "DID_name",       // e.g., "EngineHours"
+  "id": "DID_ID",          // e.g., "0xF123"
+  "size": "data_length",   // Data length (bytes, e.g., "4")
+  "API": "callback_function",  // Function to read/write DID data
+  "sessions": [...],       // Allowed sessions (empty = all)
+  "securities": [...],     // Required security levels (empty = none)
+  "access": [...]          // "physical", "functional", or both
+}
 ```
 
-## Genetator
+---
 
-* [Genetator Dcm.py](../../tools/generator/Dcm.py)
+## 5. Memory Access Configuration
+Configure memory regions and services for reading/writing raw memory addresses (e.g., `0x23` for Read Memory by Address, `0x3D` for Write Memory by Address).
 
+### Example Memory Configuration:
+```json
+"memories": [  // Define memory regions accessible via DCM services
+  { 
+    "name": "Memory1", 
+    "low": 0,              // Start address (decimal or hex)
+    "high": "0x100000",    // End address (hex recommended)
+    "attr": "rw"           // Access flags: "r" (read-only), "w" (write-only), "rw" (read-write)
+  },
+  { 
+    "name": "Memory2", 
+    "low": "0x300000",     // Hex start address
+    "high": "0x400000",    // Hex end address
+    "attr": "r"            // Read-only memory
+  }
+],
+"memory.format": ["0x44"],  // Optional: Memory data format (e.g., hex encoding)
+"services": [               // List of enabled memory services
+  { "name": "read_memory_by_address", "id": "0x23" },
+  { "name": "write_memory_by_address", "id": "0x3D" }
+]
+```
+
+### Memory Region Attributes:
+| Attribute | Description                                                                 |
+|-----------|-----------------------------------------------------------------------------|
+| `name`    | Human-readable name for the memory region (e.g., "CalibrationData").         |
+| `low`     | Start address of the memory region (decimal or hex).                        |
+| `high`    | End address of the memory region (decimal or hex).                          |
+| `attr`    | Access permissions: `"r"` (read-only), `"w"` (write-only), or `"rw"` (both). |
+| `sessions`| Allowed sessions (empty = all sessions).                                    |
+| `securities`| Required security levels (empty = no security).                             |
+| `access`  | Access type: `"physical"` (direct memory access) or `"functional"` (logical access). |
+
+---
+
+## 6. Generator Tool
+Configuration is processed by the [Dcm.py](../../tools/generator/Dcm.py) script, which converts JSON definitions into C code (e.g., service handlers, session management logic).

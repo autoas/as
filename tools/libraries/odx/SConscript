@@ -1,20 +1,23 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.cpp')
+objs = Glob("*.cpp")
+
 
 @register_library
 class LibraryODX(Library):
     def config(self):
-        pkg = Package('https://github.com/leethomason/tinyxml2.git', version='9.0.0')
+        pkg = Package("https://github.com/leethomason/tinyxml2.git", version="9.0.0")
         self.include = [CWD]
         self.CPPPATH = [pkg]
-        self.source = objs + PkgGlob(pkg, ['tinyxml2.cpp'])
+        self.source = objs + PkgGlob(pkg, ["tinyxml2.cpp"])
 
 
-objsCat = Glob('utils/odx_cat.c')
+objsCat = Glob("utils/odx_cat.c")
+
+
 @register_application
 class ApplicationOdxCat(Application):
     def config(self):
-        self.LIBS = ['ODX']
+        self.LIBS = ["ODX"]
         self.source = objsCat

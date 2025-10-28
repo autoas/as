@@ -372,6 +372,23 @@
           "API": {
             "start": "Dem_TestStart"
           }
+        },
+        {
+          "name": "MirrorTest",
+          "id": "0xABBA",
+          "access": [
+            "physical"
+          ],
+          "sessions": [
+            "Default",
+            "Program",
+            "Extended",
+            "Factory"
+          ],
+          "securities": [],
+          "API": {
+            "start": "Mirror_TestStart"
+          }
         }
       ]
     },

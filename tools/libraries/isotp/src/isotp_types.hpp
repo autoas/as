@@ -23,7 +23,7 @@ using namespace std::literals::chrono_literals;
 struct isotp_s {
   uint8_t Channel;
   Std_TimerType timerErrorNotify;
-  volatile uint32_t errorTimeout;
+  uint32_t errorTimeout; /* in us */
   struct {
     uint8_t *data;
     size_t length;

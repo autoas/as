@@ -94,4 +94,7 @@ void LinIf_TxConfirmation(NetworkHandleType Channel);
 
 /* @SWS_LinIf_91007 */
 void LinIf_LinErrorIndication(NetworkHandleType Channel, Lin_SlaveErrorType ErrorStatus);
+
+/* @SWS_LinIf_00876 */
+Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean MirroringActive);
 #endif /* LINIF_H */

@@ -15,7 +15,6 @@ objVicServer = Glob("server.cpp")
 
 @register_library
 class LibraryVicServer(Library):
-
     def config(self):
         source = self.Generate(["%s/config/Network.json" % (CWD), "%s/config/Mempool.json" % (CWD)])
         mylibs = {
@@ -37,7 +36,6 @@ objVicClient = Glob("client.cpp")
 
 @register_library
 class LibraryVicClient(Library):
-
     def config(self):
         source = self.Generate(["%s/config/Network.json" % (CWD), "%s/config/Mempool.json" % (CWD)])
         mylibs = {

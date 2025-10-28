@@ -209,7 +209,7 @@ public:
       params.port = get<int, py::int_>(kwargs, "port", 13400);
       params.U.DoIP.sourceAddress = get<uint16_t, py::int_>(kwargs, "sa", 0xbeef);
       params.U.DoIP.targetAddress = get<uint16_t, py::int_>(kwargs, "ta", 0xdead);
-      params.U.DoIP.activationType = get<uint8_t, py::int_>(kwargs, "at", 0xda);
+      params.U.DoIP.activationType = get<uint8_t, py::int_>(kwargs, "at", 0x00);
     } else {
       throw std::runtime_error("invalid protocol " + protocol);
     }
@@ -220,14 +220,24 @@ public:
     }
   }
 
-  bool transmit(py::bytes b) {
+  bool transmit(py::bytes b, uint32_t timeoutMs = 5000) {
     std::string str = b;
-    int r = isotp_transmit(tp, (uint8_t *)str.data(), str.size(), nullptr, 0);
+    int r;
+    uint32_t timeoutUs = timeoutMs * 1000;
+
+    (void)isotp_ioctl(tp, ISOTP_IOCTL_SET_TIMEOUT, &timeoutUs, sizeof(uint32_t));
+
+    r = isotp_transmit(tp, (uint8_t *)str.data(), str.size(), nullptr, 0);
     return (0 == r);
   }
 
-  py::object receive() {
-    int r = isotp_receive(tp, buffer, sizeof(buffer));
+  py::object receive(uint32_t timeoutMs = 5000) {
+    int r;
+    uint32_t timeoutUs = timeoutMs * 1000;
+
+    (void)isotp_ioctl(tp, ISOTP_IOCTL_SET_TIMEOUT, &timeoutUs, sizeof(uint32_t));
+
+    r = isotp_receive(tp, buffer, sizeof(buffer));
 
     if (r > 0) {
       return py::bytes((const char *)buffer, r);
@@ -518,7 +528,7 @@ PYBIND11_MODULE(AsPy, m) {
   m.doc() = "pybind11 AsPy library";
   py::class_<can>(m, "can")
     .def(py::init<std::string, uint32_t, uint32_t>(), py::arg("device") = "simulator",
-         py::arg("port") = 0, py::arg("baudrate") = 1000000)
+         py::arg("port") = 0, py::arg("baudrate") = 500000)
     .def("is_opened", &can::is_opened)
     .def("read", &can::read, py::arg("canid"), py::arg("timeoutMs") = 0)
     .def("write", &can::write, py::arg("canid"), py::arg("data"));
@@ -529,8 +539,8 @@ PYBIND11_MODULE(AsPy, m) {
     .def("write", &lin::write, py::arg("id"), py::arg("data"));
   py::class_<isotp>(m, "isotp")
     .def(py::init<py::kwargs>(), ISOTP_KWARGS)
-    .def("transmit", &isotp::transmit, py::arg("data"))
-    .def("receive", &isotp::receive);
+    .def("transmit", &isotp::transmit, py::arg("data"), py::arg("timeoutMs") = 5000)
+    .def("receive", &isotp::receive, py::arg("timeoutMs") = 5000);
   py::class_<loader>(m, "loader")
     .def(py::init<py::kwargs>(), "\tapp: str, 'the app image'\n"
                                  "\tfls: str, 'the flash driver image'\n"

@@ -9,8 +9,12 @@
 #include "PduR_DoIP.h"
 #include "PduR_Cfg.h"
 #include "PduR_Priv.h"
+#include "Std_Debug.h"
 #if defined(PDUR_USE_MEMPOOL)
 /* ================================ [ MACROS    ] ============================================== */
+#define AS_LOG_PDUR 0
+#define AS_LOG_PDURI 2
+#define AS_LOG_PDURE 3
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -28,6 +32,7 @@ uint8_t *PduR_MemAlloc(uint32_t size) {
   uint8_t *ptr = NULL;
   if (NULL != config->mc) {
     ptr = mc_alloc(config->mc, size);
+    ASLOG(PDUR, ("PduR_MemAlloc %p size=%u\n", ptr, size));
   }
   return ptr;
 }
@@ -45,6 +50,7 @@ void PduR_MemFree(uint8_t *buffer) {
   const PduR_ConfigType *config = PDUR_CONFIG;
   if (NULL != config->mc) {
     mc_free(config->mc, buffer);
+    ASLOG(PDUR, ("PduR_MemFree %p\n", buffer));
   }
 }
 #endif

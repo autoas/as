@@ -15,6 +15,10 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 /* @SWS_DoIP_00055 */
 #define DOIP_E_PENDING ((Std_ReturnType)16)
+
+#define DOIP_POWER_NOT_READY 0x00u
+#define DOIP_POWER_READY 0x01u
+#define DOIP_POWER_NOT_SUPPORTED 0x02u
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct DoIP_Config_s DoIP_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -65,6 +69,10 @@ void DoIP_SoAdTpRxIndication(PduIdType RxPduId, Std_ReturnType result);
 /* @SWS_DoIP_00033 */
 BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *info,
                                         PduLengthType *bufferSizePtr);
+
+Std_ReturnType DoIP_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+                                     uint32_t *payloadLength);
+void DoIP_RxIndication(PduIdType RxPduId, const PduInfoType *info);
 
 /* @SWS_DoIP_00039 */
 void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);

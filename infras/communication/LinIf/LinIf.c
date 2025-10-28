@@ -9,6 +9,10 @@
 #include "LinIf_Priv.h"
 #include "Std_Debug.h"
 #include "Det.h"
+
+#ifdef USE_MIRROR
+#include "Mirror.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_LINIF 0
 #define AS_LOG_LINIFE 0
@@ -70,6 +74,7 @@ static void LinIf_ScheduleEntry(uint8_t Channel) {
   }
 }
 
+#ifdef LINIF_SCHED_MODE_POLLING
 static void LinIf_CheckEntry(uint8_t Channel) {
   LinIf_ChannelContextType *context;
   const LinIf_ChannelConfigType *config;
@@ -102,7 +107,21 @@ static void LinIf_CheckEntry(uint8_t Channel) {
     (void)entry->callback(Channel, &context->frame, result);
     context->status = LINIF_STATUS_IDLE;
   }
+
+#ifdef USE_MIRROR
+  if ((TRUE == context->bMirroringActive) &&
+      ((status == LIN_TX_OK) || (status == LIN_TX_HEADER_ERROR) || (status == LIN_TX_ERROR) ||
+       (status == LIN_RX_OK) || (status == LIN_RX_ERROR) || (status == LIN_RX_NO_RESPONSE))) {
+    PduInfoType PduInfo;
+    PduInfo.MetaDataPtr = NULL;
+    PduInfo.SduDataPtr = context->data;
+    PduInfo.SduLength = context->frame.Dl;
+    Mirror_ReportLinFrame(Channel, context->frame.Pid, &PduInfo, status);
+    context->status = LINIF_STATUS_IDLE;
+  }
+#endif
 }
+#endif /* LINIF_SCHED_MODE_POLLING */
 #endif /* LINIF_VARIANT_MASTER */
 
 #if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
@@ -171,7 +190,7 @@ static void LinIf_MainFunction_Master(NetworkHandleType Channel) {
     }
     if (0 == context->timer) {
       if (LINIF_STATUS_IDLE != context->status) {
-        ASLOG(LINIFE, ("%d: master timeout\n", Channel));
+        ASLOG(LINIFE, ("%d: master timeout for entry %u\n", Channel, context->curSch));
       }
       context->curSch++;
       if (context->curSch >= context->scheduleTable->numOfEntries) {
@@ -223,6 +242,9 @@ void LinIf_Init(const LinIf_ConfigType *ConfigPtr) {
 #endif
     context->state = LINIF_CHANNEL_SLEEP;
     context->timer = 0;
+#ifdef USE_MIRROR
+    context->bMirroringActive = FALSE;
+#endif
   }
 }
 
@@ -294,7 +316,7 @@ void LinIf_DeInit(void) {
   int i;
   LinIf_ChannelContextType *context;
   const LinIf_ChannelConfigType *config;
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0xF0, LINIF_E_UNINIT, return);
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0xF0, LINIF_E_UNINIT, return );
   for (i = 0; i < LINIF_CONFIG->numOfChannels; i++) {
     config = &LINIF_CONFIG->channelConfigs[i];
     context = &LINIF_CONFIG->channelContexts[i];
@@ -330,11 +352,12 @@ Std_ReturnType LinIf_ScheduleRequest(NetworkHandleType Channel, LinIf_SchHandleT
 #endif /* LINIF_VARIANT_MASTER */
 
 void LinIf_MainFunction_Read(void) {
-#if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
+#if ((LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER) &&                            \
+  defined(LINIF_SCHED_MODE_POLLING)
   int i;
   LinIf_ChannelContextType *context;
 
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return);
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return );
   for (i = 0; (i < LINIF_CONFIG->numOfChannels); i++) {
     context = &LINIF_CONFIG->channelContexts[i];
 
@@ -350,7 +373,7 @@ void LinIf_MainFunction(void) {
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
   const LinIf_ChannelConfigType *config;
 #endif
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return);
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return );
   for (i = 0; (i < LINIF_CONFIG->numOfChannels); i++) {
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
     config = &LINIF_CONFIG->channelConfigs[i];
@@ -381,7 +404,7 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
   uint16_t h;
   uint16_t m;
 
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x78, LINIF_E_UNINIT, return);
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x78, LINIF_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x78, LINIF_E_NONEXISTENT_CHANNEL,
                return E_NOT_OK);
 
@@ -447,44 +470,150 @@ Std_ReturnType LinIf_HeaderIndication(NetworkHandleType Channel, Lin_PduType *Pd
 
   return ret;
 }
+#endif /* LINIF_VARIANT_SLAVE */
 
 void LinIf_RxIndication(NetworkHandleType Channel, uint8 *Lin_SduPtr) {
   LinIf_ChannelContextType *context;
+#if ((LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE) ||                              \
+  (LINIF_VARIANT == LINIF_VARIANT_BOTH)
   const LinIf_ChannelConfigType *config;
+#endif
   const LinIf_ScheduleTableEntryType *entry;
   Std_ReturnType ret = E_OK;
 
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x79, LINIF_E_UNINIT, return);
-  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x79, LINIF_E_NONEXISTENT_CHANNEL, return);
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x79, LINIF_E_UNINIT, return );
+  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x79, LINIF_E_NONEXISTENT_CHANNEL, return );
 
   context = &LINIF_CONFIG->channelContexts[Channel];
+#if ((LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE) ||                              \
+  (LINIF_VARIANT == LINIF_VARIANT_BOTH)
   config = &LINIF_CONFIG->channelConfigs[Channel];
-#if LINIF_VARIANT == LINIF_VARIANT_BOTH
-  DET_VALIDATE(LINIF_SLAVE == config->nodeType, 0x79, LINIF_E_PARAMETER, return);
 #endif
 
   if (LINIF_STATUS_IDLE == context->status) {
-    ASLOG(LINIFE, ("%d: slave get data in idle\n", Channel));
+    ASLOG(LINIFE, ("%d: get data in idle\n", Channel));
     ret = E_NOT_OK;
     context->timer = 0;
-  } else if (context->curSch < config->scheduleTable->numOfEntries) {
+  } else
+#if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
+    if (
+#if LINIF_VARIANT == LINIF_VARIANT_BOTH
+      (LINIF_SLAVE == config->nodeType) &&
+#endif
+      (context->curSch < config->scheduleTable->numOfEntries)) {
     entry = &config->scheduleTable->entrys[context->curSch];
     context->timer = 0;
     context->status = LINIF_STATUS_IDLE;
-  } else {
-    ASLOG(LINIFE, ("%d: slave get data with invalid curSch=%X\n", Channel, context->curSch));
+  }
+#else
+    if (
+#if LINIF_VARIANT == LINIF_VARIANT_BOTH
+      (LINIF_MASTER == config->nodeType) &&
+#endif
+      (NULL != context->scheduleTable) &&
+      (context->curSch < context->scheduleTable->numOfEntries)) {
+    entry = &context->scheduleTable->entrys[context->curSch];
+    context->status = LINIF_STATUS_IDLE;
+  }
+#endif
+  else {
+    ASLOG(LINIFE, ("%d: get data with invalid curSch=%u\n", Channel, context->curSch));
     ret = E_NOT_OK;
     context->timer = 0;
     context->status = LINIF_STATUS_IDLE;
   }
 
   if (E_OK == ret) {
-    context->frame.Pid = entry->id;
-    context->frame.Dl = entry->dlc;
-    context->frame.SduPtr = context->data;
-    context->frame.Drc = entry->Drc;
-    memcpy(context->frame.SduPtr, Lin_SduPtr, entry->dlc);
-    (void)entry->callback(Channel, &context->frame, LINIF_R_RECEIVED_OK);
+    if (LIN_FRAMERESPONSE_RX == entry->Drc) {
+      context->frame.Pid = entry->id;
+      context->frame.Dl = entry->dlc;
+      context->frame.SduPtr = context->data;
+      context->frame.Drc = entry->Drc;
+      memcpy(context->frame.SduPtr, Lin_SduPtr, entry->dlc);
+      (void)entry->callback(Channel, &context->frame, LINIF_R_RECEIVED_OK);
+#ifdef USE_MIRROR
+      if (TRUE == context->bMirroringActive) {
+        PduInfoType PduInfo;
+        PduInfo.MetaDataPtr = NULL;
+        PduInfo.SduDataPtr = context->data;
+        PduInfo.SduLength = context->frame.Dl;
+        Mirror_ReportLinFrame(Channel, context->frame.Pid, &PduInfo, LIN_RX_OK);
+      }
+#endif
+    } else {
+      ASLOG(LINIFE,
+            ("%d: rx data with invalid direction for entry %u\n", Channel, context->curSch));
+    }
   }
 }
-#endif /* LINIF_VARIANT_SLAVE */
+
+void LinIf_TxConfirmation(NetworkHandleType Channel) {
+  LinIf_ChannelContextType *context;
+#if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
+  const LinIf_ChannelConfigType *config;
+#endif
+  const LinIf_ScheduleTableEntryType *entry;
+  Std_ReturnType ret = E_OK;
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x7a, LINIF_E_UNINIT, return );
+  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x7a, LINIF_E_NONEXISTENT_CHANNEL, return );
+
+  context = &LINIF_CONFIG->channelContexts[Channel];
+#if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
+  config = &LINIF_CONFIG->channelConfigs[Channel];
+#endif
+
+  if (LINIF_STATUS_IDLE == context->status) {
+    ASLOG(LINIFE, ("%d: Tx confirm in idle\n", Channel));
+    ret = E_NOT_OK;
+    context->timer = 0;
+  } else
+#if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
+    if (context->curSch < config->scheduleTable->numOfEntries) {
+    entry = &config->scheduleTable->entrys[context->curSch];
+    context->timer = 0;
+    context->status = LINIF_STATUS_IDLE;
+  }
+#else
+    if ((NULL != context->scheduleTable) &&
+        (context->curSch < context->scheduleTable->numOfEntries)) {
+    entry = &context->scheduleTable->entrys[context->curSch];
+    context->status = LINIF_STATUS_IDLE;
+  }
+#endif
+  else {
+    ASLOG(LINIFE, ("%d: Tx confirm with invalid curSch=%u\n", Channel, context->curSch));
+    ret = E_NOT_OK;
+    context->timer = 0;
+    context->status = LINIF_STATUS_IDLE;
+  }
+
+  if (E_OK == ret) {
+    if (LIN_FRAMERESPONSE_TX == entry->Drc) {
+      (void)entry->callback(Channel, &context->frame, LINIF_R_TX_COMPLETED);
+#ifdef USE_MIRROR
+      if (TRUE == context->bMirroringActive) {
+        PduInfoType PduInfo;
+        PduInfo.MetaDataPtr = NULL;
+        PduInfo.SduDataPtr = context->data;
+        PduInfo.SduLength = context->frame.Dl;
+        Mirror_ReportLinFrame(Channel, context->frame.Pid, &PduInfo, LIN_TX_OK);
+      }
+#endif
+    } else {
+      ASLOG(LINIFE,
+            ("%d: Tx confirm with invalid direction for entry %u\n", Channel, context->curSch));
+    }
+  }
+}
+
+#ifdef USE_MIRROR
+Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean MirroringActive) {
+  Std_ReturnType ret = E_OK;
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x7f, LINIF_E_UNINIT, return E_NOT_OK);
+  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x7f, LINIF_E_NONEXISTENT_CHANNEL,
+               return E_NOT_OK);
+
+  LINIF_CONFIG->channelContexts[Channel].bMirroringActive = MirroringActive;
+  return ret;
+}
+#endif

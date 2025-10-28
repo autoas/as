@@ -12,12 +12,6 @@
 #include "J1939Tp_Cfg.h"
 #include "CanIf_Cfg.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define PDUR_DCM_TX_BASE_ID 0
-#define PDUR_CANTP_RX_BASE_ID CANTP_MAX_CHANNELS
-#define PDUR_CANTP_TX_BASE_ID 0
-
-#define PDUR_J1939TP_RX_BASE_ID (CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS)
-#define PDUR_J1939TP_TX_BASE_ID (CANTP_MAX_CHANNELS * 2)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 BufReq_ReturnType IsoTp_CanTpStartOfReception(PduIdType id, const PduInfoType *info,
@@ -64,21 +58,21 @@ static PduR_PduType PduR_SrcPdu[CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS * 
 static PduR_PduType PduR_DstPdu[CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS * 2][1];
 static PduR_RoutingPathType PduR_RoutingPaths[CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS * 2];
 
+/** @note
+ * from 0 to CANTP_MAX_CHANNELS:
+ *     Tx Path from ISOTP CAN to CanTp
+ * from CANTP_MAX_CHANNELS to 2*CANTP_MAX_CHANNELS:
+ *     Rx Path from CanTp to ISOTP
+ * from 2*CANTP_MAX_CHANNELS to 2*CANTP_MAX_CHANNELS + J1939TP_MAX_CHANNELS:
+ *     Tx Path from ISOTP to J1939Tp
+ * from CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS to CANTP_MAX_CHANNELS * 2 + 2*J1939TP_MAX_CHANNELS:
+ *     Rx Path from J1939Tp to ISOTP */
 const PduR_ConfigType PduR_Config = {
 #if defined(PDUR_USE_MEMPOOL)
   NULL,
 #endif
   PduR_RoutingPaths,
   ARRAY_SIZE(PduR_RoutingPaths),
-  PDUR_DCM_TX_BASE_ID,
-  -1,
-  -1,
-  PDUR_CANTP_RX_BASE_ID,
-  PDUR_CANTP_TX_BASE_ID,
-  -1,
-  -1,
-  PDUR_J1939TP_RX_BASE_ID,
-  PDUR_J1939TP_TX_BASE_ID,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */

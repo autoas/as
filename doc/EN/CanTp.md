@@ -1,15 +1,13 @@
 ---
 layout: post
-title: AUTOSAR CanTp
+title: AUTOSAR CanTp Configuration
 category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for CanTp
+# Configuration Notes for CanTp
 
-Below is 1 examples:
-
-* [application/CanTp.json](../../app/app/config/CanTp/CanTp.json)
+## Example Configuration
 
 ```json
 {
@@ -25,9 +23,13 @@ Below is 1 examples:
 }
 ```
 
-## Channels
+## Channel Configuration
 
-Please note that CanTp is a channel based design, it means that for each configured channel, it will automatically has 1 TxPdu and 1 RxPdu, check the generated [CanTp_Cfg.c](../../app/app/config/CanTp/GEN/CanTp_Cfg.c)
+CanTp uses a channel-based design where each configured channel automatically includes:
+- 1 TxPdu
+- 1 RxPdu
+
+Refer to the generated [`CanTp_Cfg.c`](../../app/app/config/CanTp/GEN/CanTp_Cfg.c):
 
 ```c
 typedef struct {
@@ -41,36 +43,18 @@ typedef struct {
   uint16_t N_Bs;
   /* Time until reception of the next consecutive frame N-PDU (see ISO 15765-2) */
   uint16_t N_Cr;
-  /* @ECUC_CanTp_00252: Sets the duration of the minimum time the CanTp sender shall wait
-   * between the transmissions of two CF N-PDUs.*/
+  /* @ECUC_CanTp_00252: Minimum time between transmissions of two CF N-PDUs */
   uint8_t STmin;
   uint8_t BS;
-  uint8_t N_TA; /* if addressing format is CANTP_EXTENDED */
-  /* @ECUC_CanTp_00251 */
-  uint8_t CanTpRxWftMax; /* can't not be 0xFF */
-  uint8_t LL_DL;         /* for CAN it was 8, for CANFD it was 64 */
+  uint8_t N_TA; /* Only required for CANTP_EXTENDED addressing */
+  uint8_t CanTpRxWftMax; /* Cannot be 0xFF */
+  uint8_t LL_DL; /* 8 for CAN, 64 for CAN FD */
   uint8_t padding;
-  uint8_t *data; /* data buffer to TP frame transmission */
+  uint8_t *data; /* Data buffer for TP frame transmission */
 } CanTp_ChannelConfigType;
-
-  {
-    /* P2P */
-    CANTP_STANDARD,
-    CANIF_P2P_TX,
-    PDUR_P2P_RX /* PduR_RxPduId */,
-    PDUR_P2P_TX /* PduR_TxPduId */,
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs),
-    CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr),
-    CANTP_CFG_STMIN,
-    CANTP_CFG_BS,
-    0 /* N_TA */,
-    CANTP_CFG_RX_WFT_MAX,
-    CANTP_LL_DL,
-    CANTP_CFG_PADDING,
-    u8P2PData,
-  },
 ```
+
+### Configuration Parameters
 
 ```json
     {
@@ -87,26 +71,26 @@ typedef struct {
     }
 ```
 
-For now, this CanTp configuration is very simple, for any other parameters, please update the generated CanTp_Cfg.c file directly.
+## Important Notes
 
-And please note that for each CanTp channel, you need configure its RxPdu and TxPdu in CanIf.json. the name must be `${name}_RX` and `${name}_TX` in CanIf.
+1. This configuration provides basic functionality. For advanced parameters, modify the generated `CanTp_Cfg.c` directly.
 
+2. Each CanTp channel requires corresponding PDU configurations in `CanIf.json` with specific naming:
+   - RxPdu: `${name}_RX`
+   - TxPdu: `${name}_TX`
+
+Example:
 ```json
-...
-      "RxPdus": [
-        { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
-        { "name": "P2A_RX", "id": "0x7DF", "hoh": 0, "up": "CanTp" },
-        ...
-      ],
-      "TxPdus": [
-        { "name": "P2P_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
-        { "name": "P2A_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
-        ...
-      ]
-...
+"RxPdus": [
+  { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
+  { "name": "P2A_RX", "id": "0x7DF", "hoh": 0, "up": "CanTp" }
+],
+"TxPdus": [
+  { "name": "P2P_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
+  { "name": "P2A_TX", "id": "0x732", "hoh": 0, "up": "CanTp" }
+]
 ```
 
+## Generator
 
-## Genetator
-
-* [Genetator CanTp.py](../../tools/generator/CanTp.py) 
+Configuration is processed by: [CanTp.py](../../tools/generator/CanTp.py)

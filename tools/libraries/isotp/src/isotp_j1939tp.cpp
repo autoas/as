@@ -15,16 +15,9 @@
 #include <assert.h>
 #include <string.h>
 #include "../config/J1939Tp_Cfg.h"
+#include "../config/CanIf_Cfg.h"
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
-#ifndef J1939TP_MAX_CHANNELS
-#define J1939TP_MAX_CHANNELS 32
-#endif
-
-#ifndef CANTP_MAX_CHANNELS
-#define CANTP_MAX_CHANNELS 32
-#endif
-
 #define AS_LOG_J1939TP 0
 #define AS_LOG_J1939TPE 3
 /* ================================ [ TYPES     ] ============================================== */
@@ -219,7 +212,7 @@ int isotp_j1939tp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSiz
     isotp->RX.length = sizeof(isotp->RX.data);
     isotp->RX.index = 0;
     isotp->RX.bInUse = FALSE;
-    r = (int)PduR_J1939TpTransmit(isotp->Channel, &PduInfo);
+    r = (int)PduR_J1939TpTransmit(isotp->Channel + 2 * CANTP_MAX_CHANNELS, &PduInfo);
   }
 
   if (r == E_OK) {

@@ -1,59 +1,106 @@
 # SSAS - Simple Smart Automotive Software
 # Copyright (C) 2022 Parai Wang <parai@foxmail.com>
 from generator import asar
-import autosar
 from bswcom import *
 
+NAMESPACE = "Default"
 
-C_VehicleSpeed_IV = C_CAN1_RxMsgAbsInfo_VehicleSpeed_IV
-C_TachoSpeed_IV = C_CAN1_RxMsgAbsInfo_TachoSpeed_IV
+UINT16_T = asar.platform.ImplementationTypes.uint16
 
-VehicleSpeed = asar.createSenderReceiverPortTemplate('Com', COM_I, C_VehicleSpeed_IV, aliveTimeout=30, elemName='VehicleSpeed')
-TachoSpeed = asar.createSenderReceiverPortTemplate('Com', COM_I, C_TachoSpeed_IV, aliveTimeout=30, elemName='TachoSpeed')
-COM_D.append(asar.createDataElementTemplate('VehicleSpeed', asar.UINT16_T))
-COM_D.append(asar.createDataElementTemplate('TachoSpeed', asar.UINT16_T))
+VehicleSpeed_IV = CAN0_RxMsgAbsInfo_VehicleSpeed_IV
+TachoSpeed_IV = CAN0_RxMsgAbsInfo_TachoSpeed_IV
 
-STMO_D = []
-STMO_D.append(asar.createDataElementTemplate('VehicleSpeed', asar.UINT16_T))
-STMO_D.append(asar.createDataElementTemplate('TachoSpeed', asar.UINT16_T))
+gagues = ["VehicleSpeed", "TachoSpeed"]
 
-STMO_I = asar.createSenderReceiverInterfaceTemplate("STMO_I", STMO_D)
-VehicleSpeed_stmo = asar.createSenderReceiverPortTemplate(
-    "Stmo", STMO_I, C_VehicleSpeed_IV, aliveTimeout=30, elemName="VehicleSpeed"
-)
-TachoSpeed_stmo = asar.createSenderReceiverPortTemplate(
-    "Stmo", STMO_I, C_TachoSpeed_IV, aliveTimeout=30, elemName="TachoSpeed"
-)
+Stmo_IVs = {}
+for gg in gagues:
+    IV = asar.factory.ConstantTemplate(f"{gg}_IV", NAMESPACE, 0)
+    Stmo_IVs[gg] = IV
+
+Stmo_I = asar.SenderReceiverInterfaceTemplate("Stmo", NAMESPACE, [(UINT16_T, gg) for gg in gagues])
+Com_I = asar.SenderReceiverInterfaceTemplate("Com", NAMESPACE, [(UINT16_T, gg) for gg in gagues])
+
+Gauges_P = {"VehicleSpeed": VehicleSpeed_IV, "TachoSpeed": TachoSpeed_IV}
 
 
-class Gauge(autosar.Template):
-    @classmethod
-    def apply(cls, ws):
-        componentName = cls.__name__
-        package = ws.getComponentTypePackage()
-        if package.find(componentName) is None:
-            swc = package.createApplicationSoftwareComponent(componentName)
-            cls.addPorts(swc)
-            cls.addBehavior(swc)
-
-    @classmethod
-    def addPorts(cls, swc):
-        componentName = cls.__name__
-        swc.apply(VehicleSpeed.Receive)
-        swc.apply(TachoSpeed.Receive)
-        swc.apply(VehicleSpeed_stmo.Send)
-        swc.apply(TachoSpeed_stmo.Send)
-
-    @classmethod
-    def addBehavior(cls, swc):
-        componentName = cls.__name__
-        swc.behavior.createRunnable(componentName + "_Init")
-        swc.behavior.createRunnable(componentName + "_Exit")
-        swc.behavior.createRunnable(
-            componentName + "_Run",
-            portAccess=["%s/%s" % (p.name, p.comspec[0].name) for p in swc.requirePorts + swc.providePorts],
+class Gauge:
+    def __init__(self, workspace):
+        self.workspace = workspace
+        depends = [asar.EcuM_CurrentMode_I, Stmo_I, Com_I]
+        for gg, IV in Stmo_IVs.items():
+            depends.extend([IV])
+        for gg, IV in Gauges_P.items():
+            depends.extend([IV])
+        self.Component = asar.factory.GenericComponentTypeTemplate(
+            "Gauge", NAMESPACE, self.create_component, depends=depends
         )
-        swc.behavior.createTimerEvent(componentName + "_Run", 20)
+
+    def create_component(
+        self,
+        package: asar.ar_element.Package,
+        workspace: asar.ar_workspace.Workspace,
+        deps: dict[str, asar.ar_element.ARElement] | None,
+        **_1,
+    ) -> asar.ar_element.ApplicationSoftwareComponentType:
+        ecu_mode_interface = deps[asar.EcuM_CurrentMode_I.ref(workspace)]
+        swc_name = "Gauge"
+        swc = asar.ar_element.ApplicationSoftwareComponentType(swc_name)
+        package.append(swc)
+        swc.create_require_port(
+            "EcuM_CurrentMode", ecu_mode_interface, com_spec={"enhanced_mode_api": False, "supports_async": False}
+        )
+        ports = []
+        ports2 = []
+        interface = deps[Stmo_I.ref(workspace)]
+        for gg, IV in Stmo_IVs.items():
+            init = deps[IV.ref(workspace)]
+            ports.append(f"VALUE:Stmo_{gg}/{gg}")
+            ports2.append("Stmo_" + gg)
+            swc.create_provide_port(
+                "Stmo_" + gg,
+                interface,
+                com_spec={
+                    gg: {
+                        "init_value": init.ref(),
+                        "uses_end_to_end_protection": False,
+                    }
+                },
+            )
+        interface = deps[Com_I.ref(workspace)]
+        for gg, IV in Gauges_P.items():
+            init = deps[IV.ref(workspace)]
+            ports.append(f"VALUE:Com_{gg}/{gg}")
+            ports2.append("Com_" + gg)
+            swc.create_require_port(
+                "Com_" + gg,
+                interface,
+                com_spec={
+                    gg: {
+                        "init_value": init.ref(),
+                        "alive_timeout": 0,
+                        "enable_update": False,
+                        "uses_end_to_end_protection": False,
+                        "handle_never_received": False,
+                    }
+                },
+            )
+        init_runnable_name = swc_name + "_Init"
+        periodic_runnable_name = swc_name + "_Run"
+        behavior = swc.create_internal_behavior()
+        behavior.create_port_api_options(ports2, enable_take_address=False, indirect_api=False)
+        behavior.create_runnable(init_runnable_name, can_be_invoked_concurrently=False, minimum_start_interval=0)
+        runnable = behavior.create_runnable(
+            periodic_runnable_name, can_be_invoked_concurrently=False, minimum_start_interval=0
+        )
+        runnable.create_port_access(ports)
+        behavior.create_swc_mode_mode_switch_event(
+            init_runnable_name, "EcuM_CurrentMode/RUN", asar.ar_enum.ModeActivationKind.ON_ENTRY
+        )
+        behavior.create_timing_event(periodic_runnable_name, 20.0 / 1000)
+        return swc
+
+    def create(self):
+        self.workspace.apply(self.Component)
 
 
 def main(dir):

@@ -1,2 +1,2 @@
-for sc in Glob('*/SConscript'):
-    SConscript(sc)  
+for sc in Glob("*/SConscript"):
+    SConscript(sc)

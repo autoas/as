@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef _SOMEIP_PRIV_H
-#define _SOMEIP_PRIV_H
+#ifndef SOMEIP_PRIV_H
+#define SOMEIP_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "TcpIp.h"
@@ -154,7 +154,7 @@ typedef struct {
   uint32_t offset;
   uint8_t header[16];
   uint8_t lenOfHd;
-} SomeIp_TcpBufferType;
+} SomeIp_TpBufferType;
 
 typedef STAILQ_HEAD(rxTpMsgHead, SomeIp_RxTpMsg_s) SomeIp_RxTpMsgList;
 typedef STAILQ_HEAD(txTpMsgHead, SomeIp_TxTpMsg_s) SomeIp_TxTpMsgList;
@@ -175,19 +175,22 @@ typedef struct {
   SomeIp_RxTpMsgList pendingRxTpMsgs;
   SomeIp_TxTpMsgList pendingTxTpMsgs;
   SomeIp_WaitResMsgList pendingWaitResMsgs;
-  bool online;
+  boolean online;
 } SomeIp_ClientServiceContextType;
 
 typedef struct {
   SomeIp_ServerConnectionContextType *context;
+  PduIdType RxPduId; /* SOMEIP RxPduId used by Rx Control */
   PduIdType TxPduId;
   SoAd_SoConIdType SoConId;
-  SomeIp_TcpBufferType *tcpBuf;
+#ifdef SOMEIP_USE_TP_BUF
+  SomeIp_TpBufferType *tpBuf;
+#endif
 } SomeIp_ServerConnectionType;
 
 typedef struct {
   SomeIp_TxTpEvtMsgList pendingTxTpEvtMsgs;
-  bool online;
+  boolean online;
 } SomeIp_ServerContextType;
 
 typedef struct {
@@ -216,7 +219,9 @@ typedef struct {
   SomeIp_ClientServiceContextType *context;
   PduIdType TxPduId;
   SomeIp_OnAvailabilityFncType onAvailability;
-  SomeIp_TcpBufferType *tcpBuf;
+#ifdef SOMEIP_USE_TP_BUF
+  SomeIp_TpBufferType *tpBuf;
+#endif
   uint16_t SeparationTime; /* @ECUC_SomeIpTp_00006 */
   uint16_t ResponseTimeout;
 } SomeIp_ClientServiceType;
@@ -247,4 +252,4 @@ struct SomeIp_Config_s {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 
-#endif /* _SOMEIP_PRIV_H */
+#endif /* SOMEIP_PRIV_H */

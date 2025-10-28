@@ -19,52 +19,30 @@
 #ifndef SOAD_ERROR_COUNTER_LIMIT
 #define SOAD_ERROR_COUNTER_LIMIT 3
 #endif
-/* ================================ [ TYPES     ] ============================================== */
 
+#define SOAD_SOCKET_CLOSED ((SoAd_SocketStateType)0x00)
+#define SOAD_SOCKET_CREATE ((SoAd_SocketStateType)0x01)
+#define SOAD_SOCKET_ACCEPT ((SoAd_SocketStateType)0x02)
+#define SOAD_SOCKET_READY ((SoAd_SocketStateType)0x03)
+#define SOAD_SOCKET_TAKEN_CONTROL ((SoAd_SocketStateType)0x04)
+/* ================================ [ TYPES     ] ============================================== */
+/* @SWS_SoAd_00514 */
 typedef void (*SoAd_SoConModeChgNotificationFncType)(SoAd_SoConIdType SoConId,
                                                      SoAd_SoConModeType Mode);
-/* @SWS_SoAd_00106 */
-typedef void (*SoAd_IfRxIndicationFncType)(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 
-/* @SWS_SoAd_00663 */
-typedef Std_ReturnType (*SoAd_IfTriggerTransmitFncType)(PduIdType TxPduId, PduInfoType *PduInfoPtr);
+typedef Std_ReturnType (*SoAd_HeaderIndicationFncType)(PduIdType id, const PduInfoType *info,
+                                                       PduLengthType *payloadLength);
 
-/* @SWS_SoAd_00107 */
-typedef void (*SoAd_IfTxConfirmationFncType)(PduIdType id, Std_ReturnType result);
-
-typedef struct {
-  SoAd_IfRxIndicationFncType IfRxIndication;
-  SoAd_IfTriggerTransmitFncType IfTriggerTransmit;
-  SoAd_IfTxConfirmationFncType IfTxConfirmation;
-} SoAd_IfInterfaceType;
-
-/* @SWS_SoAd_00138 */
-typedef BufReq_ReturnType (*SoAd_TpStartOfReceptionFncType)(PduIdType id, const PduInfoType *info,
-                                                            PduLengthType TpSduLength,
-                                                            PduLengthType *bufferSizePtr);
-
-/* @SWS_SoAd_00139 */
-typedef BufReq_ReturnType (*SoAd_TpCopyRxDataFncType)(PduIdType id, const PduInfoType *info,
-                                                      PduLengthType *bufferSizePtr);
-
-/* @SWS_SoAd_00180 */
-typedef void (*SoAd_TpRxIndicationFncType)(PduIdType id, Std_ReturnType result);
-
-/* @SWS_SoAd_00137 */
-typedef BufReq_ReturnType (*SoAd_TpCopyTxDataFncType)(PduIdType id, const PduInfoType *info,
-                                                      const RetryInfoType *retry,
-                                                      PduLengthType *availableDataPtr);
+typedef void (*SoAd_RxIndicationFncType)(PduIdType id, const PduInfoType *info);
 
 /* @SWS_SoAd_00181 */
-typedef void (*SoAd_TpTxConfirmationFncType)(PduIdType id, Std_ReturnType result);
+typedef void (*SoAd_TxConfirmationFncType)(PduIdType id, Std_ReturnType result);
 
 typedef struct {
-  SoAd_TpStartOfReceptionFncType TpStartOfReception;
-  SoAd_TpCopyRxDataFncType TpCopyRxData;
-  SoAd_TpRxIndicationFncType TpRxIndication;
-  SoAd_TpCopyTxDataFncType TpCopyTxData;
-  SoAd_TpTxConfirmationFncType TpTxConfirmation;
-} SoAd_TpInterfaceType;
+  SoAd_HeaderIndicationFncType HeaderIndication;
+  SoAd_RxIndicationFncType RxIndication;
+  SoAd_TxConfirmationFncType TxConfirmation;
+} SoAd_InterfaceType;
 
 /* @ECUC_SoAd_00140 */
 typedef struct {
@@ -90,6 +68,7 @@ typedef uint8_t SoAd_SoConTypeType;
 
 /* @ECUC_SoAd_00009 */
 typedef struct {
+  uint16_t *LocalPort; /* For UDP client */
   PduIdType RxPduId;
   SoAd_SoConIdType SoConId;
   uint16_t GID;
@@ -98,34 +77,30 @@ typedef struct {
 
 /* @ECUC_SoAd_00130 */
 typedef struct {
-  /* SoAd_IfInterfaceType or SoAd_TpInterfaceType */
-  const void *Interface;
+  const SoAd_InterfaceType *IF;
   SoAd_SoConModeChgNotificationFncType SoConModeChgNotification;
   TcpIp_ProtocolType ProtocolType;
   /* https://www.ibm.com/docs/en/zvm/6.4?topic=SSB27U_6.4.0/com.ibm.zvm.v640.kiml0/asonetw.htm */
   uint32_t Remote;          /* if not 0, this is the default remote server IPv4 address */
   SoAd_SoConIdType SoConId; /* where the accepted connection socket id start from*/
   uint16_t Port;
+  uint16_t headerLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
   TcpIp_LocalAddrIdType LocalAddrId;
   uint8_t numOfConnections; /* max number of accepted connections */
   boolean AutomaticSoConSetup;
-  boolean IsTP;
   boolean IsMulitcast; /* if True, the Remote is a multicast UDP IPv4 address */
 } SoAd_SocketConnectionGroupType;
 
-typedef enum {
-  SOAD_SOCKET_CLOSED,
-  SOAD_SOCKET_CREATE,
-  SOAD_SOCKET_ACCEPT,
-  SOAD_SOCKET_READY,
-  SOAD_SOCKET_TAKEN_CONTROL,
-} SoAd_SocketStateType;
+typedef uint8_t SoAd_SocketStateType;
 
 typedef struct {
+  uint8_t *data; /* data allocated to recive a packet */
   TcpIp_SocketIdType sock;
-  SoAd_SocketStateType state;
+  PduLengthType length; /* length of the whole packet size */
+  PduLengthType offset;
   TcpIp_SockAddrType RemoteAddr;
   TcpIp_SockAddrType LocalAddr;
+  SoAd_SocketStateType state;
   uint8_t flag;
 #if SOAD_ERROR_COUNTER_LIMIT > 0
   uint8_t errorCounter;

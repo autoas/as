@@ -2,25 +2,27 @@ from building import *
 
 CWD = GetCurrentDir()
 
-objs = Glob('src/*.cpp')
+objs = Glob("src/*.cpp")
+
 
 @register_library
 class LibraryUtils(Library):
     def add_hogl(self):
-        hogl = Package(url='https://github.com/maxk-org/hogl.git', version='v3.8.2')
-        objs = PkgGlob(hogl, ['src/*.cc'])
+        hogl = Package(url="https://github.com/maxk-org/hogl.git", version="v3.8.2")
+        objs = PkgGlob(hogl, ["src/*.cc"])
         self.source += objs
-        self.include += ['%s/include'%(hogl)]
+        self.include += ["%s/include" % (hogl)]
 
     def config(self):
-        self.include = ['%s/include'%(CWD)]
-        self.CPPPATH = ['$INFRAS']
-        self.LIBS += ['StdTimer']
+        self.include = ["%s/include" % (CWD)]
+        self.CPPPATH = ["$INFRAS"]
+        self.LIBS += ["StdTimer"]
         if IsBuildForMSVC():
             self.LIBS += ["Shlwapi"]
         else:
             if not IsBuildForAndroid():
                 self.LIBS.append("pthread")
             self.LIBS += ["dl"]
+            self.LIBS += ["stdc++"]
         self.source = objs
         # self.add_hogl()

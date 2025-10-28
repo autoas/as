@@ -1,19 +1,20 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.c')
+objs = Glob("*.c")
 
-USE_PCAP = os.getenv('USE_PCAP')
+USE_PCAP = os.getenv("USE_PCAP")
+
 
 @register_library
 class LibrarySd(Library):
     def config(self):
         self.CPPDEFINES = []
-        self.CPPPATH = ['$INFRAS', CWD]
-        self.LIBS = ['SoAd', 'MemPool']
+        self.CPPPATH = ["$INFRAS", CWD]
+        self.LIBS = ["SoAd", "MemPool"]
         self.source = objs
         if IsBuildForHost():
-            USE_PCAP = os.getenv('USE_PCAP')
-            if USE_PCAP == 'YES':
-                self.LIBS += ['PCap']
-                self.CPPDEFINES += ['USE_PCAP']
+            USE_PCAP = os.getenv("USE_PCAP")
+            if USE_PCAP == "YES":
+                self.LIBS += ["PCap"]
+                self.CPPDEFINES += ["USE_PCAP"]

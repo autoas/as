@@ -18,6 +18,7 @@ extern uint8_t g_FlsAcMirror[];
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
+extern void EcuM_MemoryService(void);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -33,8 +34,9 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
   uint32_t address;
   uint32_t size;
 #endif
-  NvM_RequestResultType result = NVM_REQ_OK;
-  if ((0 == cmd) || (1 == cmd)) {
+  uint32_t nLoops;
+  NvM_RequestResultType result = NVM_REQ_NOT_OK;
+  if ((0 == cmd) || (1 == cmd) || (4 == cmd)) {
     /* check read/write nvm block id is correct */
     ret = NvM_GetBlockDataPtrAndLength(BlockId, &pNvmData, &length);
   } else {
@@ -56,10 +58,7 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
         ret = NvM_GetErrorStatus(BlockId, &result);
         if (E_OK == ret) {
           if (NVM_REQ_OK == result) {
-            dataOut[0] = cmd;
-            dataOut[1] = (BlockId >> 8) & 0xFF;
-            dataOut[2] = BlockId & 0xFF;
-            memcpy(&dataOut[3], &dataIn[3], length);
+            memcpy(dataOut, dataIn, length + 3);
             *currentDataLength = length + 3;
           } else if (NVM_REQ_PENDING == result) {
             *ErrorCode = DCM_E_RESPONSE_PENDING;
@@ -69,6 +68,36 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
         } else {
           *ErrorCode = DCM_E_GENERAL_REJECT;
         }
+      }
+    } else {
+      ret = E_NOT_OK;
+      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+    }
+  } else if (4 == cmd) { /* abnormal write NvM block */
+    if ((length + 7) == *currentDataLength) {
+      nLoops = ((uint32_t)dataIn[3] << 24) + ((uint32_t)dataIn[4] << 16) +
+               ((uint32_t)dataIn[5] << 8) + dataIn[6];
+      memcpy(pNvmData, &dataIn[7], length);
+      ret = NvM_WriteBlock(BlockId, pNvmData);
+      if (E_OK != ret) {
+        *ErrorCode = DCM_E_GENERAL_REJECT;
+      }
+      while ((nLoops > 0) && (E_OK == ret)) {
+        nLoops--;
+        EcuM_MemoryService();
+        ret = NvM_GetErrorStatus(BlockId, &result);
+        if (E_OK == ret) {
+          if (NVM_REQ_OK == result) {
+            break; /* done success write */
+          }
+        }
+      }
+      if ((E_OK == ret) && (NVM_REQ_OK == result)) {
+        memcpy(dataOut, dataIn, length + 7);
+        *currentDataLength = length + 7;
+      } else {
+        /* just do reset to simulate power off */
+        Dcm_PerformReset(0x01u);
       }
     } else {
       ret = E_NOT_OK;
@@ -89,10 +118,10 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
     dataOut[6] = (adminInfo.dataFreeAddr >> 16) & 0xFF;
     dataOut[7] = (adminInfo.dataFreeAddr >> 8) & 0xFF;
     dataOut[8] = adminInfo.dataFreeAddr & 0xFF;
-    dataOut[9] = (adminInfo.eraseNumber >> 24) & 0xFF;
-    dataOut[10] = (adminInfo.eraseNumber >> 16) & 0xFF;
-    dataOut[11] = (adminInfo.eraseNumber >> 8) & 0xFF;
-    dataOut[12] = adminInfo.eraseNumber & 0xFF;
+    dataOut[9] = (adminInfo.erasedNumber >> 24) & 0xFF;
+    dataOut[10] = (adminInfo.erasedNumber >> 16) & 0xFF;
+    dataOut[11] = (adminInfo.erasedNumber >> 8) & 0xFF;
+    dataOut[12] = adminInfo.erasedNumber & 0xFF;
     *currentDataLength = 13;
 #else
     ret = E_NOT_OK;

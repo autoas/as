@@ -828,6 +828,7 @@ void Com_MainFunctionTx(void) {
       if (IPduConfig->txConfig->context->timer > 0u) {
         IPduConfig->txConfig->context->timer--;
         if (0u == IPduConfig->txConfig->context->timer) {
+          PduInfo.MetaDataPtr = NULL;
           PduInfo.SduDataPtr = IPduConfig->ptr;
           PduInfo.SduLength = IPduConfig->length;
           if (NULL != IPduConfig->dynLen) {

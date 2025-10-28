@@ -5,119 +5,135 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for Dem
+# Configuration Notes for AUTOSAR Dem
 
-[Dem example](../../app/app/config/Dcm/Dem.json) is simple configuration example to let you know how to configure Dem for DTC.
+This document provides guidance for configuring the Diagnostic Event Manager (Dem) in AUTOSAR systems, including memory setup, DTC definitions, and extended data handling. A [simple configuration example](../../app/app/config/Dcm/Dem.json) is included to illustrate key concepts.
 
-Firstly with `Memories` to specify the memory that used to store the DTC status/snapshot and its extended datas. And generally, the `Primary` memory must be specified, the `Mirror` is optional.
+---
 
+## 1. Memories Configuration
+The `Memories` section defines storage locations for DTC status, snapshots, and extended data. At minimum, a `Primary` memory must be specified (mandatory), while `Mirror` memory is optional.
+
+### Example JSON Snippet:
 ```json
-  "Memories": [
-    {
-      "name": "Primary",
-      "origin": "0x0001"
-    },
-    {
-      "name": "Mirror",
-      "origin": "0x0002"
-    }
-  ],
-```
-
-And with `general` to specify some common attributes for DTC if the DTC itself has no such attribute. Check  [Genetator Dem.py](../../tools/generator/Dem.py) API `GetProp`.
-
-```json
-  "general": {
-    "AgingCycleCounterThreshold": 5,
-    "ConfirmationThreshold": 2,
-    "OccurrenceCounterProcessing": "TF",
-    "FreezeFrameRecordTrigger": "TEST_FAILED",
-    "ExtendedDataRecordTrigger": "TEST_FAILED",
-    "DebounceCounterDecrementStepSize": 2,
-    "DebounceCounterFailedThreshold": 10,
-    "DebounceCounterIncrementStepSize": 1,
-    "DebounceCounterJumpDown": false,
-    "DebounceCounterJumpDownValue": 0,
-    "DebounceCounterJumpUp": true,
-    "DebounceCounterJumpUpValue": 0,
-    "DebounceCounterPassedThreshold": -10
+"Memories": [
+  {
+    "name": "Primary",
+    "origin": "0x0001"  // Mandatory primary storage
   },
+  {
+    "name": "Mirror",
+    "origin": "0x0002"  // Optional mirrored storage
+  }
+]
 ```
 
-And with `DTCs` to list all the DTCs that supported.
+---
 
+## 2. General Configuration
+The `general` section specifies default attributes for DTCs if they are not explicitly defined in individual DTC entries. Refer to the [Generator Dem.py](../../tools/generator/Dem.py) API `GetProp` for details.
+
+### Example JSON Snippet:
 ```json
-  "DTCs": [
-    {
-      "name": "DTC0",
-      "number": "0x112200",
-      "conditions": [
-        "BatteryNormal"
-      ],
-      "destination": [
-        "Primary",
-        "Mirror"
-      ],
-      "priority": 0,
-      "OperationCycleRef": "IGNITION"
-    },
-    ...
-  ]
+"general": {
+  "AgingCycleCounterThreshold": 5,
+  "ConfirmationThreshold": 2,
+  "OccurrenceCounterProcessing": "TF",
+  "FreezeFrameRecordTrigger": "TEST_FAILED",
+  "ExtendedDataRecordTrigger": "TEST_FAILED",
+  "DebounceCounterDecrementStepSize": 2,
+  "DebounceCounterFailedThreshold": 10,
+  "DebounceCounterIncrementStepSize": 1,
+  "DebounceCounterJumpDown": false,
+  "DebounceCounterJumpDownValue": 0,
+  "DebounceCounterJumpUp": true,
+  "DebounceCounterJumpUpValue": 0,
+  "DebounceCounterPassedThreshold": -10
+}
 ```
 
+---
 
-| attr | comments |
-|------|----------|
-| name | the DTC name |
-| number | the DTC number |
-| conditions | a list of conditions' name, Dem generator will automatically assign a condition ID to the condition identified by the name, only support up to 32 conditions |
-| destination | the memory destinition to store the DTC |
-| priority |  the priority of DTC, lower value means higher priprity. higher priority DTC will result displacement the DTC with lower priority |
-|OperationCycleRef | operation cycle this DTC belongs to |
-| events | optional, if present, means a group of events comnined DTC, generally used for case the NvM is short of usage |
+## 3. DTC Definitions
+The `DTCs` section lists all supported Diagnostic Trouble Codes (DTCs) with their specific properties.
 
-And for this Dem implementation, that each DTC and its associated event must has a dedicated slot of NvM block to record its status.
-
-And if the NvM is big enough, it was strongly suggested that each DTC has a dedicated slot of NvM block to store the snapshot and its extended data to avoid the displacement.
-
-With `Environments` to specify the environment variables of the snapshot.
-
+### Example JSON Snippet:
 ```json
-  "Environments": [
-    {
-      "name": "Battery",
-      "id": "0x1001",
-      "type": "uint16",
-      "unit": "v"
-    },
-    ...
-  ]
+"DTCs": [
+  {
+    "name": "DTC0",
+    "number": "0x112200",
+    "conditions": ["BatteryNormal"],  // List of condition names (max 32)
+    "destination": ["Primary", "Mirror"],  // Storage locations for the DTC
+    "priority": 0,  // Lower value = higher priority (higher priority DTCs may displace lower ones)
+    "OperationCycleRef": "IGNITION"  // Operation cycle this DTC belongs to
+  },
+  // Additional DTC entries...
+]
 ```
 
- And generally, for a DTC, it maybe for example to capture the snapshot when the DTC first time happens and then record the snapshot that the DTC happens last time, thus generally for a DTC snapshot, it needs 2 record numbers. Now it was the Dem generator only support 2 record number and the record number can't be configured, it was dynamic given a record number value `2*idx_of_dtc+1, 2*idx_of_dtc+2`. If this was not right, please manually update the generated C code. And in fact, the Dem implementation can support 1 or 2 more record number.
+### Key DTC Attributes:
+| Attribute             | Description                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| `name`                | Human-readable name for the DTC (e.g., "DTC0").                            |
+| `number`              | Unique DTC identifier (e.g., "0x112200").                                  |
+| `conditions`          | List of condition names (Dem generator auto-assigns IDs; max 32 conditions).|
+| `destination`         | List of memory names (from `Memories`) where the DTC is stored.            |
+| `priority`            | Priority level (lower values = higher priority; higher-priority DTCs may displace lower ones). |
+| `OperationCycleRef`   | Operation cycle (e.g., "IGNITION") to which the DTC belongs.               |
+| `events` (Optional)   | Group of events combined into a single DTC (used when NvM storage is limited).|
 
- ```c
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC0[] = {1, 2};
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC1[] = {3, 4};
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC2[] = {5, 6};
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC3[] = {7, 8};
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC4[] = {9, 10};
-static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC_COMB0[] = {11, 12};
-```
+---
 
+## 4. Environment Variables for Snapshots
+The `Environments` section defines environment variables captured in snapshots (e.g., sensor readings).
 
-With `ExtendedDatas` to specify the extended data that need to be supported. Now the Dem already support some common extened datas, such as `FaultOccuranceCounter`/`AgingCounter`/`AgedCounter`, etc. For the others, a callback function to get the configured extended data need to be implemented by customer.
-
+### Example JSON Snippet:
 ```json
-  "ExtendedDatas": [
-    {
-      "name": "FaultOccuranceCounter",
-      "type": "uint8"
-    },
-    ...
-  ]
+"Environments": [
+  {
+    "name": "Battery",
+    "id": "0x1001",
+    "type": "uint16",
+    "unit": "v"  // Units like "V" (volts) or "°„C" (degrees Celsius)
+  },
+  // Additional environment variables...
+]
 ```
 
-## Genetator
+---
 
-* [Genetator Dem.py](../../tools/generator/Dem.py)
+## 5. NvM Storage Requirements
+Each DTC and its associated events require a dedicated NvM (Non-Volatile Memory) block slot to store status, snapshots, and extended data. 
+
+### Important Notes:
+- If NvM storage is sufficient, **dedicate one slot per DTC** to avoid displacement of older DTCs.
+- The current Dem generator supports **2 snapshot records per DTC** (dynamically assigned as `1` and `2`). If this is insufficient, manually update the generated C code.  
+  Example generated C code snippet:  
+  ```c
+  static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC0[] = {1, 2};
+  static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC1[] = {1, 2};
+  static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsForDTC2[] = {1, 2};
+  // ... additional DTC entries
+  ```
+
+---
+
+## 6. Extended Data Configuration
+The `ExtendedDatas` section defines custom data to be stored with DTCs. Predefined types (e.g., `FaultOccurrenceCounter`, `AgingCounter`) are supported. For custom types, implement a callback function in the customer code.
+
+### Example JSON Snippet:
+```json
+"ExtendedDatas": [
+  {
+    "name": "FaultOccurrenceCounter",
+    "type": "uint8"  // Data type (e.g., uint8, uint16)
+  },
+  // Additional extended data entries...
+]
+```
+
+---
+
+## 7. Generator Tool
+For details on the Dem configuration generator, refer to the [Generator Dem.py](../../tools/generator/Dem.py) script.

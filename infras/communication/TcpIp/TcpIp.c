@@ -251,6 +251,7 @@ void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr) {
     /* ref https://wiki.qemu.org/Documentation/Networking#Tap
      * route add -nv 224.224.224.245 dev tap0
      * route add -nv 224.224.224.245 dev enp0s3
+     * ufw allow proto udp from 224.224.224.245/4
      */
 #endif
 #elif defined(_WIN32)
@@ -395,6 +396,17 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
     TcpIp_SetNonBlock(SocketId, TRUE);
   }
 
+  if (E_OK == ret) {
+    socklen_t len = sizeof(sLocalAddr);
+    r = getsockname(SocketId, (struct sockaddr *)&sLocalAddr, &len);
+    if (r < 0) {
+      ASLOG(TCPIPE, ("[%d] failed to getsockname: %d\n", SocketId, r));
+      ret = E_NOT_OK;
+    } else {
+      *PortPtr = ntohs(sLocalAddr.sin_port);
+    }
+  }
+
   return ret;
 }
 
@@ -508,9 +520,9 @@ Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType SocketId, TcpIp_SocketIdType *
     TcpIp_TcpKeepAlive(clientFd, 10, 1, 3);
     RemoteAddrPtr->port = htons(client_addr.sin_port);
     memcpy(RemoteAddrPtr->addr, &client_addr.sin_addr.s_addr, 4);
-    ASLOG(TCPIP,
-          ("[%d] accept %d.%d.%d.%d:%d\n", SocketId, RemoteAddrPtr->addr[0], RemoteAddrPtr->addr[1],
-           RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3], RemoteAddrPtr->port));
+    ASLOG(TCPIP, ("[%d] accept %d.%d.%d.%d:%d as %d\n", SocketId, RemoteAddrPtr->addr[0],
+                  RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3],
+                  RemoteAddrPtr->port, clientFd));
     *AcceptSock = (TcpIp_SocketIdType)clientFd;
   } else {
     ret = E_NOT_OK;
@@ -555,11 +567,16 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
   } else if (-1 == nbytes) {
 #ifndef USE_LWIP
 #ifdef _WIN32
-    if (10035 != WSAGetLastError())
+    if ((10035 != WSAGetLastError()) && (10060 != WSAGetLastError()))
 #else
     if (EAGAIN != errno)
 #endif
     {
+#ifdef _WIN32
+      ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, WSAGetLastError()));
+#else
+      ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, errno));
+#endif
       ret = E_NOT_OK;
     } else {
       /* Resource temporarily unavailable. */

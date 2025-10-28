@@ -98,3 +98,11 @@ RX: 50 01 13 88 00 32
 如上，我们其实就是模拟了一个简单的诊断会话测试，CanApp就相当于一个CAN节点，IsoTpSend相当于诊断节点。至于，仿真原理，请看后续文章。
 
 但至此，基本上，开发环境搭建完毕。Enjoy！
+
+# GDB 调试问题解决
+
+我发现默认路径 `C:/msys64/usr/bin/gdb` 存在问题，建议改用 `C:/msys64/ucrt64/bin/gdb.exe`。
+
+```sh
+pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
+```

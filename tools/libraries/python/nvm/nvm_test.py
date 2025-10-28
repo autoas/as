@@ -3,6 +3,16 @@ import sys
 import json
 import random
 import time
+import logging
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger("NVM")
+logger.setLevel(logging.INFO)
+handler = RotatingFileHandler(filename="log/nvm_test.txt", maxBytes=2 * 1024 * 1024, backupCount=10)
+formatter = logging.Formatter("%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s")
+handler.setLevel(logging.INFO)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 CWD = os.path.dirname(__file__)
 if CWD == "":
@@ -24,19 +34,13 @@ def ASSERT_EQ(a, b):
         raise Exception("%s != %s" % (a, b))
 
 
-def wait_nvm_done():
-    ercd, response = uds.transmit([0x31, 0x03, 0xFE, 0xEF])
-    assert True == ercd
-    status = response[4]
-    while MEMIF_IDLE != status:
-        time.sleep(1)
-        ercd, response = uds.transmit([0x31, 0x03, 0xFE, 0xEF])
-        assert True == ercd
-        status = response[4]
+def formatd(data):
+    return ",".join(["%02X" % (s) for s in data])
 
 
 def power_off():
     # a Ecu Reset to simulate power off
+    logger.info("power off")
     counter = 10
     ercd, response = uds.transmit([0x11, 0x03])
     while False == ercd:
@@ -50,6 +54,7 @@ def power_off():
 
 
 def power_on():
+    logger.info("power on")
     counter = 10
     ercd, response = uds.transmit([0x10, 0x01])
     while False == ercd:
@@ -65,7 +70,7 @@ def nvm_request(req, msg=""):
     counter = 10
     ercd, response = uds.transmit(req)
     while True != ercd:
-        print("%s with error:" % (msg), response, ", retry @%.3f"%(time.time()))
+        print("%s with error:" % (msg), response, ", retry @%.3f" % (time.time()))
         time.sleep(1)
         if counter > 0:
             counter -= 1
@@ -81,6 +86,7 @@ def nvm_request(req, msg=""):
 
 
 def nvm_write(blockId, data):
+    logger.info(f"write blockId {blockId} data {formatd(data)}")
     req = [0x31, 0x01, 0xFE, 0xEF, 0, (blockId >> 8) & 0xFF, blockId & 0xFF] + data
     ercd, response = nvm_request(req, "write")
     ASSERT_EQ(req[4:], [x for x in response[4:]])
@@ -89,6 +95,7 @@ def nvm_write(blockId, data):
 def nvm_read(blockId):
     req = [0x31, 0x01, 0xFE, 0xEF, 1, (blockId >> 8) & 0xFF, blockId & 0xFF]
     ercd, response = nvm_request(req, "read")
+    logger.info(f"read blockId {blockId} data {formatd(response[4:])}")
     return [x for x in response[4:]]
 
 
@@ -103,6 +110,23 @@ def get_fee_admin():
     return curBank, adminFreeAddr, dataFreeAddr, eraseNumber
 
 
+def nvm_write_abnormal(blockId, data, nLoops):
+    logger.info(f"write nLoops {nLoops} blockId {blockId} data {formatd(data)}")
+    req = (
+        [0x31, 0x01, 0xFE, 0xEF, 4, (blockId >> 8) & 0xFF, blockId & 0xFF]
+        + [(nLoops >> 24) & 0xFF, (nLoops >> 16) & 0xFF, (nLoops >> 8) & 0xFF, nLoops & 0xFF]
+        + data
+    )
+    ercd, response = uds.transmit(req, timeoutMs=200)
+    if ercd == True and response is not None:
+        ASSERT_EQ(req[4:], [x for x in response[4:]])
+        return True
+    else:
+        time.sleep(0.1)
+        power_on()
+        return False
+
+
 def normal(blocks, nLoops=1000000):
     history = {}
     for n in range(nLoops):
@@ -115,9 +139,8 @@ def normal(blocks, nLoops=1000000):
             if name not in history:
                 history[name] = []
             history[name].append(data)
-            history[name] = history[name][-5:]
+            history[name] = history[name][-10:]
             nvm_write(blockId, data)
-        # wait_nvm_done()
         power_off()
         power_on()
         for block in blocks:
@@ -125,14 +148,73 @@ def normal(blocks, nLoops=1000000):
             blockId = block["number"]
             data = nvm_read(blockId)
             if data != history[name][-1]:
-                raise Exception("%s loops, %s: %s != last of history: %s" % (n, name, data, history[name]))
+                msg = "%s loops, %s(%s): %s != last of history: %s" % (
+                    n,
+                    name,
+                    blockId,
+                    formatd(data),
+                    formatd(history[name]),
+                )
+                logger.error(msg)
+                raise Exception(msg)
             # print(name, blockId, data, history[name][-1])
         curBank, adminFreeAddr, dataFreeAddr, eraseNumber = get_fee_admin()
         power_off()
-        print(
+        msg = (
             "NvM normal test %s/%s times PASS: curBank=%s eraseNumber=%d adminFreeAddr=0x%08x dataFreeAddr=0x%08x free=%s"
             % (n, nLoops, curBank, eraseNumber, adminFreeAddr, dataFreeAddr, dataFreeAddr - adminFreeAddr)
         )
+        logger.info(msg)
+        print(msg)
+
+
+def abnormal(blocks, nMaxSched, nLoops=1000000):
+    history = {}
+    power_on()
+    for block in blocks:
+        name = block["name"]
+        blockId = block["number"]
+        size = block["size"]
+        data = [random.randint(0, 255) for i in range(size)]
+        if name not in history:
+            history[name] = []
+        history[name].append(data)
+        history[name] = history[name][-5:]
+        nvm_write(blockId, data)
+    power_off()
+    power_on()
+    for n in range(nLoops):
+        for block in blocks:
+            name = block["name"]
+            blockId = block["number"]
+            size = block["size"]
+            data = [random.randint(0, 255) for i in range(size)]
+            loops = random.randint(1, nMaxSched)
+            r = nvm_write_abnormal(blockId, data, loops)
+            if True == r:
+                history[name].append(data)
+                history[name] = history[name][-10:]
+            else:
+                continue
+            dataR = nvm_read(blockId)
+            if dataR != history[name][-1]:
+                msg = "%s loops, %s(%s): %s != last of history: %s" % (
+                    n,
+                    name,
+                    blockId,
+                    formatd(dataR),
+                    formatd(history[name]),
+                )
+                logger.error(msg)
+                raise Exception(msg)
+            # print(name, blockId, data, history[name][-1])
+        curBank, adminFreeAddr, dataFreeAddr, eraseNumber = get_fee_admin()
+        msg = (
+            "NvM abnormal test %s/%s times PASS: curBank=%s eraseNumber=%d adminFreeAddr=0x%08x dataFreeAddr=0x%08x free=%s"
+            % (n, nLoops, curBank, eraseNumber, adminFreeAddr, dataFreeAddr, dataFreeAddr - adminFreeAddr)
+        )
+        logger.info(msg)
+        print(msg)
 
 
 def read_one_block(addr, size):
@@ -185,6 +267,12 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--size", type=str, help="NvM bank size", default="64*1024")
     parser.add_argument("-d", "--dump", action="store_true", help="dump NvM memory", default=False)
     parser.add_argument("--debug", action="store_true", help="verbose uds message", default=False)
+    parser.add_argument(
+        "--max_sched",
+        type=str,
+        help="The maximum number of NvM task schedule loops for abnormal test, if specified, run abnormal test",
+        default="0",
+    )
     args = parser.parse_args()
     uds = dcm(
         protocol="CAN",
@@ -194,6 +282,8 @@ if __name__ == "__main__":
         rxid=eval(args.rxid),
         ll_dl=8,
         verbose=args.debug,
+        log=logger,
+        maxlen=1024,
     )
     if args.dump:
         dump_nvm(eval(args.address), eval(args.size))
@@ -201,4 +291,8 @@ if __name__ == "__main__":
         with open(args.config) as f:
             cfg = json.load(f)
         blocks = cfg["blocks"]
-        normal(blocks)
+        nMaxSched = eval(args.max_sched)
+        if nMaxSched > 0:
+            abnormal(blocks, nMaxSched)
+        else:
+            normal(blocks)

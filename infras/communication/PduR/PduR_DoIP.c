@@ -14,7 +14,6 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#if defined(PDUR_USE_MEMPOOL)
 BufReq_ReturnType PduR_DoIPGwCopyTxData(PduIdType id, const PduInfoType *info,
                                         const RetryInfoType *retry,
                                         PduLengthType *availableDataPtr) {
@@ -39,28 +38,27 @@ BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
 void PduR_DoIPGwRxIndication(PduIdType id, Std_ReturnType result) {
   PduR_GwRxIndication(id, result);
 }
-#endif
 
 BufReq_ReturnType PduR_DoIPCopyTxData(PduIdType id, const PduInfoType *info,
                                       const RetryInfoType *retry, PduLengthType *availableDataPtr) {
-  return PduR_CopyTxData(id + PDUR_CONFIG->doipTxBaseID, info, retry, availableDataPtr);
+  return PduR_CopyTxData(id, info, retry, availableDataPtr);
 }
 
 void PduR_DoIPRxIndication(PduIdType id, Std_ReturnType result) {
-  PduR_TpRxIndication(id + PDUR_CONFIG->doipTxBaseID, result);
+  PduR_TpRxIndication(id, result);
 }
 
 void PduR_DoIPTxConfirmation(PduIdType id, Std_ReturnType result) {
-  PduR_TxConfirmation(id + PDUR_CONFIG->doipTxBaseID, result);
+  PduR_TxConfirmation(id, result);
 }
 
 BufReq_ReturnType PduR_DoIPStartOfReception(PduIdType id, const PduInfoType *info,
                                             PduLengthType TpSduLength,
                                             PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id + PDUR_CONFIG->doipTxBaseID, info, TpSduLength, bufferSizePtr);
+  return PduR_StartOfReception(id, info, TpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_DoIPCopyRxData(PduIdType id, const PduInfoType *info,
                                       PduLengthType *bufferSizePtr) {
-  return PduR_CopyRxData(id + PDUR_CONFIG->doipTxBaseID, info, bufferSizePtr);
+  return PduR_CopyRxData(id, info, bufferSizePtr);
 }

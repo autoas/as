@@ -32,9 +32,6 @@ namespace py = pybind11;
 
 #define LOG_FILE_MAX_SIZE (10 * 1024 * 1024)
 #define LOG_FILE_MAX_NUMBER 2
-
-#define ALIGNED(sz, alignsz) ((sz + alignsz - 1) & (~(alignsz - 1)))
-#define FEE_ALIGNED(sz) ALIGNED(sz, FEE_PAGE_SIZE)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -53,6 +50,10 @@ static bool lPowerOn = false;
 static bool lResult = false;
 static uint8_t *lDataPtr = nullptr;
 /* ================================ [ LOCALS    ] ============================================== */
+extern "C" void Fee_PanicUserAction(uint8_t fault) {
+  assert(0);
+}
+
 static void JobEndNotification(void) {
   lResult = true;
 }
@@ -318,6 +319,17 @@ py::object PyFee_Image(py::bytes raw) {
   }
 }
 
+py::object PyFee_AdminInfo() {
+  Fee_AdminInfoType adminInfo;
+  Fee_GetAdminInfo(&adminInfo);
+  py::dict d;
+  d["erasedNumber"] = adminInfo.erasedNumber;
+  d["adminFreeAddr"] = adminInfo.adminFreeAddr;
+  d["dataFreeAddr"] = adminInfo.dataFreeAddr;
+  d["curWrokingBank"] = adminInfo.curWrokingBank;
+  return d;
+}
+
 py::object PyFee_Read(std::string name, bool blocking = true) {
   py::object r = py::none();
 
@@ -366,4 +378,5 @@ PYBIND11_MODULE(PyFee, m) {
         py::arg("blocking") = true);
   m.def("result", &PyFee_Result, "get job result\n");
   m.def("img", &PyFee_Image, "read/write image raw\n", py::arg("raw") = py::bytes());
+  m.def("admin_info", &PyFee_AdminInfo, "read the admin info\n");
 }

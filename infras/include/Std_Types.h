@@ -89,6 +89,9 @@ typedef int_fast8_t sint8f;
 typedef int_fast16_t sint16f;
 typedef int_fast32_t sint32f;
 
+typedef float float32;
+typedef double float64;
+
 /* @SWS_Std_00015 */
 typedef struct {
   uint16_t vendorID;

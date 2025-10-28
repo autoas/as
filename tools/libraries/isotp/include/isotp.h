@@ -13,6 +13,7 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 #define ISOTP_IOCTL_SET_TX_ID 0
 #define ISOTP_IOCTL_J1939TP_GET_PGN 1
+#define ISOTP_IOCTL_SET_TIMEOUT 2
 /* ================================ [ TYPES     ] ============================================== */
 typedef enum {
   ISOTP_OVER_CAN,

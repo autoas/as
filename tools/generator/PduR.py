@@ -16,23 +16,6 @@ TP_MODULES = ["DoIP", "CanTp", "LinTp", "J1939Tp"]
 LOW_MODULES = TP_MODULES + ["CanIf"]
 
 
-enable_base_id = True
-
-
-def getBaseId(groups, modsFrom=[], modsTo=[]):
-    index = 0
-    for fr, grphls in groups.items():
-        if fr in modsFrom and modsTo == []:
-            return index
-        for hl, grptos in grphls.items():
-            for to, rts in grptos.items():
-                if to in modsTo:
-                    return index
-                for rt in rts:
-                    index += 1
-    return "((PduIdType)-1)"
-
-
 def Gen_PduR(cfg, dir):
     if "memory" in cfg:
         mcfg = {"name": "PduR", "clusters": cfg["memory"]}
@@ -75,29 +58,6 @@ def Gen_PduR(cfg, dir):
         H.write("#define PDUR_USE_MEMPOOL\n")
     if hasGW:
         H.write("#define PDUR_USE_TP_GATEWAY\n")
-    # H.write('#define PDUR_DCM_TX_BASE_ID %s\n' % (getBaseId(groups, modsFrom=['Dcm'])))
-    H.write("#define PDUR_DCM_TX_BASE_ID 0\n")
-    if enable_base_id:
-        H.write("#define PDUR_DOIP_RX_BASE_ID %s\n" % (getBaseId(groups, modsFrom=["DoIP"])))
-        H.write("#define PDUR_DOIP_TX_BASE_ID %s\n" % (getBaseId(groups, modsTo=["DoIP"])))
-        # H.write('#define PDUR_CANTP_RX_BASE_ID %s\n' % (getBaseId(groups, modsFrom=['CanTp'])))
-        # H.write('#define PDUR_CANTP_TX_BASE_ID %s\n' % (getBaseId(groups, modsTo=['CanTp'])))
-        H.write("#define PDUR_CANTP_RX_BASE_ID 0\n")
-        H.write("#define PDUR_CANTP_TX_BASE_ID 0\n")
-        # H.write('#define PDUR_LINTP_RX_BASE_ID %s\n' % (getBaseId(groups, modsFrom=['LinTp'])))
-        # H.write('#define PDUR_LINTP_TX_BASE_ID %s\n' % (getBaseId(groups, modsTo=['LinTp'])))
-        H.write("#define PDUR_LINTP_RX_BASE_ID 0\n")
-        H.write("#define PDUR_LINTP_TX_BASE_ID 0\n")
-    else:
-        H.write("#define PDUR_DOIP_RX_BASE_ID 0\n")
-        H.write("#define PDUR_DOIP_TX_BASE_ID 0\n")
-        H.write("#define PDUR_CANTP_RX_BASE_ID 0\n")
-        H.write("#define PDUR_CANTP_TX_BASE_ID 0\n")
-        H.write("#define PDUR_LINTP_RX_BASE_ID 0\n")
-        H.write("#define PDUR_LINTP_TX_BASE_ID 0\n")
-    H.write("#define PDUR_J1939TP_RX_BASE_ID 0\n")
-    H.write("#define PDUR_J1939TP_TX_BASE_ID 0\n")
-    H.write("\n")
     index = 0
     for fr, grphls in groups.items():
         for hl, grptos in grphls.items():
@@ -252,6 +212,16 @@ def Gen_PduR(cfg, dir):
         C.write("  SecOC_CopyTxData,\n")
         C.write("  SecOC_TxConfirmation,\n")
         C.write("};\n\n")
+    if "Mirror" in modules:
+        C.write("const PduR_ApiType PduR_MirrorApi = {\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  NULL,\n")
+        C.write("  Mirror_TxConfirmation,\n")
+        C.write("};\n\n")
     for rt in cfg["routines"]:
         hasGw = False
         fr, to, name = rt["from"], rt["to"], rt["name"]
@@ -281,6 +251,9 @@ def Gen_PduR(cfg, dir):
         C.write("};\n\n")
         if hasGw:
             C.write("static PduR_BufferType PduR_Buffer_%s = { NULL, 0, 0 };\n" % (name))
+            DestBufferSize = rt.get("DestBufferSize", 0)
+            if DestBufferSize > 0:
+                C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (name, DestBufferSize))
     C.write("static const PduR_RoutingPathType PduR_RoutingPaths[] = {\n")
     index = 0
     for fr, grphls in groups.items():
@@ -293,18 +266,25 @@ def Gen_PduR(cfg, dir):
                     C.write("  { /* %s: PDU %s from %s to %s %s */\n" % (index, name, fr, to, dest))
                     C.write("    &PduR_SrcPdu_%s_%s_%s,\n" % (fr, to, name))
                     C.write("    PduR_DstPdu_%s_%s_%s,\n" % (fr, to, name))
-                    C.write("    ARRAY_SIZE(PduR_DstPdu_%s_%s_%s),\n" % (fr, to, name))
                     if fr in TP_MODULES and to in TP_MODULES:
                         hasGw = True
                     dsts = rt.get("destinations", [])
                     for dst in dsts:
-                        to = dst["to"]
-                        if fr in TP_MODULES and to in TP_MODULES:
+                        to2 = dst["to"]
+                        if fr in TP_MODULES and to2 in TP_MODULES:
                             hasGw = True
                     if hasGw:
-                        C.write("    &PduR_Buffer_%s,\n" % (name))
+                        DestBufferSize = rt.get("DestBufferSize", 0)
+                        if DestBufferSize > 0:
+                            a0 = "PduR_GwBuffer_%s" % (name)
+                            a1 = "sizeof(PduR_GwBuffer_%s)" % (name)
+                        else:
+                            a0 = "NULL"
+                            a1 = 0
+                        C.write("    &PduR_Buffer_%s, %s, %s,\n" % (name, a0, a1))
                     else:
-                        C.write("    NULL,\n")
+                        C.write("    NULL, NULL, 0,\n")
+                    C.write("    ARRAY_SIZE(PduR_DstPdu_%s_%s_%s),\n" % (fr, to, name))
                     C.write("  },\n")
                     index += 1
     C.write("};\n\n")
@@ -317,15 +297,6 @@ def Gen_PduR(cfg, dir):
     C.write("#endif\n")
     C.write("  PduR_RoutingPaths,\n")
     C.write("  ARRAY_SIZE(PduR_RoutingPaths),\n")
-    C.write("  PDUR_DCM_TX_BASE_ID,\n")
-    C.write("  PDUR_DOIP_RX_BASE_ID,\n")
-    C.write("  PDUR_DOIP_TX_BASE_ID,\n")
-    C.write("  PDUR_CANTP_RX_BASE_ID,\n")
-    C.write("  PDUR_CANTP_TX_BASE_ID,\n")
-    C.write("  PDUR_LINTP_RX_BASE_ID,\n")
-    C.write("  PDUR_LINTP_TX_BASE_ID,\n")
-    C.write("  PDUR_J1939TP_RX_BASE_ID,\n")
-    C.write("  PDUR_J1939TP_TX_BASE_ID,\n")
     C.write("};\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")

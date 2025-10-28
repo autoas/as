@@ -1,5 +1,9 @@
 {
   "class": "CanIf",
+  "RxPacketPoolSize": 8,
+  "RxPacketDataSize": 64,
+  "TxPacketPoolSize": 8,
+  "TxPacketDataSize": 64,
   "networks": [
     {
       "name": "CAN0",
@@ -23,7 +27,8 @@
         { "name": "XCP_ON_CAN_TX", "id": "0x7B0", "hoh": 0, "up": "Xcp" },
         { "name": "FW_CAN0_SECOC_MSG0_TX", "id": "0x99", "hoh": 0, "up": "SecOC", "-up": "CanTp" }
       ],
-      "ignore": ["CanNmUserData"]
+      "ignore": ["CanNmUserData"],
+      "E2E": [ "RxMsgAbsInfo", "TxMsgTime" ]
     },
     {
       "name": "CAN1",
@@ -38,6 +43,14 @@
         { "name": "CANNM1_TX", "id": "0x500", "dynamic": true, "hoh": 1, "up": "CanNm" }
       ],
       "ignore": ["CanNmUserData"]
+    },
+    {
+      "name": "CAN2",
+      "me": "AS",
+      "RxPdus": [],
+      "TxPdus": [
+        { "name": "MIRROR_TX", "id": "0x300", "dynamic": true, "hoh": 2, "up": "PduR" }
+      ]
     }
   ]
 }

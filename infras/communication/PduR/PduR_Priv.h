@@ -31,6 +31,7 @@ typedef enum {
   PDUR_MODULE_SECOC,
   PDUR_MODULE_COM,
   PDUR_MODULE_DCM,
+  PDUR_MODULE_MIRROR,
 } PduR_ModuleType;
 
 /* @ECUC_PduR_00289 */
@@ -67,9 +68,11 @@ typedef struct {
 /* @ECUC_PduR_00248 */
 typedef struct {
   const PduR_PduType *SrcPduRef;
-  const PduR_PduType *DestPduRef; /* @ECUC_PduR_00354 */
-  uint16_t numOfDestPdus;
+  const PduR_PduType *DestPduRef;   /* @ECUC_PduR_00354 */
   PduR_BufferType *DestTxBufferRef; /* @ECUC_PduR_00304 */
+  uint8_t *GwBuffer;                /* static gateway dest buffer */
+  PduLengthType GwBufferSize;
+  uint16_t numOfDestPdus;
 } PduR_RoutingPathType;
 
 struct PduR_Config_s {
@@ -78,15 +81,6 @@ struct PduR_Config_s {
 #endif
   const PduR_RoutingPathType *RoutingPaths;
   uint16_t numOfRoutingPaths;
-  const PduIdType dcmTxBaseID;
-  const PduIdType doipRxBaseID;
-  const PduIdType doipTxBaseID;
-  const PduIdType cantpRxBaseID;
-  const PduIdType cantpTxBaseID;
-  const PduIdType lintpRxBaseID;
-  const PduIdType lintpTxBaseID;
-  const PduIdType j1939tpRxBaseID;
-  const PduIdType j1939tpTxBaseID;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 extern const PduR_ConfigType PduR_Config;

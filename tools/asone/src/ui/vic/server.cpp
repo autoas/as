@@ -22,7 +22,7 @@ using namespace as;
 using namespace as::usomeip;
 /* ================================ [ MACROS    ] ============================================== */
 #define RTE_STMO_PORT_WRITE(name, id)                                                              \
-  extern "C" Std_ReturnType Rte_Write_Gauge_Stmo_##name(uint16_t data) {                           \
+  extern "C" Std_ReturnType Rte_Write_Stmo_##name##_##name(uint16_t data) {                        \
     if (lGaugeStatus[id].degree != data) {                                                         \
       lUpdated = true;                                                                             \
       lGaugeStatus[id].degree = data;                                                              \

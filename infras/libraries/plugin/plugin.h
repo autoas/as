@@ -5,6 +5,7 @@
 #ifndef _PLUGIN_H
 #define _PLUGIN_H
 /* ================================ [ INCLUDES  ] ============================================== */
+#include "Std_Compiler.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,7 +13,7 @@ extern "C" {
 #if defined(_WIN32) || defined(linux)
 #define REGISTER_PLUGIN(name)                                                                      \
   const plugin_t plugin_##name = {name##_init, name##_main, name##_deinit};                        \
-  static void __attribute__((constructor)) _##name##_ctor(void) {                                  \
+  INITIALIZER(_##name##_ctor) {                                                                    \
     plugin_register(&plugin_##name);                                                               \
   }
 #else

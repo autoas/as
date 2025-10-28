@@ -1,12 +1,12 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob('*.c')
+objs = Glob("*.c")
+
 
 @register_library
 class LibrarySoAd(Library):
     def config(self):
-        self.CPPPATH = ['$INFRAS', CWD]
-        self.LIBS = ['TcpIp', 'MemPool']
+        self.CPPPATH = ["$INFRAS", CWD, "$UdpNm_Cfg", "$DoIP_Cfg", "$Sd_Cfg", "$SomeIp_Cfg"]
+        self.LIBS = ["TcpIp", "MemPool"]
         self.source = objs
-

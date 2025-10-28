@@ -64,6 +64,20 @@
           ]
         }
       ]
+    },
+    {
+      "name": "SoAd",
+      "class": "SoAd",
+      "sockets": [
+        {
+          "name": "MIRROR_CLIENT_0",
+          "client": "224.244.224.245:30511",
+          "protocol": "UDP",
+          "multicast": true,
+          "up": "Mirror",
+          "RxPduId": "0"
+        }
+      ]
     }
   ]
 }

@@ -30,6 +30,11 @@
       "name": "GW_P2A_TX",
       "from": "CanTp",
       "to": "DoIP"
+    },
+    {
+      "name": "MIRROR_TX",
+      "from": "Mirror",
+      "to": "CanIf"
     }
   ],
   "memory": [

@@ -33,6 +33,8 @@ from .J1939Tp import Gen as J1939TpGen
 from .Csm import Gen as CsmGen
 from .SecOC import Gen as SecOCGen
 from .E2E import Gen as E2EGen
+from .TLS import Gen as TLSGen
+from .Mirror import Gen as MirrorGen
 
 def DummyGen(cfg):
     pass
@@ -67,6 +69,8 @@ __GEN__ = {
     "Csm": CsmGen,
     "SecOC": SecOCGen,
     "E2E": E2EGen,
+    "TLS": TLSGen,
+    "Mirror": MirrorGen,
 }
 
 RootDir = os.path.abspath(os.path.dirname(__file__) + "/../..")

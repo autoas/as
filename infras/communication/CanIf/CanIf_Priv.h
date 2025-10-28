@@ -11,6 +11,14 @@
 #include "Can_GeneralTypes.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define DET_THIS_MODULE_ID MODULE_ID_CANIF
+
+#ifndef CANIF_RX_PACKET_POOL_SIZE
+#define CANIF_RX_PACKET_POOL_SIZE 0u
+#endif
+
+#ifndef CANIF_TX_PACKET_POOL_SIZE
+#define CANIF_TX_PACKET_POOL_SIZE 0u
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef void (*CanIf_RxIndicationFncType)(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
 typedef void (*CanIf_TxConfirmationFncType)(PduIdType TxPduId, Std_ReturnType result);
@@ -30,12 +38,20 @@ typedef struct {
   Can_IdType *p_canid;
   Can_HwHandleType hoh;
   uint8_t ControllerId;
+#if CANIF_TX_PACKET_POOL_SIZE > 0
+  /** @param bUseTxPool for important message such as E2E message from Com, to ensure data atomic,
+   * ensure bUseTxPool = true. */
+  boolean bUseTxPool;
+#endif
 } CanIf_TxPduType;
 
 typedef struct {
   CanIf_PduModeType PduMode;
 #if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)
   uint16_t txTimeoutTimer;
+#endif
+#ifdef USE_MIRROR
+  boolean bMirroringActive;
 #endif
 } CanIf_CtrlContextType;
 

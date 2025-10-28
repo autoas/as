@@ -87,9 +87,18 @@ index cb7d500..4e9c7d4 100644
  
  /* Define platform endianness (might already be defined) */
 diff --git a/ports/win32/pcapif.c b/ports/win32/pcapif.c
-index e5e1ec9..cd2e3e2 100644
+index e5e1ec9..b6400f3 100644
 --- a/ports/win32/pcapif.c
 +++ b/ports/win32/pcapif.c
+@@ -497,7 +497,7 @@ pcapif_init_adapter(int adapter_num, void *arg)
+   pa->input_fn_arg = arg;
+ 
+   /* Retrieve the interfaces list */
+-  if (pcap_findalldevs(&alldevs, errbuf) == -1) {
++  if (pcap_findalldevs_ex(PCAP_SRC_IF_STRING, NULL, &alldevs, errbuf) == -1) {
+     free(pa);
+     return NULL; /* no adapters found */
+   }
 @@ -705,6 +705,7 @@ pcapif_low_level_init(struct netif *netif)
  {
    u8_t my_mac_addr[ETH_HWADDR_LEN] = LWIP_MAC_ADDR_BASE;

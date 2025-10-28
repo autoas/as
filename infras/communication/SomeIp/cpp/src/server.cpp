@@ -7,6 +7,7 @@
 #include "usomeip/server.hpp"
 #include <atomic>
 #include "./common.hpp"
+#include "SomeIp_Cfg.h"
 namespace as {
 namespace usomeip {
 namespace server {
@@ -227,6 +228,7 @@ void on_subscribe(uint16_t eventGroupId, boolean isSubscribe, TcpIp_SockAddrType
 }
 
 void Server::run_rx(Connection *con) {
+#ifdef SOMEIP_USE_TP_BUF
   auto ret = SomeIp_ConnectionTakeControl(m_Identity, con->conId);
   if (E_OK != ret) {
     usLOG(ERROR, "service %d: connection %d taken control failed\n", m_Identity, con->conId);
@@ -236,12 +238,14 @@ void Server::run_rx(Connection *con) {
   data.resize(1420);
   usLOG(INFO, "service %d: connection %d online\n", m_Identity, con->conId);
   while (con->online) {
-    ret = SomeIp_ConnectionRxControl(m_Identity, con->conId, data.data(), data.size());
+    uint32_t length = data.size();
+    ret = SomeIp_ConnectionRxControl(m_Identity, con->conId, data.data(), &length);
     if (E_OK != ret) {
       usLOG(ERROR, "service %d: connection %d rx control failed\n", m_Identity, con->conId);
     }
   }
   usLOG(INFO, "service %d: connection %d offline\n", m_Identity, con->conId);
+#endif
 }
 
 void Server::on_connect(uint16_t conId, bool isConnected) {

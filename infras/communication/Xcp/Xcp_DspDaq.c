@@ -111,7 +111,8 @@ static Xcp_OdtEntryType *Xcp_AllocODTEntry(uint16_t odtEntryCount) {
 static Std_ReturnType Xcp_IsDaqListConfigured(const Xcp_DaqListType *daqList) {
   Std_ReturnType ret = E_OK;
   Xcp_OdtEntryType *pEntries = NULL;
-  uint16_t i, j;
+  uint16_t i;
+  uint16_t j;
 
   if (NULL == daqList->Odts) {
     ret = E_NOT_OK;
@@ -278,7 +279,8 @@ Std_ReturnType Xcp_DspClearDAQList(Xcp_MsgContextType *msgContext,
   uint16_t daqListNumber;
   Xcp_DaqListType *pDaq;
   Xcp_OdtEntryType *pEntries = NULL;
-  uint16_t i, j;
+  uint16_t i;
+  uint16_t j;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
   if (msgContext->reqDataLen < 3) {

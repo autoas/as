@@ -14,16 +14,16 @@ extern void Swc_TelltaleManager(void);
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Telltale_run(void) {
-  Rte_Write_Telltale_AirbagState(OnOff_On);
-  Rte_Write_Telltale_AutoCruiseState(OnOff_1Hz);
-  Rte_Write_Telltale_HighBeamState(OnOff_3Hz);
-  Rte_Write_Telltale_LowOilState(OnOff_1Hz);
-  Rte_Write_Telltale_PosLampState(OnOff_2Hz);
-  Rte_Write_Telltale_SeatbeltDriverState(OnOff_3Hz);
-  Rte_Write_Telltale_SeatbeltPassengerState(OnOff_1Hz);
-  Rte_Write_Telltale_TPMSState(OnOff_2Hz);
-  Rte_Write_Telltale_TurnLeftState(OnOff_3Hz);
-  Rte_Write_Telltale_TurnRightState(OnOff_3Hz);
+  Rte_Write_Telltale_Airbag_Airbag(OnOff_On);
+  Rte_Write_Telltale_AutoCruise_AutoCruise(OnOff_1Hz);
+  Rte_Write_Telltale_HighBeam_HighBeam(OnOff_3Hz);
+  Rte_Write_Telltale_LowOil_LowOil(OnOff_1Hz);
+  Rte_Write_Telltale_PosLamp_PosLamp(OnOff_2Hz);
+  Rte_Write_Telltale_SeatbeltDriver_SeatbeltDriver(OnOff_3Hz);
+  Rte_Write_Telltale_SeatbeltPassenger_SeatbeltPassenger(OnOff_1Hz);
+  Rte_Write_Telltale_TPMS_TPMS(OnOff_2Hz);
+  Rte_Write_Telltale_TurnLeft_TurnLeft(OnOff_3Hz);
+  Rte_Write_Telltale_TurnRight_TurnRight(OnOff_3Hz);
 }
 
 void Telltale_init(void) {

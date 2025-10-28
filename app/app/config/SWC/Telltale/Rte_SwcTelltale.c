@@ -7,7 +7,7 @@
 #include "Dio.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define RTE_WRITE_PORT_FOR_TELLTALE(name)                                                          \
-  Std_ReturnType Rte_Write_Telltale_Telltale_##name##State(OnOff_T data) {                         \
+  Std_ReturnType Rte_Write_Telltale_##name##_##name(OnOff_T data) {                                \
     Std_ReturnType ercd = E_NOT_OK;                                                                \
     if (data < eTelltaleStatusMax) {                                                               \
       TelltaleStatus[eTelltale##name] = data;                                                      \

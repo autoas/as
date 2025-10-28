@@ -85,6 +85,7 @@ static void nmSendMessage(UdpNm_ChannelContextType *context, const UdpNm_Channel
 
   pdu.SduLength = sizeof(context->data);
   pdu.SduDataPtr = context->data;
+  pdu.MetaDataPtr = NULL;
   if (0 == (context->flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
     ret = SoAd_IfTransmit(config->TxPdu, &pdu);
     if (E_OK == ret) {
@@ -946,4 +947,12 @@ void UdpNm_MainFunction(void) {
       break;
     }
   }
+}
+
+BufReq_ReturnType UdpNm_SoAdStartOfReception(PduIdType RxPduId, const PduInfoType *info,
+                                             PduLengthType TpSduLength,
+                                             PduLengthType *bufferSizePtr) {
+  BufReq_ReturnType bufReq = BUFREQ_OK;
+  UdpNm_SoAdIfRxIndication(RxPduId, info);
+  return bufReq;
 }

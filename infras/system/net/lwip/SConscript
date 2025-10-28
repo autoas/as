@@ -1,105 +1,116 @@
 from building import *
 
-USE_FREERTOS = os.getenv('USE_FREERTOS')
+USE_FREERTOS = os.getenv("USE_FREERTOS")
 
-Import('BUILD_DIR')
+Import("BUILD_DIR")
 CWD = GetCurrentDir()
 
-objs = Glob('src/*.c')
+objs = Glob("src/*.c")
 
 
 @register_library
 class LibraryLWIP(Library):
     def get_lwip_objs(self, lwip):
-        objs = ['src/api/*.c', 'src/core/*.c', 'src/core/ipv4/*.c', 'src/core/ipv6/*.c',
-                'src/apps/netbiosns/*.c',
-                'src/netif/*.c', 'src/netif/ppp/*.c', 'src/netif/ppp/polarssl/*.c']
-        return PkgGlob(lwip, objs)
+        objs = [
+            "src/api/*.c",
+            "src/core/*.c",
+            "src/core/ipv4/*.c",
+            "src/core/ipv6/*.c",
+            "src/apps/netbiosns/*.c",
+            "src/netif/*.c",
+            "src/netif/ppp/*.c",
+            "src/netif/ppp/polarssl/*.c",
+        ]
+        objs = PkgGlob(lwip, objs)
+        SrcRemove(objs, ["slipif.c"])
+        return objs
 
     def install_pcap(self):
-        pkg = Package('https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip')
-        self.CPPPATH += ['%s/WpdPack/Include' % (pkg)]
-        libP = '%s/WpdPack/Lib/x64' % (pkg)
-        if not os.path.isfile('%s/libpacket.a' % (libP)):
-            shutil.copy('%s/Packet.lib' % (libP), '%s/libpacket.a' % (libP))
-        if not os.path.isfile('%s/libwpcap.a' % (libP)):
-            shutil.copy('%s/wpcap.lib' % (libP), '%s/libwpcap.a' % (libP))
+        version = "npcap-sdk-1.15"
+        if version == "WpdPack_4_1_2":
+            pkg = Package("https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip")
+            self.CPPPATH += ["%s/WpdPack/Include" % (pkg)]
+            libP = "%s/WpdPack/Lib/x64" % (pkg)
+        else:
+            pkg = Package("https://npcap.com/dist/npcap-sdk-1.15.zip")
+            self.CPPPATH += ["%s/Include" % (pkg)]
+            libP = "%s/Lib/x64" % (pkg)
+        if not os.path.isfile("%s/libpacket.a" % (libP)):
+            shutil.copy("%s/Packet.lib" % (libP), "%s/libpacket.a" % (libP))
+        if not os.path.isfile("%s/libwpcap.a" % (libP)):
+            shutil.copy("%s/wpcap.lib" % (libP), "%s/libwpcap.a" % (libP))
         self.LIBPATH += [libP]
 
     def get_lwip_contrib_objs_for_arm64(self, lwipc):
-        objs = ['ports/unix/port/sys_arch.c']
-        self.include += ['%s/ports/unix/port/include' % (lwipc)]
-        self.LIBS += ['OS']
+        objs = ["ports/unix/port/sys_arch.c"]
+        self.include += ["%s/ports/unix/port/include" % (lwipc)]
+        self.LIBS += ["OS"]
         return PkgGlob(lwipc, objs)
 
     def get_lwip_contrib_objs(self, lwipc):
-        if GetOption('compiler') in ['Arm64GCC']:
+        if GetOption("compiler") in ["Arm64GCC"]:
             return self.get_lwip_contrib_objs_for_arm64(lwipc)
 
-        if GetOption('compiler') not in ['GCC']:
+        if GetOption("compiler") not in ["GCC"]:
             return []
         objs = []
         if IsBuildForWindows():
-            if self.GetOS() == 'FreeRTOS':
-                objs += ['ports/win32/pcapif*.c',
-                         'ports/win32/sio.c', 'ports/freertos/*.c']
+            if self.GetOS() == "FreeRTOS":
+                objs += ["ports/win32/pcapif*.c", "ports/win32/sio.c", "ports/freertos/*.c"]
             else:
-                objs += ['ports/win32/*.c']
+                objs += ["ports/win32/*.c"]
         else:
-            objs += ['ports/unix/port/*.c', 'ports/unix/port/netif/*.c']
+            objs += ["ports/unix/port/*.c", "ports/unix/port/netif/*.c"]
 
         if IsBuildForWindows():
-            # install the wpcap(https://www.winpcap.org/install/bin/WpdPack_4_1_2.zip) to msys2
-            # copy and rename the *.lib to lib*.a
             self.install_pcap()
-            if self.GetOS() == 'FreeRTOS':
-                self.LIBS += ['FreeRTOS']
-                self.include += ['%s/ports/freertos/include/' % (lwipc)]
-            self.include += ['%s/ports/win32/' % (lwipc),
-                             '%s/ports/win32/include/' % (lwipc)]
-            self.LIBS += ['packet', 'wpcap', 'ws2_32']
-            PACKET_LIB_ADAPTER_NR = os.getenv('PACKET_LIB_ADAPTER_NR')
+            if self.GetOS() == "FreeRTOS":
+                self.LIBS += ["FreeRTOS"]
+                self.include += ["%s/ports/freertos/include/" % (lwipc)]
+            self.include += ["%s/ports/win32/" % (lwipc), "%s/ports/win32/include/" % (lwipc)]
+            self.LIBS += ["packet", "wpcap", "ws2_32"]
+            PACKET_LIB_ADAPTER_NR = os.getenv("PACKET_LIB_ADAPTER_NR")
             if PACKET_LIB_ADAPTER_NR == None:
-                print('warning: PACKET_LIB_ADAPTER_NR not set')
+                print("warning: PACKET_LIB_ADAPTER_NR not set")
             else:
-                self.CPPDEFINES += ['-DPACKET_LIB_ADAPTER_NR=%s' %
-                                    (PACKET_LIB_ADAPTER_NR)]
+                self.CPPDEFINES += ["-DPACKET_LIB_ADAPTER_NR=%s" % (PACKET_LIB_ADAPTER_NR)]
         else:
-            self.LIBS += ['pthread', 'util']
-            self.include += ['%s/ports/unix/port/include/' % (lwipc)]
+            self.LIBS += ["pthread", "util"]
+            self.include += ["%s/ports/unix/port/include/" % (lwipc)]
         return PkgGlob(lwipc, objs)
 
     def download(self):
-        lwip = Package(
-            url='https://git.savannah.gnu.org/git/lwip.git', version='STABLE-2_1_x')
+        lwip = Package(url="https://git.savannah.gnu.org/git/lwip.git", version="STABLE-2_1_x")
         lwipc = Package(
-            url='https://git.savannah.gnu.org/git/lwip/lwip-contrib.git', version='STABLE-2_1_0_RELEASE',
-            patch='%s/patch/lwip_contrib.patch' % (CWD))
+            url="https://git.savannah.gnu.org/git/lwip/lwip-contrib.git",
+            version="STABLE-2_1_0_RELEASE",
+            patch="%s/patch/lwip_contrib.patch" % (CWD),
+        )
         objs = self.get_lwip_objs(lwip)
         objs += self.get_lwip_contrib_objs(lwipc)
         self.source += objs
-        self.include += ['%s/config' % (CWD), '%s/src/include' % (lwip)]
+        self.include += ["%s/config" % (CWD), "%s/src/include" % (lwip)]
 
     def config(self):
         self.source = objs
-        self.CPPPATH = ['$INFRAS']
+        self.CPPPATH = ["$INFRAS"]
         self.download()
 
 
-LWIPC = os.path.relpath('../../../../download/lwip-contrib/')
-objsLwipEx = Glob('%s/examples/example_app/*.c' % (LWIPC))
-objsLwipEx += Glob('%s/apps/httpserver/*.c' % (LWIPC))
+LWIPC = os.path.relpath("../../../../download/lwip-contrib/")
+objsLwipEx = Glob("%s/examples/example_app/*.c" % (LWIPC))
+objsLwipEx += Glob("%s/apps/httpserver/*.c" % (LWIPC))
 if IsBuildForWindows():
-    objsLwipEx += Glob('%s/ports/win32/example_app/*.c' % (LWIPC))
+    objsLwipEx += Glob("%s/ports/win32/example_app/*.c" % (LWIPC))
 else:
-    objsLwipEx += Glob('%s/ports/unix/example_app/*.c' % (LWIPC))
+    objsLwipEx += Glob("%s/ports/unix/example_app/*.c" % (LWIPC))
 
 
 @register_application
 class ApplicationLwipExample(Application):
     def config(self):
-        self.Append(CPPDEFINES=['USE_LWIP', 'USE_STD_DEBUG'])
-        self.CPPPATH = ['$INFRAS', LWIPC]
-        self.CPPDEFINES = ['LWIP_HTTPD_APP', 'LWIP_HTTPD_APP_NETCONN']
-        self.LIBS = ['LWIP', 'Utils']
+        self.Append(CPPDEFINES=["USE_LWIP", "USE_STD_DEBUG"])
+        self.CPPPATH = ["$INFRAS", LWIPC]
+        self.CPPDEFINES = ["LWIP_HTTPD_APP", "LWIP_HTTPD_APP_NETCONN"]
+        self.LIBS = ["LWIP", "Utils"]
         self.source = objsLwipEx

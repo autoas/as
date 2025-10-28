@@ -17,6 +17,22 @@
 #ifndef CANIF_MAIN_FUNCTION_PERIOD
 #define CANIF_MAIN_FUNCTION_PERIOD 10
 #endif
+
+#ifndef CANIF_RX_PACKET_POOL_SIZE
+#define CANIF_RX_PACKET_POOL_SIZE 0u
+#endif
+
+#ifndef CANIF_TX_PACKET_POOL_SIZE
+#define CANIF_TX_PACKET_POOL_SIZE 0u
+#endif
+
+#ifndef CANIF_RX_PACKET_DATA_SIZE
+#define CANIF_RX_PACKET_DATA_SIZE 64u
+#endif
+
+#ifndef CANIF_TX_PACKET_DATA_SIZE
+#define CANIF_TX_PACKET_DATA_SIZE 64u
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

@@ -1,5 +1,5 @@
 diff --git a/include/mbedtls/mbedtls_config.h b/include/mbedtls/mbedtls_config.h
-index 35921412c..a57ce7eb0 100644
+index 45feb5eccb..a6fabb1691 100644
 --- a/include/mbedtls/mbedtls_config.h
 +++ b/include/mbedtls/mbedtls_config.h
 @@ -149,7 +149,7 @@
@@ -11,15 +11,6 @@ index 35921412c..a57ce7eb0 100644
  
  /**
   * \def MBEDTLS_PLATFORM_MEMORY
-@@ -350,7 +350,7 @@
-  * You will need to provide a header "timing_alt.h" and an implementation at
-  * compile time.
-  */
--//#define MBEDTLS_TIMING_ALT
-+#define MBEDTLS_TIMING_ALT
- 
- /**
-  * \def MBEDTLS_AES_ALT
 @@ -1183,7 +1183,7 @@
   *
   * Enable functions that use the filesystem.
@@ -29,7 +20,7 @@ index 35921412c..a57ce7eb0 100644
  
  /**
   * \def MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES
-@@ -2662,7 +2662,7 @@
+@@ -2729,7 +2729,7 @@
   *
   * This module provides debugging functions.
   */
@@ -38,7 +29,7 @@ index 35921412c..a57ce7eb0 100644
  
  /**
   * \def MBEDTLS_DES_C
-@@ -2985,7 +2985,7 @@
+@@ -3052,7 +3052,7 @@
   *
   * This module provides networking routines.
   */
@@ -47,7 +38,7 @@ index 35921412c..a57ce7eb0 100644
  
  /**
   * \def MBEDTLS_OID_C
-@@ -3236,7 +3236,7 @@
+@@ -3314,7 +3314,7 @@
   *           either MBEDTLS_PSA_ITS_FILE_C or a native implementation of
   *           the PSA ITS interface
   */
@@ -56,7 +47,7 @@ index 35921412c..a57ce7eb0 100644
  
  /**
   * \def MBEDTLS_PSA_ITS_FILE_C
-@@ -3248,7 +3248,7 @@
+@@ -3326,7 +3326,7 @@
   *
   * Requires: MBEDTLS_FS_IO
   */
@@ -64,4 +55,4 @@ index 35921412c..a57ce7eb0 100644
 +// #define MBEDTLS_PSA_ITS_FILE_C
  
  /**
-  * \def MBEDTLS_RIPEMD160_C
+  * \def MBEDTLS_PSA_STATIC_KEY_SLOTS

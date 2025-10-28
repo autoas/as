@@ -13,7 +13,7 @@ extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 /* @SWS_Can_00039 */
-#define CAN_BUSY 0x02
+#define CAN_BUSY ((Std_ReturnType)0x02u)
 
 #ifdef CAN_VERSION_422
 /* define this for the purpose to use RH850 v422 CAN */

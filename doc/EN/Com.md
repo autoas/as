@@ -5,11 +5,9 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration notes for Com
+# Configuration Notes for Com Module
 
-Below is 1 examples:
-
-* [application/Com.json](../../app/app/config/Com/Com.json)
+## Example Configuration
 
 ```json
 {
@@ -33,16 +31,21 @@ Below is 1 examples:
 }
 ```
 
-## networks
+## Network Configuration
 
-For Com, networks are used to specify those messages and signals from/to the Com module, but for CAN network, as dbc are generally provided, so we can simplely specify the "dbc" only. And the "groups" are used to tell if there is some singals want to grouped according to the AUTOSAR Com group signal definition.
+### CAN Networks
+- The `dbc` field specifies the CAN database file containing messages/signals
+- The `groups` field defines AUTOSAR Com group signals (optional)
+- All messages/signals from the DBC will be automatically imported
 
+### Generated Configuration
+The build system generates [`GEN/Com.json`](../../app/app/config/Com/GEN/Com.json) containing:
+- All converted DBC messages/signals
+- Group signal definitions
+- Network parameters
 
-And please note that, under the parent directory of Com.json, file GEN/Com.json will be generated, in which you can see that all messages/signsls in dbc converted into messages/signsls.
-
-* [GEN/Com.json](../../app/app/config/Com/GEN/Com.json)
-
-And for LIN network, using "ldf" instead of "dbc" to import message and signals, for example:
+### LIN Networks
+For LIN networks, use `ldf` instead of `dbc`:
 
 ```json
 {
@@ -58,6 +61,19 @@ And for LIN network, using "ldf" instead of "dbc" to import message and signals,
 }
 ```
 
-## Genetator
+## Key Fields
 
-* [Genetator Com.py](../../tools/generator/Com.py)
+| Field | Description |
+|-------|-------------|
+| `name` | Network identifier |
+| `network` | Network type (CAN/LIN) |
+| `device` | Hardware device name |
+| `port` | Physical port number |
+| `baudrate` | CAN baudrate (bits/sec) |
+| `me` | ECU identifier |
+| `groups` | Signal grouping definitions |
+| `dbc`/`ldf` | Database file path |
+
+## Generator
+
+Configuration is processed by: [Com.py](../../tools/generator/Com.py)

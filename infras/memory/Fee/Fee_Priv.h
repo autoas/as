@@ -38,6 +38,11 @@ extern "C" {
 #define FEE_PAGE_SIZE 8u
 #endif
 
+#define ALIGNED(sz, alignsz) ((sz + alignsz - 1u) & (~(alignsz - 1u)))
+#define FEE_ALIGNED(sz) ALIGNED(sz, FEE_PAGE_SIZE)
+
+#define FEE_FAULTS_SIZE FEE_ALIGNED(sizeof(Fee_BlockType))
+
 #ifndef FEE_CONST
 #define FEE_CONST
 #endif
@@ -102,6 +107,10 @@ typedef struct {
   Fee_BankStatusType Status;
 #if FEE_PAGE_SIZE > 4 /*sizeof(Fee_BankInfoType) */
   uint8_t _padding3[FEE_PAGE_SIZE - 4u];
+#endif
+#ifdef FEE_USE_FAULTS
+  /* a space used to track FEE faults, support up to 255 fault: 0-254 */
+  uint8_t faults[FEE_FAULTS_SIZE];
 #endif
   uint8_t blocks[FEE_PAGE_SIZE];
 } Fee_BankAdminType;

@@ -58,6 +58,7 @@ def Gen_LinIf(cfg, dir):
     H.write("#define LINIF_CONVERT_MS_TO_MAIN_CYCLES(x)  \\\n")
     H.write("  ((x + LINIF_MAIN_FUNCTION_PERIOD - 1u) / LINIF_MAIN_FUNCTION_PERIOD)\n")
     H.write("%s#define LINIF_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
+    H.write("#define LINIF_SCHED_MODE_%s\n\n" % (cfg.get("SchedMode", "POLLING")))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -157,16 +158,19 @@ def Gen_LinIf(cfg, dir):
         netName = network["name"]
         C.write("  { /* %s */\n" % (netName))
         C.write("    #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE\n")
-        C.write("    &LinIf_SchTbls[LINIF_SCHTBL_%s],\n" % (netName))
-        C.write("    #endif\n")
-        C.write("    #if LINIF_VARIANT == LINIF_VARIANT_BOTH\n")
-        C.write("    /* nodeType */ LINIF_%s,\n" % (network["mode"].upper()))
+        if network["mode"] == "master":
+            C.write("    NULL,\n")
+        else:
+            C.write("    &LinIf_SchTbls[LINIF_SCHTBL_%s],\n" % (netName))
         C.write("    #endif\n")
         C.write(
             "    /* timeout */ LINIF_CONVERT_MS_TO_MAIN_CYCLES(%su * LINIF_DELAY_UINT),\n"
             % (toNum(network.get("timeout", 100)))
         )
-        C.write("    /* linChannel */ %s,\n" % (i))
+        C.write("    /* linChannel */ %su,\n" % (i))
+        C.write("    #if LINIF_VARIANT == LINIF_VARIANT_BOTH\n")
+        C.write("    /* nodeType */ LINIF_%s,\n" % (network["mode"].upper()))
+        C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
     C.write("const LinIf_ConfigType LinIf_Config = {\n")
@@ -247,7 +251,8 @@ def Gen_LinIf(cfg, dir):
 
 
 def extract(cfg, dir):
-    cfg_ = {"class": "LinIf", "networks": [], "ProcessParity": cfg.get("ProcessParity", False)}
+    cfg_ = dict(cfg)
+    cfg_["networks"] = []
     bNew = False
     for network in cfg["networks"]:
         if "ldf" in network:

@@ -4,8 +4,8 @@
  *
  * ref: Specification of Service Discovery AUTOSAR CP Release 4.4.0
  */
-#ifndef _SD_H
-#define _SD_H
+#ifndef SD_H
+#define SD_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "SoAd.h"
@@ -101,7 +101,10 @@ void Sd_MainFunction(void);
 Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddrType *RemoteAddr);
 Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId, Sd_EventHandlerSubscriberListType **list);
 void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
+
+Std_ReturnType Sd_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+                                   PduLengthType *payloadLength);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _SD_H */
+#endif /* SD_H */

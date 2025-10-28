@@ -9,7 +9,6 @@ objsAddServerEx = Glob("add_server.c")
 
 @register_application
 class ApplicationAddServerEx(Application):
-
     def config(self):
         source = self.Generate(["%s/config/server/Network.json" % (CWD), "%s/config/server/Mempool.json" % (CWD)])
         libsForAddSrv = {
@@ -27,12 +26,12 @@ class ApplicationAddServerEx(Application):
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
 
+
 objsAddClientEx = Glob("add_client.c")
 
 
 @register_application
 class ApplicationAddClientEx(Application):
-
     def config(self):
         source = self.Generate(["%s/config/client/Network.json" % (CWD), "%s/config/client/Mempool.json" % (CWD)])
         libsForAddClient = {
