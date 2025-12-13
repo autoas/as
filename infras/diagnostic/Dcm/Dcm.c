@@ -65,28 +65,38 @@ void Dcm_MainFunction_Response(void) {
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
-  if (DCM_RESPONSE_PENDING == context->responcePending) {
-    PduInfo.MetaDataPtr = NULL;
-    PduInfo.SduDataPtr = NULL;
-    PduInfo.SduLength = 3;
-    context->responcePending = DCM_RESPONSE_PENDING_PROVIDED;
-    r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
-    if (E_OK != r) {
-      context->responcePending = DCM_RESPONSE_PENDING; /* try next time */
+  if (DCM_RESPONSE_PENDING == context->responsePending) {
+    if (context->curPduId < config->numOfChls) {
+      PduInfo.MetaDataPtr = NULL;
+      PduInfo.SduDataPtr = NULL;
+      PduInfo.SduLength = 3;
+      context->responsePending = DCM_RESPONSE_PENDING_PROVIDED;
+      r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
+      if (E_OK != r) {
+        context->responsePending = DCM_RESPONSE_PENDING; /* try next time */
+      }
+    } else {
+      ASLOG(DCME, ("Fatal ERROR as invalid PDU ID in response pending\n"));
+      context->responsePending = DCM_NO_RESPONSE_PENDING; /* drop it */
     }
   } else if (DCM_BUFFER_FULL == context->txBufferState) {
-    PduInfo.MetaDataPtr = NULL;
-    PduInfo.SduDataPtr = config->txBuffer;
-    PduInfo.SduLength = context->TxTpSduLength;
-    context->txBufferState = DCM_BUFFER_PROVIDED;
-    context->TxIndex = 0;
-    ASLOG(DCM, ("Tx %02X %02X %02X ...\n", config->txBuffer[0], config->txBuffer[1],
-                config->txBuffer[2]));
-    r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
-    if (E_OK != r) {
-      /* This Dcm will ensure only 1 tx request, so if Transmit failed, it was a fatal error!*/
-      context->txBufferState = DCM_BUFFER_IDLE;
-      ASLOG(DCME, ("Tx Failed!\n"));
+    if (context->curPduId < config->numOfChls) {
+      PduInfo.MetaDataPtr = NULL;
+      PduInfo.SduDataPtr = config->txBuffer;
+      PduInfo.SduLength = context->TxTpSduLength;
+      context->txBufferState = DCM_BUFFER_PROVIDED;
+      context->TxIndex = 0;
+      ASLOG(DCM, ("Tx %02X %02X %02X ...\n", config->txBuffer[0], config->txBuffer[1],
+                  config->txBuffer[2]));
+      r = PduR_DcmTransmit(config->channles[context->curPduId].TxPduId, &PduInfo);
+      if (E_OK != r) {
+        /* This Dcm will ensure only 1 tx request, so if Transmit failed, it was a fatal error! */
+        context->txBufferState = DCM_BUFFER_IDLE;
+        ASLOG(DCME, ("Tx Failed!\n"));
+      }
+    } else {
+      ASLOG(DCME, ("Fatal ERROR as invalid PDU ID in transmit\n"));
+      context->txBufferState = DCM_BUFFER_IDLE; /* drop it */
     }
   } else {
     /* do nothing */
@@ -115,7 +125,19 @@ BufReq_ReturnType Dcm_StartOfReception(PduIdType id, const PduInfoType *info,
                return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != bufferSizePtr, 0x46, DCM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
 
-  if (DCM_BUFFER_IDLE == context->rxBufferState) {
+  if ((2u == TpSduLength) && (0x3Eu == info->SduDataPtr[0]) && (0x80u == info->SduDataPtr[1])) {
+    /* @SWS_Dcm_00557, @SWS_Dcm_01145
+     * Only support 3E request without positive response */
+    if (context->currentSession != DCM_DEFAULT_SESSION) {
+      context->timerS3Server = config->timing->S3Server;
+    }
+    ret = BUFREQ_E_BUSY;
+  } else if ((DCM_BUFFER_IDLE != context->txBufferState) && (id != context->curPduId)) {
+    /* As this Dcm share the same context & buffers across all the Dcm protocal channels, thus
+     * if there is a responsing on going, can't accept the new incoming request from the other
+     * channel. */
+    ret = BUFREQ_E_BUSY;
+  } else if (DCM_BUFFER_IDLE == context->rxBufferState) {
     if (TpSduLength > config->rxBufferSize) {
       /* @SWS_Dcm_00444 */
       ret = BUFREQ_E_OVFL;
@@ -130,14 +152,6 @@ BufReq_ReturnType Dcm_StartOfReception(PduIdType id, const PduInfoType *info,
       context->rxBufferState = DCM_BUFFER_PROVIDED;
     }
   } else {
-    if ((2u == TpSduLength) && (0x3Eu == info->SduDataPtr[0]) && (0x80u == info->SduDataPtr[1]) &&
-        ((DCM_P2P_PDU == id) || (DCM_P2A_PDU == id))) {
-      /* @SWS_Dcm_00557, @SWS_Dcm_01145
-       * Only support 3E request without positive response */
-      if (context->currentSession != DCM_DEFAULT_SESSION) {
-        context->timerS3Server = config->timing->S3Server;
-      }
-    }
     ret = BUFREQ_E_BUSY;
   }
 
@@ -159,18 +173,26 @@ BufReq_ReturnType Dcm_CopyRxData(PduIdType id, const PduInfoType *info,
     if (context->curPduId == id) {
       if (0u == info->SduLength) {
         /* @SWS_Dcm_00996 */
-      } else {
+        ret = BUFREQ_OK;
+      } else if (((context->RxIndex + info->SduLength) <= context->RxTpSduLength) &&
+                 (context->RxTpSduLength <= config->rxBufferSize)) {
         (void)memcpy(&config->rxBuffer[context->RxIndex], info->SduDataPtr, info->SduLength);
         context->RxIndex += info->SduLength;
+        ret = BUFREQ_OK;
+      } else {
+        /* NOT OK*/
       }
-      /* @SWS_Dcm_00443 */
-      *bufferSizePtr = context->RxTpSduLength - context->RxIndex;
-      ret = BUFREQ_OK;
-    } else {
-      ASLOG(DCME, ("Fatal Error when copy Rx Data, reset to Idle\n"));
-      context->rxBufferState = DCM_BUFFER_IDLE;
     }
   }
+
+  if (BUFREQ_OK == ret) {
+    /* @SWS_Dcm_00443 */
+    *bufferSizePtr = context->RxTpSduLength - context->RxIndex;
+  } else {
+    ASLOG(DCME, ("Fatal Error when copy Rx Data, reset to Idle\n"));
+    context->rxBufferState = DCM_BUFFER_IDLE;
+  }
+
   return ret;
 }
 
@@ -178,7 +200,7 @@ void Dcm_TpRxIndication(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
-  DET_VALIDATE(id < config->numOfChls, 0x45, DCM_E_PARAM, return );
+  DET_VALIDATE(id < config->numOfChls, 0x45, DCM_E_PARAM, return);
 
   if ((E_OK == result) && (DCM_BUFFER_PROVIDED == context->rxBufferState) &&
       (context->curPduId == id)) {
@@ -217,20 +239,29 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
                return BUFREQ_E_NOT_OK);
   DET_VALIDATE(NULL != availableDataPtr, 0x43, DCM_E_PARAM_POINTER, return BUFREQ_E_NOT_OK);
 
-  if (DCM_RESPONSE_PENDING_PROVIDED == context->responcePending) {
-    info->SduDataPtr[0] = SID_NEGATIVE_RESPONSE;
-    info->SduDataPtr[1] = context->currentSID;
-    info->SduDataPtr[2] = DCM_E_RESPONSE_PENDING;
-    context->responcePending = DCM_RESPONSE_PENDING_TXING;
-    *availableDataPtr = 0u;
-    ret = BUFREQ_OK;
-  } else if (DCM_BUFFER_PROVIDED == context->txBufferState) {
-    if (context->curPduId == id) {
-      (void)memcpy(info->SduDataPtr, &config->txBuffer[context->TxIndex], info->SduLength);
-      context->TxIndex += info->SduLength;
-      *availableDataPtr = context->TxTpSduLength - context->TxIndex;
+  if (DCM_RESPONSE_PENDING_PROVIDED == context->responsePending) {
+    if (info->SduLength >= 3u) {
+      info->SduDataPtr[0] = SID_NEGATIVE_RESPONSE;
+      info->SduDataPtr[1] = context->currentSID;
+      info->SduDataPtr[2] = DCM_E_RESPONSE_PENDING;
+      context->responsePending = DCM_RESPONSE_PENDING_TXING;
+      *availableDataPtr = 0u;
       ret = BUFREQ_OK;
     } else {
+      context->responsePending = DCM_NO_RESPONSE_PENDING;
+      ASLOG(DCME, ("Fatal Error when copy Tx Data, reset response pending\n"));
+    }
+  } else if (DCM_BUFFER_PROVIDED == context->txBufferState) {
+    if (context->curPduId == id) {
+      if (((context->TxIndex + info->SduLength) <= context->TxTpSduLength) &&
+          (context->TxTpSduLength <= config->txBufferSize)) {
+        (void)memcpy(info->SduDataPtr, &config->txBuffer[context->TxIndex], info->SduLength);
+        context->TxIndex += info->SduLength;
+        *availableDataPtr = context->TxTpSduLength - context->TxIndex;
+        ret = BUFREQ_OK;
+      }
+    }
+    if (BUFREQ_OK != ret) {
       ASLOG(DCME, ("Fatal Error when copy Tx Data, reset to Idle\n"));
       context->txBufferState = DCM_BUFFER_IDLE;
     }
@@ -244,10 +275,10 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
 void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
   Dcm_ContextType *context = Dcm_GetContext();
 
-  DET_VALIDATE(id < Dcm_GetConfig()->numOfChls, 0x48, DCM_E_PARAM, return );
+  DET_VALIDATE(id < Dcm_GetConfig()->numOfChls, 0x48, DCM_E_PARAM, return);
 
-  if (DCM_RESPONSE_PENDING_TXING == context->responcePending) {
-    context->responcePending = DCM_NO_RESPONSE_PENDING;
+  if (DCM_RESPONSE_PENDING_TXING == context->responsePending) {
+    context->responsePending = DCM_NO_RESPONSE_PENDING;
   } else {
     if ((E_OK == result) && (DCM_BUFFER_PROVIDED == context->txBufferState) &&
         (context->curPduId == id)) {
@@ -262,3 +293,20 @@ void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
     context->txBufferState = DCM_BUFFER_IDLE;
   }
 }
+
+void Dcm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x24, DCM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_DCM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 4;
+}
+/** @brief release notes
+ * - 4.0.1: Typo Fix: responcePending -> responsePending
+ * - 4.0.2: Fixed: Suppressing positive response for UDS 0x3E 0x80 (Tester Present)
+ *    no longer disrupts physical communication.
+ * - 4.0.3: Fixed: Dcm_SessionChangeIndication() with wrong current session issue.
+ * - 4.0.4: Fixed: TransferData force response pending issue.
+ */

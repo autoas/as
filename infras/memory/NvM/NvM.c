@@ -136,7 +136,7 @@ static void NvM_DoInit_OnEventStart(NvM_StepType step) {
     if (MEMIF_IDLE == ifStatus) {
       context->state = NVM_IDLE;
       context->step = NVM_STEP_IDLE;
-      ASLOG(NVM, ("MemIf is idel\n"));
+      ASLOG(NVM, ("MemIf is idle\n"));
     }
     break;
   default:
@@ -375,7 +375,7 @@ static void NvM_DoWriteAll_OnEventStart(NvM_StepType step) {
 #endif
 
   switch (step) {
-  case NVM_STEP_READ_ALL_BLOCK:
+  case NVM_STEP_WRITE_ALL_BLOCK:
     if (context->job.blockId < config->numOfBlocks) {
       BlockDesc = &config->Blocks[context->job.blockId];
 #ifdef NVM_BLOCK_USE_CRC
@@ -1021,6 +1021,8 @@ Std_ReturnType NvM_GetErrorStatus(NvM_BlockIdType BlockId,
   P2CONST(NvM_ConfigType, AUTOMATIC, NVM_CONST) config = NVM_CONFIG;
   boolean bRWPending;
 
+  DET_VALIDATE(NULL != RequestResultPtr, 0xFE, NVM_E_PARAM_POINTER, return E_NOT_OK);
+
   if ((BlockId >= 2u) && ((BlockId - 2u) < config->numOfBlocks)) {
     *RequestResultPtr = config->blockStatus[BlockId - 2u];
     if (NVM_REQ_OK == *RequestResultPtr) {
@@ -1035,4 +1037,18 @@ Std_ReturnType NvM_GetErrorStatus(NvM_BlockIdType BlockId,
 
   return ret;
 }
+
+void NvM_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x0f, NVM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_NVM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
 #endif
+
+/** @brief release notes
+ * - 4.0.1: Typo Fix and add DET validate
+ */

@@ -740,7 +740,7 @@ Std_ReturnType CanNm_RepeatMessageRequest(NetworkHandleType nmChannelHandle) {
   case NM_STATE_NORMAL_OPERATION:
     nmEnterCritical();
     context->flags |= CANNM_REPEAT_MESSAGE_REQUEST_MASK;
-    nmEnterCritical();
+    nmExitCritical();
     break;
   default:
     /* @SWS_CanNm_00137 */
@@ -763,7 +763,7 @@ Std_ReturnType CanNm_DisableCommunication(NetworkHandleType nmChannelHandle) {
   /* @SWS_CanNm_00170 */
   nmEnterCritical();
   context->flags |= CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
-  nmEnterCritical();
+  nmExitCritical();
   /* could see codes that check CANNM_DISABLE_COMMUNICATION_REQUEST_MASK in the MainFunction,
    * That is because that Alarm operation is not atomic, so the codes that added to check
    * CANNM_DISABLE_COMMUNICATION_REQUEST_MASK is a workaroud and which is not good but it
@@ -1167,3 +1167,17 @@ void CanNm_MainFunction(void) {
     }
   }
 }
+
+void CanNm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0xf1, CANNM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_CANNM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
+
+/** @brief release notes
+ * - 4.0.1: Replace accidental nmEnterCritical() with nmExitCritical() in RepeatMessageRequest/DisableCommunication.
+ */

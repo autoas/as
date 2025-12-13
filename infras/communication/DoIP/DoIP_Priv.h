@@ -4,12 +4,14 @@
  *
  * ref: Specification of Diagnostic over IP AUTOSAR CP Release 4.4.0
  */
-#ifndef _DOIP_PRIV_H
-#define _DOIP_PRIV_H
+#ifndef DOIP_PRIV_H
+#define DOIP_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "DoIP.h"
 #include "SoAd.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_DOIP
+
 /* @SWS_DoIP_00008, @SWS_DoIP_00009 */
 #define DOIP_GENERAL_HEADER_NEGATIVE_ACK 0x0000u                /* UDP/TCP*/
 #define DOIP_VID_REQUEST 0x0001u                                /* UDP */
@@ -80,6 +82,13 @@
 #define DOIP_MSG_RX ((DoIP_MessageStateType)1)
 #define DOIP_MSG_TX ((DoIP_MessageStateType)2)
 
+/* @SWS_DoIP_00148 */
+#define DOIP_E_UNINIT 0x01u
+#define DOIP_E_PARAM_POINTER 0x02u
+#define DOIP_E_INVALID_PDU_SDU_ID 0x03u
+#define DOIP_E_INVALID_PARAMETER 0x04u
+#define DOIP_E_INIT_FAILED 0x05u
+
 /* ================================ [ TYPES     ] ============================================== */
 /* Architecture of DoIP
  *  SoAd provides one DOIP_UDP socket, which will be used both for broadcast vehicle
@@ -102,6 +111,8 @@ typedef Std_ReturnType (*DoIP_GetVinFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetEIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetGIDFncType)(uint8_t *Data);
 typedef Std_ReturnType (*DoIP_GetPowerModeStatusFncType)(uint8_t *PowerState);
+
+typedef Std_ReturnType (*DoIP_GetRoutingActivationResponseOemFncType)(uint8_t *Data);
 
 typedef uint8_t DoIP_ConnectionStateType;
 
@@ -246,6 +257,8 @@ struct DoIP_Config_s {
   DoIP_GetEIDFncType GetEID; /* @ECUC_DoIP_00014 */
   DoIP_GetGIDFncType GetGID; /* @ECUC_DoIP_00015 */
   DoIP_GetPowerModeStatusFncType GetPowerModeStatus;
+  DoIP_GetRoutingActivationResponseOemFncType GetRoutingActivationResponseOem;
+
   uint16_t LogicalAddress; /* @ECUC_DoIP_00020  */
 
   /* @ECUC_DoIP_00032 */
@@ -273,4 +286,4 @@ struct DoIP_Config_s {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _DOIP_PRIV_H */
+#endif /* DOIP_PRIV_H */

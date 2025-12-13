@@ -28,11 +28,17 @@ typedef struct DoIP_Config_s DoIP_ConfigType;
 /* @SWS_DoIP_00026 */
 void DoIP_Init(const DoIP_ConfigType *ConfigPtr);
 
-/* @SWS_DoIP_00251 */
+/* @SWS_DoIP_00251 @deprecated */
 void DoIP_ActivationLineSwitchActive(void);
 
-/* @SWS_DoIP_91001 */
+/* @SWS_DoIP_91001 @deprecated */
 void DoIP_ActivationLineSwitchInactive(void);
+
+/* @SWS_DoIP_91000 */
+void DoIP_ActivationLineSwitch(uint8_t InterfaceId, boolean *Active);
+
+/* @SWS_DoIP_91002 */
+void DoIP_TriggerVehicleAnnouncement(uint8_t InterfaceId);
 
 /* @SWS_DoIP_00022 */
 Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
@@ -76,6 +82,9 @@ void DoIP_RxIndication(PduIdType RxPduId, const PduInfoType *info);
 
 /* @SWS_DoIP_00039 */
 void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
+
+/* @SWS_DoIP_00027 */
+void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

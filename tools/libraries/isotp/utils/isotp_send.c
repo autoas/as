@@ -19,10 +19,11 @@
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
   printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL -b baudrate "
-         "-n N_TA -s delayUs\n"
+         "-n N_TA -s delayUs [-V version]\n"
          "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"LIN.simulator\".\n"
          "\tfor J1939Tp: txid = txDT, rxid = rxDT, and follow options required\n"
-         "\t-c txCM -f txFC -s txDirect -C rxCM -F rxFC -S rxDirect -j [CMDT|BAM]\n",
+         "\t-c txCM -f txFC -s txDirect -C rxCM -F rxFC -S rxDirect -j [CMDT|BAM]\n"
+         "\t-V version: 1 for CAN ISO-TP v1, 2 for CAN ISO-TP v2 (default)\n",
          prog);
 }
 
@@ -63,10 +64,11 @@ int main(int argc, char *argv[]) {
   uint32_t timeout = 100; /* ms */
   isotp_parameter_t params;
   static const uint8_t testerKeep[2] = {0x3E, 0x00 | 0x80};
+  isotp_can_version_t version = ISOTP_CAN_V2;
 
   memset(&params, 0, sizeof(isotp_parameter_t));
   opterr = 0;
-  while ((ch = getopt(argc, argv, "b:d:D:g:l:n:p:r:t:v:T:wec:C:f:F:s:S:j:q")) != -1) {
+  while ((ch = getopt(argc, argv, "b:d:D:g:l:n:p:r:t:v:V:T:wec:C:f:F:s:S:j:q")) != -1) {
     switch (ch) {
     case 'b':
       baudrate = toU32(optarg);
@@ -109,6 +111,9 @@ int main(int argc, char *argv[]) {
         bytes[1] = optarg[2 * i + 1];
         data[i] = strtoul(bytes, NULL, 16);
       }
+      break;
+    case 'V':
+      version = (isotp_can_version_t)toU32(optarg);
       break;
     case 'w':
       wait = 1;
@@ -172,6 +177,7 @@ int main(int argc, char *argv[]) {
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
     params.U.CAN.STmin = delayUs;
+    params.U.CAN.version = version;
   } else if (0 == strncmp("LIN", device, 3)) {
     if (0x731 == txid) {
       txid = 0x3c;

@@ -16,6 +16,8 @@
 
 #define CanIf_Transmit LinIf_TpTransmit
 
+#define CanTp_GetVersionInfo LinTp_GetVersionInfo
+
 #ifndef PduR_CanTpCopyTxData
 #define PduR_CanTpCopyTxData PduR_LinTpCopyTxData
 #endif

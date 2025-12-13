@@ -68,4 +68,7 @@ void CanSM_MainFunction(void);
 
 Std_ReturnType CanSM_GetBusoff_Substate(NetworkHandleType network,
                                         CanSM_BusOffRecoveryStateType *BORStatePtr);
+
+/* @SWS_CanSM_00024 */
+void CanSM_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* CAN_SM_H */

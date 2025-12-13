@@ -13,6 +13,8 @@
 #include "SoAd.h"
 #include "Std_Debug.h"
 #include <string.h>
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_UDPNM 1
 
@@ -955,4 +957,15 @@ BufReq_ReturnType UdpNm_SoAdStartOfReception(PduIdType RxPduId, const PduInfoTyp
   BufReq_ReturnType bufReq = BUFREQ_OK;
   UdpNm_SoAdIfRxIndication(RxPduId, info);
   return bufReq;
+}
+
+
+void UdpNm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x09, UDPNM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_UDPNM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

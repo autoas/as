@@ -164,6 +164,8 @@ uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId);
 
 boolean TcpIp_IsLinkedUp(void);
 
+/* @SWS_TCPIP_00004 */
+void TcpIp_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

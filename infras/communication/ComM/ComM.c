@@ -675,3 +675,14 @@ void ComM_CommunicationAllowed(NetworkHandleType Channel, boolean Allowed) {
   cctx->bCommunicationAllowed = Allowed;
   commExitCritical();
 }
+
+void ComM_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x10, COMM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_COMM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
+}
+

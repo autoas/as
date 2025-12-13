@@ -21,6 +21,7 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 ISOTP_DECLARE_API(can);
+ISOTP_DECLARE_API(can_v2);
 ISOTP_DECLARE_API(lin);
 ISOTP_DECLARE_API(doip);
 ISOTP_DECLARE_API(j1939tp);
@@ -32,7 +33,11 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
 
   switch (params->protocol) {
   case ISOTP_OVER_CAN:
-    isotp = isotp_can_create(params);
+    if (ISOTP_CAN_V1 == params->U.CAN.version) {
+      isotp = isotp_can_create(params);
+    } else {
+      isotp = isotp_can_v2_create(params);
+    }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
@@ -61,7 +66,11 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
   STD_TOPIC_UDS(&isotp->params, FALSE, (uint32_t)txSize, txBuffer);
   switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
-    r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
+      r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    } else {
+      r = isotp_can_v2_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
@@ -93,7 +102,11 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = -1;
   switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
-    r = isotp_can_receive(isotp, rxBuffer, rxSize);
+    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
+      r = isotp_can_receive(isotp, rxBuffer, rxSize);
+    } else {
+      r = isotp_can_v2_receive(isotp, rxBuffer, rxSize);
+    }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
@@ -123,7 +136,11 @@ int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
   int r = -1;
   switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
-    r = isotp_can_ioctl(isotp, cmd, data, size);
+    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
+      r = isotp_can_ioctl(isotp, cmd, data, size);
+    } else {
+      r = isotp_can_v2_ioctl(isotp, cmd, data, size);
+    }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
@@ -147,7 +164,11 @@ int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
 void isotp_destory(isotp_t *isotp) {
   switch (isotp->params.protocol) {
   case ISOTP_OVER_CAN:
-    isotp_can_destory(isotp);
+    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
+      isotp_can_destory(isotp);
+    } else {
+      isotp_can_v2_destory(isotp);
+    }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:

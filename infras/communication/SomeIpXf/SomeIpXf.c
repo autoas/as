@@ -8,6 +8,8 @@
 #include "SomeIpXf_Priv.h"
 #include "Std_Debug.h"
 #include <string.h>
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOMEIPXF 0
 #define AS_LOG_SOMEIPXFE 2
@@ -830,4 +832,14 @@ int32_t SomeIpXf_DecodeStructArray(const uint8_t *buffer, uint32_t bufferSize, v
     *length = i;
   }
   return offset;
+}
+
+void SomeIpXf_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x02, SOMEIPXF_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_SOMEIPXF;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

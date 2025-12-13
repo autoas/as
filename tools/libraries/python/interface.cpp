@@ -173,6 +173,8 @@ public:
     auto device = get<std::string, py::str>(kwargs, "device", "simulator");
     uint32_t port = get<uint32_t, py::int_>(kwargs, "port", 0);
     uint32_t baudrate = get<uint32_t, py::int_>(kwargs, "baudrate", 500000);
+    isotp_can_version_t version =
+      (isotp_can_version_t)get<uint32_t, py::int_>(kwargs, "version", 2);
     uint32_t rxid = 0x732, txid = 0x731;
     uint16_t N_TA = get<uint16_t, py::int_>(kwargs, "N_TA", 0xFFFF);
     uint32_t ll_dl;
@@ -195,6 +197,7 @@ public:
       params.U.CAN.TxCanId = (uint32_t)txid;
       params.U.CAN.BlockSize = get<uint32_t, py::int_>(kwargs, "block_size", 8);
       params.U.CAN.STmin = get<uint32_t, py::int_>(kwargs, "STmin", 0);
+      params.U.CAN.version = version;
     } else if (protocol == "LIN") {
       strcpy(params.device, device.c_str());
       params.protocol = ISOTP_OVER_LIN;

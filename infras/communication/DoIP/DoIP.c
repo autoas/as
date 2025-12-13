@@ -14,6 +14,8 @@
 #include "Std_Debug.h"
 #include <string.h>
 #include "NetMem.h"
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DOIP 0
 #define AS_LOG_DOIPE 2
@@ -66,7 +68,7 @@ static Std_ReturnType doipDecodeMsg(const PduInfoType *PduInfoPtr, DoIP_MsgType 
   if ((PduInfoPtr->SduLength >= DOIP_HEADER_LENGTH) && (PduInfoPtr->SduDataPtr != NULL)) {
     /* @SWS_DoIP_00005, @SWS_DoIP_00006 */
     if ((DOIP_PROTOCOL_VERSION == PduInfoPtr->SduDataPtr[0]) &&
-        (PduInfoPtr->SduDataPtr[0] = ((~PduInfoPtr->SduDataPtr[1])) & 0xFF)) {
+        (PduInfoPtr->SduDataPtr[0] == ((~PduInfoPtr->SduDataPtr[1]) & 0xFF))) {
 
       msg->payloadType = ((uint16_t)PduInfoPtr->SduDataPtr[2] << 8) + PduInfoPtr->SduDataPtr[3];
       msg->payloadLength = ((uint32_t)PduInfoPtr->SduDataPtr[4] << 24) +
@@ -279,7 +281,14 @@ static void doipBuildRountineActivationResponse(const DoIP_TesterConnectionType 
                                                 DoIP_MsgType *msg, Std_ReturnType ret, uint16_t sa,
                                                 uint8_t resCode) {
   const DoIP_ConfigType *config = DOIP_CONFIG;
-  doipFillHeader(msg->res, DOIP_ROUTING_ACTIVATION_RESPONSE, 13u);
+  Std_ReturnType ret2;
+  uint32_t payloadLength = 9u;
+
+  ret2 = config->GetRoutingActivationResponseOem(&msg->res[DOIP_HEADER_LENGTH + 9u]);
+  if (E_OK == ret2) { /* has OEM */
+    payloadLength += 4u;
+  }
+  doipFillHeader(msg->res, DOIP_ROUTING_ACTIVATION_RESPONSE, payloadLength);
   msg->res[DOIP_HEADER_LENGTH + 0u] = (sa >> 8) & 0xFF; /* Logical Address Tester */
   msg->res[DOIP_HEADER_LENGTH + 1u] = sa & 0xFF;
 
@@ -287,8 +296,8 @@ static void doipBuildRountineActivationResponse(const DoIP_TesterConnectionType 
     (config->LogicalAddress >> 8) & 0xFF; /* Logical address of DoIP entity */
   msg->res[DOIP_HEADER_LENGTH + 3u] = config->LogicalAddress & 0xFF;
   msg->res[DOIP_HEADER_LENGTH + 4u] = resCode;
-  (void)memset(&msg->res[DOIP_HEADER_LENGTH + 5u], 0, 8);
-  msg->resLen = DOIP_HEADER_LENGTH + 13u;
+  (void)memset(&msg->res[DOIP_HEADER_LENGTH + 5u], 0, 4);
+  msg->resLen = DOIP_HEADER_LENGTH + payloadLength;
 
   if ((DOIP_E_PENDING == ret) && (DOIP_RA_PENDING_CONFIRMATION == resCode)) {
     (void)doipTpSendResponse(connection, msg->res, msg->resLen); /* @SWS_DoIP_00114 */
@@ -336,7 +345,7 @@ static Std_ReturnType doipSocketHandler(const DoIP_TesterConnectionType *tstcon,
   }
 
   if (E_OK == ret) {
-    if (isAliveCheckOngoing) {
+    if (TRUE == isAliveCheckOngoing) {
       ret = DOIP_E_PENDING;
     }
   }
@@ -579,7 +588,7 @@ doipFindTargetAddress(const DoIP_TesterType *tester, const DoIP_TesterConnection
   int i, j;
 
   for (i = 0; (i < tester->numOfRoutingActivations) && (NULL == TargetAddressRef); i++) {
-    if (connection->context->RAMask & (1u << i)) {
+    if (0u != (connection->context->RAMask & (1u << i))) {
       ra = tester->RoutingActivationRefs[i];
       for (j = 0; (j < ra->numOfTargetAddressRefs) && (NULL == TargetAddressRef); j++) {
         if (ta == ra->TargetAddressRefs[j]->TargetAddress) {
@@ -888,7 +897,7 @@ static void doipHandleInactivityTimer(void) {
     if (DOIP_CON_CLOSED != connection->context->state) {
       if (connection->context->InactivityTimer > 0) {
         connection->context->InactivityTimer--;
-        if (0u == connection->context->InactivityTimer) {
+        if (0u == connection->context->InactivityTimer) { /* @SWS_DoIP_00144 */
           ASLOG(DOIP, ("Tester SoCon %d InactivityTimer timeout\n", i));
           SoAd_CloseSoCon(connection->SoConId, TRUE);
           doipForgetDiagMsg(connection);
@@ -1051,7 +1060,7 @@ void DoIP_ActivationLineSwitchActive(void) {
   if (DOIP_ACTIVATION_LINE_INACTIVE == context->ActivationLineState) {
     ASLOG(DOIP, ("switch to active\n"));
     context->ActivationLineState = DOIP_ACTIVATION_LINE_ACTIVE;
-    /* @SWS_DoIP_00204 */
+    /* @SWS_DoIP_00204 @SWS_DoIP_00306 */
     for (i = 0; i < config->numOfTcpConnections; i++) {
       if (config->TcpConnections[i].RequestAddressAssignment) {
         SoAd_OpenSoCon(config->TcpConnections[i].SoConId);
@@ -1075,7 +1084,7 @@ void DoIP_ActivationLineSwitchInactive(void) {
   DoIP_ContextType *context = &DoIP_Context;
   uint16_t i;
   if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
-    ASLOG(DOIP, ("switch to inactive\n"));
+    ASLOG(DOIP, ("switch to inactive\n")); /* @SWS_DoIP_00234 */
     for (i = 0; i < config->numOfTcpConnections; i++) {
       if (config->TcpConnections[i].RequestAddressAssignment) {
         SoAd_CloseSoCon(config->TcpConnections[i].SoConId, TRUE);
@@ -1102,6 +1111,42 @@ void DoIP_ActivationLineSwitchInactive(void) {
   }
 }
 
+void DoIP_ActivationLineSwitch(uint8_t InterfaceId, boolean *Active) {
+  DoIP_ContextType *context = &DoIP_Context;
+  boolean bActive;
+
+  DET_VALIDATE(0u == InterfaceId, 0x0e, DOIP_E_INVALID_PARAMETER, return);
+  DET_VALIDATE(NULL != Active, 0x0e, DOIP_E_PARAM_POINTER, return);
+
+  (void)InterfaceId; /* only support 1 interface */
+  if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
+    bActive = TRUE;
+  } else {
+    bActive = FALSE;
+  }
+
+  if (TRUE == *Active) {
+    DoIP_ActivationLineSwitchActive();
+  } else {
+    DoIP_ActivationLineSwitchInactive();
+  }
+
+  *Active = bActive;
+}
+
+void DoIP_TriggerVehicleAnnouncement(uint8_t InterfaceId) {
+  const DoIP_ConfigType *config = DOIP_CONFIG;
+  DoIP_ContextType *context = &DoIP_Context;
+
+  DET_VALIDATE(0u == InterfaceId, 0x0d, DOIP_E_INVALID_PARAMETER, return);
+
+  if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
+    config->UdpVehicleAnnouncementConnections[0].context->AnnouncementTimer =
+      config->InitialVehicleAnnouncementTime;
+    config->UdpVehicleAnnouncementConnections[0].context->AnnouncementCounter = 0;
+  }
+}
+
 void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   Std_ReturnType ret = E_NOT_OK;
   const DoIP_ConfigType *config = DOIP_CONFIG;
@@ -1125,7 +1170,7 @@ void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
 
   for (i = 0; i < config->numOfUdpVehicleAnnouncementConnections; i++) {
     if (SoConId == config->UdpVehicleAnnouncementConnections[i].SoConId) {
-      if (SOAD_SOCON_ONLINE == Mode) {
+      if (SOAD_SOCON_ONLINE == Mode) { /* @SWS_DoIP_00205 */
         asAssert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
         config->UdpVehicleAnnouncementConnections[i].context->state = DOIP_CON_OPEN;
         config->UdpVehicleAnnouncementConnections[i].context->AnnouncementTimer =
@@ -1140,7 +1185,7 @@ void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
 
   for (i = 0; (i < config->MaxTesterConnections) && (E_NOT_OK == ret); i++) {
     if (SoConId == config->testerConnections[i].SoConId) {
-      if (SOAD_SOCON_ONLINE == Mode) {
+      if (SOAD_SOCON_ONLINE == Mode) { /* @SWS_DoIP_00143 */
         asAssert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
         memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
         config->testerConnections[i].context->InactivityTimer = config->InitialInactivityTime;
@@ -1324,6 +1369,10 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   uint8_t *res;
   uint32_t resLen;
 
+  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr) &&
+                 (PduInfoPtr->SduLength > 0u),
+               0x53, DOIP_E_PARAM_POINTER, return E_NOT_OK);
+
   if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
     for (i = 0; (NULL == connection) && (i < config->MaxTesterConnections); i++) {
       if (DOIP_CON_CLOSED != config->testerConnections[i].context->state) {
@@ -1446,3 +1495,18 @@ void DoIP_RxIndication(PduIdType RxPduId, const PduInfoType *info) {
     ASLOG(DOIPE, ("RxInd with invalid RxPduId %u\n", RxPduId));
   }
 }
+
+void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x00, DOIP_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_DOIP;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 2;
+}
+
+/** @brief release notes
+ * - 4.0.1: Fix assignment instead of comparison in protocol check issue.
+ * - 4.0.2: Support optional OEM for routing activation response.
+ */

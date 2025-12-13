@@ -11,6 +11,8 @@
 #include "Crc.h"
 #include <string.h>
 #include "Std_Debug.h"
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANTSYN 0
 #define AS_LOG_CANTSYNI 0
@@ -88,7 +90,7 @@ static void CanTSyn_HandleMsgSync(const CanTSyn_GlobalTimeDomainType *domain,
 
     D = (payload[2] >> 4) & 0xF;
     SC = payload[2] & 0xF;
-    if (CANTSYNC_SC_UNKNOWN != context->SC) {
+    if (CANTSYNC_SC_UNKNOWN == context->SC) {
       context->SC = SC; /* @SWS_CanTSyn_00079 */
     } else if ((SC > context->SC) &&
                ((SC - context->SC) <= domain->U.S.Slave->GlobalTimeSequenceCounterJumpWidth)) {
@@ -126,6 +128,7 @@ static void CanTSyn_HandleMsgSync(const CanTSyn_GlobalTimeDomainType *domain,
   }
 }
 
+#if 0
 static Std_ReturnType
 CanTSyn_CalcGlobalTimestamp(StbM_TimeStampType *timestamp, uint32_t st0r /* seconds */,
                             uint32_t t4r /*nanoseconds */, uint8_t ovs /* seconds */,
@@ -148,6 +151,59 @@ CanTSyn_CalcGlobalTimestamp(StbM_TimeStampType *timestamp, uint32_t st0r /* seco
 
   return ret;
 }
+#else
+static Std_ReturnType
+CanTSyn_CalcGlobalTimestamp(StbM_TimeStampType *timestamp, uint32_t st0r /* seconds */,
+                            uint32_t t4r /*nanoseconds */, uint8_t ovs /* seconds */,
+                            StbM_VirtualLocalTimeType *t2r, StbM_VirtualLocalTimeType *t3r) {
+  Std_ReturnType ret = E_OK;
+  uint32_t diff;
+  uint32_t seconds = 0;
+
+  /* Step 1: Compute (t3r - t2r) in nanoseconds.
+   * Since t3r >= t2r (caller should ensure), and difference is small,
+   * we can safely compute it in 32-bit if we handle high-word borrow.
+   */
+  if (t3r->nanosecondsLo >= t2r->nanosecondsLo) {
+    /* No borrow from high word */
+    diff = t3r->nanosecondsLo - t2r->nanosecondsLo;
+    /* High part difference must be 0 */
+    if (t3r->nanosecondsHi != t2r->nanosecondsHi) {
+      /* If high part differs, ¦¤t >= 2^32 ns ¡Ö 4.29s ¡ú invalid for CanTSyn */
+      ASLOG(CANTSYNE, ("t3r - t2r too large (>4.29s)\n"));
+      ret = E_NOT_OK;
+    }
+  } else {
+    /* Borrow needed: only valid if high parts differ by exactly 1 */
+    if ((t3r->nanosecondsHi - t2r->nanosecondsHi) != 1u) {
+      ret = E_NOT_OK; /* t3r < t2r or gap too big */
+    } else {
+      diff = (UINT32_MAX - t2r->nanosecondsLo) + 1u + t3r->nanosecondsLo;
+    }
+  }
+
+  if (E_OK == ret) {
+    timestamp->seconds = diff / CANTSYN_NANOSECONDS_PER_SECOND;
+    diff = diff - timestamp->seconds * CANTSYN_NANOSECONDS_PER_SECOND;
+    timestamp->seconds += ovs;
+
+    seconds = t4r / CANTSYN_NANOSECONDS_PER_SECOND;
+    timestamp->nanoseconds = t4r - seconds * CANTSYN_NANOSECONDS_PER_SECOND + diff;
+
+    timestamp->seconds += ovs + seconds;
+    timestamp->secondsHi = 0;
+
+    if (st0r > (UINT32_MAX - timestamp->seconds)) {
+      timestamp->secondsHi = 1u;
+      timestamp->seconds = timestamp->seconds - (UINT32_MAX - st0r + 1);
+    } else {
+      timestamp->seconds += st0r;
+    }
+  }
+
+  return ret;
+}
+#endif
 
 static void CanTSyn_HandleMsgFup(const CanTSyn_GlobalTimeDomainType *domain, const uint8_t *payload,
                                  PduLengthType length) {
@@ -531,3 +587,17 @@ void CanTSyn_MainFunction(void) {
     }
   }
 }
+
+void CanTSyn_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x02, CANTSYN_E_NULL_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_CANTSYN;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
+
+/** @brief release notes
+ * - 4.0.1: Avoid to use uint64 to calculate time difference in CanTSyn_CalcGlobalTimestamp
+ */

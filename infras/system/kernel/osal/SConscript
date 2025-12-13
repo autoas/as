@@ -20,7 +20,7 @@ class LibraryOSAL(Library):
             self.source = objs_pthread
             self.LIBS += ["OS"]
         else:
-            if IsBuildForMSVC():
+            if IsBuildForWindows():
                 self.source = objs_win
                 self.LIBS += ["Shlwapi"]
             else:

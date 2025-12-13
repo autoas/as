@@ -1,0 +1,15 @@
+{
+  "class": "BL",
+  "general": {
+    "BL_USE_CRC_32": true,
+    "BL_USE_APP_INFO": true,
+    "BL_USE_APP_INFO_V2": true,
+    "BL_USE_META": true,
+    "BL_USE_AB": true
+  },
+  "memory": {
+    "FlashDriver": { "address": "0", "size": "2048" },
+    "FlashA": [ { "address": "4 * 1024", "size": "1 * 1024 * 1024 - 4 * 1024", "sectorSize": 512 } ],
+    "FlashB": [ { "address": "1 * 1024 * 1024", "size": "1 * 1024 * 1024", "sectorSize": 512 } ]
+  }
+}

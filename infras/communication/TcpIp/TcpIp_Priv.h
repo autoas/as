@@ -7,6 +7,7 @@
 #define TCPIP_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_TCPIP
 /* ================================ [ TYPES     ] ============================================== */
 typedef void (*TcpIp_InitFncType)(void);
 typedef void (*TcpIp_MainFncType)(void);

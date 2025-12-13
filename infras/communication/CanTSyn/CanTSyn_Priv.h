@@ -11,6 +11,8 @@
 #include "ComStack_Types.h"
 #include "StbM.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_CANTSYN
+
 #define CANTSYN_CRC_IGNORED ((CanTSyn_RxCrcValidatedType)0x00)
 #define CANTSYN_CRC_NOT_VALIDATED ((CanTSyn_RxCrcValidatedType)0x01)
 #define CANTSYN_CRC_OPTIONAL ((CanTSyn_RxCrcValidatedType)0x02)
@@ -48,6 +50,7 @@
 #define CANTSYN_MASTER_SYNCED ((CanTSync_MasterStateType)0x02)
 #define CANTSYN_MASTER_FUP ((CanTSync_MasterStateType)0x03)
 #define CANTSYN_MASTER_FUPED ((CanTSync_MasterStateType)0x04)
+
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t CanTSyn_RxCrcValidatedType; /* @ECUC_CanTSyn_00021 */
 

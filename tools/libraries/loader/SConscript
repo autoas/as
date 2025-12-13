@@ -1,7 +1,7 @@
 from building import *
 
 CWD = GetCurrentDir()
-objs = Glob("src/*.cpp") + Glob("src/loader/*.c")
+objs = Glob("src/*.cpp") + Glob("src/loader/*.cpp")
 objsApp = Glob("src/custom/*.c")
 
 

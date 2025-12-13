@@ -52,6 +52,9 @@ void Fee_MainFunction(void);
 void Fee_GetAdminInfo(Fee_AdminInfoType *pAdminInfo);
 
 void Fee_PanicUserAction(uint8_t fault);
+
+/* @SWS_Fee_00093 */
+void Fee_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

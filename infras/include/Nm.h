@@ -81,4 +81,7 @@ void Nm_StateChangeNotification(NetworkHandleType nmNetworkHandle, Nm_StateType 
 
 /* @SWS_Nm_00250 */
 void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle);
+
+/* @SWS_Nm_00044 */
+void Nm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* _NM_H */

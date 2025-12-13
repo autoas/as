@@ -5,6 +5,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "./common.h"
 #include <string.h>
+#include <chrono>
 /* ================================ [ MACROS    ] ============================================== */
 #define FL_MIN_ABILITY 128
 /* ================================ [ TYPES     ] ============================================== */
@@ -143,11 +144,16 @@ int download_application(loader_t *loader) {
   int r = L_R_OK;
   size_t i;
   srec_t *appSRec = loader_get_app_srec(loader);
-
+  auto begin = std::chrono::high_resolution_clock::now();
   for (i = 0; (L_R_OK == r) && (i < appSRec->numOfBlks); i++) {
     r = download_one_section(loader, &appSRec->blks[i]);
   }
-
+  float cost = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::high_resolution_clock::now() - begin)
+                 .count() /
+               1000.f;
+  float speed = appSRec->totalSize / 1024.0 / cost;
+  LDLOG(INFO, "\n\taverage speed %.2f kbps cost %.2f seconds\n", speed, cost);
   return r;
 }
 

@@ -220,7 +220,7 @@ static void Dem_DtcUpdateOnOperationCycleStop(P2CONST(Dem_DTCType, AUTOMATIC, DE
 
 #ifdef DEM_USE_CYCLES_SINCE_LAST_FAILED /* @SWS_Dem_00773 @SWS_Dem_00774 */
     if (StatusRecord->cyclesSinceLastFailed < DEM_CYCLE_COUNTER_MAX) {
-      StatusRecord->cyclesSinceLastFailed = ++;
+      StatusRecord->cyclesSinceLastFailed++;
       bDirty = TRUE;
     }
 #endif
@@ -1260,7 +1260,7 @@ void Dem_Init(const Dem_ConfigType *ConfigPtr) {
     Dem_EventInit((Dem_EventIdType)i);
   }
 #ifndef DEM_USE_NVM
-  (void)memset(DEM_CINFIG->EventStatusDirty, 0, (DEM_CONFIG->numOfEvents + 7) / 8);
+  (void)memset(DEM_CONFIG->EventStatusDirty, 0, (DEM_CONFIG->numOfEvents + 7) / 8);
 #endif
 #if AS_LOG_DEMI > 0
   for (i = 0; i < DEM_CONFIG->numOfDtcs; i++) {
@@ -2055,3 +2055,17 @@ void Dem_MainFunction(void) {
     }
   }
 }
+
+void Dem_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x00, DEM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_DEM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
+
+/** @brief release notes
+ * - 4.0.1: Typo Fix: = ++ -> ++, DEM_CINFIG -> DEM_CONFIG
+ */

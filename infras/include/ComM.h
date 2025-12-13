@@ -115,4 +115,7 @@ void ComM_BusSM_ModeIndication(NetworkHandleType Channel, ComM_ModeType ComMode)
 
 /* @SWS_ComM_00429 */
 void ComM_MainFunction(void);
+
+/* @SWS_ComM_00370 */
+void ComM_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* COMM_H */

@@ -36,7 +36,6 @@
 #include "TcpIp_Priv.h"
 #include "Std_Debug.h"
 
-#define DET_THIS_MODULE_ID MODULE_ID_TCPIP
 #include "Det.h"
 
 /* ================================ [ MACROS    ] ============================================== */
@@ -294,9 +293,6 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
   int on = 1;
 #endif
   struct sockaddr_in sLocalAddr;
-#if (defined(_WIN32) || defined(linux)) && !defined(USE_LWIP)
-  TcpIp_SockAddrType sAddr;
-#endif
 #ifdef USE_LWIP
   setsockopt(SocketId, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(int)); /* Set socket to no delay */
 #endif
@@ -311,8 +307,7 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
   } else if (LocalAddrId == TCPIP_LOCALADDRID_LOCALHOST) {
     sLocalAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   } else {
-    TcpIp_GetIpAddr(LocalAddrId, &sAddr, NULL, NULL);
-    memcpy(&sLocalAddr.sin_addr.s_addr, sAddr.addr, 4);
+    sLocalAddr.sin_addr.s_addr = TcpIp_GetLocalIpAddr(LocalAddrId);
   }
 #else
   sLocalAddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -752,4 +747,14 @@ boolean TcpIp_IsLinkedUp(void) {
 #endif
 
   return bLinkedUp;
+}
+
+void TcpIp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x02, TCPIP_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_TCPIP;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

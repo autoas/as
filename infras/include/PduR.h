@@ -30,4 +30,7 @@ void PduR_EnableRouting(PduR_RoutingPathGroupIdType id);
 
 /* @SWS_PduR_00617 */
 void PduR_DisableRouting(PduR_RoutingPathGroupIdType id, boolean initialize);
+
+/* @SWS_PduR_00338 */
+void PduR_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* PDUR_H */

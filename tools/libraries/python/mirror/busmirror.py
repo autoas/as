@@ -130,7 +130,7 @@ def Main(addr):
     mreq = struct.pack("4sL", socket.inet_aton(ip), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     while True:
-        data, addr = sock.recvfrom(1400)  # Buffer size 1024 bytes
+        data, addr = sock.recvfrom(1400)
         Decode(data)
 
 

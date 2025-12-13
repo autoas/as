@@ -32,14 +32,12 @@ class ApplicationBL(Application):
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
-        self.CPPPATH = ["$INFRAS"]
+        self.CPPPATH += ["$INFRAS"]
         self.source = objsAppBL
 
 
 libsForCanBL = {}
-for libName in ["BL"]:
-    libsForCanBL[libName] = Glob("config/%s_Cfg.c" % (libName))
-for libName in ["Dcm", "CanTp", "PduR"]:
+for libName in ["BL", "Dcm", "CanTp", "PduR"]:
     libsForCanBL[libName] = Glob("config/%s/%s.json" % (libName, libName))
 
 
@@ -50,13 +48,6 @@ class ApplicationCanBL(ApplicationBL):
         self.LIBS.append("Simulator")
         self.LIBS += ["LibC"]
         self.Append(CPPDEFINES=["USE_STDIO_CAN", "USE_STD_PRINTF"])
-        self.Append(
-            CPPDEFINES=[
-                "BL_USE_CRC_32",
-                "BL_USE_APP_INFO",
-                "BL_USE_APP_INFO_V2",
-            ]
-        )
 
     def config(self):
         if LL_DL != None:

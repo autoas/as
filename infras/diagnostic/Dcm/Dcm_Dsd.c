@@ -41,8 +41,8 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
   servieTable = Dcm_GetActiveServiceTable(context, config);
   P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) service;
   uint8_t SID = config->rxBuffer[0];
-  /* atomic on this to prevent ISR tx confirm that changed this 'responcePending' state */
-  uint8_t responcePending = context->responcePending;
+  /* atomic on this to prevent ISR tx confirm that changed this 'responsePending' state */
+  uint8_t responsePending = context->responsePending;
 
   if (DCM_INITIAL == context->opStatus) {
     ASLOG(DCMI, ("%s service %02X, len=%d\n",
@@ -57,7 +57,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
       if (E_REQUEST_NOT_ACCEPTED == r) { /* @SWS_Dcm_00462:  reject and no response */
         context->rxBufferState = DCM_BUFFER_IDLE;
         context->timerP2Server = 0;
-        responcePending = TRUE;
+        responsePending = TRUE;
       } else if (E_OK != r) {
         if (DCM_POS_RESP == nrc) {
           ASLOG(DCME, ("Fatal verify service %X forgot to set NRC\n", SID));
@@ -93,7 +93,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
   } else if (DCM_PENDING == context->opStatus) {
     r = E_OK;
   } else if (DCM_FORCE_RCRRP_OK == context->opStatus) {
-    if (DCM_NO_RESPONSE_PENDING == responcePending) {
+    if (DCM_NO_RESPONSE_PENDING == responsePending) {
       r = E_OK; /* SWS_Dcm_00528: the Dcm shall not realize further invocation of the operation till
                    RCR-RP is transmitted */
     }
@@ -103,7 +103,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
     nrc = DCM_E_CONDITIONS_NOT_CORRECT;
   }
 
-  if (DCM_NO_RESPONSE_PENDING != responcePending) {
+  if (DCM_NO_RESPONSE_PENDING != responsePending) {
     /* a pending response is on going, wait it done */
     nrc = DCM_E_RESPONSE_PENDING;
   } else if (E_OK == r) {
@@ -144,7 +144,7 @@ static void Dsd_HandleRequest(Dcm_ContextType *context,
       context->opStatus = DCM_PENDING;
     }
   } else {
-    if (DCM_NO_RESPONSE_PENDING == responcePending) {
+    if (DCM_NO_RESPONSE_PENDING == responsePending) {
       Dcm_DslProcessingDone(context, config, nrc);
     }
   }

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
-#define PDU_LENGHT_MAX (0xFFFFUL)
+#define PDU_LENGTH_MAX (0xFFFFUL)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_COMTYPE_00005 */
 typedef uint16_t PduIdType;

@@ -96,4 +96,7 @@ void SecOC_MainFunctionTx(void);
 
 /* @SWS_SecOC_00161 */
 void SecOC_DeInit(void);
+
+/* @SWS_SecOC_00107 */
+void SecOC_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* SECOC_H */

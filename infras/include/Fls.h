@@ -78,6 +78,9 @@ void Fls_SetMode(MemIf_ModeType Mode);
 Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Length);
 
 void Fls_MainFunction(void);
+
+/* @SWS_Fls_00259 */
+void Fls_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

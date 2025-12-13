@@ -9,6 +9,8 @@
 #include "TcpIp.h"
 #include "sys/queue.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_SOMEIPTP
+
 /* ================================ [ TYPES     ] ============================================== */
 /* API for service */
 typedef void (*SomeIp_OnAvailabilityFncType)(boolean isAvailable);

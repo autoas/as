@@ -31,8 +31,7 @@ typedef struct {
 
 typedef uint8_t OsekNm_ModeNameType;
 
-typedef enum
-{
+typedef enum {
   OSEKNM_ROUTINE_BUS_INIT,
   OSEKNM_ROUTINE_BUS_SHUTDOWN,
   OSEKNM_ROUTINE_BUS_RESTART,
@@ -69,4 +68,6 @@ void OsekNm_D_Offline(NetworkHandleType NetId);
 void OsekNm_D_Online(NetworkHandleType NetId);
 Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *nmPdu,
                                       uint8_t DataLengthTx);
+
+void OsekNm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* OSEK_NM_H */

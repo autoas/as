@@ -281,6 +281,9 @@ void Dem_MainFunction(void);
 
 /* @SWS_Dem_91008 */
 Std_ReturnType Dem_GetEventUdsStatus(Dem_EventIdType EventId, Dem_UdsStatusByteType *UDSStatusByte);
+
+/* @SWS_Dem_00177 */
+void Dem_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

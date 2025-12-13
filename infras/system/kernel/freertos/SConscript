@@ -27,7 +27,7 @@ class LibraryFreeRTOS(Library):
             self.LIBS = [variant]
             self.source = []
             return
-        pkg = Package(url="https://github.com/FreeRTOS/FreeRTOS-Kernel.git", version="V10.4.6")
+        pkg = Package(url="https://gitee.com/autoas/FreeRTOS-Kernel.git", version="V10.4.6")
         self.source = self.get_objs(pkg)
         try:
             arch = self.GetArch()
@@ -35,8 +35,7 @@ class LibraryFreeRTOS(Library):
             arch = ""
         if arch.startswith("arch/"):
             arch = arch[5:]
-            pkgPart = Package(url="https://github.com/FreeRTOS/FreeRTOS-Kernel-Partner-Supported-Ports.git")
-            # or https://gitee.com/mirrors_FreeRTOS/FreeRTOS-Kernel-Partner-Supported-Ports.git
+            pkgPart = Package(url="https://gitee.com/mirrors_FreeRTOS/FreeRTOS-Kernel-Partner-Supported-Ports.git")
             self.source += PkgGlob(pkgPart, ["%s/*.c" % (arch)])
             self.include += ["%s/%s" % (pkgPart, arch)]
         self.include += ["%s/include" % (pkg)]

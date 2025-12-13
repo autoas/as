@@ -79,4 +79,10 @@ Std_ReturnType DoIP_UserGetPowerModeStatus(uint8_t *PowerState) {
   *PowerState = 1;
   return E_OK;
 }
+
+Std_ReturnType DoIP_UserGetRoutingActivationResponseOem(uint8_t *Data) {
+  static const char *OEM = "AUAS";
+  memcpy(Data, OEM, 4);
+  return E_NOT_OK;
+}
 #endif /* USE_DOIP */

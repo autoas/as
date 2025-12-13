@@ -153,6 +153,10 @@ static uint8_t blWriteWindowBuffer[FL_WRITE_WINDOW_SIZE];
 static uint32_t blWWBOffset;
 static uint32_t blWWBAddr;
 #endif
+
+#if defined(FL_ERASE_RCRRP_CYCLE) || defined(FL_WRITE_RCRRP_CYCLE)
+static uint16_t blRcrrpCounter = 0;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 static Dcm_ReturnEraseMemoryType eraseFlash(Dcm_OpStatusType OpStatus, uint32_t MemoryAddress,
                                             uint32_t MemorySize) {
@@ -631,6 +635,20 @@ Std_ReturnType BL_StartEraseFlash(const uint8_t *dataIn, Dcm_OpStatusType OpStat
           }
         } else if (DCM_ERASE_PENDING == eraseRet) {
           *ErrorCode = DCM_E_RESPONSE_PENDING;
+#if defined(FL_ERASE_RCRRP_CYCLE)
+          if (DCM_INITIAL == OpStatus) {
+            blRcrrpCounter = 0;
+            r = DCM_E_FORCE_RCRRP;
+            ASLOG(BL, ("Erase RCRRP 0\n"));
+          } else {
+            blRcrrpCounter++;
+            ASLOG(BL, ("Erase RCRRP %" PRIu16 "\n", blRcrrpCounter));
+            if (blRcrrpCounter >= FL_ERASE_RCRRP_CYCLE) {
+              blRcrrpCounter = 0;
+              r = DCM_E_FORCE_RCRRP;
+            }
+          }
+#endif
         } else {
           *ErrorCode = DCM_E_GENERAL_PROGRAMMING_FAILURE;
         }
@@ -976,6 +994,18 @@ Dcm_ReturnWriteMemoryType BL_ProcessTransferDataWrite(Dcm_OpStatusType OpStatus,
 #endif
     {
       ret = writeFlash(OpStatus, MemoryAddress, MemorySize, MemoryData);
+#if defined(FL_WRITE_RCRRP_CYCLE)
+      if (DCM_INITIAL == OpStatus) {
+        blRcrrpCounter = 0;
+        ret = DCM_WRITE_FORCE_RCRRP;
+      } else {
+        blRcrrpCounter++;
+        if (blRcrrpCounter >= FL_ERASE_RCRRP_CYCLE) {
+          blRcrrpCounter = 0;
+          ret = DCM_WRITE_FORCE_RCRRP;
+        }
+      }
+#endif
     }
     break;
 #ifndef BL_USE_BUILTIN_FLSDRV

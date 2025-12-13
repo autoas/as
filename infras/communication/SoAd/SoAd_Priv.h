@@ -10,6 +10,8 @@
 #include "ComStack_Types.h"
 #include "TcpIp.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_SOAD
+
 #define SOAD_SOCON_TCP_SERVER ((SoAd_SoConTypeType)0x01)
 #define SOAD_SOCON_TCP_CLIENT ((SoAd_SoConTypeType)0x02)
 #define SOAD_SOCON_TCP_ACCEPT ((SoAd_SoConTypeType)0x04)

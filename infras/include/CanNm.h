@@ -96,6 +96,9 @@ Std_ReturnType CanNm_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr)
 
 /* @SWS_CanNm_00234 */
 void CanNm_MainFunction(void);
+
+/* @SWS_CanNm_00224 */
+void CanNm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

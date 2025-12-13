@@ -75,7 +75,7 @@ extern "C" {
 
 /* must be 1 or 2 */
 #ifndef FLASH_READ_SIZE
-#define FLASH_READ_SIZE 2
+#define FLASH_READ_SIZE 1
 #endif
 #ifndef FLASH_IS_READ_ADDRESS_ALIGNED
 #define FLASH_IS_READ_ADDRESS_ALIGNED(a) (0 == ((FLASH_READ_SIZE - 1) & (a)))

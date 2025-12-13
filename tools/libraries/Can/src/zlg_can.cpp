@@ -45,6 +45,9 @@ struct Can_ZLGHandle_s {
   uint32_t baudrate;
   uint64_t localTime;
   UINT devTime; /* unit 0.1ms */
+  std::mutex mutex;
+  std::thread rx_thread;
+  volatile bool terminated;
   can_device_rx_notification_t rx_notification;
   STAILQ_ENTRY(Can_ZLGHandle_s) entry;
 };
@@ -64,8 +67,6 @@ typedef struct {
 
 struct Can_ZLGHandleList_s {
   bool initialized;
-  std::thread rx_thread;
-  volatile bool terminated;
   std::mutex mutex;
   Zlg_InterfaceType IF;
   STAILQ_HEAD(, Can_ZLGHandle_s) head;
@@ -76,13 +77,15 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
                       uint64_t timestamp);
 static void zlg_close(uint32_t port);
-static void rx_daemon(void *);
+static void zlg_read(uint32_t port);
+static void rx_daemon(struct Can_ZLGHandle_s *handle);
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Can_DeviceOpsType can_zlg_ops = {
   .name = "zlg",
   .probe = zlg_probe,
   .close = zlg_close,
   .write = zlg_write,
+  .read = zlg_read,
 };
 
 static uint32_t zlg_bauds[][2] = {
@@ -94,7 +97,6 @@ static uint32_t zlg_bauds[][2] = {
 
 static struct Can_ZLGHandleList_s zlgH = {
   .initialized = false,
-  .terminated = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static bool openDriver(void) {
@@ -130,7 +132,7 @@ static struct Can_ZLGHandle_s *getHandle(uint32_t port) {
   struct Can_ZLGHandle_s *handle, *h;
   handle = NULL;
 
-  std::lock_guard<std::mutex>(zlgH.mutex);
+  std::lock_guard<std::mutex> lck(zlgH.mutex);
   STAILQ_FOREACH(h, &zlgH.head, entry) {
     if (h->port == port) {
       handle = h;
@@ -188,7 +190,6 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
     }
     STAILQ_INIT(&zlgH.head);
     zlgH.initialized = true;
-    zlgH.terminated = true;
   }
 
   handle = getHandle(port);
@@ -259,16 +260,13 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->rx_notification = rx_notification;
       handle->localTime = 0;
       handle->devTime = 0;
-      std::lock_guard<std::mutex>(zlgH.mutex);
+      handle->terminated = false;
+      handle->rx_thread = std::thread(rx_daemon, handle);
+      std::lock_guard<std::mutex> lck(zlgH.mutex);
       STAILQ_INSERT_TAIL(&zlgH.head, handle, entry);
     } else {
       rv = false;
     }
-  }
-
-  if ((true == zlgH.terminated) && (false == STAILQ_EMPTY(&zlgH.head))) {
-    zlgH.terminated = false;
-    zlgH.rx_thread = std::thread(rx_daemon, nullptr);
   }
 
   return rv;
@@ -316,14 +314,14 @@ static void zlg_close(uint32_t port) {
   struct Can_ZLGHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    std::lock_guard<std::mutex>(zlgH.mutex);
+    std::lock_guard<std::mutex> lck(zlgH.mutex);
+    handle->terminated = true;
+    if (handle->rx_thread.joinable()) {
+      handle->rx_thread.join();
+    }
     STAILQ_REMOVE(&zlgH.head, handle, Can_ZLGHandle_s, entry);
     if (true == STAILQ_EMPTY(&zlgH.head)) {
       ZLG_CALL(CloseDevice)(handle->DeviceType, 0);
-      zlgH.terminated = true;
-      if (zlgH.rx_thread.joinable()) {
-        zlgH.rx_thread.join();
-      }
     }
     delete handle;
   }
@@ -335,6 +333,7 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
   uint32_t status;
   uint64_t timestamp;
 
+  std::lock_guard<std::mutex> lck(handle->mutex);
   status = ZLG_CALL(Receive)(handle->DeviceType, 0, handle->CANInd, &msg, 1, 10);
   if (STATUS_OK == status) {
     if (1 == msg.TimeFlag) {
@@ -364,14 +363,17 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
   }
 }
 
-static void rx_daemon(void *param) {
-  (void)param;
-  struct Can_ZLGHandle_s *handle;
-  while (false == zlgH.terminated) {
-    std::lock_guard<std::mutex>(zlgH.mutex);
-    STAILQ_FOREACH(handle, &zlgH.head, entry) {
-      rx_notifiy(handle);
-    }
+static void zlg_read(uint32_t port) {
+  struct Can_ZLGHandle_s *handle = getHandle(port);
+
+  if (NULL != handle) {
+    rx_notifiy(handle);
+  }
+}
+
+static void rx_daemon(struct Can_ZLGHandle_s *handle) {
+  while (false == handle->terminated) {
+    rx_notifiy(handle);
     if (false == can_is_perf_mode()) {
       std::this_thread::sleep_for(1ms);
     }

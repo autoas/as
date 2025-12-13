@@ -109,6 +109,7 @@ static void MainTask_10ms(void) {
   LinTp_MainFunction();
 #endif
   Dcm_MainFunction();
+  BL_MainFunction();
 }
 
 static void Init(void) {

@@ -21,6 +21,8 @@ keywords = (
     "STRING",
     "HEX",
     "FLOAT",
+    "BO_TX_BU_",
+    "VAL_",
 )
 
 tokens = keywords + (

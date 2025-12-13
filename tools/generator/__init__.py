@@ -35,6 +35,7 @@ from .SecOC import Gen as SecOCGen
 from .E2E import Gen as E2EGen
 from .TLS import Gen as TLSGen
 from .Mirror import Gen as MirrorGen
+from .BL import Gen as BLGen
 
 def DummyGen(cfg):
     pass
@@ -71,6 +72,7 @@ __GEN__ = {
     "E2E": E2EGen,
     "TLS": TLSGen,
     "Mirror": MirrorGen,
+    "BL": BLGen,
 }
 
 RootDir = os.path.abspath(os.path.dirname(__file__) + "/../..")

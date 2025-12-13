@@ -556,7 +556,7 @@ static int doip_handle_activate_response(struct doip_node_s *node, uint8_t *payl
   int r = 0;
   uint16_t sa, la;
   uint8_t resCode;
-  if (13 == length) {
+  if ((13 == length) || (9 == length)) {
     sa = ((uint16_t)payload[0] << 8) + payload[1];
     la = ((uint16_t)payload[2] << 8) + payload[3];
     resCode = payload[4];

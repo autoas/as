@@ -13,6 +13,7 @@
 #include <thread>
 #include <chrono>
 #include "PAL.h"
+#include "loader/common.h"
 
 using namespace std::literals::chrono_literals;
 /* ================================ [ MACROS    ] ============================================== */
@@ -92,9 +93,13 @@ static int uds_request_service_impl(loader_t *loader, const uint8_t *data, size_
   size_t i;
   uint32_t funcAddr = loader->funcAddr;
   static const uint8_t servicesWithSubFunc[] = {0x10, 0x28, 0x85, 0x3E};
+  char ts[64];
+  std::string prefix;
 
   LDLOG(DEBUG, "\n request service %02X:\n", data[0]);
-  LDHEX(DEBUG, "  TX:", data, length);
+  Std_GetDateTime(ts, sizeof(ts));
+  prefix = std::string("  ") + ts + std::string(" TX:");
+  LDHEX(DEBUG, prefix.c_str(), data, length);
 
   std::lock_guard<std::mutex> lg(loader->tpMutex);
   if ((TRUE == functional) && (funcAddr != 0)) {
@@ -122,7 +127,9 @@ static int uds_request_service_impl(loader_t *loader, const uint8_t *data, size_
   while (L_R_OK == r) {
     rlen = isotp_receive(loader->isotp, loader->response, sizeof(loader->response));
     if (rlen > 0) {
-      LDHEX(DEBUG, "  RX:", loader->response, (size_t)rlen);
+      Std_GetDateTime(ts, sizeof(ts));
+      prefix = std::string("  ") + ts + std::string(" RX:");
+      LDHEX(DEBUG, prefix.c_str(), loader->response, (size_t)rlen);
     }
     if ((3 == rlen)) {
       if ((0x7F == loader->response[0]) && (loader->response[1] == data[0])) {
@@ -183,7 +190,6 @@ static int uds_request_service_impl(loader_t *loader, const uint8_t *data, size_
 static void loader_main(void *args) {
   int r = L_R_OK;
   size_t i;
-  Std_TimerType timer;
   float cost = 0;
   float speed = 0;
   loader_t *loader = (loader_t *)args;
@@ -192,7 +198,7 @@ static void loader_main(void *args) {
   loader->status = LOADER_STS_STARTED;
   LDLOG(INFO, "loader %s started:\n", app->name);
   LDLOG(INFO, "Total data size %llu bytes\n", loader->totalSize);
-  Std_TimerStart(&timer);
+  auto begin = std::chrono::high_resolution_clock::now();
   Std_TimerStart(&loader->testerTimer);
 
   loader->progRatio = 9900;
@@ -205,6 +211,7 @@ static void loader_main(void *args) {
     if (NULL != app->services[i].preLog) {
       LDLOG(INFO, app->services[i].preLog);
     }
+
     r = app->services[i].handle(loader);
     if (0 == r) {
       if (NULL != app->services[i].postLog) {
@@ -215,9 +222,12 @@ static void loader_main(void *args) {
   }
 
   if (L_R_OK == r) {
-    cost = Std_GetTimerElapsedTime(&timer) / 1000000.0;
+    cost = std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::high_resolution_clock::now() - begin)
+             .count() /
+           1000.f;
     speed = loader->totalSize / 1024.0 / cost;
-    LDLOG(INFO, "loader average speed %.2f kbps, cost %.2f seconds\n", speed, cost);
+    LDLOG(INFO, "loader average speed %.2f kbps cost %.2f seconds\n", speed, cost);
   } else {
     LDLOG(INFO, "loader failed\n");
   }

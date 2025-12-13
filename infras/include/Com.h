@@ -21,6 +21,14 @@
 #define COM_E_INVALID_SIGNALID 0x05
 #define COM_E_INVALID_RXPDUID 0x06
 #define COM_E_INVALID_TXPDUID 0x07
+
+#define COM_DCM_COM_MODE_TX_DISABLED ((Com_DcmComModeType)0x01)
+#define COM_DCM_COM_MODE_RX_DISABLED ((Com_DcmComModeType)0x02)
+
+#define COM_DCM_COM_CTRL_ENABLE_BOTH ((Com_DcmComCtrlType)0x00)
+#define COM_DCM_COM_CTRL_ENABLE_RX_DISABLE_TX ((Com_DcmComCtrlType)0x01)
+#define COM_DCM_COM_CTRL_DISABLE_RX_ENABLE_TX ((Com_DcmComCtrlType)0x02)
+#define COM_DCM_COM_CTRL_DISABLE_BOTH ((Com_DcmComCtrlType)0x03)
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Com_00819 */
 typedef enum {
@@ -39,6 +47,10 @@ typedef uint16_t Com_IpduGroupIdType;
 
 /* @SWS_Com_00825 */
 typedef struct Com_Config_s Com_ConfigType;
+
+typedef uint8_t Com_DcmComCtrlType;
+
+typedef uint8_t Com_DcmComModeType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -146,4 +158,9 @@ void Com_MainFunctionRouteSignals(void);
 void Com_MainFunction(void);
 
 void Com_MainFunction_Fast(void);
+
+void Com_DcmCommunicationControl(Com_DcmComCtrlType comCtrlMode);
+
+/* @SWS_Com_00426 */
+void Com_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* _COM_H */

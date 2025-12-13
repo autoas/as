@@ -16,6 +16,8 @@
 #ifdef USE_PCAP
 #include "pcap.h"
 #endif
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOMEIP 0
 #define AS_LOG_SOMEIPI 2
@@ -1873,4 +1875,14 @@ Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *inf
   }
 
   return ret;
+}
+
+void SomeIp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x01, SOMEIP_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_SOMEIPTP;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

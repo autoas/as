@@ -343,8 +343,8 @@ Std_ReturnType Dcm_DspSessionControl(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    Dcm_DslInit();
     Dcm_SessionChangeIndication(context->currentSession, sesCtrl, FALSE);
+    Dcm_DslInit();
     context->currentSession = sesCtrl;
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
     Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01111 */
@@ -693,7 +693,7 @@ Std_ReturnType Dcm_DspTransferData(Dcm_MsgContextType *msgContext,
       if (DCM_WRITE_PENDING == retW) {
         *nrc = DCM_E_RESPONSE_PENDING;
       } else if (DCM_WRITE_FORCE_RCRRP == retW) {
-        r = DCM_FORCE_RCRRP_OK;
+        r = DCM_E_FORCE_RCRRP;
       } else if (DCM_WRITE_OK == retW) {
         context->UDTData.offset += memorySize;
         msgContext->resData[0] = context->UDTData.blockSequenceCounter;
@@ -711,7 +711,7 @@ Std_ReturnType Dcm_DspTransferData(Dcm_MsgContextType *msgContext,
       if (DCM_READ_PENDING == retR) {
         *nrc = DCM_E_RESPONSE_PENDING;
       } else if (DCM_READ_FORCE_RCRRP == retR) {
-        r = DCM_FORCE_RCRRP_OK;
+        r = DCM_E_FORCE_RCRRP;
       } else if (DCM_READ_OK == retR) {
         context->UDTData.offset += memorySize;
         msgContext->resData[0] = context->UDTData.blockSequenceCounter;

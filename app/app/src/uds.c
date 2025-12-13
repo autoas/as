@@ -6,6 +6,8 @@
 #ifdef USE_DCM
 #include "Dcm.h"
 #include "Dem.h"
+#include "Com.h"
+#include "CanNm.h"
 #include "Std_Timer.h"
 #include "Std_Debug.h"
 #include <string.h>
@@ -27,8 +29,121 @@ extern void App_EnterProgramSession(void);
 /* ================================ [ DATAS     ] ============================================== */
 static uint32_t app_prgs_seed = 0xdeadbeef;
 static uint32_t app_extds_seed = 0xbeafdada;
+#if defined(USE_CANNM) && defined(USE_COM)
+static boolean bDcmComCtrl = FALSE;
+#endif
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
+Std_ReturnType App_ComCtrlEnableRxAndTx(uint8_t comType, Dcm_NegativeResponseCodeType *errorCode) {
+  Std_ReturnType ret = E_OK;
+#if defined(USE_CANNM) && defined(USE_COM)
+  switch (comType) {
+  case 1: /* normalCommunicationMessages */
+    Com_DcmCommunicationControl(0);
+    break;
+  case 2: /* networkManagementCommunicationMessages */
+    CanNm_EnableCommunication(0);
+    break;
+  case 3: /* both normalCommunicationMessages and networkManagementCommunicationMessages */
+    Com_DcmCommunicationControl(0);
+    CanNm_EnableCommunication(0);
+    break;
+  default:
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    break;
+  }
+  bDcmComCtrl = FALSE;
+#endif
+  return ret;
+}
+
+Std_ReturnType App_ComCtrlEnableRxAndDisableTx(uint8_t comType,
+                                               Dcm_NegativeResponseCodeType *errorCode) {
+  Std_ReturnType ret = E_OK;
+#if defined(USE_CANNM) && defined(USE_COM)
+  switch (comType) {
+  case 1: /* normalCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_TX_DISABLED);
+    break;
+  case 2: /* networkManagementCommunicationMessages */
+    CanNm_DisableCommunication(0);
+    break;
+  case 3: /* both normalCommunicationMessages and networkManagementCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_TX_DISABLED);
+    CanNm_DisableCommunication(0);
+    break;
+  default:
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    break;
+  }
+  bDcmComCtrl = TRUE;
+#endif
+  return ret;
+}
+
+Std_ReturnType App_ComCtrlDisableRxAndEnableTx(uint8_t comType,
+                                               Dcm_NegativeResponseCodeType *errorCode) {
+  Std_ReturnType ret = E_OK;
+#if defined(USE_CANNM) && defined(USE_COM)
+  switch (comType) {
+  case 1: /* normalCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_RX_DISABLED);
+    break;
+  case 2: /* networkManagementCommunicationMessages */
+    CanNm_DisableCommunication(0);
+    break;
+  case 3: /* both normalCommunicationMessages and networkManagementCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_RX_DISABLED);
+    CanNm_DisableCommunication(0);
+    break;
+  default:
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    break;
+  }
+  bDcmComCtrl = TRUE;
+#endif
+  return ret;
+}
+
+Std_ReturnType App_ComCtrlDisableRxAndTx(uint8_t comType, Dcm_NegativeResponseCodeType *errorCode) {
+  Std_ReturnType ret = E_OK;
+#if defined(USE_CANNM) && defined(USE_COM)
+  switch (comType) {
+  case 1: /* normalCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_RX_DISABLED | COM_DCM_COM_MODE_TX_DISABLED);
+    break;
+  case 2: /* networkManagementCommunicationMessages */
+    CanNm_DisableCommunication(0);
+    break;
+  case 3: /* both normalCommunicationMessages and networkManagementCommunicationMessages */
+    Com_DcmCommunicationControl(COM_DCM_COM_MODE_RX_DISABLED | COM_DCM_COM_MODE_TX_DISABLED);
+    CanNm_DisableCommunication(0);
+    break;
+  default:
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    break;
+  }
+  bDcmComCtrl = TRUE;
+#endif
+  return ret;
+}
+
+void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
+                                 boolean timeout) {
+  if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
+    App_EnterProgramSession();
+  }
+
+#if defined(USE_CANNM) && defined(USE_COM)
+  if (TRUE == bDcmComCtrl) {
+    /* do restore of the communication control */
+    Com_DcmCommunicationControl(0);
+    CanNm_EnableCommunication(0);
+    bDcmComCtrl = FALSE;
+  }
+#endif
+}
+
 Std_ReturnType App_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
                                               Dcm_SesCtrlType sesCtrlTypeNew,
                                               Dcm_NegativeResponseCodeType *nrc) {
@@ -177,12 +292,6 @@ Std_ReturnType Dem_FFD_GetTime(Dem_EventIdType EventId, uint8_t *data,
   return E_OK;
 }
 #endif
-void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
-                                 boolean timeout) {
-  if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
-    App_EnterProgramSession();
-  }
-}
 
 Std_ReturnType App_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
                                    Dcm_NegativeResponseCodeType *errorCode) {

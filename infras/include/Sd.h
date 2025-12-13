@@ -14,6 +14,12 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* @SWS_Sd_00107 */
+#define SD_E_UNINIT 0x01
+#define SD_E_PARAM_POINTER 0x02
+#define SD_E_INV_MODE 0x03
+#define SD_E_INV_ID 0x04
+#define SD_E_INIT_FAILED 0x05
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_SD_00118 */
 typedef enum {
@@ -104,6 +110,9 @@ void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
 
 Std_ReturnType Sd_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
                                    PduLengthType *payloadLength);
+
+/* @SWS_Sd_00124 */
+void Sd_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

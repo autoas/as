@@ -13,6 +13,12 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+/* @SWS_UdpNm_00018 */
+#define UDPNM_E_UNINIT 0x01
+#define UDPNM_E_INVALID_CHANNEL 0x02
+#define UDPNM_E_INVALID_PDUID 0x03
+#define UDPNM_E_INIT_FAILED 0x04
+#define UDPNM_E_PARAM_POINTER 0x12
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct UdpNm_Config_s UdpNm_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -83,6 +89,9 @@ Std_ReturnType UdpNm_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr)
 
 /* @SWS_UdpNm_00234 */
 void UdpNm_MainFunction(void);
+
+/* @SWS_UdpNm_00224 */
+void UdpNm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

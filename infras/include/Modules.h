@@ -41,6 +41,12 @@
 #define MODULE_ID_J1939TP ((uint16_t)37)
 #define MODULE_ID_E2E ((uint16_t)207)
 #define MODULE_ID_MIRROR ((uint16_t)48)
+#define MODULE_ID_CANTSYN ((uint16_t)161)
+#define MODULE_ID_SD ((uint16_t)171)
+#define MODULE_ID_SOAD ((uint16_t)56)
+#define MODULE_ID_SOMEIPTP ((uint16_t)177)
+#define MODULE_ID_SOMEIPXF ((uint16_t)174)
+#define MODULE_ID_UDPNM ((uint16_t)33)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

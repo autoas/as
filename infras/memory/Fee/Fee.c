@@ -353,7 +353,7 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
             ASHEXDUMP(FEEE,
                       ("Got block number %d with invalid size %d (!=%d), maybe FEE config update",
                        block->BlockNumber, block->BlockSize,
-                       config->Blocks[blocks->BlockNumber - 1u].BlockSize),
+                       config->Blocks[block->BlockNumber - 1u].BlockSize),
                       blocks, sizeof(Fee_BlockType));
           }
         } else {
@@ -768,8 +768,8 @@ Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
 
   for (i = 0; i < config->numOfBanks; i++) {
     if (bankAdmin[i].Info.Number == (~bankAdmin[i].Info.InvNumber)) {
-      if (maxNumber < bankAdmin->Info.Number) {
-        maxNumber = bankAdmin->Info.Number;
+      if (maxNumber < bankAdmin[i].Info.Number) {
+        maxNumber = bankAdmin[i].Info.Number;
       }
     } else if (-1 == invalidBank) {
       invalidBank = i;
@@ -951,7 +951,7 @@ Std_ReturnType Fee_Init_GetWorkingBank_Main(void) {
       context->dataFreeAddr = config->Banks[fullBank].HighAddress;
       context->curWrokingBank = fullBank;
       ASLOG(FEE, ("FEE Init and Post Check Finished, activate bank is %d, but which is full\n",
-                  whichBank));
+                  fullBank));
       ret = factory_goto(FEE_NODE_INIT_SEARCH_FREE_SPACE);
     } else {
       ASLOG(FEEE, ("impossible case, 2 banks has data, but no one is full\n"));
@@ -2214,4 +2214,14 @@ void Fee_GetAdminInfo(Fee_AdminInfoType *pAdminInfo) {
   pAdminInfo->dataFreeAddr = context->dataFreeAddr;
   pAdminInfo->curWrokingBank = context->curWrokingBank;
   pAdminInfo->erasedNumber = context->erasedNumber;
+}
+
+void Fee_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x08, FEE_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_FEE;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
 }

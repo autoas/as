@@ -8,6 +8,7 @@
 #include "Std_Types.h"
 #include "EcuM.h"
 /* ================================ [ MACROS    ] ============================================== */
+#define DET_THIS_MODULE_ID MODULE_ID_ECUM
 /* ================================ [ TYPES     ] ============================================== */
 typedef void (*EcuM_DriverInitFncType)(const void *config);
 

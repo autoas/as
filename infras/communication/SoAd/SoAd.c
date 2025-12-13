@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "NetMem.h"
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOAD 0
 #define AS_LOG_SOADE 2
@@ -693,4 +695,14 @@ Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_
   }
 
   return ret;
+}
+
+void SoAd_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x02, SOAD_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_SOAD;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

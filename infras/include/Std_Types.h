@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#define STD_VENDOR_ID_AS 0x4153u
+
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
@@ -67,7 +69,6 @@ typedef unsigned char StatusType; /* OSEK compliance */
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_Std_00005 */
 typedef uint8_t Std_ReturnType;
-
 
 typedef uint8_t boolean;
 

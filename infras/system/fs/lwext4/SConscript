@@ -11,7 +11,7 @@ class LibraryLwExt4(Library):
         return PkgGlob(pkg, objs)
 
     def config(self):
-        pkg = Package(url="https://github.com/autoas/lwext4.git")
+        pkg = Package(url="https://gitee.com/autoas/lwext4.git")
         self.Append(CPPDEFINES=["CONFIG_USE_DEFAULT_CFG", "CONFIG_HAVE_OWN_OFLAGS=0"])
         self.source = self.get_objs(pkg)
         self.include += ["%s/include" % (pkg)]

@@ -29,14 +29,15 @@ struct Can_VxlHandle_s {
   uint32_t busid;
   uint32_t port;
   uint32_t baudrate;
+  std::mutex mutex;
+  std::thread rx_thread;
+  volatile bool terminated;
   can_device_rx_notification_t rx_notification;
   STAILQ_ENTRY(Can_VxlHandle_s) entry;
 };
 
 struct Can_VxlHandleList_s {
   bool initialized;
-  std::thread rx_thread;
-  volatile bool terminated;
   std::mutex mutex;
   STAILQ_HEAD(, Can_VxlHandle_s) head;
 };
@@ -46,25 +47,26 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
                       uint64_t timestamp);
 static void vxl_close(uint32_t port);
-static void rx_daemon(void *);
+static void vxl_read(uint32_t port);
+static void rx_daemon(struct Can_VxlHandle_s *handle);
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Can_DeviceOpsType can_vxl_ops = {
   .name = "vxl",
   .probe = vxl_probe,
   .close = vxl_close,
   .write = vxl_write,
+  .read = vxl_read,
 };
 
 static struct Can_VxlHandleList_s vxlH = {
   .initialized = false,
-  .terminated = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 
 static struct Can_VxlHandle_s *getHandle(uint32_t port) {
   struct Can_VxlHandle_s *handle, *h;
   handle = NULL;
-  std::lock_guard<std::mutex>(vxlH.mutex);
+  std::lock_guard<std::mutex> lck(vxlH.mutex);
   STAILQ_FOREACH(h, &vxlH.head, entry) {
     if (h->port == port) {
       handle = h;
@@ -162,7 +164,6 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
     STAILQ_INIT(&vxlH.head);
 
     vxlH.initialized = true;
-    vxlH.terminated = true;
   }
 
   handle = getHandle(port);
@@ -178,18 +179,15 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
     handle->baudrate = baudrate;
     handle->rx_notification = rx_notification;
     if (open_vxl(handle)) { /* open port OK */
-      std::lock_guard<std::mutex>(vxlH.mutex);
+      handle->terminated = false;
+      handle->rx_thread = std::thread(rx_daemon, handle);
+      std::lock_guard<std::mutex> lck(vxlH.mutex);
       STAILQ_INSERT_TAIL(&vxlH.head, handle, entry);
     } else {
       delete handle;
       ASLOG(WARN, ("CAN VXL port=%d is is not able to be opened!\n", port));
       rv = false;
     }
-  }
-
-  if ((true == vxlH.terminated) && (false == STAILQ_EMPTY(&vxlH.head))) {
-    vxlH.terminated = false;
-    vxlH.rx_thread = std::thread(rx_daemon, nullptr);
   }
 
   return rv;
@@ -241,16 +239,17 @@ static void vxl_close(uint32_t port) {
   struct Can_VxlHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    std::lock_guard<std::mutex>(vxlH.mutex);
+    std::lock_guard<std::mutex> lck(vxlH.mutex);
+    handle->terminated = true;
+    if (handle->rx_thread.joinable()) {
+      handle->rx_thread.join();
+    }
     STAILQ_REMOVE(&vxlH.head, handle, Can_VxlHandle_s, entry);
 
     delete handle;
 
     if (true == STAILQ_EMPTY(&vxlH.head)) {
-      vxlH.terminated = true;
-      if (vxlH.rx_thread.joinable()) {
-        vxlH.rx_thread.join();
-      }
+      xlCloseDriver();
     }
   }
 }
@@ -265,6 +264,7 @@ static void rx_notifiy(struct Can_VxlHandle_s *handle) {
   uint8_t data[8];
   char sdata[32];
   do {
+    std::lock_guard<std::mutex> lck(handle->mutex);
     status = xlReceive(handle->xlHandle, &EventCount, &Event);
     if (XL_ERR_QUEUE_IS_EMPTY == status) {
       return;
@@ -293,21 +293,22 @@ static void rx_notifiy(struct Can_VxlHandle_s *handle) {
     }
   } while (XL_SUCCESS == status);
 }
-static void rx_daemon(void *param) {
-  (void)param;
-  struct Can_VxlHandle_s *handle;
 
-  while (false == vxlH.terminated) {
-    std::lock_guard<std::mutex>(vxlH.mutex);
-    STAILQ_FOREACH(handle, &vxlH.head, entry) {
-      rx_notifiy(handle);
-    }
+static void vxl_read(uint32_t port) {
+  struct Can_VxlHandle_s *handle = getHandle(port);
+
+  if (NULL != handle) {
+    rx_notifiy(handle);
+  }
+}
+
+static void rx_daemon(struct Can_VxlHandle_s *handle) {
+  while (false == handle->terminated) {
+    rx_notifiy(handle);
     if (false == can_is_perf_mode()) {
       std::this_thread::sleep_for(1ms);
     }
   }
-
-  xlCloseDriver();
 }
 
 /* ================================ [ FUNCTIONS ] ============================================== */

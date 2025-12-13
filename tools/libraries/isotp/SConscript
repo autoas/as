@@ -20,7 +20,7 @@ class LibraryIsoTp(Library):
             self.Append(CPPDEFINES=["USE_DOIP_CLIENT"])
         for libName, source in libsForIsoTp.items():
             if IsBuildForMSVC():
-                if libName in "LinTp":
+                if libName in ["LinTp"]:
                     continue
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)

@@ -22,9 +22,15 @@ typedef enum {
   ISOTP_OVER_DOIP
 } isotp_protocol_t;
 
+typedef enum {
+  ISOTP_CAN_V1 = 1,
+  ISOTP_CAN_V2
+} isotp_can_version_t;
+
 typedef struct {
   uint32_t RxCanId;
   uint32_t TxCanId;
+  isotp_can_version_t version;
   uint8_t BlockSize;
   uint8_t STmin; /* ms */
 } isotp_can_param_t;

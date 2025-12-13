@@ -195,4 +195,14 @@ void Nm_StateChangeNotification(NetworkHandleType nmNetworkHandle, Nm_StateType 
 
 void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle) {
 }
+
+void Nm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x0f, NM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_NM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
+}
 #endif

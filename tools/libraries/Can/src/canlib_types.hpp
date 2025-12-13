@@ -28,6 +28,7 @@ typedef bool (*can_device_write_t)(uint32_t port, uint32_t canid, uint8_t dlc, c
                                    uint64_t timestamp);
 typedef bool (*can_device_reset_t)(uint32_t port);
 typedef void (*can_device_close_t)(uint32_t port);
+typedef void (*can_device_read_t)(uint32_t port);
 
 typedef struct {
   std::string name;
@@ -35,6 +36,7 @@ typedef struct {
   can_device_close_t close;
   can_device_write_t write;
   can_device_reset_t reset;
+  can_device_read_t read;
 } Can_DeviceOpsType;
 
 typedef struct {

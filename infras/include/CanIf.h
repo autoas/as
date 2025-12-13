@@ -91,6 +91,9 @@ Std_ReturnType CanIf_GetControllerErrorState(uint8_t ControllerId,
 /* @SWS_CANIF_91004 */
 Std_ReturnType CanIf_GetControllerTxErrorCounter(uint8_t ControllerId, uint8_t *TxErrorCounterPtr);
 
+/* @SWS_CANIF_00158 */
+void CanIf_GetVersionInfo(Std_VersionInfoType *versionInfo);
+
 #ifdef __cplusplus
 }
 #endif

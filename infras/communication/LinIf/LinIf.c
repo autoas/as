@@ -134,6 +134,10 @@ static void LinIf_MainFunction_Master(NetworkHandleType Channel) {
   config = &LINIF_CONFIG->channelConfigs[Channel];
   if (LINIF_CHANNEL_SLEEP_PENDING == context->state) {
     if (LINIF_STATUS_IDLE == context->status) {
+      /* invalidate schedule table before going to sleep mode */
+      context->scheduleTable = NULL;
+      context->curSch = 0;
+      context->scheduleRequested = LINIF_INVALD_SCHEDULE_TABLE;
       ret = Lin_GoToSleep(config->linChannel);
       if (E_OK == ret) {
         context->state = LINIF_CHANNEL_SLEEP_COMMAND;
@@ -206,15 +210,22 @@ static void LinIf_MainFunction_Master(NetworkHandleType Channel) {
 #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
 static void LinIf_MainFunction_Slave(NetworkHandleType Channel) {
   LinIf_ChannelContextType *context;
-  context = &LINIF_CONFIG->channelContexts[Channel];
+  const LinIf_ChannelConfigType *config;
+  const LinIf_ScheduleTableEntryType *entry;
 
+  context = &LINIF_CONFIG->channelContexts[Channel];
   if (context->timer > 0) {
     context->timer--;
     if (0 == context->timer) {
       ASLOG(LINIFE, ("%d: slave timeout\n", Channel));
       context->status = LINIF_STATUS_IDLE;
       context->timer = 0;
-      /* TODO: */
+      config = &LINIF_CONFIG->channelConfigs[Channel];
+      if (context->curSch < config->scheduleTable->numOfEntries) {
+        entry = &config->scheduleTable->entrys[context->curSch];
+        /* notify timeout */
+        (void)entry->callback(Channel, &context->frame, LINIF_R_NOT_OK);
+      }
     }
   }
 }
@@ -316,7 +327,7 @@ void LinIf_DeInit(void) {
   int i;
   LinIf_ChannelContextType *context;
   const LinIf_ChannelConfigType *config;
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0xF0, LINIF_E_UNINIT, return );
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0xF0, LINIF_E_UNINIT, return);
   for (i = 0; i < LINIF_CONFIG->numOfChannels; i++) {
     config = &LINIF_CONFIG->channelConfigs[i];
     context = &LINIF_CONFIG->channelContexts[i];
@@ -357,7 +368,7 @@ void LinIf_MainFunction_Read(void) {
   int i;
   LinIf_ChannelContextType *context;
 
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return );
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return);
   for (i = 0; (i < LINIF_CONFIG->numOfChannels); i++) {
     context = &LINIF_CONFIG->channelContexts[i];
 
@@ -373,7 +384,7 @@ void LinIf_MainFunction(void) {
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
   const LinIf_ChannelConfigType *config;
 #endif
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return );
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x80, LINIF_E_UNINIT, return);
   for (i = 0; (i < LINIF_CONFIG->numOfChannels); i++) {
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
     config = &LINIF_CONFIG->channelConfigs[i];
@@ -481,8 +492,8 @@ void LinIf_RxIndication(NetworkHandleType Channel, uint8 *Lin_SduPtr) {
   const LinIf_ScheduleTableEntryType *entry;
   Std_ReturnType ret = E_OK;
 
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x79, LINIF_E_UNINIT, return );
-  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x79, LINIF_E_NONEXISTENT_CHANNEL, return );
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x79, LINIF_E_UNINIT, return);
+  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x79, LINIF_E_NONEXISTENT_CHANNEL, return);
 
   context = &LINIF_CONFIG->channelContexts[Channel];
 #if ((LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE) ||                              \
@@ -554,8 +565,8 @@ void LinIf_TxConfirmation(NetworkHandleType Channel) {
 #endif
   const LinIf_ScheduleTableEntryType *entry;
   Std_ReturnType ret = E_OK;
-  DET_VALIDATE(NULL != LINIF_CONFIG, 0x7a, LINIF_E_UNINIT, return );
-  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x7a, LINIF_E_NONEXISTENT_CHANNEL, return );
+  DET_VALIDATE(NULL != LINIF_CONFIG, 0x7a, LINIF_E_UNINIT, return);
+  DET_VALIDATE(Channel < LINIF_CONFIG->numOfChannels, 0x7a, LINIF_E_NONEXISTENT_CHANNEL, return);
 
   context = &LINIF_CONFIG->channelContexts[Channel];
 #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
@@ -617,3 +628,18 @@ Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean Mirro
   return ret;
 }
 #endif
+
+void LinIf_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x03, LINIF_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_LINIF;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 2;
+}
+
+/** @brief release notes
+ * - 4.0.1: Fix to ensure wake up to schedule the 1st frame from the schedule table.
+ * - 4.0.2: For slave, when timer timeout, notify the application about the timeout.
+ */

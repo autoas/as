@@ -31,6 +31,11 @@ extern "C" {
 #define SOMEIP_E_MALFORMED_MESSAGE 0x09
 #define SOMEIP_E_WRONG_MESSAGE_TYPE 0x0a
 
+/* @SWS_SomeIpTp_00052 */
+#define SOMEIP_E_UNINIT 0x01
+#define SOMEIP_E_PARAM_POINTER 0x02
+#define SOMEIP_E_PARAM 0x03
+#define SOMEIP_E_INIT_FAILED 0x04
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t *data;
@@ -73,6 +78,8 @@ Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId, ui
 Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
                                        uint32_t *payloadLength);
 void SomeIp_RxIndication(PduIdType RxPduId, const PduInfoType *info);
+
+void SomeIp_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

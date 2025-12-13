@@ -88,6 +88,7 @@ def Gen_DoIp(cfg, dir):
     C.write("extern Std_ReturnType DoIP_UserGetEID(uint8_t *Data);\n")
     C.write("extern Std_ReturnType DoIP_UserGetGID(uint8_t *Data);\n")
     C.write("extern Std_ReturnType DoIP_UserGetPowerModeStatus(uint8_t *PowerState);\n")
+    C.write("extern Std_ReturnType DoIP_UserGetRoutingActivationResponseOem(uint8_t *Data);\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     for target in cfg["targets"]:
         name = target["name"]
@@ -209,6 +210,7 @@ def Gen_DoIp(cfg, dir):
     C.write("  DoIP_UserGetEID,\n")
     C.write("  DoIP_UserGetGID,\n")
     C.write("  DoIP_UserGetPowerModeStatus,\n")
+    C.write("  DoIP_UserGetRoutingActivationResponseOem,\n")
     C.write("  0xdead, /* LogicalAddress */ \n")
     C.write("  DoIp_TargetAddress,\n")
     C.write("  ARRAY_SIZE(DoIp_TargetAddress),\n")

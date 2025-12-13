@@ -50,6 +50,9 @@ struct Can_PeakHandle_s {
   uint32_t baudrate;
   uint64_t localTime;
   uint64_t devTime;
+  std::mutex mutex;
+  std::thread rx_thread;
+  volatile bool terminated;
   can_device_rx_notification_t rx_notification;
   STAILQ_ENTRY(Can_PeakHandle_s) entry;
 };
@@ -64,8 +67,6 @@ typedef struct {
 
 struct Can_PeakHandleList_s {
   bool initialized;
-  std::thread rx_thread;
-  volatile bool terminated;
   std::mutex mutex;
   Peak_InterfaceType IF;
   STAILQ_HEAD(, Can_PeakHandle_s) head;
@@ -81,18 +82,19 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
                        uint64_t timestamp);
 static void peak_close(uint32_t port);
-static void rx_daemon(void *);
+static void peak_read(uint32_t port);
+static void rx_daemon(struct Can_PeakHandle_s *handle);
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Can_DeviceOpsType can_peakfd_ops = {
   .name = "peakfd",
   .probe = peak_probe,
   .close = peak_close,
   .write = peak_write,
+  .read = peak_read,
 };
 
 static struct Can_PeakHandleList_s peakH = {
   .initialized = false,
-  .terminated = false,
 };
 
 static uint32_t peak_ports[] = {
@@ -139,7 +141,7 @@ static uint8_t getFdDLC(uint8_t len, uint8_t &rlen) {
 static struct Can_PeakHandle_s *getHandle(uint32_t port) {
   struct Can_PeakHandle_s *handle, *h;
   handle = NULL;
-  std::lock_guard<std::mutex>(peakH.mutex);
+  std::lock_guard<std::mutex> lck(peakH.mutex);
   STAILQ_FOREACH(h, &peakH.head, entry) {
     if (h->port == port) {
       handle = h;
@@ -215,7 +217,6 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
     STAILQ_INIT(&peakH.head);
 
     peakH.initialized = true;
-    peakH.terminated = true;
   }
 
   handle = getHandle(port);
@@ -245,16 +246,13 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->rx_notification = rx_notification;
       handle->localTime = 0;
       handle->devTime = 0;
-      std::lock_guard<std::mutex>(peakH.mutex);
+      handle->terminated = false;
+      handle->rx_thread = std::thread(rx_daemon, handle);
+      std::lock_guard<std::mutex> lck(peakH.mutex);
       STAILQ_INSERT_TAIL(&peakH.head, handle, entry);
     } else {
       rv = false;
     }
-  }
-
-  if ((true == peakH.terminated) && (false == STAILQ_EMPTY(&peakH.head))) {
-    peakH.terminated = false;
-    peakH.rx_thread = std::thread(rx_daemon, nullptr);
   }
 
   return rv;
@@ -308,19 +306,14 @@ static void peak_close(uint32_t port) {
   struct Can_PeakHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    std::lock_guard<std::mutex>(peakH.mutex);
-    STAILQ_REMOVE(&peakH.head, handle, Can_PeakHandle_s, entry);
-
-    (void)PEAK_CALL(Uninitialize)(handle->channel);
-
-    delete handle;
-
-    if (true == STAILQ_EMPTY(&peakH.head)) {
-      peakH.terminated = true;
-      if (peakH.rx_thread.joinable()) {
-        peakH.rx_thread.join();
-      }
+    std::lock_guard<std::mutex> lck(peakH.mutex);
+    handle->terminated = true;
+    if (handle->rx_thread.joinable()) {
+      handle->rx_thread.join();
     }
+    (void)PEAK_CALL(Uninitialize)(handle->channel);
+    STAILQ_REMOVE(&peakH.head, handle, Can_PeakHandle_s, entry);
+    delete handle;
   }
 }
 
@@ -330,6 +323,7 @@ static void rx_notifiy(struct Can_PeakHandle_s *handle) {
   TPCANStatus status;
   uint8_t rlen;
   do {
+    std::lock_guard<std::mutex> lck(handle->mutex);
     status = PEAK_CALL(ReadFD)(handle->channel, &msg, &canTs);
     if (PCAN_ERROR_OK == status) {
       if (can_is_perf_mode()) {
@@ -358,14 +352,17 @@ static void rx_notifiy(struct Can_PeakHandle_s *handle) {
   } while (PCAN_ERROR_OK == status);
 }
 
-static void rx_daemon(void *param) {
-  (void)param;
-  struct Can_PeakHandle_s *handle;
-  while (false == peakH.terminated) {
-    std::lock_guard<std::mutex>(peakH.mutex);
-    STAILQ_FOREACH(handle, &peakH.head, entry) {
-      rx_notifiy(handle);
-    }
+static void peak_read(uint32_t port) {
+  struct Can_PeakHandle_s *handle = getHandle(port);
+
+  if (NULL != handle) {
+    rx_notifiy(handle);
+  }
+}
+
+static void rx_daemon(struct Can_PeakHandle_s *handle) {
+  while (false == handle->terminated) {
+    rx_notifiy(handle);
     if (false == can_is_perf_mode()) {
       std::this_thread::sleep_for(1ms);
     }

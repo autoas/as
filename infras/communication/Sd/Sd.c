@@ -20,6 +20,8 @@
 #ifdef USE_PCAP
 #include "pcap.h"
 #endif
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SD 0
 #define AS_LOG_SDI 2
@@ -2118,4 +2120,14 @@ Std_ReturnType Sd_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
   }
 
   return ret;
+}
+
+void Sd_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x02, SD_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_SD;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

@@ -35,6 +35,15 @@ extern "C" {
 #define CAN_ERRORSTATE_ACTIVE ((Can_ErrorStateType)0)
 #define CAN_ERRORSTATE_PASSIVE ((Can_ErrorStateType)1)
 #define CAN_ERRORSTATE_BUSOFF ((Can_ErrorStateType)2)
+
+/* @SWS_Can_00416 */
+#define CAN_STANDARD_ID_TYPE ((Can_IdType)0x00000000u)
+#define CAN_EXTENDED_ID_TYPE ((Can_IdType)0x80000000u)
+
+#define CAN_CAN_ID_TYPE ((Can_IdType)0x00000000u)
+#define CAN_CANFD_ID_TYPE ((Can_IdType)0x40000000u)
+
+#define CAN_CANID_MASK ((Can_IdType)0x1FFFFFFFu)
 /* ================================ [ TYPES     ] ============================================== */
 typedef uint8_t Can_ControllerStateType;
 

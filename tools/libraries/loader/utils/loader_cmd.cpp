@@ -23,7 +23,7 @@ void std_set_log_level(int level);
 static void usage(char *prog) {
   printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
          "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA] [-s delayUs]\n"
-         "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate]\n",
+         "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate] [-V version]\n",
          prog);
 }
 static uint32_t toU32(const char *strV) {
@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
   int r = 0;
   int verbose = 0;
   const char *choice = "FBL";
+  isotp_can_version_t version = ISOTP_CAN_V2;
   loader_args_t args;
 
   int progress = 0;
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]) {
   isotp_parameter_t params;
 
   opterr = 0;
-  while ((ch = getopt(argc, argv, "a:b:c:d:D:f:F:l:n:p:r:s:S:t:T:v")) != -1) {
+  while ((ch = getopt(argc, argv, "a:b:c:d:D:f:F:l:n:p:r:s:S:t:T:vV:")) != -1) {
     switch (ch) {
     case 'a':
       appSRecPath = optarg;
@@ -140,6 +141,9 @@ int main(int argc, char *argv[]) {
     case 'v':
       verbose = 1;
       break;
+    case 'V':
+      version = (isotp_can_version_t)toU32(optarg);
+      break;
     default:
       break;
     }
@@ -202,6 +206,7 @@ int main(int argc, char *argv[]) {
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
     params.U.CAN.STmin = delayUs;
+    params.U.CAN.version = version;
   } else if (0 == strncmp("LIN", device, 3)) {
     if (0x731 == txid) {
       txid = 0x3c;

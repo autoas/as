@@ -192,7 +192,7 @@ typedef struct {
   Dcm_OpStatusType opStatus;
   P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) curService;
   Dcm_MsgContextType msgContext;
-  uint8_t responcePending;
+  uint8_t responsePending;
 #if defined(DCM_USE_SERVICE_REQUEST_DOWNLOAD) || defined(DCM_USE_SERVICE_REQUEST_UPLOAD)
   Dcm_UDTType UDTData;
 #endif

@@ -38,6 +38,7 @@
 #define Fls_SetMode Eep_SetMode
 #define Fls_BlankCheck Eep_BlankCheck
 #define Fls_MainFunction Eep_MainFunction
+#define Fls_GetVersionInfo Eep_GetVersionInfo
 
 #define Fls_Config Eep_Config
 /* ================================ [ TYPES     ] ============================================== */

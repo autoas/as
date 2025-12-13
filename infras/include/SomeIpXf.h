@@ -19,6 +19,12 @@ extern "C" {
 #define E_SER_WRONG_INTERFACE_VERSION ((Std_ReturnType)0x88)
 #define E_SER_MALFORMED_MESSAGE ((Std_ReturnType)0x89)
 #define E_SER_WRONG_MESSAGE_TYPE ((Std_ReturnType)0x8a)
+
+/* @SWS_SomeIPxf_00184 */
+#define SOMEIPXF_E_UNINIT 0x01
+#define SOMEIPXF_E_INIT_FAILED 0x02
+#define SOMEIPXF_E_PARAM 0x03
+#define SOMEIPXF_E_PARAM_POINTER 0x04
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct SomeIpXf_StructDefinition_s SomeIpXf_StructDefinitionType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -77,6 +83,9 @@ int32_t SomeIpXf_EncodeStructArray(uint8_t *buffer, uint32_t bufferSize, const v
 int32_t SomeIpXf_DecodeStructArray(const uint8_t *buffer, uint32_t bufferSize, void *pStruct,
                                    const SomeIpXf_StructDefinitionType *pStructDef,
                                    uint32_t *length);
+
+/* @SWS_SomeIpXf_00180 */
+void SomeIpXf_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

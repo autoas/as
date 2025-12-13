@@ -880,10 +880,10 @@ def Gen_Dcm(cfg, dir):
     C.write("static CONSTANT(Dcm_TimingConfigType, DCM_CONST) Dcm_TimingConfig = {\n")
     timings = cfg.get("timings", {})
     C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("S3Server", 5000)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2ServerAjust", 20)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerAdjust", 100)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2ServerAdjust", 20)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerAdjust", 20)))
     C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2ServerMax", 50)))
-    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerMax", 5000)))
+    C.write("  DCM_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (timings.get("P2StarServerMax", 150)))
     C.write("};\n\n")
 
     C.write("static CONSTANT(Dcm_DslDiagRespConfigType, DCM_CONST) Dcm_DslDiagRespConfig = {\n")

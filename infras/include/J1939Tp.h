@@ -115,6 +115,9 @@ void J1939Tp_MainFunction_RxChannelFast(uint16_t Channel);
 
 Std_ReturnType J1939Tp_GetRxPgPGN(PduIdType Channel, uint32_t *PgPGN);
 Std_ReturnType J1939Tp_SetTxPgPGN(PduIdType Channel, uint32_t PgPGN);
+
+/* @SWS_J1939Tp_00089 */
+void J1939Tp_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

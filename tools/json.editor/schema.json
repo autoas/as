@@ -814,7 +814,16 @@
                   "type": "object", "title": "target",
                   "properties": {
                     "name": { "type": "string" },
-                    "address": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 }
+                    "address": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                    "multi-nodes": { "type": "bool", "default": false, "description": "functional address that forward the request to multiple nodes" },
+                    "nodes": { "type": "array", "enabled": "'${../multi-nodes}' == 'True'", "items": {
+                      "type": "object", "title": "node", "properties": {
+                        "name": { "type": "string" },
+                        "address": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                        "TxId": { "type": "integer", "format": "hex", "description": "The target CAN TxId used to forward the request" }
+                        }
+                      }
+                    }
                   }
                 }
               },
@@ -1009,6 +1018,86 @@
                     "RxPduId": { "type": "string" }
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title" : "BL", "type": "object",
+    "properties": {
+      "general": {
+        "type": "object", "title": "general",
+        "properties": {
+          "BL_USE_BL_IN_APP": { "type": "bool", "default": false, "description": "use BL in application" },
+          "BL_USE_AB": { "type": "bool", "default": false },
+          "BL_USE_AB_UPDATE_ACTIVE": { "type": "bool", "default": false },
+          "BL_USE_CRC_16": { "type": "bool", "default": true, "enabled": "'${BL_USE_CRC_32}' == 'False'" },
+          "BL_USE_CRC_32": { "type": "bool", "default": false, "enabled": "'${BL_USE_CRC_16}' == 'False'" },
+          "FL_USE_WRITE_WINDOW_BUFFER": { "type": "bool", "default": false },
+          "FLASH_ERASE_SIZE": { "type": "integer", "minimum": 1, "default": 512 },
+          "FLASH_WRITE_SIZE": { "type": "integer", "minimum": 1, "default": 8 },
+          "FLASH_READ_SIZE": { "type": "integer", "minimum": 1, "default": 1 },
+          "FL_ERASE_PER_CYCLE": { "type": "integer", "minimum": 1, "default": 1 },
+          "FL_WRITE_PER_CYCLE": { "type": "integer", "minimum": 1, "default": 256 },
+          "FL_READ_PER_CYCLE": { "type": "integer", "minimum": 1, "default": 4096 },
+          "FL_ERASE_RCRRP_CYCLE": { "type": "integer", "minimum": 1, "default": 32 },
+          "FL_WRITE_RCRRP_CYCLE": { "type": "integer", "minimum": 1, "default": 1024 },
+          "BL_USE_APP_INFO": { "type": "bool", "default": false },
+          "BL_USE_APP_INFO_V2": { "type": "bool", "default": false },
+          "CAN_DIAG_P2P_RX": { "type": "integer", "default": "0x731" },
+          "CAN_DIAG_P2P_TX": { "type": "integer", "default": "0x732" },
+          "CAN_DIAG_P2A_RX": { "type": "integer", "default": "0x7df" },
+          "DCM_DISABLE_PROGRAM_SESSION_PROTECTION": { "type": "bool", "default": false },
+          "BL_USE_BUILTIN_FLS_READ": { "type": "bool", "default": false },
+          "BL_USE_FLS_READ": { "type": "bool", "default": false },
+          "BL_USE_META": { "type": "bool", "default": false },
+          "BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER": { "type": "bool", "default": false, "enabled": "'${BL_USE_META}' == 'True' and '${BL_USE_AB}' == 'True'" },
+          "ENABLE_META_SIZE_CONFIG": { "type": "bool", "enabled": "'${BL_USE_META}' == 'True'", "default": false },
+          "FINGER_PRINT_SIZE": { "type": "integer", "enabled": "'${ENABLE_META_SIZE_CONFIG}' == 'True'" },
+          "META_SIZE": { "type": "integer", "enabled": "'${ENABLE_META_SIZE_CONFIG}' == 'True'" },
+          "APP_SECTION_INFO_SIZE": { "type": "integer", "enabled": "'${ENABLE_META_SIZE_CONFIG}' == 'True'" },
+          "APP_VALID_FLAG_SIZE": { "type": "integer", "enabled": "'${ENABLE_META_SIZE_CONFIG}' == 'True'" },
+          "ROD_OFFSET": { "type": "integer", "default": 0 }
+        }
+      },
+      "memory": {
+        "type": "object",
+        "properties": {
+          "FlashDriver": {
+            "type": "object", "properties": {
+              "address": { "type": "integer", "default": 0 },
+              "size": { "type": "integer", "default": 0 }
+            }
+          },
+          "FlashA": {
+            "type": "array", "items": {
+              "type": "object", "title": "bank",
+              "properties": {
+                "address": { "type": "integer", "default": 0 },
+                "size": { "type": "integer", "default": 0 },
+                "sectorSize": { "type": "integer", "default": 512 }
+              }
+            }
+          },
+          "FlashB": {
+            "type": "array", "items": {
+              "type": "object", "title": "bank",
+              "properties": {
+                "address": { "type": "integer", "default": 0 },
+                "size": { "type": "integer", "default": 0 },
+                "sectorSize": { "type": "integer", "default": 512 }
+              }
+            }
+          },
+          "Fee": {
+            "type": "array", "items": {
+              "type": "object", "title": "bank",
+              "properties": {
+                "address": { "type": "integer", "default": 0 },
+                "size": { "type": "integer", "default": 0 }
               }
             }
           }

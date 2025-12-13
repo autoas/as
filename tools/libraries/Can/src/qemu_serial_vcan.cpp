@@ -46,6 +46,9 @@ struct Can_SerialHandle_s {
   uint32_t port;
   int online;
   TcpIp_SocketIdType sock;
+  std::mutex mutex;
+  std::thread rx_thread;
+  volatile bool terminated;
   can_device_rx_notification_t rx_notification;
   struct can_frame frame;
   int index;
@@ -53,8 +56,6 @@ struct Can_SerialHandle_s {
 };
 struct Can_SerialHandleList_s {
   bool initialized;
-  std::thread rx_thread;
-  volatile boolean terminated;
   STAILQ_HEAD(, Can_SerialHandle_s) head;
   std::mutex mutex;
 };
@@ -65,7 +66,7 @@ static bool qs_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool qs_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
                      uint64_t timestamp);
 static void qs_close(uint32_t port);
-static void rx_daemon(void *);
+static void rx_daemon(struct Can_SerialHandle_s *handle);
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Can_DeviceOpsType can_qs_ops = {
   .name = "qemu",
@@ -76,14 +77,13 @@ extern "C" const Can_DeviceOpsType can_qs_ops = {
 
 static struct Can_SerialHandleList_s serialH = {
   .initialized = false,
-  .terminated = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static struct Can_SerialHandle_s *getHandle(uint32_t port) {
   struct Can_SerialHandle_s *handle, *h;
   handle = NULL;
 
-  std::lock_guard<std::mutex>(serialH.mutex);
+  std::lock_guard<std::mutex> lck(serialH.mutex);
   STAILQ_FOREACH(h, &serialH.head, entry) {
     if (h->port == port) {
       handle = h;
@@ -106,7 +106,6 @@ static bool qs_probe(int busid, uint32_t port, uint32_t baudrate,
     STAILQ_INIT(&serialH.head);
     TcpIp_Init(NULL);
     serialH.initialized = true;
-    serialH.terminated = true;
   }
 
   handle = getHandle(port);
@@ -137,17 +136,13 @@ static bool qs_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->rx_notification = rx_notification;
       handle->sock = sock;
       handle->index = 0;
-      std::lock_guard<std::mutex>(serialH.mutex);
+      handle->terminated = false;
+      handle->rx_thread = std::thread(rx_daemon, handle);
+      std::lock_guard<std::mutex> lck(serialH.mutex);
       STAILQ_INSERT_TAIL(&serialH.head, handle, entry);
     } else {
       rv = false;
     }
-  }
-
-  std::lock_guard<std::mutex>(serialH.mutex);
-  if ((true == serialH.terminated) && (false == STAILQ_EMPTY(&serialH.head))) {
-    serialH.terminated = false;
-    serialH.rx_thread = std::thread(rx_daemon, nullptr);
   }
 
   return rv;
@@ -164,7 +159,7 @@ static bool qs_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *
     mSetCANDLC(frame, dlc);
     assert(dlc <= CAN_MAX_DLEN);
     memcpy(frame.data, data, dlc);
-    std::lock_guard<std::mutex>(serialH.mutex);
+    std::lock_guard<std::mutex> lck(serialH.mutex);
     ret = TcpIp_Send(handle->sock, (const uint8_t *)&frame, CAN_MTU);
     if (E_OK != ret) {
       ASLOG(WARN, ("CAN qemu port=%d send message failed!\n", port));
@@ -182,17 +177,15 @@ static void qs_close(uint32_t port) {
   struct Can_SerialHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    std::lock_guard<std::mutex>(serialH.mutex);
-    STAILQ_REMOVE(&serialH.head, handle, Can_SerialHandle_s, entry);
-    TcpIp_Close(handle->sock, TRUE);
-    delete handle;
-
-    if (true == STAILQ_EMPTY(&serialH.head)) {
-      serialH.terminated = true;
-      if (serialH.rx_thread.joinable()) {
-        serialH.rx_thread.join();
-      }
+    std::lock_guard<std::mutex> lck(serialH.mutex);
+    handle->terminated = true;
+    if (handle->rx_thread.joinable()) {
+      handle->rx_thread.join();
     }
+
+    TcpIp_Close(handle->sock, TRUE);
+    STAILQ_REMOVE(&serialH.head, handle, Can_SerialHandle_s, entry);
+    delete handle;
   }
 }
 
@@ -201,6 +194,7 @@ static void rx_notifiy(struct Can_SerialHandle_s *handle) {
   uint8_t *data;
   Std_ReturnType ret;
   do {
+    std::lock_guard<std::mutex> lck(handle->mutex);
     len = sizeof(handle->frame) - handle->index;
     data = &handle->frame.data[handle->index];
     ret = TcpIp_Recv(handle->sock, data, &len);
@@ -217,15 +211,12 @@ static void rx_notifiy(struct Can_SerialHandle_s *handle) {
   } while (E_OK == ret);
 }
 
-static void rx_daemon(void *param) {
-  (void)param;
-  struct Can_SerialHandle_s *handle;
-  while (false == serialH.terminated) {
-    std::lock_guard<std::mutex>(serialH.mutex);
-    STAILQ_FOREACH(handle, &serialH.head, entry) {
-      rx_notifiy(handle);
+static void rx_daemon(struct Can_SerialHandle_s *handle) {
+  while (false == handle->terminated) {
+    rx_notifiy(handle);
+    if (false == can_is_perf_mode()) {
+      std::this_thread::sleep_for(1ms);
     }
-    std::this_thread::sleep_for(1ms);
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

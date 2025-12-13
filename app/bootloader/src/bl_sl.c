@@ -6,11 +6,16 @@
 #include "bl.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define BL_SECURITY_LEVEL_EXTDS DCM_SEC_LEVEL1
+
+#ifndef BL_TIME_TO_RESET
+#define BL_TIME_TO_RESET 5 /* ticks */
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static uint32_t bl_prgs_seed = 0xdeadbeef;
 static uint32_t bl_extds_seed = 0xbeafdada;
+static uint8_t bl_timeToReset = 0;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 Std_ReturnType BL_GetSessionChangePermission(Dcm_SesCtrlType sesCtrlTypeActive,
@@ -106,18 +111,22 @@ Std_ReturnType BL_CompareExtendedLevelKey(uint8_t *key, Dcm_NegativeResponseCode
   return ercd;
 }
 
+void BL_RequestReset(void) {
+  bl_timeToReset = BL_TIME_TO_RESET;
+}
+
 #ifndef BL_USE_BL_IN_APP
 void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
                                  boolean timeout) {
   BL_SessionReset();
-  if (timeout) {
+  if (TRUE == timeout) {
     if ((DCM_EXTENDED_DIAGNOSTIC_SESSION == sesCtrlTypeActive) ||
         (DCM_PROGRAMMING_SESSION == sesCtrlTypeActive)) {
       Dcm_PerformReset(DCM_WARM_START);
     }
   } else if ((DCM_PROGRAMMING_SESSION == sesCtrlTypeActive) &&
              (DCM_DEFAULT_SESSION == sesCtrlTypeNew)) {
-    Dcm_PerformReset(DCM_WARM_START);
+    BL_RequestReset();
   } else {
   }
 }
@@ -126,4 +135,13 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
 Std_ReturnType BL_GetEcuResetPermission(Dcm_OpStatusType OpStatus,
                                         Dcm_NegativeResponseCodeType *ErrorCode) {
   return E_OK;
+}
+
+void BL_MainFunction(void) {
+  if (bl_timeToReset > 0) {
+    bl_timeToReset--;
+    if (0 == bl_timeToReset) {
+      Dcm_PerformReset(DCM_WARM_START);
+    }
+  }
 }

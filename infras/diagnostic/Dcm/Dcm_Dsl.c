@@ -93,7 +93,7 @@ void Dcm_DslProcessingDone(Dcm_ContextType *context,
     /* generally no response for funtional request if service or sub function is not supported */
   } else if (DCM_E_RESPONSE_PENDING == nrc) {
     context->opStatus = DCM_PENDING;
-    context->responcePending = DCM_RESPONSE_PENDING;
+    context->responsePending = DCM_RESPONSE_PENDING;
   } else {
     config->txBuffer[0] = SID_NEGATIVE_RESPONSE;
     config->txBuffer[1] = config->rxBuffer[0];

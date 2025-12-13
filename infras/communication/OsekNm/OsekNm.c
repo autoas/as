@@ -685,6 +685,7 @@ Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *n
 
   PduInfo.SduLength = DataLengthTx;
   PduInfo.SduDataPtr = &nmPdu->Destination;
+  PduInfo.MetaDataPtr = NULL;
 
   ercd = CanIf_Transmit(config->txPduId, &PduInfo);
 
@@ -879,4 +880,12 @@ void OsekNm_MainFunction(void) {
       }
     }
   }
+}
+
+void OsekNm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = 0;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

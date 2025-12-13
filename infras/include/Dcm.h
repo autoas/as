@@ -22,7 +22,7 @@ extern "C" {
 
 /* @SWS_Dcm_00769 */
 #define DCM_E_PENDING ((Std_ReturnType)10)
-/* SWS_Dcm_00690 */
+/* SWS_Dcm_00690: Request Correctly Received - Response Pending */
 #define DCM_E_FORCE_RCRRP ((Std_ReturnType)12)
 
 /* @SWS_Dcm_91015 */
@@ -277,6 +277,10 @@ Std_ReturnType Dcm_AuthenticationVerifyProofOfOwnership(const uint8_t *signature
                                                         Dcm_NegativeResponseCodeType *ErrorCode);
 
 Std_ReturnType Dcm_GetRxPduId(PduIdType *PduId);
+
+/* @SWS_Dcm_00065 */
+void Dcm_GetVersionInfo(Std_VersionInfoType *versionInfo);
+
 #ifdef __cplusplus
 }
 #endif

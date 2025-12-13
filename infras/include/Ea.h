@@ -41,6 +41,9 @@ void Ea_JobEndNotification(void);
 void Ea_JobErrorNotification(void);
 
 void Ea_MainFunction(void);
+
+/* @SWS_Ea_00092 */
+void Ea_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

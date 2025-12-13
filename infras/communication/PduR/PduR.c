@@ -229,7 +229,7 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
-  PduLengthType offset = *((PduLengthType*)info->MetaDataPtr);
+  PduLengthType offset = *((PduLengthType *)info->MetaDataPtr);
 
   (void)retry;
 
@@ -399,4 +399,14 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
 #endif
     }
   }
+}
+
+void PduR_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0xf1, PDUR_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_PDUR;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

@@ -188,6 +188,9 @@ typedef struct {
 
 typedef struct {
   Com_GroupMaskType GroupStatus;
+#ifdef USE_DCM
+  Com_DcmComModeType dcmComMode;
+#endif
 } Com_GlobalContextType;
 
 struct Com_Config_s {

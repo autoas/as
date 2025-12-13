@@ -10,7 +10,7 @@ objsCrypto = Glob("aslua_crypto.cpp")
 def GetLuaPackage():
     cmd = 'sed -i "612c extern void luaL_openAsBuiltlibs(lua_State *L);" lua.c'
     cmd += ' && sed -i "634c luaL_openlibs(L); luaL_openAsBuiltlibs(L);" lua.c'
-    pkg = Package("https://github.com/lua/lua.git", version="v5.4.6", cmd=cmd)
+    pkg = Package("https://gitee.com/mirrors/lua.git", version="v5.4.6", cmd=cmd)
     return pkg
 
 

@@ -97,4 +97,7 @@ void LinIf_LinErrorIndication(NetworkHandleType Channel, Lin_SlaveErrorType Erro
 
 /* @SWS_LinIf_00876 */
 Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean MirroringActive);
+
+/* @SWS_LinIf_00340 */
+void LinIf_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* LINIF_H */

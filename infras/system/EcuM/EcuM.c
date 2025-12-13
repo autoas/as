@@ -9,6 +9,8 @@
 #include "EcuM_Priv.h"
 #include "Std_Debug.h"
 #include <string.h>
+
+#include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #if defined(_WIN32) || defined(linux)
 #define AS_LOG_ECUM 1
@@ -100,4 +102,14 @@ void EcuM_MainFunction(void) {
       /* do nothing */
     }
   }
+}
+
+void EcuM_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x00, ECUM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_ECUM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
 }

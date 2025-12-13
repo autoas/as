@@ -130,4 +130,7 @@ void Xcp_MainFunction(void);
 void Xcp_MainFunction_Write(void);
 
 void Xcp_PerformReset(void);
+
+/* @SWS_Xcp_00807 */
+void Xcp_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* XCP_H */

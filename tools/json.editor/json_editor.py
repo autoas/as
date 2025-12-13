@@ -83,13 +83,19 @@ class JsonNumber(JsonString):
         return True
 
     def onTextChanged(self, value):
+        text = str(self.text())
         try:
-            value = eval(str(self.text()))
+            value = eval(text)
         except Exception as e:
-            if str(self.text()) in ["0x", ""]:
+            if str(text) in ["0x", ""]:
                 return
-            logging.error("invalid number: %s" % (e))
-            self.fresh()
+            logging.error("invalid number: %s, value=%s, text=%s" % (e, value, text))
+            QMessageBox(
+                QMessageBox.Information,
+                "Info",
+                "invalid number: %s, value=%s, text=%s, restore to default in 3s" % (e, value, text),
+            ).exec_()
+            self.startTimer(3000)
             return
         ret = self.is_valid(value)
         if True != ret:
@@ -163,7 +169,7 @@ class JsonEnumRefString(QComboBox):
 
 class JsonEnumRefInteger(JsonEnumRefString):
     def __init__(self, title, obj, root):
-        ArgEnumRefString.__init__(self, title, obj, root)
+        JsonEnumRefString.__init__(self, title, obj, root)
 
     def onTextChanged(self, text):
         try:
@@ -325,7 +331,10 @@ class UIGroup(QScrollArea):
         frame = self.widget()
         grid = frame.layout()
         for row in range(grid.rowCount()):
-            K = grid.itemAtPosition(row, 0).widget()
+            ko = grid.itemAtPosition(row, 0)
+            if ko is None:
+                continue
+            K = ko.widget()
             V = grid.itemAtPosition(row, 1).widget()
             enabled = V.obj.is_enabled() and V.obj.is_enabled(V.title)
             K.setVisible(enabled)

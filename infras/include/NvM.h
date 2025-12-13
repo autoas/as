@@ -94,4 +94,7 @@ void NvM_JobErrorNotification(void);
 void NvM_MainFunction(void);
 
 MemIf_StatusType NvM_GetStatus(void);
+
+/* @SWS_NvM_00452 */
+void NvM_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* NVM_H */

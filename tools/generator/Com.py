@@ -366,6 +366,7 @@ def Gen_Com(cfg, dir):
         H.write("#define COM_GROUP_ID_%s %s\n" % (network["name"], id))
         for msg in network["messages"]:
             H.write("#define Com_IPdu%s_GroupRefMask (1<<COM_GROUP_ID_%s)\n" % (msg["name"], network["name"]))
+    H.write("\n#define COM_GROUP_ID_MAX %s\n" % (len(cfg["networks"])))
     H.write("\n#define COM_USE_MAIN_FAST\n\n")
     bHasTxErrorNotification = False
     bHasTxNotification = False

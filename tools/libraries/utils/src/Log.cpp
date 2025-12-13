@@ -333,7 +333,6 @@ extern "C" void __putchar(char chr) {
   Log::putc(chr);
 }
 
-#ifndef USE_STDIO_CAN
 extern "C" int std_printf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -341,7 +340,6 @@ extern "C" int std_printf(const char *fmt, ...) {
   va_end(args);
   return 0;
 }
-#endif
 
 extern "C" int std_get_as_log_level(const char *name) {
   int level = Logger::DEBUG;

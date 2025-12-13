@@ -41,6 +41,17 @@
 
 #define ECUM_STATE_STARTUP_ONE (ECUM_STATE_STARTUP | 1)
 #define ECUM_STATE_STARTUP_TWO (ECUM_STATE_STARTUP | 2)
+
+/* @SWS_EcuM_04032 */
+#define ECUM_E_MULTIPLE_RUN_REQUESTS 0x01
+#define ECUM_E_SERVICE_DISABLED 0x02
+#define ECUM_E_UNINIT 0x03
+#define ECUM_E_UNKNOWN_WAKEUP_SOURCE 0x04
+#define ECUM_E_INIT_FAILED 0x05
+#define ECUM_E_STATE_PAR_OUT_OF_RANGE 0x06
+#define ECUM_E_INVALID_PAR 0x07
+#define ECUM_E_PARAM_POINTER 0x08
+#define ECUM_E_MISMATCHED_RUN_RELEASE 0x09
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_EcuM_04107 */
 typedef uint8_t EcuM_ModeType;
@@ -95,4 +106,7 @@ EcuM_ModeType EcuM_GetCurrentMode(void);
 void EcuM_BswService(void);
 
 void EcuM_BswServiceFast(void);
+
+/* @SWS_EcuM_02813 */
+void EcuM_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #endif /* ECUM_H */

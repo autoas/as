@@ -16,6 +16,15 @@ extern "C" {
 #define SOAD_MEAS_DROP_TCP ((SoAd_MeasurementIdxType)0x01)
 #define SOAD_MEAS_DROP_UDP ((SoAd_MeasurementIdxType)0x02)
 #define SOAD_MEAS_ALL ((SoAd_MeasurementIdxType)0x0xFF)
+
+/* @SWS_SoAd_00101 */
+#define SOAD_E_UNINIT 0x01
+#define SOAD_E_PARAM_POINTER 0x02
+#define SOAD_E_INV_ARG 0x03
+#define SOAD_E_INV_PDUID 0x06
+#define SOAD_E_INV_SOCKETID 0x07
+#define SOAD_E_INIT_FAILED 0x08
+#define SOAD_E_INV_METADATA 0x09
 /* ================================ [ TYPES     ] ============================================== */
 /* @SWS_SoAd_00518 */
 typedef uint16_t SoAd_SoConIdType;
@@ -103,6 +112,9 @@ Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType SoConId);
 Std_ReturnType SoAd_SetNonBlock(SoAd_SoConIdType SoConId, boolean nonBlocked);
 Std_ReturnType SoAd_SetTimeout(SoAd_SoConIdType SoConId, uint32_t timeoutMs);
 Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t *length);
+
+/* @SWS_SoAd_00096 */
+void SoAd_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif

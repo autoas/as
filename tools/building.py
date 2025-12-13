@@ -55,6 +55,7 @@ elif libName != None:
     paths.append(libName)
 
 BUILD_DIR = os.path.join(*paths)
+BUILD_DIR = BUILD_DIR.replace(os.sep, "/")
 Export("BUILD_DIR")
 
 TARGET_OS = GetOption("os")
@@ -282,12 +283,14 @@ def SearchDir(dirPath, **kwargs):
     dirRoot = dirPath + os.sep
     dirRoot = kwargs.get("dirRoot", dirRoot)
     excludePath = kwargs.get("excludePath", [])
+
     def lookup(root, f):
         src = os.path.relpath(os.path.join(root, f), start=dirRoot)
         obj = Glob(src)
         if len(obj) == 0:
             obj = PkgGlob(root, [f])
         return obj
+
     for root, dirs, files in os.walk(dirPath):
         bSkip = False
         for exPath in excludePath:
@@ -309,7 +312,7 @@ def SearchDir(dirPath, **kwargs):
     return objs, includes
 
 
-def PkgGlob(pkg, objs):
+def PkgGlob(pkg, objs, **kwargs):
     assert os.path.isdir(pkg)
     pkg = os.path.abspath(pkg)
     sc = "%s/SConscript" % (pkg)
@@ -330,7 +333,9 @@ def PkgGlob(pkg, objs):
     if IsPlatformWindows():
         if ":" in pkg:
             pkgDir = pkg.split(":")[-1]
-    variant_dir="%s/%s" % (BUILD_DIR, pkgDir.replace(RootDir, ""))
+    variant_dir = "%s/%s" % (BUILD_DIR, pkgDir.replace(RootDir, ""))
+    if "OBJDIR" in kwargs:
+        variant_dir = "%s/%s" % (BUILD_DIR, kwargs["OBJDIR"].replace(RootDir, ""))
     return SConscript(sc, variant_dir=variant_dir, duplicate=0)
 
 
@@ -618,7 +623,7 @@ class CustomEnv(dict):
                 rp = self.relpath(cpppath)
                 shutil.copytree(cpppath, os.path.join(self.WDIR, rp), dirs_exist_ok=True)
             except Exception as e:
-                print("WARNING: failed to copy %s: %s" % (rp, e))
+                print("WARNING: failed to copy %s %s: %s" % (rp, cpppath, e))
 
 
 class ReleaseEnv(CustomEnv):
@@ -669,8 +674,24 @@ class ReleaseEnv(CustomEnv):
                 prefix = ss[0]
                 mp = ss[-1].replace('"', "")
                 cstr = '%s %s="%s"' % (cstr, prefix, self.relpath(mp))
+            elif "-list=" in flg and ".map" in flg:
+                # special for Renesas CS+ CC-RH
+                ss = flg.split("=")
+                prefix = ss[0]
+                mp = ss[-1].replace('"', "")
+                cstr = '%s %s="%s"' % (cstr, prefix, self.relpath(mp))
             elif ".map" in flg:
                 cstr = " ".join([cstr, self.relpath(flg)])
+            elif flg.endswith(".ld") and not flg.startswith("-"):
+                self.copy(flg)
+                cstr = " ".join([cstr, self.relpath(flg)])
+            elif "-subcommand=" in flg and flg.endswith(".clnk"):
+                # special for Renesas CS+ CC-RH
+                ss = flg.split("=")
+                prefix = ss[0]
+                scf = ss[-1].replace('"', "")
+                self.copy(scf)
+                cstr = f"{cstr} -subcommand={self.relpath(scf)}"
             else:
                 cstr = " ".join([cstr, flg])
         return cstr
@@ -724,6 +745,38 @@ class ReleaseEnv(CustomEnv):
         tree = ET.ElementTree(root)
         tree.write(self.mkf, encoding="utf-8", xml_declaration=True)
 
+    def GenerateMakefile_LDCOM(self):
+        LINKCOM = self.env["LINKCOM"]
+        LINKCOM = LINKCOM.replace("$LINK ", "$(LD) ")
+        LINKCOM = LINKCOM.replace("$SOURCES", "$(objs-y)")
+        LINKCOM = LINKCOM.replace("$TARGET", "$@")
+        LINKCOM = LINKCOM.replace("$LINKFLAGS", "$(LINKFLAGS)")
+        LINKCOM = LINKCOM.replace("$_LIBDIRFLAGS", "$(LIBPATH)")
+        LINKCOM = LINKCOM.replace("$_LIBFLAGS", "$(LIBS)")
+        LINKCOM = LINKCOM.replace("$__RPATH", "")
+        self.w(f"\t$Q {LINKCOM}\n\n")
+
+    def GenerateMakefile_CCCOM(self, CC, CPPFLAGS, CPPDEFINES, CPPPATH):
+        CXXCOM = self.env["CXXCOM"]
+        CCCOM = self.env["CCCOM"]
+        ASCOM = self.env["ASCOM"]
+        if "CC" == CC:
+            COM = CCCOM.replace("$CC ", "$(CC) ")
+            COM = COM.replace("$CFLAGS", f"{CPPFLAGS}")
+            COM = COM.replace("$CCFLAGS", f"{CPPDEFINES}")
+            COM = COM.replace("$_CCCOMCOM", f"{CPPPATH}")
+        elif "CXX" == CC:
+            COM = CXXCOM.replace("$CXX ", "$(CXX) ")
+            COM = COM.replace("$CXXFLAGS", f"{CPPFLAGS}")
+            COM = COM.replace("$CCFLAGS", f"{CPPDEFINES}")
+            COM = COM.replace("$_CCCOMCOM", f"{CPPPATH}")
+        else:
+            COM = ASCOM.replace("$AS ", "$(AS) ")
+            COM = COM.replace("$ASFLAGS", f"{CPPFLAGS} {CPPDEFINES} {CPPPATH}")
+        COM = COM.replace("$TARGET", "$@")
+        COM = COM.replace("$SOURCES", "$<")
+        self.w(f"\t$Q {COM}\n\n")
+
     def GenerateMakefile(self, objs, **kwargs):
         self.mkf = open("%s/Makefile.%s" % (self.WDIR, self.cplName), "w")
         self.w("# Makefile for %s\n" % (self.appName))
@@ -731,14 +784,19 @@ class ReleaseEnv(CustomEnv):
         CC = os.path.basename(self.env["CC"])
         CXX = os.path.basename(self.env["CXX"])
         LD = os.path.basename(self.env["LINK"])
+        AS = os.path.basename(self.env["AS"])
         if LD == "$SMARTLINK":
             LD = CC
         if CPLPATH == "":
             _, CPLPATH = RunSysCmd("which %s" % (CC))
-        self.w("CPLPATH?=%s\n" % (CPLPATH))
+        if " " in CPLPATH:
+            self.w('CPLPATH?="%s"\n' % (CPLPATH))
+        else:
+            self.w("CPLPATH?=%s\n" % (CPLPATH))
         self.w("CC=${CPLPATH}/%s\n" % (CC))
         self.w("LD=${CPLPATH}/%s\n" % (LD))
         self.w("CXX=${CPLPATH}/%s\n" % (CXX))
+        self.w("AS=${CPLPATH}/%s\n" % (AS))
         self.w("ifeq ($V, 1)\n")
         self.w("Q=\n")
         self.w("else\n")
@@ -747,14 +805,14 @@ class ReleaseEnv(CustomEnv):
         linkflags = self.link_flags(kwargs.get("LINKFLAGS", []))
         linkflags = linkflags.replace(os.path.dirname(CPLPATH), "${CPLPATH}/..")
         self.w("LINKFLAGS=%s\n" % (linkflags))
-        self.w("LIBS=%s\n" % (" ".join("-l%s" % (i) for i in kwargs.get("LIBS", []))))
-        self.w("LIBPATH=%s\n" % (" ".join('-L"%s"' % (i) for i in kwargs.get("LIBPATH", []))))
+        self.w("LIBS=%s\n" % (" ".join("%s%s" % (self.env["LIBLINKPREFIX"], i) for i in kwargs.get("LIBS", []))))
+        self.w("LIBPATH=%s\n" % (" ".join('%s"%s"' % (self.env["LIBDIRPREFIX"], i) for i in kwargs.get("LIBPATH", []))))
         BUILD_DIR = os.path.join("build", os.name, self.cplName, self.appName).replace(os.sep, "/")
         objd = []
         objm = {}
         for src in objs:
             rp = self.relpath(str(src))
-            if rp.endswith(".c") or rp.endswith(".s") or rp.endswith(".S"):
+            if rp.endswith(".c") or rp.endswith(".s") or rp.endswith(".S") or rp.endswith(".asm"):
                 obj = rp[:-2]
             elif rp.endswith(".cpp"):
                 obj = rp[:-4]
@@ -773,16 +831,19 @@ class ReleaseEnv(CustomEnv):
                 if i not in self.CPPPATH:
                     self.CPPPATH.append(i)
             objm[obj] = {"src": rp, "d": d}
+            objm[obj]["ASFLAGS"] = " ".join(args.get("ASFLAGS", []) + self.env.get("ASFLAGS", []))
             objm[obj]["CPPFLAGS"] = " ".join(args.get("CPPFLAGS", []))
             objm[obj]["CPPFLAGS"] = objm[obj]["CPPFLAGS"].replace(os.path.dirname(CPLPATH), "${CPLPATH}/..")
-            objm[obj]["CPPDEFINES"] = " ".join(["-D%s" % (i) for i in args.get("CPPDEFINES", [])])
+            objm[obj]["CPPDEFINES"] = " ".join(
+                ["%s%s" % (self.env["CPPDEFPREFIX"], i) for i in args.get("CPPDEFINES", [])]
+            )
             objm[obj]["CPPPATH"] = " ".join(
-                ['-I"%s"' % (self.relpath(i, silent=True)) for i in args.get("CPPPATH", [])]
+                ['%s"%s"' % (self.env["INCPREFIX"], self.relpath(i, silent=True)) for i in args.get("CPPPATH", [])]
             )
         self.w("\nall: %s/%s.exe\n" % (BUILD_DIR, self.appName))
         self.w("%s/%s.exe: $(objs-y)\n" % (BUILD_DIR, self.appName))
         self.w("\t@echo LD $@\n")
-        self.w("\t$Q $(LD) $(LINKFLAGS) $(objs-y) $(LIBS) $(LIBPATH) -o $@\n\n")
+        self.GenerateMakefile_LDCOM()
         if "S19" in self.env:
             ss = self.env["S19"].split(" ")
             ss[0] = os.path.basename(ss[0])
@@ -795,10 +856,14 @@ class ReleaseEnv(CustomEnv):
             self.w("%s: %s\n" % (m["src"], m["d"]))
             self.w("%s: %s\n" % (obj, m["src"]))
             CC = "CC"
+            CPPFLAGS = m["CPPFLAGS"]
             if m["src"].endswith(".cpp"):
                 CC = "CXX"
+            if m["src"].endswith(".s") or m["src"].endswith(".S") or m["src"].endswith(".asm"):
+                CC = "AS"
+                CPPFLAGS = m["ASFLAGS"]
             self.w("\t@echo %s $<\n" % (CC))
-            self.w("\t$Q $(%s) %s %s %s -c $< -o $@\n" % (CC, m["CPPFLAGS"], m["CPPDEFINES"], m["CPPPATH"]))
+            self.GenerateMakefile_CCCOM(CC, CPPFLAGS, m["CPPDEFINES"], m["CPPPATH"])
         self.w("\nclean:\n\t@rm -fv $(objs-y) %s/%s.exe\n\n" % (BUILD_DIR, self.appName))
         self.mkf.close()
 
@@ -962,6 +1027,22 @@ def register_library(library):
         raise KeyError("library %s already registered" % (name))
 
 
+def RegisterLibrary(**kwargs):
+    def register_library_v2(library):
+        if not library.__name__.startswith("Library"):
+            raise Exception('library name %s not starts with "Library"' % (library.__name__))
+        name = library.__name__[7:]
+        name = kwargs.get("name", kwargs)
+        setattr(library, "name", name)
+        if name not in __libraries__:
+            aslog("register library %s" % (name))
+            __libraries__[name] = library
+        else:
+            raise KeyError("library %s already registered" % (name))
+
+    return register_library_v2
+
+
 def register_os(library):
     register_library(library)
     name = library.__name__[7:]
@@ -978,6 +1059,22 @@ def register_application(app):
         __apps__[name] = app
     else:
         raise KeyError("app %s already registered" % (name))
+
+
+def RegisterApplication(**kwargs):
+    def register_application_v2(app):
+        if not app.__name__.startswith("Application"):
+            raise Exception('application name %s not starts with "Application"' % (app.__name__))
+        name = app.__name__[11:]
+        name = kwargs.get("name", kwargs)
+        setattr(app, "name", name)
+        if name not in __apps__:
+            aslog("register app %s" % (name))
+            __apps__[name] = app
+        else:
+            raise KeyError("app %s already registered" % (name))
+
+    return register_application_v2
 
 
 def query_application(name):
@@ -1893,8 +1990,6 @@ class BuildBase:
 
     def RegisterConfig(self, name, source, force=False, CPPPATH=None):
         srcs = []
-        js = []
-
         for s in source:
             if (type(s) is SCons.Node.FS.File and s.rstr().endswith(".json")) or (
                 type(s) is str and s.endswith(".json")
@@ -2227,13 +2322,15 @@ class Driver(Library):
 
 class Application(BuildBase):
     def __init__(self, **kwargs):
-        self.name = self.__class__.__name__[11:]
+        if not hasattr(self, "name"):
+            self.name = self.__class__.__name__[11:]
         aslog("init application %s" % (self.name))
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
         self.env = None
-        self.init_base()
+        if False == getattr(self, "typed_class", False):
+            self.init_base()
         self.config()
         if TARGET_OS != None:
             if TARGET_OS not in __OSs__:
@@ -2311,6 +2408,9 @@ class Application(BuildBase):
                     LIBS.append(libName)
             LIBPATH += getattr(lib, "LIBPATH", [])
         LIBS += self.__extra_libs__
+        LIBPATH = self.sortL(LIBPATH)
+        CPPPATH = self.sortL(CPPPATH)
+        CPPDEFINES = self.sortL(CPPDEFINES)
         if "LINK_OPTION_FILE" in env:
             global BUILD_DIR
             with open(f"{BUILD_DIR}/objs_list.txt", "w") as fp:

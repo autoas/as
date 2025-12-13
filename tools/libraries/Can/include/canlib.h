@@ -39,6 +39,7 @@ bool can_reset(int busid);
 
 /* wait a specific message to be received. if canid = -1, any CAN message */
 bool can_wait(int busid, uint32_t canid, uint32_t timeoutMs);
+bool can_wait_v2(int busid, uint32_t canid, uint32_t timeoutMs);
 #ifdef __cplusplus
 }
 #endif

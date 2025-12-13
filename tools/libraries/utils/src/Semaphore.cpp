@@ -5,7 +5,7 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Semaphore.hpp"
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #include <windows.h>
 #include <shlwapi.h>
 #else
@@ -23,7 +23,7 @@ namespace as {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 Semaphore::Semaphore(int value) {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
   m_Sem = (void *)CreateSemaphoreA(NULL, value, LONG_MAX, NULL);
 #else
   m_Sem = new sem_t;
@@ -36,7 +36,7 @@ Semaphore::Semaphore(int value) {
 
 Semaphore::~Semaphore() {
   if (nullptr != m_Sem) {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
     (void)CloseHandle((HANDLE)m_Sem);
 #else
     delete (sem_t *)m_Sem;
@@ -46,7 +46,7 @@ Semaphore::~Semaphore() {
 
 int Semaphore::wait(uint32_t timeoutMs) {
   int ret = 0;
-#if defined(_MSC_VER)
+#if defined(_WIN32)
   if (UINT32_MAX == timeoutMs) { /* wait forever */
     ret = WaitForSingleObject((HANDLE)m_Sem, INFINITE);
   } else {
@@ -71,7 +71,7 @@ int Semaphore::wait(uint32_t timeoutMs) {
 
 int Semaphore::post() {
   int ret = 0;
-#if defined(_MSC_VER)
+#if defined(_WIN32)
   ret = ReleaseSemaphore((HANDLE)m_Sem, 1, NULL);
 #else
   ret = sem_post((sem_t *)m_Sem);

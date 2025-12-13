@@ -8,6 +8,7 @@ CWD = GetCurrentDir()
 objs = Glob("src/*.c")
 objsCfg = Glob("config/*.c")
 
+
 @register_library
 class LibraryLWIP(Library):
     def get_lwip_objs(self, lwip):
@@ -85,9 +86,9 @@ class LibraryLWIP(Library):
         return PkgGlob(lwipc, objs)
 
     def download(self):
-        lwip = Package(url="https://git.savannah.gnu.org/git/lwip.git", version="STABLE-2_1_x")
+        lwip = Package(url="https://gitee.com/mirrors/lwip.git", version="STABLE-2_1_x")
         lwipc = Package(
-            url="https://git.savannah.gnu.org/git/lwip/lwip-contrib.git",
+            url="https://gitee.com/mirrors/lwip-contrib.git",
             version="STABLE-2_1_0_RELEASE",
             patch="%s/patch/lwip_contrib.patch" % (CWD),
         )
@@ -96,7 +97,7 @@ class LibraryLWIP(Library):
         self.source += objs
         self.include += ["%s/src/include" % (lwip)]
         try:
-            cfg_path,_ = self.RequireConfig("LWIP")
+            cfg_path, _ = self.RequireConfig("LWIP")
             self.include.insert(0, cfg_path)
         except KeyError:
             # using default config

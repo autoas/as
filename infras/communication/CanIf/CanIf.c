@@ -91,10 +91,15 @@ static void CanIf_RxDispatch(const Can_HwType *Mailbox, const PduInfoType *PduIn
   l = 0;
   h = config->numOfRxPdus - 1u;
 
-  canid = Mailbox->CanId & 0x1FFFFFFFul;
+  canid = Mailbox->CanId & CAN_CANID_MASK;
 
-  if (canid < config->rxPdus[0].canid) {
+  if (0 == config->numOfRxPdus) {
+    h = 0;
+    l = h + 1u;
+  } else if (canid < config->rxPdus[0].canid) {
     l = h + 1u; /* avoid the underflow of "m - 1" */
+  } else {
+    /* do nothing */
   }
   while ((NULL == rxPdu) && (l <= h)) {
     m = l + ((h - l) >> 1);
@@ -539,3 +544,13 @@ Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringA
   return ret;
 }
 #endif
+
+void CanIf_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x0b, CANIF_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_CANIF;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 0;
+}

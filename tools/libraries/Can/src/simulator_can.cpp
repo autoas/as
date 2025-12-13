@@ -12,6 +12,7 @@
 #include "TcpIp.h"
 
 using namespace std::literals::chrono_literals;
+namespace simulator_can {
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_SOCKET_IP TCPIP_IPV4_ADDR(127, 0, 0, 1)
 
@@ -53,14 +54,15 @@ struct Can_SocketHandle_s {
   uint32_t busid;
   uint32_t port;
   uint32_t baudrate;
+  std::mutex mutex;
+  std::thread rx_thread;
+  volatile bool terminated;
   can_device_rx_notification_t rx_notification;
   TcpIp_SocketIdType s; /* can raw socket */
   STAILQ_ENTRY(Can_SocketHandle_s) entry;
 };
 struct Can_SocketHandleList_s {
   bool initialized;
-  std::thread rx_thread;
-  volatile bool terminated;
   std::mutex mutex;
   STAILQ_HEAD(, Can_SocketHandle_s) head;
 };
@@ -70,7 +72,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
 static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
                          uint64_t timestamp);
 static void socket_close(uint32_t port);
-static void rx_daemon(void *);
+static void rx_daemon(struct Can_SocketHandle_s *handle);
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Can_DeviceOpsType can_simulator_ops = {
   .name = "simulator",
@@ -80,14 +82,13 @@ extern "C" const Can_DeviceOpsType can_simulator_ops = {
 };
 static struct Can_SocketHandleList_s socketH = {
   .initialized = FALSE,
-  .terminated = FALSE,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static struct Can_SocketHandle_s *getHandle(uint32_t port) {
   struct Can_SocketHandle_s *handle, *h;
   handle = NULL;
 
-  std::lock_guard<std::mutex>(socketH.mutex);
+  std::lock_guard<std::mutex> lck(socketH.mutex);
   STAILQ_FOREACH(h, &socketH.head, entry) {
     if (h->port == port) {
       handle = h;
@@ -110,7 +111,6 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
     STAILQ_INIT(&socketH.head);
     TcpIp_Init(NULL);
     socketH.initialized = TRUE;
-    socketH.terminated = TRUE;
   }
 
   handle = getHandle(port);
@@ -139,17 +139,13 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       handle->baudrate = baudrate;
       handle->rx_notification = rx_notification;
       handle->s = s;
-      std::lock_guard<std::mutex>(socketH.mutex);
+      handle->terminated = false;
+      handle->rx_thread = std::thread(rx_daemon, handle);
+      std::lock_guard<std::mutex> lck(socketH.mutex);
       STAILQ_INSERT_TAIL(&socketH.head, handle, entry);
     } else {
       rv = FALSE;
     }
-  }
-
-  std::lock_guard<std::mutex>(socketH.mutex);
-  if ((TRUE == socketH.terminated) && (FALSE == STAILQ_EMPTY(&socketH.head))) {
-    socketH.terminated = false;
-    socketH.rx_thread = std::thread(rx_daemon, nullptr);
   }
 
   return rv;
@@ -180,17 +176,14 @@ static void socket_close(uint32_t port) {
   struct Can_SocketHandle_s *handle = getHandle(port);
 
   if (NULL != handle) {
-    std::lock_guard<std::mutex>(socketH.mutex);
-    STAILQ_REMOVE(&socketH.head, handle, Can_SocketHandle_s, entry);
-    TcpIp_Close(handle->s, TRUE);
-    delete handle;
-
-    if (TRUE == STAILQ_EMPTY(&socketH.head)) {
-      socketH.terminated = TRUE;
-      if (socketH.rx_thread.joinable()) {
-        socketH.rx_thread.join();
-      }
+    std::lock_guard<std::mutex> lck(socketH.mutex);
+    handle->terminated = true;
+    if (handle->rx_thread.joinable()) {
+      handle->rx_thread.join();
     }
+    TcpIp_Close(handle->s, TRUE);
+    STAILQ_REMOVE(&socketH.head, handle, Can_SocketHandle_s, entry);
+    delete handle;
   }
 }
 
@@ -199,6 +192,7 @@ static void rx_notifiy(struct Can_SocketHandle_s *handle) {
   uint32_t Length;
   Std_ReturnType ercd;
   do {
+    std::lock_guard<std::mutex> lck(handle->mutex);
     Length = sizeof(frame);
     ercd = TcpIp_Recv(handle->s, (uint8_t *)&frame, &Length);
     if ((E_OK == ercd) && (Length == sizeof(frame))) {
@@ -211,15 +205,13 @@ static void rx_notifiy(struct Can_SocketHandle_s *handle) {
   } while (sizeof(frame) == Length);
 }
 
-static void rx_daemon(void *param) {
-  (void)param;
-  struct Can_SocketHandle_s *handle;
-  while (FALSE == socketH.terminated) {
-    std::lock_guard<std::mutex>(socketH.mutex);
-    STAILQ_FOREACH(handle, &socketH.head, entry) {
-      rx_notifiy(handle);
+static void rx_daemon(struct Can_SocketHandle_s *handle) {
+  while (false == handle->terminated) {
+    rx_notifiy(handle);
+    if (false == can_is_perf_mode()) {
+      std::this_thread::sleep_for(1ms);
     }
-    std::this_thread::sleep_for(1ms);
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
+} // namespace simulator_can

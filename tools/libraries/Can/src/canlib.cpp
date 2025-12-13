@@ -258,6 +258,42 @@ static struct Can_Pdu_s *getPdu(struct Can_Bus_s *b, uint32_t canid) {
   return pdu;
 }
 
+static bool hasPdu(struct Can_Bus_s *b, uint32_t canid) {
+  struct Can_PduQueue_s *L = NULL;
+  struct Can_Pdu_s *pdu = NULL;
+  struct Can_PduQueue_s *l;
+  bool bHasPdu = false;
+
+  std::lock_guard<std::recursive_mutex> lg(b->q_lock);
+  if ((uint32_t)-2 == canid) {
+    if ((false == STAILQ_EMPTY(&b->headQ))) {
+      return true;
+    }
+  }
+
+  if ((uint32_t)-1 == canid) { /* id is -1, means get the first of queue from b->head2 */
+    if (false == STAILQ_EMPTY(&b->head2)) {
+      pdu = STAILQ_FIRST(&b->head2);
+      /* get the first message canid, and then search CANID queue L */
+      canid = pdu->msg.id;
+    } else {
+      /* no message all is empty */
+    }
+  }
+  /* search queue specified by canid */
+  STAILQ_FOREACH(l, &b->head, entry) {
+    if ((l->id & (~CAN_ID_EXTENDED)) == (canid & (~CAN_ID_EXTENDED))) {
+      L = l;
+      break;
+    }
+  }
+  if (L && (false == STAILQ_EMPTY(&L->head))) {
+    bHasPdu = true;
+  }
+
+  return bHasPdu;
+}
+
 static void saveB(struct Can_Bus_s *b, struct Can_Pdu_s *pdu) {
   struct Can_PduQueue_s *L;
   struct Can_PduQueue_s *l;
@@ -666,16 +702,59 @@ bool can_wait(int busid, uint32_t canid, uint32_t timeoutMs) {
   bool rv;
   struct Can_Bus_s *b = getBus(busid);
   rv = false;
+  auto begin = std::chrono::high_resolution_clock::now();
+  uint32_t leftMs = timeoutMs;
   if (NULL == b) {
     ASLOG(ERROR, ("can bus(%d) is not on-line 'can_wait'\n", (int)busid));
   } else {
-    std::mutex lock;
-    std::unique_lock<std::mutex> lck(lock);
-    auto status = b->condVar.wait_for(lck, std::chrono::milliseconds(timeoutMs));
-    if (std::cv_status::timeout != status) {
-      rv = true;
-    } else {
-      rv = false;
+    rv = hasPdu(b, canid);
+    while (false == rv) {
+      std::mutex lock;
+      std::unique_lock<std::mutex> lck(lock);
+      auto now = std::chrono::high_resolution_clock::now();
+      uint32_t elapsedMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count();
+      if (elapsedMs >= timeoutMs) {
+        break;
+      }
+      leftMs = timeoutMs - elapsedMs;
+      auto status = b->condVar.wait_for(lck, std::chrono::milliseconds(leftMs));
+      if (std::cv_status::timeout != status) {
+        rv = hasPdu(b, canid);
+        if (true == rv) {
+          break;
+        }
+      } else {
+        rv = false;
+        break;
+      }
+    }
+  }
+
+  return rv;
+}
+
+bool can_wait_v2(int busid, uint32_t canid, uint32_t timeoutMs) {
+  bool rv;
+  struct Can_Bus_s *b = getBus(busid);
+  rv = false;
+  auto begin = std::chrono::high_resolution_clock::now();
+  if (NULL == b) {
+    ASLOG(ERROR, ("can bus(%d) is not on-line 'can_wait'\n", (int)busid));
+  } else {
+    rv = hasPdu(b, canid);
+    while (false == rv) {
+      auto now = std::chrono::high_resolution_clock::now();
+      uint32_t elapsedMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count();
+      if (elapsedMs >= timeoutMs) {
+        break;
+      }
+      b->device.ops->read(b->device.port);
+      rv = hasPdu(b, canid);
+      if (true == rv) {
+        break;
+      }
     }
   }
 

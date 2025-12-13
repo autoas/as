@@ -105,6 +105,8 @@ def Gen_CanIf(cfg, dir):
                 C.write("void %s_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);\n" % (pdu["up"]))
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     for netId, network in enumerate(cfg["networks"]):
+        if len(network["RxPdus"]) == 0:
+            continue
         C.write("static const CanIf_RxPduType CanIf_RxPdus_%s[] = {\n" % (network["name"]))
         for pdu in network["RxPdus"]:
             C.write("  {\n")
@@ -158,8 +160,12 @@ def Gen_CanIf(cfg, dir):
     C.write("static const CanIf_CtrlConfigType CanIf_CtrlConfigs[] = {\n")
     for netId, network in enumerate(cfg["networks"]):
         C.write("  {\n")
-        C.write("    CanIf_RxPdus_%s,\n" % (network["name"]))
-        C.write("    ARRAY_SIZE(CanIf_RxPdus_%s),\n" % (network["name"]))
+        if len(network["RxPdus"]) == 0:
+            C.write("    NULL,\n")
+            C.write("    0u,\n")
+        else:
+            C.write("    CanIf_RxPdus_%s,\n" % (network["name"]))
+            C.write("    ARRAY_SIZE(CanIf_RxPdus_%s),\n" % (network["name"]))
         C.write("    #if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)\n")
         C.write("    CANIF_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (network.get("TxTimeout", 100)))
         C.write("    #endif\n")

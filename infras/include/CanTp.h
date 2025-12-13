@@ -47,6 +47,10 @@ void CanTp_MainFunction_Channel(uint8_t Channel);
 void CanTp_MainFunction_Fast(void);
 
 void CanTp_MainFunction_ChannelFast(uint8_t Channel);
+
+/* @SWS_CanTp_00210 */
+void CanTp_GetVersionInfo(Std_VersionInfoType *versionInfo);
+
 #ifdef __cplusplus
 }
 #endif

@@ -371,7 +371,10 @@ void Com_Init(const Com_ConfigType *config) {
 #else
   (void)config;
 #endif
-  COM_CONFIG->context->GroupStatus = 0;
+  COM_CONFIG->context->GroupStatus = 0u;
+#ifdef USE_DCM
+  COM_CONFIG->context->dcmComMode = 0x00u;
+#endif
 }
 
 void Com_IpduGroupStart(Com_IpduGroupIdType IpduGroupId, boolean initialize) {
@@ -559,7 +562,11 @@ Std_ReturnType Com_TriggerIPDUSend(PduIdType PduId) {
   DET_VALIDATE(PduId < COM_CONFIG->numOfIPdus, 0x17, COM_E_INVALID_TXPDUID, return E_NOT_OK);
   IPduConfig = &COM_CONFIG->IPduConfigs[PduId];
   DET_VALIDATE(NULL != IPduConfig->txConfig, 0x17, COM_E_PARAM, return E_NOT_OK);
-  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
+  if ((0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask))
+#ifdef USE_DCM
+      && (0u == (COM_CONFIG->context->dcmComMode & COM_DCM_COM_MODE_TX_DISABLED))
+#endif
+  ) {
     PduInfo.SduDataPtr = IPduConfig->ptr;
     PduInfo.SduLength = IPduConfig->length;
     if (NULL != IPduConfig->dynLen) {
@@ -605,7 +612,11 @@ void Com_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   DET_VALIDATE(NULL != IPduConfig->rxConfig, 0x42, COM_E_PARAM, return);
   dynLen = comGetMinimumLength(IPduConfig);
   DET_VALIDATE(dynLen <= PduInfoPtr->SduLength, 0x42, COM_E_PARAM, return);
-  if (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
+  if ((0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask))
+#ifdef USE_DCM
+      && (0u == (COM_CONFIG->context->dcmComMode & COM_DCM_COM_MODE_RX_DISABLED))
+#endif
+  ) {
 #ifdef COM_USE_RX_IPDU_CALLOUT
     if (NULL != IPduConfig->rxConfig->RxIpduCallout) {
       bProcess = IPduConfig->rxConfig->RxIpduCallout(RxPduId, PduInfoPtr);
@@ -765,7 +776,11 @@ void Com_MainFunctionRx(void) {
 
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
-    if (IPduConfig->rxConfig && (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask)) {
+    if ((NULL != IPduConfig->rxConfig) &&
+#ifdef USE_DCM
+        (0u == (COM_CONFIG->context->dcmComMode & COM_DCM_COM_MODE_RX_DISABLED)) &&
+#endif
+        (0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask))) {
       if (IPduConfig->rxConfig->context->timer > 0u) {
         IPduConfig->rxConfig->context->timer--;
         if (0u == IPduConfig->rxConfig->context->timer) {
@@ -824,6 +839,9 @@ void Com_MainFunctionTx(void) {
   for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
     IPduConfig = &COM_CONFIG->IPduConfigs[i];
     if ((0u != (COM_CONFIG->context->GroupStatus & IPduConfig->GroupRefMask) &&
+#ifdef USE_DCM
+         (0u == (COM_CONFIG->context->dcmComMode & COM_DCM_COM_MODE_TX_DISABLED)) &&
+#endif
          (NULL != IPduConfig->txConfig) && (NULL != IPduConfig->txConfig->context))) {
       if (IPduConfig->txConfig->context->timer > 0u) {
         IPduConfig->txConfig->context->timer--;
@@ -1028,3 +1046,90 @@ void Com_TpRxIndication(PduIdType id, Std_ReturnType result) {
 #endif
   }
 }
+
+void Com_EnableReceptionDM(Com_IpduGroupIdType IpduGroupId) {
+  const Com_IPduConfigType *IPduConfig;
+  uint16_t i;
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x06, COM_E_UNINIT, return);
+  DET_VALIDATE(IpduGroupId < COM_CONFIG->numOfGroups, 0x06, COM_E_PARAM, return);
+
+  for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+    IPduConfig = &COM_CONFIG->IPduConfigs[i];
+    if ((NULL != IPduConfig->rxConfig) &&
+        (0u != ((1u << IpduGroupId) & IPduConfig->GroupRefMask))) {
+      if (0u == IPduConfig->rxConfig->context->timer) {
+        if (IPduConfig->rxConfig->FirstTimeout > 0u) {
+          IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->FirstTimeout;
+        } else {
+          IPduConfig->rxConfig->context->timer = IPduConfig->rxConfig->Timeout;
+        }
+      }
+    }
+  }
+}
+
+void Com_DisableReceptionDM(Com_IpduGroupIdType IpduGroupId) {
+  const Com_IPduConfigType *IPduConfig;
+  uint16_t i;
+
+  DET_VALIDATE(NULL != COM_CONFIG, 0x05, COM_E_UNINIT, return);
+  DET_VALIDATE(IpduGroupId < COM_CONFIG->numOfGroups, 0x05, COM_E_PARAM, return);
+
+  for (i = 0; i < COM_CONFIG->numOfIPdus; i++) {
+    IPduConfig = &COM_CONFIG->IPduConfigs[i];
+    if ((NULL != IPduConfig->rxConfig) &&
+        (0u != ((1u << IpduGroupId) & IPduConfig->GroupRefMask))) {
+      IPduConfig->rxConfig->context->timer = 0;
+    }
+  }
+}
+
+#ifdef USE_DCM
+void Com_DcmCommunicationControl(Com_DcmComCtrlType comCtrlMode) {
+  DET_VALIDATE(NULL != COM_CONFIG, 0xF0, COM_E_UNINIT, return);
+  uint16_t i;
+  switch (comCtrlMode) {
+  case COM_DCM_COM_CTRL_ENABLE_BOTH:
+    COM_CONFIG->context->dcmComMode = 0x00u;
+    for (i = 0; i < COM_CONFIG->numOfGroups; i++) {
+      Com_EnableReceptionDM(i);
+    }
+    break;
+  case COM_DCM_COM_CTRL_ENABLE_RX_DISABLE_TX:
+    COM_CONFIG->context->dcmComMode = COM_DCM_COM_MODE_TX_DISABLED;
+    for (i = 0; i < COM_CONFIG->numOfGroups; i++) {
+      Com_EnableReceptionDM(i);
+    }
+    break;
+  case COM_DCM_COM_CTRL_DISABLE_RX_ENABLE_TX:
+    COM_CONFIG->context->dcmComMode = COM_DCM_COM_MODE_RX_DISABLED;
+    for (i = 0; i < COM_CONFIG->numOfGroups; i++) {
+      Com_DisableReceptionDM(i);
+    }
+    break;
+  case COM_DCM_COM_CTRL_DISABLE_BOTH:
+    COM_CONFIG->context->dcmComMode = COM_DCM_COM_MODE_RX_DISABLED | COM_DCM_COM_MODE_TX_DISABLED;
+    for (i = 0; i < COM_CONFIG->numOfGroups; i++) {
+      Com_DisableReceptionDM(i);
+    }
+    break;
+  default:
+    break;
+  }
+}
+#endif
+
+void Com_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x09, COM_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_COM;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 1;
+  versionInfo->sw_patch_version = 0;
+}
+
+/** @brief release notes
+ * - 4.1.0: Add Reception Deadline Monitor and Dcm Comm Ctrl support.
+ */

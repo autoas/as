@@ -35,7 +35,7 @@ class LibraryMbedTls(Library):
     def config(self):
         version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
         mbedtls = Package(
-            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+            url="https://gitee.com/mirrors/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
         )
         objs = PkgGlob(mbedtls, ["library/*.c"])
         self.include += ["%s/include" % (mbedtls), "%s/library" % (mbedtls), "%s/tests/include/alt-dummy" % (mbedtls)]
@@ -97,7 +97,7 @@ class ApplicationMbedTlsServer(Application):
     def config(self):
         version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
         mbedtls = Package(
-            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+            url="https://gitee.com/mirrors/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
         )
         self.LIBS = ["MbedTls", "Utils"]
         self.LIBS += ["ws2_32", "wsock32", "gdi32"]
@@ -112,7 +112,7 @@ class ApplicationMbedTlsClient(Application):
     def config(self):
         version = os.getenv("MBEDTSL_VERSION", "v3.6.3")
         mbedtls = Package(
-            url="https://github.com/Mbed-TLS/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
+            url="https://gitee.com/mirrors/mbedtls.git", version=version, patch="%s/patch/mbedtls.patch" % (CWD)
         )
         self.LIBS = ["MbedTls", "Utils"]
         self.LIBS += ["ws2_32", "wsock32", "gdi32"]

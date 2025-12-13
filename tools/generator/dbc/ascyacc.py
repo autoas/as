@@ -45,11 +45,64 @@ def p_object(p):
     | baList
     | badefList
     | badefDefList
+    | botxbuList
+    | valList
     | END"""
     if not p[0]:
         p[0] = {}
     if type(p[1]) is dict:
         p[0].update(p[1])
+
+
+def p_valList(p):
+    """valList : valList val
+    | val"""
+    if len(p) == 2:
+        if not p[0]:
+            p[0] = {"valList": []}
+        p[0]["valList"].append(p[1])
+    elif len(p) == 3:
+        p[0] = p[1]
+        if not p[0]:
+            p[0] = {"valList": []}
+        p[0]["valList"].append(p[2])
+
+def p_val(p):
+    """val : VAL_ INTEGER ID values SEMI EOL"""
+    p[0] = {"id": p[2], "name": p[3], "values": p[4]}
+
+def p_values(p):
+    """values : values DIGIT STR
+    | values INTEGER STR
+    | DIGIT STR
+    | INTEGER STR"""
+    if len(p) == 3:
+        if not p[0]:
+            p[0] = []
+        p[0].append((str2value(p[1]), p[2]))
+    elif len(p) == 4:
+        p[0] = p[1]
+        if not p[0]:
+            p[0] = []
+        p[0].append((str2value(p[2]), p[3]))
+
+def p_botxbuList(p):
+    """botxbuList : botxbuList botxbu
+    | botxbu"""
+    if len(p) == 2:
+        if not p[0]:
+            p[0] = {"botxbuList": []}
+        p[0]["botxbuList"].append(p[1])
+    elif len(p) == 3:
+        p[0] = p[1]
+        if not p[0]:
+            p[0] = {"botxbuList": []}
+        p[0]["botxbuList"].append(p[2])
+
+
+def p_botxbu(p):
+    """botxbu : BO_TX_BU_ INTEGER COLON idsList SEMI EOL"""
+    p[0] = {"id": p[2], "tx_bu_list": p[4]}
 
 
 def p_version(p):
@@ -197,6 +250,7 @@ def p_badef(p):
     | BA_DEF_ BO_ STR ENUM strList SEMI EOL
     | BA_DEF_ EV_ STR ENUM strList SEMI EOL
     | BA_DEF_ SG_ STR ENUM strList SEMI EOL
+    | BA_DEF_ STR ENUM strList SEMI EOL
     | BA_DEF_ BU_ STR STRING SEMI EOL
     | BA_DEF_ BO_ STR STRING SEMI EOL
     | BA_DEF_ EV_ STR STRING SEMI EOL
@@ -292,6 +346,21 @@ def p_idList(p):
         p[0].append(p[2])
 
 
+def p_idsList(p):
+    """idsList : idsList COMMA ID
+    | ID
+    | empty"""
+    if len(p) == 2:
+        if not p[0]:
+            p[0] = []
+        p[0].append(p[1])
+    elif len(p) == 4:
+        p[0] = p[1]
+        if not p[0]:
+            p[0] = []
+        p[0].append(p[3])
+
+
 def p_rxNodeList(p):
     """rxNodeList : rxNodeList COMMA ID
     | ID
@@ -317,6 +386,8 @@ def p_nsList(p):
     | nsList BA_DEF_ EOL
     | BA_DEF_ EOL
     | nsList BA_DEF_DEF_ EOL
+    | nsList BO_TX_BU_ EOL
+    | nsList VAL_ EOL
     | BA_DEF_DEF_ EOL"""
     if len(p) == 3:
         if not p[0]:

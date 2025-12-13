@@ -180,6 +180,15 @@
       "securities": []
     },
     {
+      "name": "communication control", "id": "0x28",
+      "functions": [ { "id": 0, "API": "App_ComCtrlEnableRxAndTx" },
+                     { "id": 1, "API": "App_ComCtrlEnableRxAndDisableTx" },
+                     { "id": 2, "API": "App_ComCtrlDisableRxAndEnableTx" },
+                     { "id": 3, "API": "App_ComCtrlDisableRxAndTx" }
+                   ],
+      "access": ["physical", "functional"]
+    },
+    {
       "name": "Authentication",
       "id": "0x29",
       "access": [

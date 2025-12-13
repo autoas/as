@@ -58,7 +58,7 @@ extern const Fls_ConfigType Fls_Config;
 static Fls_ContextType Fls_Context;
 /* ================================ [ LOCALS    ] ============================================== */
 static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType TargetAddress) {
-  uint8_t i = 0;
+  uint16_t i = 0;
   const Fls_SectorType *sector = NULL;
   const Fls_ConfigType *config = FLS_CONFIG;
 
@@ -66,6 +66,7 @@ static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType TargetAddres
     if ((TargetAddress >= config->SectorList[i].SectorStartAddress) &&
         (TargetAddress <= config->SectorList[i].SectorEndAddress)) {
       sector = &config->SectorList[i];
+      break;
     }
   }
 
@@ -490,4 +491,14 @@ void Fls_MainFunction(void) {
   default:
     break;
   }
+}
+
+void Fls_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x10, FLS_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_FLS;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
 }

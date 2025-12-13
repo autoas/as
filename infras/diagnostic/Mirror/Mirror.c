@@ -23,7 +23,7 @@
 #define AS_LOG_MIRRORI 0
 #define AS_LOG_MIRRORE 3
 
-#ifdef MIRROW_USE_PB_CONFIG
+#ifdef MIRROR_USE_PB_CONFIG
 #define MIRROR_CONFIG mirrorConfig
 #else
 #define MIRROR_CONFIG (&Mirror_Config)
@@ -42,11 +42,20 @@
 #ifndef Mirror_ExitCritical
 #define Mirror_ExitCritical ExitCritical
 #endif
+
+/* @SWS_Can_00416 */
+#ifndef CAN_EXTENDED_ID_TYPE
+#define CAN_EXTENDED_ID_TYPE ((Can_IdType)0x80000000u)
+#endif
+
+#ifndef CAN_CANFD_ID_TYPE
+#define CAN_CANFD_ID_TYPE ((Can_IdType)0x40000000u)
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const Mirror_ConfigType Mirror_Config;
 /* ================================ [ DATAS     ] ============================================== */
-#ifdef MIRROW_USE_PB_CONFIG
+#ifdef MIRROR_USE_PB_CONFIG
 static const Mirror_ConfigType *mirrorConfig = NULL;
 #endif
 static Mirror_ContextType Mirror_Context;
@@ -338,7 +347,7 @@ static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_
     capability = RingBuffer->NumOfDataElements -
                  (0xFFFFul - RingBuffer->context->out + 1u + RingBuffer->context->in);
   }
-  if (capability > numPackets) {
+  if (capability >= numPackets) {
     dataElement =
       &RingBuffer->DataElements[RingBuffer->context->in % RingBuffer->NumOfDataElements];
     RingBuffer->context->in++;
@@ -346,12 +355,13 @@ static void Mirror_EnqueCanFrame(const Mirror_RingBufferType *RingBuffer, uint8_
     dataElement->data[1] = NetworkId;
     dataElement->data[2] = 0u; /* reserved */
     dataElement->data[3] = length;
-    dataElement->data[4] = (canId >> 24) & 0x3Fu;
-    if ((canId & 0x3FFFFFFFu) > 0x7FF) { /* @SWS_Mirror_00098 */
-      dataElement->data[4] |= 0x80u;     /* Extended CAN ID */
+    dataElement->data[4] = (canId >> 24) & 0x1Fu;
+    if ((0u != (CAN_EXTENDED_ID_TYPE & canId)) ||
+        ((canId & 0x1FFFFFFFu) > 0x7FF)) { /* @SWS_Mirror_00098 */
+      dataElement->data[4] |= 0x80u;       /* Extended CAN ID */
     }
-    if (length > 8u) {               /* @SWS_Mirror_00099 */
-      dataElement->data[4] |= 0x40u; /* CAN FD Frame */
+    if ((0u != (CAN_CANFD_ID_TYPE & canId)) || (length > 8u)) { /* @SWS_Mirror_00099 */
+      dataElement->data[4] |= 0x40u;                            /* CAN FD Frame */
     }
     dataElement->data[5] = (canId >> 16) & 0xFFu;
     dataElement->data[6] = (canId >> 8) & 0xFFu;
@@ -408,7 +418,7 @@ static void Mirror_EnqueLinFrame(const Mirror_RingBufferType *RingBuffer, uint8_
     capability = RingBuffer->NumOfDataElements -
                  (0xFFFFul - RingBuffer->context->out + 1u + RingBuffer->context->in);
   }
-  if (capability > numPackets) {
+  if (capability >= numPackets) {
     dataElement =
       &RingBuffer->DataElements[RingBuffer->context->in % RingBuffer->NumOfDataElements];
     RingBuffer->context->in++;
@@ -498,15 +508,16 @@ static void Mirror_IpAddCanFrameToDestBuf(const Mirror_DestNetworkIpType *config
   }
   /* FrameID */
   /* @SWS_Mirror_00097 */
-  DestBuffer->data[offset + 0u] = (canId >> 24) & 0x3Fu;
+  DestBuffer->data[offset + 0u] = (canId >> 24) & 0x1Fu;
   DestBuffer->data[offset + 1u] = (canId >> 16) & 0xFFu;
   DestBuffer->data[offset + 2u] = (canId >> 8) & 0xFFu;
   DestBuffer->data[offset + 3u] = canId & 0xFFu;
-  if ((canId & 0x3FFFFFFFu) > 0x7FF) {      /* @SWS_Mirror_00098 */
+  if ((0u != (CAN_EXTENDED_ID_TYPE & canId)) ||
+      ((canId & 0x1FFFFFFFu) > 0x7FF)) {    /* @SWS_Mirror_00098 */
     DestBuffer->data[offset + 0u] |= 0x80u; /* Extended CAN ID */
   }
-  if (length > 8u) {                        /* @SWS_Mirror_00099 */
-    DestBuffer->data[offset + 0u] |= 0x40u; /* CAN FD Frame */
+  if ((0u != (CAN_CANFD_ID_TYPE & canId)) || (length > 8u)) { /* @SWS_Mirror_00099 */
+    DestBuffer->data[offset + 0u] |= 0x40u;                   /* CAN FD Frame */
   }
   offset += 4;
 
@@ -879,7 +890,7 @@ static void Mirror_MainFunctionDestCan(NetworkHandleType network) {
         PduInfo.SduLength = 2;
       } else {
         RingBuffer->context->out = out;
-        ASLOG(MIRRIR, ("Status Frame not enabled, drop!\n"));
+        ASLOG(MIRROR, ("Status Frame not enabled, drop!\n"));
       }
     }
   }
@@ -902,7 +913,7 @@ static void Mirror_MainFunctionDestCan(NetworkHandleType network) {
     if (E_OK == ret) {
       RingBuffer->context->out = out;
     } else {
-      ASLOG(MIRRIR, ("Failed to send CAN packet, retry\n"));
+      ASLOG(MIRROR, ("Failed to send CAN packet, retry\n"));
     }
   }
 }
@@ -966,7 +977,7 @@ static void Mirror_MainFunctionDestIp(NetworkHandleType network) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Mirror_Init(const Mirror_ConfigType *configPtr) {
   NetworkHandleType network;
-#ifdef MIRROW_USE_PB_CONFIG
+#ifdef MIRROR_USE_PB_CONFIG
   if (NULL != CfgPtr) {
     MIRROR_CONFIG = configPtr;
   } else {
@@ -1521,3 +1532,17 @@ Std_ReturnType __weak PduR_MirrorTransmit(PduIdType TxPduId, const PduInfoType *
   return E_OK;
 }
 #endif
+
+void Mirror_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x03, MIRROR_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_MIRROR;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
+
+/** @brief release notes
+ * - 4.0.1: Fixed typo and corrected capability check for next buffer switch.
+ */

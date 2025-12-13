@@ -392,7 +392,7 @@ static void J1939Tp_StartToSend_BAM(PduIdType TxPduId) {
     config->context->PduInfo.SduLength = 12u;
 
     ASLOG(J1939TPI,
-          ("[%d]TX FD CM.RTS=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
+          ("[%d]TX FD CM.BAM=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
            TxPduId, data[0u], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
            data[8], data[9], data[10], data[11]));
   } else {
@@ -769,6 +769,7 @@ static void J1939Tp_HandleCM_CTS(PduIdType Channel, const PduInfoType *PduInfoPt
   uint32_t NextSN;
   uint32_t PgPGN;
   uint8_t RequestField = 0u;
+  uint32_t numOfDtPackets = 0;
   Std_ReturnType ret = E_NOT_OK;
   if (IS_J1939TP_FD(config)) {
     if ((J1939TP_FD_CM_CTS == PduInfoPtr->SduDataPtr[0u]) &&
@@ -779,6 +780,7 @@ static void J1939Tp_HandleCM_CTS(PduIdType Channel, const PduInfoType *PduInfoPt
       RequestField = PduInfoPtr->SduDataPtr[9];
       PgPGN = PduInfoPtr->SduDataPtr[9] + ((uint32_t)PduInfoPtr->SduDataPtr[10] << 8) +
               ((uint32_t)PduInfoPtr->SduDataPtr[11] << 16);
+      numOfDtPackets = NUM_OF_DT_PACKETS;
       ret = E_OK;
     }
   } else {
@@ -788,6 +790,7 @@ static void J1939Tp_HandleCM_CTS(PduIdType Channel, const PduInfoType *PduInfoPt
       NextSN = PduInfoPtr->SduDataPtr[2];
       PgPGN = PduInfoPtr->SduDataPtr[5] + ((uint32_t)PduInfoPtr->SduDataPtr[6] << 8) +
               ((uint32_t)PduInfoPtr->SduDataPtr[7] << 16);
+      numOfDtPackets = NUM_OF_FD_DT_PACKETS;
       ret = E_OK;
     }
   }
@@ -800,7 +803,7 @@ static void J1939Tp_HandleCM_CTS(PduIdType Channel, const PduInfoType *PduInfoPt
         /* Request the FD.TP.CM_EndOfMsgStatus to be resent */
         J1939Tp_SendEOMS(Channel);
       } else if ((NextSN == (config->context->NextSN + 1u)) &&
-                 (((uint32_t)config->context->NextSN + NumPacketsToSend) <= NUM_OF_DT_PACKETS)) {
+                 (((uint32_t)config->context->NextSN + NumPacketsToSend) <= numOfDtPackets)) {
         config->context->NumPacketsToSend = NumPacketsToSend;
         J1939Tp_SendDT(Channel);
       } else {
@@ -1516,3 +1519,16 @@ void J1939Tp_MainFunctionFast(void) {
     J1939Tp_MainFunction_RxChannelFast(i);
   }
 }
+
+void J1939Tp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x03, J1939TP_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = MODULE_ID_J1939TP;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 1;
+}
+/** @brief release notes
+ * - 4.0.1: Fix FD DT transmit SN check issue
+ */

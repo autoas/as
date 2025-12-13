@@ -117,6 +117,31 @@ static uint8_t CanTp_GetSFMaxLen(const CanTp_ChannelConfigType *config) {
   return (uint8_t)sfMaxLen;
 }
 
+static BufReq_ReturnType CanTp_RxPreCheckState(CanTp_ChannelContextType *context,
+                                               const CanTp_ChannelConfigType *config) {
+  BufReq_ReturnType bufReq = BUFREQ_OK;
+
+  if (context->state != CANTP_IDLE) {
+    switch (context->state) {
+    case CANTP_WAIT_CF:
+    case CANTP_RESEND_FC_CTS:
+    case CANTP_RESEND_FC_OVFLW:
+    case CANTP_WAIT_FC_CTS_TX_COMPLETED:
+    case CANTP_WAIT_FC_OVFLW_TX_COMPLETED:
+      /* Rx new message when previous Rx is not finished */
+      PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
+      CanTp_ResetToIdle(context);
+      break;
+    default:
+      /* Rx new message when previous Tx is not finished */
+      bufReq = BUFREQ_E_NOT_OK; /* wait it finished */
+      break;
+    }
+  }
+
+  return bufReq;
+}
+
 static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
@@ -130,37 +155,25 @@ static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
   context = &(CANTP_CONFIG->channelContexts[RxPduId]);
   config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
 
-  if (context->state != CANTP_IDLE) {
-    ASLOG(CANTPE, ("[%d]SF received in state %d!\n", RxPduId, context->state));
-    switch (context->state) {
-    case CANTP_WAIT_CF:
-    case CANTP_RESEND_FC_CTS:
-    case CANTP_WAIT_FC_CTS_TX_COMPLETED:
-      /* Rx new message when previous Rx is not finished */
-      PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
-      break;
-    default:
-      /* Rx new message when previous Tx is not finished */
-      PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
-      break;
+  bufReq = CanTp_RxPreCheckState(context, config);
+  if (BUFREQ_OK == bufReq) {
+    sfMaxLen = CanTp_GetSFMaxLen(config);
+
+    PduInfo.SduLength = (PduLengthType)pci & N_PCI_SF_DL;
+    if ((0u == PduInfo.SduLength) && (config->LL_DL > 8u)) {
+      PduInfo.SduLength = data[0];
+      PduInfo.SduDataPtr = &data[1];
+      dataLen -= 1u;
+    } else {
+      PduInfo.SduDataPtr = data;
     }
-    CanTp_ResetToIdle(context);
+    PduInfo.MetaDataPtr = (uint8_t *)&offset;
   }
 
-  sfMaxLen = CanTp_GetSFMaxLen(config);
-
-  PduInfo.SduLength = (PduLengthType)pci & N_PCI_SF_DL;
-  if ((0u == PduInfo.SduLength) && (config->LL_DL > 8u)) {
-    PduInfo.SduLength = data[0];
-    PduInfo.SduDataPtr = &data[1];
-    dataLen -= 1u;
-  } else {
-    PduInfo.SduDataPtr = data;
-  }
-  PduInfo.MetaDataPtr = (uint8_t *)&offset;
-
-  if ((PduInfo.SduLength <= sfMaxLen) && (PduInfo.SduLength > 0u) &&
-      (PduInfo.SduLength <= dataLen)) {
+  if (BUFREQ_OK != bufReq) {
+    ASLOG(CANTPE, ("[%d]SF received in state %d!\n", RxPduId, context->state));
+  } else if ((PduInfo.SduLength <= sfMaxLen) && (PduInfo.SduLength > 0u) &&
+             (PduInfo.SduLength <= dataLen)) {
     bufReq =
       PduR_CanTpStartOfReception(config->PduR_RxPduId, &PduInfo, PduInfo.SduLength, &bufferSize);
 
@@ -272,52 +285,39 @@ static void CanTp_HandleFF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
   context = &(CANTP_CONFIG->channelContexts[RxPduId]);
   config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
 
-  if (context->state != CANTP_IDLE) {
-    ASLOG(CANTPE, ("[%d]FF received in state %d!\n", RxPduId, context->state));
-    switch (context->state) {
-    case CANTP_WAIT_CF:
-    case CANTP_RESEND_FC_CTS:
-    case CANTP_WAIT_FC_CTS_TX_COMPLETED:
-      /* Rx new message when previous Rx is not finished */
-      PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
-      break;
-    default:
-      /* Rx new message when previous Tx is not finished */
-      PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
-      break;
+  bufReq = CanTp_RxPreCheckState(context, config);
+  if (BUFREQ_OK == bufReq) {
+    TpSduLength = (((uint32_t)pci & 0x0Fu) << 8) + data[0];
+    PduInfo.SduDataPtr = &data[1];
+
+    PduInfo.SduLength = (PduLengthType)length - 1u;
+    if (CANTP_EXTENDED == config->AddressingFormat) {
+      ffLen = config->LL_DL - 3u;
+    } else {
+      ffLen = config->LL_DL - 2u;
     }
-    CanTp_ResetToIdle(context);
+
+    if ((config->LL_DL > 8u) && (0u == TpSduLength)) {
+      TpSduLength = ((uint32_t)data[2] << 24) + ((uint32_t)data[3] << 16) +
+                    ((uint32_t)data[4] << 8) + ((uint32_t)data[5]);
+      PduInfo.SduDataPtr = &data[6];
+      PduInfo.SduLength -= 4u;
+      ffLen -= 4u;
+    }
+    PduInfo.MetaDataPtr = (uint8_t *)&offset;
+
+    sfMaxLen = CanTp_GetSFMaxLen(config);
   }
 
-  TpSduLength = (((uint32_t)pci & 0x0Fu) << 8) + data[0];
-  PduInfo.SduDataPtr = &data[1];
-
-  PduInfo.SduLength = (PduLengthType)length - 1u;
-  if (CANTP_EXTENDED == config->AddressingFormat) {
-    ffLen = config->LL_DL - 3u;
-  } else {
-    ffLen = config->LL_DL - 2u;
-  }
-
-  if ((config->LL_DL > 8u) && (0u == TpSduLength)) {
-    TpSduLength = ((uint32_t)data[2] << 24) + ((uint32_t)data[3] << 16) + ((uint32_t)data[4] << 8) +
-                  ((uint32_t)data[5]);
-    PduInfo.SduDataPtr = &data[6];
-    PduInfo.SduLength -= 4u;
-    ffLen -= 4u;
-  }
-  PduInfo.MetaDataPtr = (uint8_t *)&offset;
-
-  sfMaxLen = CanTp_GetSFMaxLen(config);
-
-  if (TpSduLength > PDU_LENGHT_MAX) {
+  if (BUFREQ_OK != bufReq) {
+    ASLOG(CANTPE, ("[%d] FF received in state %d, ignore!\n", RxPduId, context->state));
+  } else if (TpSduLength > PDU_LENGTH_MAX) {
     ASLOG(CANTPE, ("[%d]FF size too big %u!\n", RxPduId, TpSduLength));
   } else if ((TpSduLength <= ffLen) || (TpSduLength <= sfMaxLen)) {
     ASLOG(CANTPE, ("[%d]FF size invalid %u(<=%d,%d)!\n", RxPduId, TpSduLength, ffLen, sfMaxLen));
   } else if (PduInfo.SduLength == ffLen) {
     bufReq = PduR_CanTpStartOfReception(config->PduR_RxPduId, &PduInfo, (PduLengthType)TpSduLength,
                                         &bufferSize);
-
     if (BUFREQ_OK == bufReq) {
       bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &PduInfo, &bufferSize);
 
@@ -869,6 +869,7 @@ static Std_ReturnType CanTp_StartToSend(PduIdType TxPduId) {
 void CanTp_InitChannel(uint8_t Channel) {
   CanTp_ChannelContextType *context;
   context = &(CANTP_CONFIG->channelContexts[Channel]);
+  memset(context, 0, sizeof(*context));
   context->state = CANTP_IDLE;
   CanTpCancelAlarm();
   context->STmin = 0;
@@ -951,6 +952,11 @@ void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
         }
         break;
       }
+    }
+
+    if (CanTp_GetDL(PduInfoPtr->SduLength, config->LL_DL) != PduInfoPtr->SduLength) {
+      ASLOG(CANTPE, ("[%d]RX with invalid DLC\n", RxPduId));
+      r = E_NOT_OK;
     }
 
     if (E_OK == r) {
@@ -1150,6 +1156,7 @@ PduLengthType CanTp_GetTxPacketLength(PduIdType TxPduId) {
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0xFF, CANTP_E_UNINIT, return 0);
+  DET_VALIDATE(TxPduId < CANTP_CONFIG->numOfChannels, 0xFF, CANTP_E_INVALID_TX_ID, return 0);
 
   context = &(CANTP_CONFIG->channelContexts[TxPduId]);
   switch (context->state) {
@@ -1172,6 +1179,7 @@ PduLengthType CanTp_GetRxLeftLength(PduIdType RxPduId) {
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0xFE, CANTP_E_UNINIT, return 0);
+  DET_VALIDATE(RxPduId < CANTP_CONFIG->numOfChannels, 0xFE, CANTP_E_INVALID_RX_ID, return 0);
 
   context = &(CANTP_CONFIG->channelContexts[RxPduId]);
   switch (context->state) {
@@ -1216,3 +1224,20 @@ Std_ReturnType CanTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduIn
   return ret;
 }
 #endif
+
+void CanTp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
+  DET_VALIDATE(NULL != versionInfo, 0x07, CANTP_E_PARAM_POINTER, return);
+
+  versionInfo->vendorID = STD_VENDOR_ID_AS;
+  versionInfo->moduleID = DET_THIS_MODULE_ID;
+  versionInfo->sw_major_version = 4;
+  versionInfo->sw_minor_version = 0;
+  versionInfo->sw_patch_version = 3;
+}
+
+/** @brief release notes
+ * - 4.0.1: Added zero initialization of the context and DET-based validation to
+ *    the private API for improved robustness and safety.
+ * - 4.0.2: Don't abort transmission when new request received.
+ * - 4.0.3: Add strict RX message DLC validation.
+ */

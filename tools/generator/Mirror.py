@@ -50,6 +50,7 @@ def Gen_Mirror(cfg, dir):
     for network in DestNetworkIps:
         H.write("#define MIRROR_DST_NT_IP_%s %su\n" % (toMacro(network["name"]), idx))
         idx += 1
+    H.write("\n%s#define MIRROR_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
