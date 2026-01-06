@@ -23,6 +23,9 @@
 #undef USE_STD_PRINTF
 #endif
 #include "Std_Debug.h"
+#ifdef ERROR
+#undef ERROR
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define PPARAM(p) ((Dev_RS232ParamType *)p)
 #define AS_LOG_DEV 0

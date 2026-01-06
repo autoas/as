@@ -19,6 +19,10 @@
 #else
 #include <uuid/uuid.h>
 #endif
+
+#ifdef ERROR
+#undef ERROR
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define LIN_CAST_IP TCPIP_IPV4_ADDR(224, 244, 224, 245)
 #define LIN_PORT_MIN 10000

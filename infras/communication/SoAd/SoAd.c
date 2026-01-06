@@ -515,8 +515,13 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
         ret = TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
       }
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_UDP_CLIENT)) {
+#ifdef USE_LWIP
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
       LocalAddrPtr->port = conG->LocalPort;
+#else
+      (void)TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
+      ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
+#endif
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
       LocalAddrPtr->port = conG->Port;

@@ -15,6 +15,7 @@
 #endif
 #include <chrono>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 #include <string>
 
@@ -31,7 +32,7 @@ std::chrono::high_resolution_clock::time_point s_StartTimePoint =
   std::chrono::high_resolution_clock::now();
 
 static std::mutex s_Lock;
-static std::map<std::string, int> s_LevelMap;
+static std::unordered_map<std::string, int> s_LevelMap;
 /* ================================ [ LOCALS    ] ============================================== */
 INITIALIZER(init_logger) {
   char *logName = getenv("SSAS_LOG_NAME");
@@ -341,7 +342,7 @@ extern "C" int std_printf(const char *fmt, ...) {
   return 0;
 }
 
-extern "C" int std_get_as_log_level(const char *name) {
+extern "C" int std_get_as_log_level(const char *name, int dft) {
   int level = Logger::DEBUG;
   std::string name_ = std::string(name);
   std::lock_guard<std::mutex> lock(s_Lock);
@@ -352,20 +353,7 @@ extern "C" int std_get_as_log_level(const char *name) {
     if (pValue != nullptr) {
       level = atoi(pValue);
     } else {
-      if (("FEE" == name_) || ("E2E" == name_)) {
-        /* default debug */
-      } else if ("DET" == name_) {
-        level = Logger::ERROR;
-      } else if ("INFO" == name_) {
-        level = Logger::INFO;
-      } else if ("WARN" == name_) {
-        level = Logger::WARN;
-      } else if ("ERROR" == name_) {
-        level = Logger::ERROR;
-      } else if ('E' == name_.c_str()[name_.size() - 1]) {
-        level = Logger::ERROR; /* give high level to ERROR */
-      } else {                 /* default debug */
-      }
+      level = dft;
     }
     s_LevelMap[name_] = level;
   } else {

@@ -314,7 +314,6 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
 #endif
   sLocalAddr.sin_port = htons(*PortPtr);
 
-  ASLOG(TCPIP, ("[%d] bind to adapter %d port %d\n", SocketId, LocalAddrId, *PortPtr));
   r = bind(SocketId, (struct sockaddr *)&sLocalAddr, sizeof(sLocalAddr));
   if (0 != r) {
     ret = E_NOT_OK;
@@ -331,6 +330,10 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
       ASLOG(TCPIPE, ("[%d] failed to getsockname: %d\n", SocketId, r));
       ret = E_NOT_OK;
     } else {
+      ASLOG(TCPIP, ("[%d] bind to adapter %d port %d: %d.%d.%d.%d:%d\n", SocketId, LocalAddrId,
+                    *PortPtr, ((uint8_t *)&sLocalAddr.sin_addr)[0],
+                    ((uint8_t *)&sLocalAddr.sin_addr)[1], ((uint8_t *)&sLocalAddr.sin_addr)[2],
+                    ((uint8_t *)&sLocalAddr.sin_addr)[3], ntohs(sLocalAddr.sin_port)));
       *PortPtr = ntohs(sLocalAddr.sin_port);
     }
   }

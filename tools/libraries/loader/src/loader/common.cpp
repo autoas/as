@@ -52,7 +52,7 @@ int enter_program_session(loader_t *loader) {
 int request_download(loader_t *loader, uint32_t address, size_t length) {
   int r;
   uint8_t data[11];
-  static const int expected[] = {0x74, 0x20};
+  static const int expected[] = {0x74};
   data[0] = 0x34;
   data[1] = 0x00;
   data[2] = 0x44;
@@ -119,11 +119,16 @@ int download_one_section(loader_t *loader, sblk_t *blk) {
   int r;
   uint32_t ability = LOADER_MSG_SIZE;
   uint8_t *response = loader_get_response(loader);
+  uint32_t lengthFormatIdentifier;
 
   r = request_download(loader, blk->address, blk->length);
 
   if (L_R_OK == r) {
-    ability = ((uint32_t)response[2] << 8) + response[3];
+    lengthFormatIdentifier = response[1] >> 4u;
+    ability = 0;
+    for (uint32_t i = 0; i < lengthFormatIdentifier; i++) {
+      ability = (ability << 8) + response[2 + i];
+    }
     if ((ability >= FL_MIN_ABILITY) && ((ability + 2) < LOADER_MSG_SIZE)) {
       LDLOG(DEBUG, "\n  ability %" PRIu32 "\n", ability);
       r = transfer_data(loader, ability - 2, blk->data, blk->length);

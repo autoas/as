@@ -1,0 +1,27 @@
+from building import *
+
+CWD = GetCurrentDir()
+
+objs = Glob("*.cpp")
+
+
+@register_application
+class ApplicationRadarServiceServer(Application):
+    def config(self):
+        source = self.Generate(["%s/config/Network.json" % (CWD), "%s/config/Mempool.json" % (CWD)])
+        libs = {
+            "SoAd": source["SoAd"] + source["MemCluster"],
+            "Sd": source["Sd"],
+            "SomeIp": source["SomeIp"],
+            "SomeIpXf": source["SomeIpXf"],
+        }
+        self.CPPPATH = ["$INFRAS", "%s/config/GEN" % (CWD)]
+        self.source = objs + source["RadarServiceSkeleton"]
+        self.LIBS = ["TcpIp", "StdTimer", "Critical"]
+        self.Append(CPPDEFINES=["USE_TCPIP"])
+        for libName, source in libs.items():
+            self.LIBS.append(libName)
+            self.RegisterConfig(libName, source)
+            self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+
+

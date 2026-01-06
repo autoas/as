@@ -52,6 +52,8 @@ typedef boolean (*Sd_CapabilityRecordMatchCalloutFncType)(
   uint32_t minorVersion, const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,
   const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);
 
+typedef void (*SomeIp_EventGroupOnSubscribeAckFncType)(boolean isSubscribe);
+
 typedef struct {
   uint32_t TTL; /* TTL to do resubscribe before timeout */
   boolean isSubscribed;
@@ -66,6 +68,7 @@ typedef struct {
   SoAd_SoConIdType MulticastEventSoConRef;
   uint8_t MulticastThreshold;
   Sd_ConsumedEventGroupContextType *context;
+  SomeIp_EventGroupOnSubscribeAckFncType onSubscribe;
 } Sd_ConsumedEventGroupType;
 
 typedef struct {

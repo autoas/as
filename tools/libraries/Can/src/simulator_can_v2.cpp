@@ -17,6 +17,10 @@
 #include <uuid/uuid.h>
 #endif
 
+#ifdef ERROR
+#undef ERROR
+#endif
+
 using namespace std::literals::chrono_literals;
 namespace simulator_can_v2 {
 /* ================================ [ MACROS    ] ============================================== */

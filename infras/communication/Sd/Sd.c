@@ -1006,12 +1006,14 @@ static Std_ReturnType Sd_HandleSubscribeEventGroupAck(const Sd_InstanceType *Ins
         }
       }
       ConsumedEventGroup->context->isSubscribed = TRUE;
+      ConsumedEventGroup->onSubscribe(TRUE);
     } else {
       ASLOG(SDE, ("invalid TTL for subscribe group ack\n"));
       ConsumedEventGroup->context->isSubscribed = FALSE;
       if (ConsumedEventGroup->MulticastThreshold > 0u) {
         (void)SoAd_CloseSoCon(ConsumedEventGroup->MulticastEventSoConRef, TRUE);
       }
+      ConsumedEventGroup->onSubscribe(FALSE);
     }
   }
 
@@ -1317,6 +1319,9 @@ static void Sd_ClientService_GoToInitialWait(const Sd_ClientServiceType *config)
     Sd_RandTime(config->ClientTimer->InitialFindDelayMin, config->ClientTimer->InitialFindDelayMax);
   for (i = 0u; i < config->numOfConsumedEventGroups; i++) {
     ConsumedEventGroup = &config->ConsumedEventGroups[i];
+    if (TRUE == ConsumedEventGroup->context->isSubscribed) {
+      ConsumedEventGroup->onSubscribe(FALSE);
+    }
     ConsumedEventGroup->context->isSubscribed = FALSE;
     SD_CLEAR(ConsumedEventGroup->context->flags, SD_FLG_STATE_REQUEST_ONCE);
   }
@@ -2027,6 +2032,30 @@ Sd_ConsumedEventGroupSetState(uint16_t SdConsumedEventGroupHandleId,
       SD_SET(ConsumedEventGroup->context->flags, SD_FLG_STATE_REQUEST_ONLINE);
     } else {
       SD_CLEAR(ConsumedEventGroup->context->flags, SD_FLG_STATE_REQUEST_ONLINE);
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType Sd_ConsumedEventGroupGetState(
+  uint16_t SdConsumedEventGroupHandleId,
+  Sd_ConsumedEventGroupCurrentStateType *ConsumedEventGroupCurrentState) {
+  Std_ReturnType ret = E_OK;
+  uint16_t index;
+  const Sd_ClientServiceType *config;
+  const Sd_ConsumedEventGroupType *ConsumedEventGroup;
+  if (SdConsumedEventGroupHandleId < SD_CONFIG->numOfConsumedEventGroups) {
+    index = SD_CONFIG->ConsumedEventGroupsMap[SdConsumedEventGroupHandleId];
+    config = SD_CONFIG->ClientServicesMap[index];
+    index = SD_CONFIG->PerServiceConsumedEventGroupsMap[SdConsumedEventGroupHandleId];
+    ConsumedEventGroup = &config->ConsumedEventGroups[index];
+    if ((0u != (ConsumedEventGroup->context->flags & SD_FLG_STATE_REQUEST_ONLINE)) &&
+        (TRUE == ConsumedEventGroup->context->isSubscribed)) {
+      *ConsumedEventGroupCurrentState = SD_CONSUMED_EVENTGROUP_AVAILABLE;
+    } else {
+      *ConsumedEventGroupCurrentState = SD_CONSUMED_EVENTGROUP_DOWN;
     }
   } else {
     ret = E_NOT_OK;

@@ -95,6 +95,10 @@ Std_ReturnType
 Sd_ConsumedEventGroupSetState(uint16_t SdConsumedEventGroupHandleId,
                               Sd_ConsumedEventGroupSetStateType ConsumedEventGroupState);
 
+Std_ReturnType Sd_ConsumedEventGroupGetState(
+  uint16_t SdConsumedEventGroupHandleId,
+  Sd_ConsumedEventGroupCurrentStateType *ConsumedEventGroupCurrentState);
+
 /* @SWS_SD_91002 */
 void Sd_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
 

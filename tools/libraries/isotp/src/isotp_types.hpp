@@ -19,6 +19,9 @@
 using namespace as;
 using namespace std::literals::chrono_literals;
 /* ================================ [ MACROS    ] ============================================== */
+#define AS_LOG_ISOTP 0
+#define AS_LOG_ISOTPI 2
+#define AS_LOG_ISOTPE 3
 /* ================================ [ TYPES     ] ============================================== */
 struct isotp_s {
   uint8_t Channel;

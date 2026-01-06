@@ -7,10 +7,6 @@
 #include "isotp_types.hpp"
 #include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
-#define AS_LOG_ISOTP 0
-#define AS_LOG_ISOTPI 2
-#define AS_LOG_ISOTPE 3
-
 #define ISOTP_DECLARE_API(x)                                                                       \
   extern isotp_t *isotp_##x##_create(isotp_parameter_t *params);                                   \
   extern int isotp_##x##_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,          \

@@ -3,6 +3,9 @@
 
 import os
 from .helper import *
+from .SomeIp_Proxy import *
+from .SomeIp_Skeleton import *
+from .SomeIpXf import *
 
 __all__ = ["Gen_SomeIp"]
 
@@ -158,6 +161,9 @@ def Gen_ServerService(service, dir, source):
     H.write("#define SS_%s_H\n" % (mn))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "SomeIp.h"\n')
+    H.write("#ifdef __cplusplus\n")
+    H.write('extern "C" {\n')
+    H.write("#endif\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
@@ -190,6 +196,9 @@ def Gen_ServerService(service, dir, source):
                     "Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);\n"
                     % (beName)
                 )
+    H.write("#ifdef __cplusplus\n")
+    H.write("}\n")
+    H.write("#endif\n")
     H.write("#endif /* SS_%s_H */\n" % (mn))
     H.close()
     C = open("%s/SS_%s.c" % (dir, service["name"]), "w")
@@ -268,7 +277,7 @@ def Gen_ServerService(service, dir, source):
             if event.get("tp", False):
                 C.write("  if ( length <= sizeof(%sTpTxBuf)) {\n" % (beName))
                 C.write("    memcpy(%sTpTxBuf, data, length);\n" % (beName))
-                C.write("    data = %sTpTxBuf;\n" % (beName))                
+                C.write("    data = %sTpTxBuf;\n" % (beName))
                 C.write("    ercd = SomeIp_Notification(requestId, data, length);\n")
                 C.write("  } else {\n")
                 C.write("    ercd = E_NOT_OK;\n")
@@ -359,57 +368,6 @@ def Gen_ServerService(service, dir, source):
                 C.write("}\n\n")
     C.write("}\n")
     C.close()
-
-
-def GetTypeInfo(data, structs={}):
-    typ = data["type"]
-    if typ in TypeInfoMap:
-        return TypeInfoMap[typ]
-    if typ in structs:
-        return {"IsArray": "size" in data, "IsStruct": True, "ctype": "%s_Type" % (typ)}
-    else:
-        raise Exception("unknown data type: %s" % (data))
-
-
-def GetStructDataSize(data, structs={}):
-    size = 0
-    typ = data["type"]
-    if typ in TypeInfoMap:
-        dinfo = TypeInfoMap[data["type"]]
-        sz = TypeInfoMap[data["type"]]["size"] * data.get("size", 1)
-        size += sz
-    elif typ in structs:
-        sz = GetStructSize(structs[typ], structs)
-        sz = sz * data.get("size", 1)
-        size += sz
-    else:
-        raise
-    return size
-
-
-def GetStructSize(struct, structs={}):
-    size = 0
-    for data in struct["data"]:
-        dinfo = GetTypeInfo(data, structs)
-        sz = GetStructDataSize(data, structs)
-        if data.get("variable_array", False) or dinfo.get("variable_array", False):
-            if sz < 256:
-                sz += 1
-            elif sz < 65536:
-                sz += 2
-            else:
-                sz += 4
-        if struct.get("with_tag", False):
-            sz += 2
-        size += sz
-    return size
-
-
-def GetStructs(cfg):
-    structs = {}
-    for st in cfg.get("structs", []):
-        structs[st["name"]] = st
-    return structs
 
 
 def GetArgs(cfg):
@@ -593,6 +551,9 @@ def Gen_ClientService(service, dir, source):
     H.write("#define _CS_%s_H\n" % (mn))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "SomeIp.h"\n')
+    H.write("#ifdef __cplusplus\n")
+    H.write('extern "C" {\n')
+    H.write("#endif\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
@@ -612,6 +573,7 @@ def Gen_ClientService(service, dir, source):
                 "Std_ReturnType SomeIp_%s_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);\n" % (bName)
             )
     for egroup in service["event-groups"]:
+        H.write("void SomeIp_%s_%s_OnSubscribeAck(boolean isSubscribe);\n" % (service["name"], egroup["name"]))
         for event in egroup["events"]:
             beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
             H.write(
@@ -624,6 +586,9 @@ def Gen_ClientService(service, dir, source):
                     "Std_ReturnType SomeIp_%s_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);\n"
                     % (beName)
                 )
+    H.write("#ifdef __cplusplus\n")
+    H.write("}\n")
+    H.write("#endif\n")
     H.write("#endif /* _CS_%s_H */\n" % (mn))
     H.close()
     C = open("%s/CS_%s.c" % (dir, service["name"]), "w")
@@ -666,10 +631,11 @@ def Gen_ClientService(service, dir, source):
         if method.get("tp", False):
             C.write("  if ( length <= sizeof(%sTpTxBuf) ) {\n" % (bName))
             C.write("    memcpy(%sTpTxBuf, data, length);\n" % (bName))
-            C.write("    data = %sTpTxBuf;\n" % (bName)) 
+            C.write("    data = %sTpTxBuf;\n" % (bName))
         C.write("    if (lIsAvailable) {\n")
         C.write(
-            '      ASLOG(%s, ("%s Request %%X: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n' % (mn, method["name"])
+            '      ASLOG(%s, ("%s Request %%X: len=%%d, data=[%%02X %%02X %%02X %%02X ...]\\n",\n'
+            % (mn, method["name"])
         )
         C.write("          requestId, length, data[0], data[1], data[2], data[3]));\n")
         C.write("      ercd = SomeIp_Request(requestId, data, length);\n")
@@ -694,6 +660,7 @@ def Gen_ClientService(service, dir, source):
         if method.get("tp", False):
             Gen_MethodRxTxTp(C, service, method)
     for egroup in service["event-groups"]:
+        C.write("void SomeIp_%s_%s_OnSubscribeAck(boolean isSubscribe) {\n}\n" % (service["name"], egroup["name"]))
         for event in egroup["events"]:
             beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
             C.write(
@@ -755,6 +722,7 @@ def Gen_ClientService(service, dir, source):
             )
             C.write("}\n\n")
     for egroup in service["event-groups"]:
+        C.write("void SomeIp_%s_%s_OnSubscribeAck(boolean isSubscribe) {\n}\n" % (service["name"], egroup["name"]))
         for event in egroup["events"]:
             beName = "%s_%s_%s" % (service["name"], egroup["name"], event["name"])
             C.write(
@@ -837,16 +805,20 @@ def Gen_SD(cfg, dir):
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    C.write("boolean Sd_ServerService0_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,\n")
-    C.write("                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,\n")
-    C.write("                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,\n")
-    C.write("                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);\n")
+    for ID, service in enumerate(cfg.get("servers", [])):
+        C.write(f"boolean Sd_ServerService{service['name']}_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,\n")
+        C.write("                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,\n")
+        C.write("                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,\n")
+        C.write("                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray);\n")
     for service in cfg.get("servers", []):
         for egroup in service["event-groups"]:
             C.write(
                 "void SomeIp_%s_%s_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);\n"
                 % (service["name"], egroup["name"])
             )
+    for service in cfg.get("clients", []):
+        for ID, ge in enumerate(service["event-groups"]):
+            C.write("void SomeIp_%s_%s_OnSubscribeAck(boolean isSubscribe);\n" % (service["name"], ge["name"]))
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     if len(cfg.get("servers", [])) > 0:
         C.write("static Sd_ServerTimerType Sd_ServerTimerDefault = {\n")
@@ -927,6 +899,7 @@ def Gen_SD(cfg, dir):
                 C.write("    0, /* MulticastEventSoConRef */\n")
                 C.write("    0, /* MulticastThreshold */\n")
             C.write("    &Sd_ConsumedEventGroupContext_%s[%d],\n" % (service["name"], ID))
+            C.write("    SomeIp_%s_%s_OnSubscribeAck,\n" % (service["name"], ge["name"]))
             C.write("  },\n")
         C.write("};\n\n")
     if len(cfg.get("servers", [])) > 0:
@@ -947,7 +920,7 @@ def Gen_SD(cfg, dir):
         else:
             C.write("    SOAD_SOCKID_SOMEIP_%s_SERVER,     /* SoConId */\n" % (mn))
             C.write("    TCPIP_IPPROTO_TCP,              /* ProtocolType */\n")
-        C.write("    Sd_ServerService0_CRMC,         /* CapabilityRecordMatchCalloutRef */\n")
+        C.write(f"    Sd_ServerService{service['name']}_CRMC,         /* CapabilityRecordMatchCalloutRef */\n")
         C.write("    &Sd_ServerTimerDefault,\n")
         C.write("    &Sd_ServerService_Contexts[%s],\n" % (ID))
         C.write("    0, /* InstanceIndex */\n")
@@ -1113,6 +1086,9 @@ def Gen_SOMEIPXF(cfg, dir):
     H.write("#define _SOMEIP_XF_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "SomeIpXf.h"\n')
+    H.write("#ifdef __cplusplus\n")
+    H.write('extern "C" {\n')
+    H.write("#endif\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     for name, struct in GetStructs(cfg).items():
@@ -1147,6 +1123,9 @@ def Gen_SOMEIPXF(cfg, dir):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
+    H.write("#ifdef __cplusplus\n")
+    H.write("}\n")
+    H.write("#endif\n")
     H.write("#endif /* _SOMEIP_XF_CFG_H */\n")
     H.close()
     C = open("%s/SomeIpXf_Cfg.c" % (dir), "w")
@@ -1339,9 +1318,11 @@ def Gen_SOMEIP(cfg, dir, source):
     for service in cfg.get("servers", []):
         Gen_ServerService(service, dir, source)
         Gen_ServerServiceExCpp(service, dir, source)
+        Gen_SomeIpSkeleton(cfg, service, dir, source)
     for service in cfg.get("clients", []):
         Gen_ClientService(service, dir, source)
         Gen_ClientServiceExCpp(service, dir, source)
+        Gen_SomeIpProxy(cfg, service, dir, source)
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     for service in cfg.get("servers", []):
         if "methods" not in service:

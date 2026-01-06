@@ -19,7 +19,7 @@ extern "C" {
 #if defined(_WIN32) || defined(linux)
 #define SHELL_REGISTER(name, desc, func)                                                           \
   static const Shell_CmdType shCmd_##name = {#name, desc, func};                                   \
-  static void __attribute__((constructor)) _sh_cmd_##name##_ctor(void) {                           \
+  INITIALIZER(_sh_cmd_##name##_ctor) {                                                             \
     Shell_Register(&shCmd_##name);                                                                 \
   }
 #else

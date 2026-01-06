@@ -23,7 +23,7 @@ extern "C" {
 #ifndef AS_LOG_DEFAULT
 #define AS_LOG_DEFAULT std_get_log_level()
 #endif
-#define AS_LOG_LEVEL(lvl) std_get_as_log_level(#lvl)
+#define AS_LOG_LEVEL(lvl) std_get_as_log_level(#lvl, AS_LOG_##lvl)
 #else
 #define AS_LOG_LEVEL(lvl) AS_LOG_##lvl
 #endif
@@ -84,8 +84,7 @@ extern "C" {
 #define asAssert(e)                                                                                \
   do {                                                                                             \
     if (!(e)) {                                                                                    \
-      ASLOG(ERROR,                                                                                 \
-            ("assert error on condition(%s) at line %d of %s\n", #e, (int)__LINE__, __FILE__));    \
+      PRINTF("assert error on condition(%s) at line %d of %s\n", #e, (int)__LINE__, __FILE__);     \
       while (1)                                                                                    \
         ;                                                                                          \
     }                                                                                              \
@@ -104,7 +103,7 @@ int std_printf(const char *fmt, ...);
 #if defined(linux) || defined(_WIN32)
 int std_get_log_level(void);
 void std_set_log_level(int level);
-int std_get_as_log_level(const char *name);
+int std_get_as_log_level(const char *name, int dft);
 void std_set_log_name(const char *name);
 #endif
 /* ================================ [ DATAS     ] ============================================== */

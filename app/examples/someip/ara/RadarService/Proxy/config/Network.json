@@ -1,0 +1,75 @@
+{
+  "class": "Net",
+  "Modules": [
+    {
+      "name": "SomeIp",
+      "class": "SomeIp",
+      "SD": {
+        "hostname" : "ssas",
+        "multicast" : "224.244.224.245"
+      },
+      "structs": [
+        {
+          "name": "Position",
+          "data": [
+            { "name": "x", "type": "uint32" },
+            { "name": "y", "type": "uint32" },
+            { "name": "z", "type": "uint32" }
+          ]
+        },
+        {
+          "name": "AdjustOutput",
+          "data": [
+            { "name": "success", "type": "bool" },
+            { "name": "effective_position", "type": "Position" }
+          ]
+        },
+        {
+          "name": "RadarObjects",
+          "data": [
+            { "name": "active", "type": "bool" },
+            { "name": "objects", "type": "Position", "size": 128, "variable_array": true }
+          ]
+        }
+      ],
+      "args": [
+        { "name": "adjust-args", "args": [ { "name": "target_position", "type": "Position" } ] }
+      ],
+      "clients": [
+        {
+          "name": "RadarService",
+          "service": "0xadaa",
+          "instance": "0x2001",
+          "clientId": "0x2001",
+          "unreliable": "12345",
+          "methods": [
+            {
+              "name" : "Adjust",
+              "methodId" : "0x0001",
+              "args": "adjust-args",
+              "return": "AdjustOutput",
+              "tp": false,
+              "version" : "0"
+            }
+          ],
+          "event-groups": [
+            {
+              "name": "Object",
+              "groupId": "0x8002",
+              "enable_multicast": false,
+              "events": [
+                {
+                  "name": "BrakeEvent",
+                  "type": "RadarObjects",
+                  "eventId": "0xabcd",
+                  "tp": false,
+                  "version": "0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
