@@ -48,7 +48,7 @@
               "methodId" : "0x0001",
               "args": "adjust-args",
               "return": "AdjustOutput",
-              "tp": false,
+              "tp": true,
               "version" : "0"
             }
           ],
@@ -62,7 +62,7 @@
                   "name": "BrakeEvent",
                   "type": "RadarObjects",
                   "eventId": "0xabcd",
-                  "tp": false,
+                  "tp": true,
                   "version": "0"
                 }
               ]

@@ -20,8 +20,8 @@
 #include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SOMEIP 0
-#define AS_LOG_SOMEIPI 2
-#define AS_LOG_SOMEIPW 3
+#define AS_LOG_SOMEIPI 0
+#define AS_LOG_SOMEIPW 0
 #define AS_LOG_SOMEIPE 4
 
 #define SD_FLG_EVENT_GROUP_MULTICAST 0x10u
@@ -613,7 +613,8 @@ static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *conf
                         sub->RemoteAddr.addr[2], sub->RemoteAddr.addr[3], sub->RemoteAddr.port));
       }
     }
-    /* NOTE: if any one is unsubscribed during this, TX is broken */
+    /* NOTE: if any one is unsubscribed during this, TX is broken, but Sd Main and SomeIp Main
+     * scheduled in one Task, not possible */
     sub = STAILQ_NEXT(sub, entry);
     if (TRUE == bMulticast) {
       break;
@@ -902,8 +903,8 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
       if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
         /* OK for TP case */
       } else {
-        ASLOG(SOMEIPE, ("For short message, fill in response in res.data\n"));
-        ret = E_NOT_OK;
+        ASLOG(SOMEIPW, ("For short message, better to fill in response in res.data\n"));
+        res.data -= 16;
       }
     }
     res.data = resData;
@@ -919,6 +920,10 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
   if (E_OK == ret) {
     ret = SomeIp_ReplyRequest(config, conId, methodId, msg->header.clientId, msg->header.sessionId,
                               &msg->RemoteAddr, &res);
+    if (E_OK != ret) {
+      /* with NULL to tell app that failed to transmit response */
+      (void)method->onAsyncRequest(conId, NULL);
+    }
   } else if (SOMEIP_E_PENDING == ret) {
     /* response pending */
     SQP_ALLOC(AsyncReqMsg);
@@ -1192,11 +1197,12 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
         if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
           /* OK for TP case */
         } else {
-          ASLOG(SOMEIPE, ("For async short message, fill in response in res.data\n"));
-          ret = E_NOT_OK;
+          ASLOG(SOMEIPW, ("For async short message, better to fill in response in res.data\n"));
+          res.data -= 16;
         }
+      } else {
+        res.data = resData;
       }
-      res.data = resData;
       if (E_OK == ret) {
         ret = SomeIp_ReplyRequest(config, conId, var->methodId, var->clientId, var->sessionId,
                                   &var->RemoteAddr, &res);
@@ -1204,6 +1210,10 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
           (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
                                   method->methodId, var->clientId, var->sessionId,
                                   method->interfaceVersion, SOMEIP_MSG_ERROR, ret);
+          if (E_OK != ret) {
+            /* with NULL to tell app that failed to transmit response */
+            (void)method->onAsyncRequest(conId, NULL);
+          }
         }
 
         SQP_CRM_AND_FREE(AsyncReqMsg);

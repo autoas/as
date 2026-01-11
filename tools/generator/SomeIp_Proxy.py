@@ -3,6 +3,7 @@
 
 import os
 from .helper import *
+from .SomeIpXf import *
 
 __all__ = ["Gen_SomeIpProxy"]
 
@@ -21,6 +22,7 @@ def toMethodTypeName(type_name, method):
 
 
 def Gen_SomeIpProxy(cfg, service, dir, source):
+    allStructs = GetStructs(cfg)
     service_name = service["name"]
     H = open("%s/%sProxy.hpp" % (dir, service_name), "w")
     source["%sProxy" % (service_name)] = ["%s/%sProxy.cpp" % (dir, service_name)]
@@ -125,6 +127,15 @@ private:
         ReturnType = method.get("return", "void")
         if ReturnType != "void":
             UsedTypes.append(ReturnType)
+        isTp = method.get("tp", False)
+        defTpCopyFnc = ""
+        defTpBuf = ""
+        if isTp:
+            defTpCopyFnc = f"""
+  Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+  Std_ReturnType OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);"""
+            defTpBuf = f"  uint8_t m_response[{GetStructPayloadSize(allStructs[ReturnType], allStructs)}];\n  bool m_requestInUse = false;"
+        payloadSize = 0
         Args = []
         if "args" in method:
             args = GetArgs(cfg, method["args"])
@@ -132,6 +143,7 @@ private:
                 Args.append(f"const {toMethodTypeName(arg['type'], method)} &{arg['name']}")
                 if arg["type"] not in UsedTypes:
                     UsedTypes.append(arg["type"])
+                payloadSize += GetStructPayloadSize(allStructs[arg["type"]], allStructs)
         def_methods += f"  methods::{method['name']} {method['name']};\n"
         used_types = ""
         for utype in UsedTypes:
@@ -148,12 +160,17 @@ public:
   ~{method['name']}();
 
 private:
+  Std_ReturnType OnError(uint32_t requestId, Std_ReturnType ercd);
   Std_ReturnType OnResponse(uint32_t requestId, SomeIp_MessageType *res);
+{defTpCopyFnc}
   friend class {service_name}::{service_name}Manager;
 
 private:
-  std::shared_ptr<ara::core::Promise<{ReturnType}>> m_promise;
+  std::shared_ptr<ara::core::Promise<{ReturnType}>> m_promise = nullptr;
   uint16_t m_sessionId = 0;
+  uint8_t m_request[{payloadSize}];
+  {toMethodTypeName(ReturnType, method)} m_{toMethodTypeName(ReturnType, method)};
+{defTpBuf}
 }};\n"""
         )
     H.write("} // namespace methods\n")
@@ -245,6 +262,7 @@ private:
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write(f"#define AS_LOG_{toMacro(service_name)} 0\n")
     C.write(f"#define AS_LOG_{toMacro(service_name)}_E 2\n")
+    C.write("#define SOMEIP_SF_MAX 1396\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ CLASS     ] ============================================== */\n")
     EventGroupInit = ""
@@ -289,6 +307,32 @@ private:
     }}
   }}\n"""
     for method in service.get("methods", []):
+        defTpCopyFnc = ""
+        if method.get("tp", False):
+            defTpCopyFnc = f"""
+Std_ReturnType On{method['name']}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg){{
+    Std_ReturnType ret = E_OK;
+
+    if (nullptr != m_h{method['name']}) {{
+      m_h{method['name']}->OnTpCopyRxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+
+    return ret;
+  }}
+
+Std_ReturnType On{method['name']}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg){{
+  Std_ReturnType ret = E_OK;
+
+  if (nullptr != m_h{method['name']}) {{
+    m_h{method['name']}->OnTpCopyTxData(requestId, msg);
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+
+  return ret;
+}}"""
         DecVars += f"  methods::{method['name']} *m_h{method['name']} = nullptr;\n"
         DecApis += f"""
   void Register(methods::{method['name']} *h{method['name']}) {{
@@ -308,6 +352,20 @@ private:
       throw std::runtime_error("incorrect {method['name']} when do unregister");
     }}
   }}
+
+  Std_ReturnType On{method['name']}Error(uint32_t requestId, Std_ReturnType ercd) {{
+    Std_ReturnType ret = E_OK;
+
+    if (nullptr != m_h{method['name']}) {{
+      m_h{method['name']}->OnError(requestId, ercd);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+
+    return ret;
+  }}
+
+{defTpCopyFnc}
 
   Std_ReturnType On{method['name']}Response(uint32_t requestId, SomeIp_MessageType *res) {{
     Std_ReturnType ret = E_OK;
@@ -519,39 +577,113 @@ void {event['name']}::OnSubscribeAck(bool isSubscribe) {{
             for arg in args:
                 Args.append(f"const {toMethodTypeName(arg['type'], method)} &{arg['name']}")
                 serArgs += f"""
-  if ((offset >= 0) && ((int32_t)payload.size() > offset)) {{
-    serializedSize = SomeIpXf_EncodeStruct(payload.data() + offset, payload.size()- offset,
-                              &{arg['name']}, &SomeIpXf_Struct{arg['type']}Def);
-    if (serializedSize > 0) {{
-      offset += serializedSize;
-    }} else {{
-      offset = -ENOSPC;
+    if ((offset >= 0) && ((int32_t)sizeof(m_request) > offset)) {{
+      serializedSize = SomeIpXf_EncodeStruct(m_request + offset, sizeof(m_request) - offset,
+                                &{arg['name']}, &SomeIpXf_Struct{arg['type']}Def);
+      if (serializedSize > 0) {{
+        offset += serializedSize;
+      }} else {{
+        offset = -ENOSPC;
+      }}
     }}
-  }}
 """
-        C.write(
-            f"""
-ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {method['name']}::operator()({",".join(Args)}) {{
-  m_promise = std::make_shared<Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}>>();
-  Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> future = m_promise->get_future();
-  std::vector<uint8_t> payload(1400);
-  int32_t offset = 0;
-  int32_t serializedSize;
-
-  uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_{toMacro(method['name'])} << 16) + (++m_sessionId);
-{serArgs}
-  if (offset >= 0) {{
-    Std_ReturnType ret = SomeIp_Request(requestId, payload.data(), offset);
-    if (E_OK != ret) {{
-      m_promise->SetError(ret);
+        if method.get("tp", False):
+            C.write(
+                f"""
+Std_ReturnType {method['name']}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_response)) {{
+    memcpy(&m_response[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      msg->data = m_response;
     }}
   }} else {{
-    m_promise->SetError(-EINVAL);
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}
+
+Std_ReturnType {method['name']}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_request))) {{
+    memcpy(msg->data, &m_request[msg->offset], msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      m_requestInUse = false;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+    m_requestInUse = false;
+  }}
+  return ret;
+}}
+
+ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {method['name']}::operator()({",".join(Args)}) {{
+  Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> future;
+  int32_t offset = 0;
+  int32_t serializedSize;
+  if ((false == m_requestInUse) && (nullptr == m_promise)) {{
+    m_promise = std::make_shared<Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}>>();
+    future = m_promise->get_future();
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_{toMacro(method['name'])} << 16) + (++m_sessionId);
+{serArgs}
+    if (offset >= 0) {{
+      Std_ReturnType ret = SomeIp_Request(requestId, m_request, offset);
+      if (E_OK != ret) {{
+        m_promise->SetError(ret);
+        m_promise = nullptr;
+      }} else {{
+        if (offset > SOMEIP_SF_MAX) {{
+          m_requestInUse = true;
+        }}
+      }}
+    }} else {{
+      m_promise->SetError(-EINVAL);
+      m_promise = nullptr;
+    }}
+  }} else {{
+    Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}> promise;
+    future = promise.get_future();
+    promise.SetError(-EBUSY);
   }}
 
   return future;
-}}
+}}\n"""
+            )
+        else:
+            C.write(
+                f"""
+ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {method['name']}::operator()({",".join(Args)}) {{
+  m_promise = std::make_shared<Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}>>();
+  Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> future = m_promise->get_future();
+  int32_t offset = 0;
+  int32_t serializedSize;
 
+  if (nullptr == m_promise) {{
+    m_promise = std::make_shared<Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}>>();
+    future = m_promise->get_future();
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_{toMacro(method['name'])} << 16) + (++m_sessionId);
+{serArgs}
+    if (offset >= 0) {{
+      Std_ReturnType ret = SomeIp_Request(requestId, m_request, offset);
+      if (E_OK != ret) {{
+        m_promise->SetError(ret);
+        m_promise = nullptr;
+      }}
+    }} else {{
+      m_promise->SetError(-EINVAL);
+      m_promise = nullptr;
+    }}
+  }} else {{
+    Promise<{method['name']}::{toMethodTypeName(ReturnType, method)}> promise;
+    future = promise.get_future();
+    promise.SetError(-EBUSY);
+  }}
+
+  return future;
+}}\n"""
+            )
+        C.write(
+            f"""
 {method['name']}::{method['name']}() {{
   {service_name}Manager::GetInstance()->Register(this);
 }}
@@ -560,17 +692,31 @@ ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {met
   {service_name}Manager::GetInstance()->UnRegister(this);
 }}
 
+Std_ReturnType {method['name']}::OnError(uint32_t requestId, Std_ReturnType ercd) {{
+  if (nullptr != m_promise) {{
+    m_promise->SetError(ercd);
+    m_promise = nullptr;
+  }} else {{
+    ASLOG({toMacro(service_name)}_E, ("no promise for {method['name']} error %d\\n", ercd));
+  }}
+  return E_OK;
+}}
+
 Std_ReturnType {method['name']}::OnResponse(uint32_t requestId, SomeIp_MessageType *res) {{
   Std_ReturnType ret = E_OK;
-  {method['name']}::{toMethodTypeName(ReturnType, method)} {toMethodTypeName(ReturnType, method)};
-  int32_t serializedSize =
-    SomeIpXf_DecodeStruct(res->data, res->length, &{toMethodTypeName(ReturnType, method)}, &SomeIpXf_Struct{ReturnType}Def);
-  if (serializedSize > 0) {{
-    m_promise->set_value({toMethodTypeName(ReturnType, method)});
+  if (nullptr != m_promise) {{
+    int32_t serializedSize =
+      SomeIpXf_DecodeStruct(res->data, res->length, &m_{toMethodTypeName(ReturnType, method)}, &SomeIpXf_Struct{ReturnType}Def);
+    if (serializedSize > 0) {{
+      m_promise->set_value(m_{toMethodTypeName(ReturnType, method)});
+    }} else {{
+      ASLOG({toMacro(service_name)}_E, ("malformed {method['name']} response {toMethodTypeName(ReturnType, method)}\\n"));
+      m_promise->SetError(-EINVAL);
+      ret = E_NOT_OK;
+    }}
+    m_promise = nullptr;
   }} else {{
-    ASLOG({toMacro(service_name)}_E, ("malformed {method['name']} response {toMethodTypeName(ReturnType, method)}\\n"));
-    m_promise->SetError(-EINVAL);
-    ret = E_NOT_OK;
+    ASLOG({toMacro(service_name)}_E, ("no promise for {method['name']} response\\n"));
   }}
 
   return ret;
@@ -617,11 +763,40 @@ Std_ReturnType SomeIp_{service_name}_{method['name']}_OnResponse(uint32_t reques
 
 Std_ReturnType SomeIp_{service_name}_{method['name']}_OnError(uint32_t requestId, Std_ReturnType ercd) {{
   ASLOG({toMacro(service_name)}, ("{method['name']} OnError %X: %d\\n", requestId, ercd));
-  return E_OK;
+  return {service_name}Manager::GetInstance()->On{method['name']}Error(requestId, ercd);
 }}\n"""
         )
+        if method.get("tp", False):
+            C.write(
+                f"""
+Std_ReturnType SomeIp_{service_name}_{method['name']}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    return {service_name}Manager::GetInstance()->On{method['name']}TpCopyRxData(requestId, msg);
+}}
+
+Std_ReturnType SomeIp_{service_name}_{method['name']}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->On{method['name']}TpCopyTxData(requestId, msg);
+}}\n"""
+            )
     for eg in service.get("event-groups", []):
         for event in eg.get("events", []):
+            isTp = event.get("tp", False)
+            if isTp:
+                C.write(
+                    f"""
+Std_ReturnType SomeIp_RadarService_Object_BrakeEvent_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  static uint8_t payload[{GetStructPayloadSize(allStructs[event['type']], allStructs)}];
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(payload))) {{
+    memcpy(&payload[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      msg->data = (uint8_t *)payload;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}\n"""
+                )
             C.write(
                 f"""
 Std_ReturnType SomeIp_{service_name}_Object_{event['name']}_OnNotification(uint32_t requestId,
@@ -629,7 +804,7 @@ Std_ReturnType SomeIp_{service_name}_Object_{event['name']}_OnNotification(uint3
 
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
-  events::{event['name']}::SampleType sample;
+  static events::{event['name']}::SampleType sample;
   ASLOG(RADAR_SERVICE,
         ("{event['name']} OnNotification %X: len=%d, data=[%02X %02X %02X %02X ...]\\n", requestId,
          evt->length, evt->data[0], evt->data[1], evt->data[2], evt->data[3]));

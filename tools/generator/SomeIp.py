@@ -6,6 +6,7 @@ from .helper import *
 from .SomeIp_Proxy import *
 from .SomeIp_Skeleton import *
 from .SomeIpXf import *
+import json
 
 __all__ = ["Gen_SomeIp"]
 
@@ -1315,14 +1316,6 @@ def Gen_SOMEIP(cfg, dir, source):
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    for service in cfg.get("servers", []):
-        Gen_ServerService(service, dir, source)
-        Gen_ServerServiceExCpp(service, dir, source)
-        Gen_SomeIpSkeleton(cfg, service, dir, source)
-    for service in cfg.get("clients", []):
-        Gen_ClientService(service, dir, source)
-        Gen_ClientServiceExCpp(service, dir, source)
-        Gen_SomeIpProxy(cfg, service, dir, source)
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     for service in cfg.get("servers", []):
         if "methods" not in service:
@@ -1367,7 +1360,7 @@ def Gen_SOMEIP(cfg, dir, source):
                     C.write("    SomeIp_%s_OnTpCopyTxData,\n" % (beName))
                     service["tp"] = True
                 else:
-                    C.write("  NULL,\n")
+                    C.write("    NULL,\n")
                 C.write("  },\n")
         C.write("};\n\n")
     for service in cfg.get("clients", []):
@@ -1628,4 +1621,14 @@ def Gen_SomeIp(cfg, dir):
     Gen_SD(cfg, dir)
     Gen_SOMEIPXF(cfg, dir)
     Gen_SOMEIP(cfg, dir, source)
+    for service in cfg.get("servers", []):
+        Gen_ServerService(service, dir, source)
+        Gen_ServerServiceExCpp(service, dir, source)
+        Gen_SomeIpSkeleton(cfg, service, dir, source)
+    for service in cfg.get("clients", []):
+        Gen_ClientService(service, dir, source)
+        Gen_ClientServiceExCpp(service, dir, source)
+        Gen_SomeIpProxy(cfg, service, dir, source)
+    with open("%s/SomeIp.json" % (dir), "w") as f:
+        json.dump(cfg, f, indent=2)
     return source

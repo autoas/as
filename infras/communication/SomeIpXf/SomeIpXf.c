@@ -453,7 +453,7 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
 
     if (r < 0) {
       ASLOG(SOMEIPXFE,
-            ("struct %s field %s encode error %d\n", structDef->name, dataElement->name, r));
+            ("struct %s field %s encode error %d, offset=%d\n", structDef->name, dataElement->name, r, offset));
       continue;
     }
 

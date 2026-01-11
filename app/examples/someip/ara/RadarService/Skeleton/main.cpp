@@ -82,12 +82,12 @@ static void BrakeEventHandler(RadarServiceImpl &myRadarService) {
       curSamplePtr->objects[i].y = num + 2;
       curSamplePtr->objects[i].z = num + 3;
     }
+    ASLOG(RADAR, ("sending %u radar objects\n", num));
+    myRadarService.BrakeEvent.Send(std::move(curSamplePtr));
     num++;
     if (num > 32) {
       num = 1;
     }
-    ASLOG(RADAR, ("sending %u radar objects\n", num));
-    myRadarService.BrakeEvent.Send(std::move(curSamplePtr));
   }
 }
 
