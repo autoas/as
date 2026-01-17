@@ -61,11 +61,31 @@
                 {
                   "name": "BrakeEvent",
                   "type": "RadarObjects",
-                  "eventId": "0xabcd",
+                  "eventId": "0x8002",
                   "tp": true,
                   "version": "0"
                 }
               ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "UpdateRate",
+              "type": "uint32",
+              "get": {
+                "methodId": "0x0002"
+              },
+              "set": {
+                "methodId": "0x0003"
+              },
+              "event": {
+                "groupName": "Fields",
+                "groupId": "0x8003",
+                "group_enable_multicast": false,
+                "eventId": "0x8003"
+              },
+              "tp": true,
+              "version": "0"
             }
           ]
         }

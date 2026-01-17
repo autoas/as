@@ -48,6 +48,12 @@ void handleBrakeEventReception() {
   });
 }
 
+void handleUpdateRateReception() {
+  myRadarProxy->UpdateRate.GetNewSamples([&](SamplePtr<fields::UpdateRate::FieldType> samplePtr) {
+    ASLOG(RADAR, ("UpdateRate: %u\n", *samplePtr));
+  });
+}
+
 static void RadarServiceMain(void) {
   uint16_t instanceId = SOMEIP_CSID_RADAR_SERVICE;
   StringView instanceIdStr((char *)&instanceId, 2);
@@ -70,16 +76,23 @@ static void RadarServiceMain(void) {
     myRadarProxy = std::make_unique<RadarServiceProxy>(handles[0]);
 
     myRadarProxy->BrakeEvent.Subscribe(10);
+    myRadarProxy->UpdateRate.Subscribe(10);
 
     auto state = myRadarProxy->BrakeEvent.GetSubscriptionState();
     while (state != SubscriptionState::kSubscribed) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       state = myRadarProxy->BrakeEvent.GetSubscriptionState();
     }
-
-    ASLOG(RADAR, ("Event online\n"));
-
+    ASLOG(RADAR, ("BrakeEvent online\n"));
     myRadarProxy->BrakeEvent.SetReceiveHandler(handleBrakeEventReception);
+
+    state = myRadarProxy->UpdateRate.GetSubscriptionState();
+    while (state != SubscriptionState::kSubscribed) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      state = myRadarProxy->UpdateRate.GetSubscriptionState();
+    }
+    ASLOG(RADAR, ("UpdateRate online\n"));
+    myRadarProxy->UpdateRate.SetReceiveHandler(handleUpdateRateReception);
 
     while (state == SubscriptionState::kSubscribed) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -87,6 +100,14 @@ static void RadarServiceMain(void) {
     }
 
     ASLOG(RADAR, ("Event offline\n"));
+  }
+}
+
+static void RadarServiceMainLoop(void) {
+  while (true) {
+    RadarServiceMain();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    myRadarProxy = nullptr;
   }
 }
 
@@ -103,17 +124,40 @@ static void RadarServiceMethodMain(void) {
 
   uint32_t i = 0;
   while (state == SubscriptionState::kSubscribed) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    methods::Adjust::Position target_position = {i, i + 1, i + 2};
-    Future<methods::Adjust::Output> future = myRadarProxy->Adjust(target_position);
-    Result<methods::Adjust::Output> rslt = future.GetResult();
-    if (rslt.HasValue()) {
-      methods::Adjust::Output output = rslt.Value();
-      ASLOG(RADAR, ("Adjust with: %s (%u, %u, %u)\n", output.success ? "success" : "fail",
-                    output.effective_position.x, output.effective_position.y,
-                    output.effective_position.z));
-    } else {
-      ASLOG(RADAR, ("Adjust with error: %d\n", rslt.Error().Value()));
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      methods::Adjust::Position target_position = {i, i + 1, i + 2};
+      Future<methods::Adjust::Output> future = myRadarProxy->Adjust(target_position);
+      Result<methods::Adjust::Output> rslt = future.GetResult();
+      if (rslt.HasValue()) {
+        methods::Adjust::Output output = rslt.Value();
+        ASLOG(RADAR, ("Adjust with: %s (%u, %u, %u)\n", output.success ? "success" : "fail",
+                      output.effective_position.x, output.effective_position.y,
+                      output.effective_position.z));
+      } else {
+        ASLOG(RADAR, ("Adjust with error: %d\n", rslt.Error().Value()));
+      }
+    }
+    {
+      fields::UpdateRate::FieldType newField = i * 3;
+      Future<fields::UpdateRate::FieldType> future = myRadarProxy->UpdateRate.Set(newField);
+      Result<fields::UpdateRate::FieldType> rslt = future.GetResult();
+      if (rslt.HasValue()) {
+        fields::UpdateRate::FieldType field = rslt.Value();
+        ASLOG(RADAR, ("Set Filed UpdateRate with: %u\n", field));
+      } else {
+        ASLOG(RADAR, ("Set UpdateRate with error: %d\n", rslt.Error().Value()));
+      }
+    }
+    {
+      Future<fields::UpdateRate::FieldType> future = myRadarProxy->UpdateRate.Get();
+      Result<fields::UpdateRate::FieldType> rslt = future.GetResult();
+      if (rslt.HasValue()) {
+        fields::UpdateRate::FieldType field = rslt.Value();
+        ASLOG(RADAR, ("Get Filed UpdateRate with: %u\n", field));
+      } else {
+        ASLOG(RADAR, ("Get UpdateRate with error: %d\n", rslt.Error().Value()));
+      }
     }
 
     state = myRadarProxy->BrakeEvent.GetSubscriptionState();
@@ -122,6 +166,12 @@ static void RadarServiceMethodMain(void) {
   ASLOG(RADAR, ("Method offline\n"));
 }
 
+static void RadarServiceMethodMainLoop(void) {
+  while (true) {
+    RadarServiceMethodMain();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   TcpIp_Init(NULL);
@@ -132,8 +182,8 @@ int main(int argc, char *argv[]) {
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer1s);
 
-  std::thread th = std::thread(RadarServiceMain);
-  std::thread thm = std::thread(RadarServiceMethodMain);
+  std::thread th = std::thread(RadarServiceMainLoop);
+  std::thread thm = std::thread(RadarServiceMethodMainLoop);
   for (;;) {
     if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
       Std_TimerStart(&timer10ms);

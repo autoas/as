@@ -711,6 +711,8 @@ Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrTyp
 
     ASLOG(TCPIP, ("[%d] sockname %d.%d.%d.%d:%d\n", SocketId, addr->addr[0], addr->addr[1],
                   addr->addr[2], addr->addr[3], addr->port));
+  } else {
+    ASLOG(TCPIPE, ("[%d] get sockname failed: %d\n", SocketId, r));
   }
 
   return ret;

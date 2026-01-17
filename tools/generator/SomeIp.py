@@ -1218,6 +1218,11 @@ def Gen_SOMEIP(cfg, dir, source):
     H.write("#define SOMEIP_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
+    H.write("#define SOMEIP_ASYNC_REQUEST_MESSAGE_POOL_SIZE %s\n" % (cfg.get("AsyncRequestMessagePoolSize", 32)))
+    H.write("#define SOMEIP_RX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("RxTpMessagePoolSize", 32)))
+    H.write("#define SOMEIP_TX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("TxTpMessagePoolSize", 32)))
+    H.write("#define SOMEIP_TCP_BUFFER_POOL_SIZE %s\n" % (cfg.get("TxTpMessagePoolSize", 32)))
+    H.write("#define SOMEIP_WAIT_RESPOSE_MESSAGE_POOL_SIZE %s\n\n" % (cfg.get("WaitResposeTpMessagePoolSize", 32)))
     ID = 0
     for service in cfg.get("servers", []):
         mn = toMacro(service["name"])
@@ -1254,6 +1259,7 @@ def Gen_SOMEIP(cfg, dir, source):
         for method in service.get("methods", []):
             bName = "%s_%s" % (service["name"], method["name"])
             H.write("#define SOMEIP_RX_METHOD_%s %s\n" % (toMacro(bName), ID))
+            ID += 1
     H.write("\n")
     ID = 0
     for service in cfg.get("clients", []):
@@ -1262,6 +1268,7 @@ def Gen_SOMEIP(cfg, dir, source):
         for method in service.get("methods", []):
             bName = "%s_%s" % (service["name"], method["name"])
             H.write("#define SOMEIP_TX_METHOD_%s %s\n" % (toMacro(bName), ID))
+            ID += 1
     H.write("\n")
     ID = 0
     for service in cfg.get("servers", []):
@@ -1455,6 +1462,7 @@ def Gen_SOMEIP(cfg, dir, source):
         C.write("static const SomeIp_ServerServiceType someIpServerService_%s = {\n" % (service["name"]))
         C.write("  %s, /* serviceId */\n" % (service["service"]))
         C.write("  %s, /* clientId */\n" % (service["clientId"]))
+        C.write("  SD_SERVER_SERVICE_HANDLE_ID_%s, /* sdHandleId */\n" % (toMacro(service["name"])))
         if "methods" not in service:
             C.write("  NULL,\n  0,\n")
         else:
@@ -1612,12 +1620,96 @@ def Gen_SOMEIP(cfg, dir, source):
     C.close()
 
 
+def ProcFieldGet(cfg, service, field):
+    if "get" in field:
+        if "methods" not in service:
+            service["methods"] = []
+        service["methods"].append(
+            {
+                "name": f"Get{field['name']}",
+                "methodId": field["get"]["methodId"],
+                "return": field["type"],
+                "tp": field.get("tp", False),
+                "version": field.get("version", 0),
+                "for": "field",
+            }
+        )
+
+
+def ProcFieldSet(cfg, service, field):
+    if "set" in field:
+        if "methods" not in service:
+            service["methods"] = []
+        service["methods"].append(
+            {
+                "name": f"Set{field['name']}",
+                "methodId": field["set"]["methodId"],
+                "args": f"get-{field['name']}-args",
+                "return": field["type"],
+                "tp": field.get("tp", False),
+                "version": field.get("version", 0),
+                "for": "field",
+            }
+        )
+        if "args" not in cfg:
+            cfg["args"] = []
+        cfg["args"].append({"name": f"get-{field['name']}-args", "args": [{"name": "value", "type": field["type"]}]})
+
+
+def ProcFieldEvent(cfg, service, field):
+    if "event" in field:
+        if "event-groups" not in service:
+            service["event-groups"] = []
+        groupName = field["event"]["groupName"]
+        event_group = None
+        for eg in service["event-groups"]:
+            if eg["name"] == groupName:
+                event_group = eg
+                break
+        if event_group is None:
+            event_group = {
+                "name": groupName,
+                "groupId": field["event"]["groupId"],
+                "enable_multicast": field["event"].get("enable_multicast", False),
+                "events": [],
+            }
+            service["event-groups"].append(event_group)
+        if "events" not in event_group:
+            event_group["events"] = []
+        event_group["events"].append(
+            {
+                "name": field["name"],
+                "type": field["type"],
+                "eventId": field["event"]["eventId"],
+                "tp": field.get("tp", False),
+                "version": "0",
+                "for": "field",
+            }
+        )
+
+
+def ProcFields(cfg):
+    for service in cfg.get("clients", []):
+        for field in service.get("fields", []):
+            ProcFieldGet(cfg, service, field)
+            ProcFieldSet(cfg, service, field)
+            ProcFieldEvent(cfg, service, field)
+    for service in cfg.get("servers", []):
+        for field in service.get("fields", []):
+            ProcFieldGet(cfg, service, field)
+            ProcFieldSet(cfg, service, field)
+            ProcFieldEvent(cfg, service, field)
+
+    return cfg
+
+
 def Gen_SomeIp(cfg, dir):
     source = {
         "Sd": ["%s/Sd_Cfg.c" % (dir)],
         "SomeIpXf": ["%s/SomeIpXf_Cfg.c" % (dir)],
         "SomeIp": ["%s/SomeIp_Cfg.c" % (dir)],
     }
+    cfg = ProcFields(cfg)
     Gen_SD(cfg, dir)
     Gen_SOMEIPXF(cfg, dir)
     Gen_SOMEIP(cfg, dir, source)

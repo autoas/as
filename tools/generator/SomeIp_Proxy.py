@@ -47,14 +47,17 @@ def Gen_SomeIpProxy(cfg, service, dir, source):
     H.write("namespace events {\n")
     def_events = ""
     def_methods = ""
+    def_fields = ""
     for eg in service.get("event-groups", []):
         for event in eg["events"]:
+            if "for" in event:
+                continue
             def_events += f"  events::{event['name']} {event['name']};\n"
             H.write(
                 f"""
 class {event['name']} {{
 public:
-  using SampleType = {event['type']}_Type;
+  using SampleType = {GetXfCType(event, allStructs)};
 
   {event['name']}();
   ~{event['name']}();
@@ -117,12 +120,110 @@ private:
   std::deque<SamplePtr<SampleType>> m_lastNSamples;
   ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
   ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
-  size_t m_maxSampleCount = 0; 
+  size_t m_maxSampleCount = 0;
 }};\n\n"""
             )
     H.write("} // namespace events\n\n")
+    H.write("namespace fields {\n")
+    for field in service.get("fields", []):
+        def_fields += f"  fields::{field['name']} {field['name']};\n"
+        fieldPayloadSize = GetTypePayloadSize(field, allStructs)
+        fieldApis = ""
+        if 'event' in field:
+          fieldApis = f"""
+  template <typename F>
+  ara::core::Result<size_t>
+  GetNewSamples(F &&f, size_t maxNumberOfSamples = std::numeric_limits<size_t>::max()) {{
+    ara::core::Result<size_t> rslt(0);
+    size_t count = 0;
+    for (size_t i = 0; i < maxNumberOfSamples; i++) {{
+      if (false == m_lastNSamples.empty()) {{
+        SamplePtr<FieldType> samplePtr(std::move(m_lastNSamples.front()));
+        m_lastNSamples.pop_front();
+        f(std::move(samplePtr));
+        count++;
+      }} else {{
+        break;
+      }}
+    }}
+
+    rslt = ara::core::Result<size_t>(count);
+
+    return rslt;
+  }}"""
+        H.write(
+            f"""
+class {field['name']} {{
+public:
+  using FieldType = {GetXfCType(field, allStructs)};
+
+  {field['name']}();
+  ~{field['name']}();
+
+{"  ara::core::Result<void> Subscribe(size_t maxSampleCount);" if 'event' in field else ""}
+
+{"  size_t GetFreeSampleCount() const noexcept;" if 'event' in field else ""}
+
+{"  ara::com::SubscriptionState GetSubscriptionState() const;" if 'event' in field else ""}
+
+{"  void Unsubscribe();" if 'event' in field else ""}
+
+{"  ara::core::Result<void> SetReceiveHandler(ara::com::EventReceiveHandler handler);" if 'event' in field else ""}
+
+{"  ara::core::Result<void> UnsetReceiveHandler();" if 'event' in field else ""}
+
+{"  ara::core::Result<void> SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler);" if 'event' in field else ""}
+  
+{"  void UnsetSubscriptionStateChangeHandler();" if 'event' in field else ""}
+  
+{fieldApis}
+
+{"  ara::core::Future<FieldType> Get();" if 'get' in field else ""}
+
+{"  ara::core::Future<FieldType> Set(const FieldType& value);" if 'set' in field else ""}
+
+private:
+{"  void OnSubscribeAck(bool isSubscribe);" if 'event' in field else ""}
+{"  void OnNotification(uint32_t requestId, SomeIp_MessageType* evt);" if 'event' in field else ""}
+{"  Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);" if field.get("tp", False) and 'event' in field else ""}
+
+{"  Std_ReturnType OnGetResponse(uint32_t requestId, SomeIp_MessageType* res);" if 'get' in field else ""}
+{"  Std_ReturnType OnGetError(uint32_t requestId, Std_ReturnType ercd);" if 'get' in field else ""}
+{"  Std_ReturnType OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);" if field.get("tp", False) and 'get' in field else ""}
+{"  Std_ReturnType OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);" if field.get("tp", False) and 'get' in field else ""}
+
+{"  Std_ReturnType OnSetResponse(uint32_t requestId, SomeIp_MessageType* res);" if 'set' in field else ""}
+{"  Std_ReturnType OnSetError(uint32_t requestId, Std_ReturnType ercd);" if 'set' in field else ""}
+{"  Std_ReturnType OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);" if field.get("tp", False) and 'set' in field else ""}
+{"  Std_ReturnType OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);" if field.get("tp", False) and 'set' in field else ""}
+
+friend class {service_name}::{service_name}Manager;
+
+private:
+{f"  std::deque<SamplePtr<FieldType>> m_lastNSamples;" if 'event' in field else ""}
+{f"  ara::com::EventReceiveHandler m_evtRxHandler = nullptr;" if 'event' in field else ""}
+{f"  ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;" if 'event' in field else ""}
+{f"  size_t m_maxSampleCount = 0;" if 'event' in field else ""}
+{f"  uint8_t m_payload[{fieldPayloadSize}];" if 'event' in field else ""}
+
+{"  std::shared_ptr<ara::core::Promise<FieldType>> m_promiseGet = nullptr;" if 'get' in field else ""}
+{"  uint16_t m_sessionIdGet = 0;" if 'get' in field else ""}
+{f"  uint8_t m_responseGet[{fieldPayloadSize}];" if 'get' in field and field.get("tp", False) else ""}
+{"  FieldType m_fieldGet;" if 'get' in field else ""}
+
+{"  std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;" if 'set' in field else ""}
+{"  uint16_t m_sessionIdSet = 0;" if 'set' in field else ""}
+{f"  uint8_t m_requestSet[{fieldPayloadSize}];" if 'set' in field else ""}
+{f"  uint8_t m_responseSet[{fieldPayloadSize}];" if 'set' in field and field.get("tp", False) else ""}
+{f"  bool m_requestSetInUse = false;" if 'set' in field and field.get("tp", False) else ""}
+{"  FieldType m_fieldSet;" if 'set' in field else ""}
+}};\n"""
+        )
+    H.write("} // namespace fields\n\n")
     H.write("namespace methods {\n")
     for method in service.get("methods", []):
+        if "for" in method:
+            continue
         UsedTypes = []
         ReturnType = method.get("return", "void")
         if ReturnType != "void":
@@ -134,7 +235,9 @@ private:
             defTpCopyFnc = f"""
   Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
   Std_ReturnType OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);"""
-            defTpBuf = f"  uint8_t m_response[{GetStructPayloadSize(allStructs[ReturnType], allStructs)}];\n  bool m_requestInUse = false;"
+            defTpBuf = (
+                f"  uint8_t m_response[{GetTypePayloadSize(ReturnType, allStructs)}];\n  bool m_requestInUse = false;"
+            )
         payloadSize = 0
         Args = []
         if "args" in method:
@@ -143,11 +246,11 @@ private:
                 Args.append(f"const {toMethodTypeName(arg['type'], method)} &{arg['name']}")
                 if arg["type"] not in UsedTypes:
                     UsedTypes.append(arg["type"])
-                payloadSize += GetStructPayloadSize(allStructs[arg["type"]], allStructs)
+                payloadSize += GetTypePayloadSize(arg, allStructs)
         def_methods += f"  methods::{method['name']} {method['name']};\n"
         used_types = ""
         for utype in UsedTypes:
-            used_types += f"  using {toMethodTypeName(utype, method)} = {utype}_Type;\n"
+            used_types += f"  using {toMethodTypeName(utype, method)} = {GetXfCType(utype, allStructs)};\n"
         H.write(
             f"""
 class {method['name']} {{
@@ -234,6 +337,8 @@ public:
 
 {def_methods}
 
+{def_fields}
+
 private:
   HandleType &m_handle;
 }};\n"""
@@ -275,6 +380,8 @@ private:
       SubscriptionState::kNotSubscribed,
     }};\n"""
         for event in eg.get("events", []):
+            if "for" in event:
+                continue
             DecVars += f"  events::{event['name']} *m_h{event['name']} = nullptr;\n"
             DecApis += f"""
   void Register(events::{event['name']} *h{event['name']}) {{
@@ -306,7 +413,145 @@ private:
       m_h{event['name']}->OnSubscribeAck(isSubscribe);
     }}
   }}\n"""
+    for field in service.get("fields", []):
+        DecVars += f"  fields::{field['name']} *m_h{field['name']} = nullptr;\n"
+        DecApis += f"""
+  void Register(fields::{field['name']} *h{field['name']}) {{
+    std::lock_guard<std::mutex> lck(m_lock);
+    if (nullptr == m_h{field['name']}) {{
+      m_h{field['name']} = h{field['name']};
+    }} else {{
+      throw std::runtime_error("{field['name']} already registerred");
+    }}
+  }}
+
+  void UnRegister(fields::{field['name']} *h{field['name']}) {{
+    std::lock_guard<std::mutex> lck(m_lock);
+    if (h{field['name']} == m_h{field['name']}) {{
+      m_h{field['name']} = nullptr;
+    }} else {{
+      throw std::runtime_error("incorrect {field['name']} when do unregister");
+    }}
+  }}\n"""
+        if "get" in field:
+            DecApis += f"""
+  Std_ReturnType OnGet{field['name']}Response(uint32_t requestId, SomeIp_MessageType* res) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnGetResponse(requestId, res);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}
+
+  Std_ReturnType OnGet{field['name']}Error(uint32_t requestId, Std_ReturnType ercd) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnGetError(requestId, ercd);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
+            if field.get("tp", False):
+                DecApis += f"""
+  Std_ReturnType OnGet{field['name']}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnGetTpCopyRxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}
+
+  Std_ReturnType OnGet{field['name']}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnGetTpCopyTxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
+        if "set" in field:
+            DecApis += f"""
+  Std_ReturnType OnSet{field['name']}Response(uint32_t requestId, SomeIp_MessageType* res) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnSetResponse(requestId, res);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}
+
+  Std_ReturnType OnSet{field['name']}Error(uint32_t requestId, Std_ReturnType ercd) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnSetError(requestId, ercd);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
+            if field.get("tp", False):
+                DecApis += f"""
+  Std_ReturnType OnSet{field['name']}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnSetTpCopyRxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}
+
+  Std_ReturnType OnSet{field['name']}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnSetTpCopyTxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
+        if "event" in field:
+            DecApis += f"""
+  Std_ReturnType On{field['name']}Notification(uint32_t requestId, SomeIp_MessageType* evt) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      m_h{field['name']}->OnNotification(requestId, evt);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}
+
+  Std_ReturnType On{field['name']}SubscribeAck(boolean isSubscribe) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      m_h{field['name']}->OnSubscribeAck(isSubscribe);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
+            if field.get("tp", False):
+                DecApis += f"""
+  Std_ReturnType On{field['name']}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{field['name']}) {{
+      ret = m_h{field['name']}->OnTpCopyRxData(requestId, msg);
+    }} else {{
+      ret = E_NOT_OK;
+    }}
+    return ret;
+  }}\n"""
     for method in service.get("methods", []):
+        if "for" in method:
+            continue
         defTpCopyFnc = ""
         if method.get("tp", False):
             defTpCopyFnc = f"""
@@ -511,6 +756,8 @@ private:
     C.write("namespace events {\n")
     for eg in service.get("event-groups", []):
         for event in eg.get("events", []):
+            if "for" in event:
+                continue
             C.write(
                 f"""
 {event['name']}::{event['name']}() {{
@@ -567,8 +814,276 @@ void {event['name']}::OnSubscribeAck(bool isSubscribe) {{
 }}\n"""
             )
     C.write("} // namespace events\n")
+    C.write("namespace fields {\n")
+    for field in service.get("fields", []):
+        C.write(
+            f"""
+{field['name']}::{field['name']}() {{
+  {service_name}Manager::GetInstance()->Register(this);
+}}
+
+{field['name']}::~{field['name']}() {{
+  {service_name}Manager::GetInstance()->UnRegister(this);
+}}\n"""
+        )
+        if "get" in field:
+            C.write(
+                f"""
+ara::core::Future<{field['name']}::FieldType> {field['name']}::Get() {{
+  ara::core::Future<FieldType> future;
+  if (nullptr == m_promiseGet) {{
+    m_promiseGet = std::make_shared<Promise<FieldType>>();
+    future = m_promiseGet->get_future();
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_GET_{toMacro(field['name'])} << 16) + (++m_sessionIdGet);
+    Std_ReturnType ret = SomeIp_Request(requestId, nullptr, 0);
+    if (E_OK != ret) {{
+      m_promiseGet->SetError(ret);
+      m_promiseGet = nullptr;
+    }}
+  }} else {{
+    Promise<FieldType> promise;
+    future = promise.get_future();
+    promise.SetError(-EBUSY);
+  }}
+  return future;
+}}
+
+Std_ReturnType {field['name']}::OnGetResponse(uint32_t requestId, SomeIp_MessageType* res) {{
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  if (nullptr != m_promiseGet) {{
+    serializedSize = {SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 'm_fieldGet')};
+    if (serializedSize > 0) {{
+      m_promiseGet->set_value(m_fieldGet);
+    }} else {{
+      ret = E_NOT_OK;
+      m_promiseGet->SetError(-EINVAL);
+    }}
+    m_promiseGet = nullptr;
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}
+
+Std_ReturnType {field['name']}::OnGetError(uint32_t requestId, Std_ReturnType ercd) {{
+  Std_ReturnType ret = E_OK;
+  if (nullptr != m_promiseGet) {{
+    m_promiseGet->SetError(ercd);
+    m_promiseGet = nullptr;
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}\n"""
+            )
+            if field.get("tp", False):
+                C.write(
+                    f"""
+Std_ReturnType {field['name']}::OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_responseGet)) {{
+    memcpy(&m_responseGet[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      msg->data = m_responseGet;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}
+
+Std_ReturnType {field['name']}::OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_NOT_OK;
+  /* never used for get */
+  return ret;
+}}\n"""
+                )
+        if "set" in field:
+            C.write(
+                f"""
+ara::core::Future<{field['name']}::FieldType> {field['name']}::Set(const {field['name']}::FieldType& value) {{
+  ara::core::Future<FieldType> future;
+  int32_t serializedSize;
+  if ((nullptr == m_promiseSet){" && (false == m_requestSetInUse)" if field.get('tp', False) else ""}) {{
+    m_promiseSet = std::make_shared<Promise<FieldType>>();
+    future = m_promiseSet->get_future();
+    serializedSize = {SomeIpXfEncode(field, allStructs, 'm_requestSet', 'sizeof(m_requestSet)', 'value')};
+    if (serializedSize > 0) {{
+      uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_SET_{toMacro(field['name'])} << 16) + (++m_sessionIdSet);
+      Std_ReturnType ret = SomeIp_Request(requestId, m_requestSet, serializedSize);
+      if (E_OK != ret) {{
+        m_promiseSet->SetError(ret);
+        m_promiseSet = nullptr;
+      }} else {{
+{"        if (serializedSize > SOMEIP_SF_MAX) {" if field.get('tp', False) else ""}
+{"          m_requestSetInUse = true;" if field.get('tp', False) else ""}
+{"        }" if field.get('tp', False) else ""}
+      }}
+    }} else {{
+      m_promiseSet->SetError(-EINVAL);
+      m_promiseSet = nullptr;
+    }}
+  }} else {{
+    Promise<FieldType> promise;
+    future = promise.get_future();
+    promise.SetError(-EBUSY);
+  }}
+  return future;
+}}
+
+Std_ReturnType {field['name']}::OnSetResponse(uint32_t requestId, SomeIp_MessageType* res) {{
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  if (nullptr != m_promiseSet) {{
+    serializedSize = {SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 'm_fieldSet')};
+    if (serializedSize > 0) {{
+      m_promiseSet->set_value(m_fieldSet);
+    }} else {{
+      ret = E_NOT_OK;
+      m_promiseSet->SetError(-EINVAL);
+    }}
+    m_promiseSet = nullptr;
+{"    m_requestSetInUse = false;" if field.get('tp', False) else ""}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}
+
+Std_ReturnType {field['name']}::OnSetError(uint32_t requestId, Std_ReturnType ercd) {{
+  Std_ReturnType ret = E_OK;
+  if (nullptr != m_promiseSet) {{
+    m_promiseSet->SetError(ercd);
+    m_promiseSet = nullptr;
+{"    m_requestSetInUse = false;" if field.get('tp', False) else ""}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}\n"""
+            )
+            if field.get("tp", False):
+                C.write(
+                    f"""
+Std_ReturnType {field['name']}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_responseSet)) {{
+    memcpy(&m_responseSet[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      msg->data = m_responseSet;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}
+
+Std_ReturnType {field['name']}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_requestSet)) {{
+    memcpy(msg->data, &m_requestSet[msg->offset], msg->length);
+    if (false == msg->moreSegmentsFlag) {{
+      m_requestSetInUse = false;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+    m_requestSetInUse = false;
+  }}
+  return ret;
+}}\n"""
+                )
+        if "event" in field:
+            C.write(
+                f"""
+ara::core::Result<void> {field['name']}::Subscribe(size_t maxSampleCount) {{
+  Result<void> rslt(0);
+  Std_ReturnType ret;
+
+  ret = {service_name}Manager::GetInstance()->Subscribe(SD_CONSUMED_EVENT_GROUP_{toMacro(service_name)}_{toMacro(field['event']['groupName'])});
+  if (E_OK == ret) {{
+    m_maxSampleCount = maxSampleCount;
+  }} else {{
+    rslt = Result<void>(ret);
+  }}
+  return rslt;
+}}
+
+void {field['name']}::Unsubscribe() {{
+  (void){service_name}Manager::GetInstance()->Unsubscribe(
+    SD_CONSUMED_EVENT_GROUP_{toMacro(service_name)}_{toMacro(field['event']['groupName'])});
+}}
+
+SubscriptionState {field['name']}::GetSubscriptionState() const {{
+  return {service_name}Manager::GetInstance()->GetSubscriptionState(
+    SD_CONSUMED_EVENT_GROUP_{toMacro(service_name)}_{toMacro(field['event']['groupName'])});
+}}
+
+void {field['name']}::OnSubscribeAck(bool isSubscribe) {{
+  if (nullptr != m_stateChgHandler) {{
+    if (true == isSubscribe) {{
+      m_stateChgHandler(SubscriptionState::kSubscribed);
+    }} else {{
+      m_stateChgHandler(SubscriptionState::kNotSubscribed);
+    }}
+  }}
+}}
+
+ara::core::Result<void> {field['name']}::SetReceiveHandler(ara::com::EventReceiveHandler handler) {{
+  m_evtRxHandler = handler;
+  return ara::core::Result<void>(0);
+}}
+
+ara::core::Result<void> {field['name']}::UnsetReceiveHandler() {{
+  m_evtRxHandler = nullptr;
+  return ara::core::Result<void>(0);
+}}
+
+ara::core::Result<void> {field['name']}::SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler) {{
+  m_stateChgHandler = handler;
+  return ara::core::Result<void>(0);
+}}
+
+void {field['name']}::UnsetSubscriptionStateChangeHandler() {{
+  m_stateChgHandler = nullptr;
+}}
+
+void {field['name']}::OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {{
+  int32_t serializedSize;
+  SamplePtr<FieldType> samplePtr(new FieldType);
+  serializedSize = {SomeIpXfDecode(field, allStructs, 'evt->data', 'evt->length', '(*samplePtr)')};
+  if (serializedSize > 0) {{
+    m_lastNSamples.push_back(std::move(samplePtr));
+    if (m_lastNSamples.size() > m_maxSampleCount) {{
+      m_lastNSamples.pop_front();
+    }}
+    if (nullptr != m_evtRxHandler) {{
+      m_evtRxHandler();
+    }}
+  }}
+}}\n"""
+            )
+            if field.get("tp", False):
+                C.write(
+                    f"""
+Std_ReturnType {field['name']}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_payload))) {{
+    memcpy(&m_payload[msg->offset], msg->data, msg->length);
+    if (FALSE == msg->moreSegmentsFlag) {{
+      msg->data = m_payload;
+    }}
+  }} else {{
+    ret = E_NOT_OK;
+  }}
+  return ret;
+}}\n"""
+                )
+    C.write("} // namespace fields\n")
     C.write("namespace methods {\n")
     for method in service.get("methods", []):
+        if "for" in method:
+            continue
         ReturnType = method.get("return", "void")
         Args = []
         if "args" in method:
@@ -706,7 +1221,7 @@ Std_ReturnType {method['name']}::OnResponse(uint32_t requestId, SomeIp_MessageTy
   Std_ReturnType ret = E_OK;
   if (nullptr != m_promise) {{
     int32_t serializedSize =
-      SomeIpXf_DecodeStruct(res->data, res->length, &m_{toMethodTypeName(ReturnType, method)}, &SomeIpXf_Struct{ReturnType}Def);
+      {SomeIpXfDecode(ReturnType, allStructs, 'res->data', 'res->length', f"m_{toMethodTypeName(ReturnType, method)}")};
     if (serializedSize > 0) {{
       m_promise->set_value(m_{toMethodTypeName(ReturnType, method)});
     }} else {{
@@ -753,6 +1268,8 @@ Result<ServiceHandleContainer<{service_name}Proxy::HandleType>>
 }}\n"""
     )
     for method in service.get("methods", []):
+        if "for" in method:
+            continue
         C.write(
             f"""
 Std_ReturnType SomeIp_{service_name}_{method['name']}_OnResponse(uint32_t requestId, SomeIp_MessageType *res) {{
@@ -779,13 +1296,15 @@ Std_ReturnType SomeIp_{service_name}_{method['name']}_OnTpCopyTxData(uint32_t re
             )
     for eg in service.get("event-groups", []):
         for event in eg.get("events", []):
+            if "for" in event:
+                continue
             isTp = event.get("tp", False)
             if isTp:
                 C.write(
                     f"""
-Std_ReturnType SomeIp_RadarService_Object_BrakeEvent_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+Std_ReturnType SomeIp_{service_name}_{eg['name']}_{event['name']}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  static uint8_t payload[{GetStructPayloadSize(allStructs[event['type']], allStructs)}];
+  static uint8_t payload[{GetTypePayloadSize(event, allStructs)}];
   if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(payload))) {{
     memcpy(&payload[msg->offset], msg->data, msg->length);
     if (false == msg->moreSegmentsFlag) {{
@@ -799,7 +1318,7 @@ Std_ReturnType SomeIp_RadarService_Object_BrakeEvent_OnTpCopyRxData(uint32_t req
                 )
             C.write(
                 f"""
-Std_ReturnType SomeIp_{service_name}_Object_{event['name']}_OnNotification(uint32_t requestId,
+Std_ReturnType SomeIp_{service_name}_{eg['name']}_{event['name']}_OnNotification(uint32_t requestId,
                                                                     SomeIp_MessageType *evt) {{
 
   Std_ReturnType ret = E_OK;
@@ -810,7 +1329,7 @@ Std_ReturnType SomeIp_{service_name}_Object_{event['name']}_OnNotification(uint3
          evt->length, evt->data[0], evt->data[1], evt->data[2], evt->data[3]));
 
   serializedSize =
-    SomeIpXf_DecodeStruct(evt->data, evt->length, &sample, &SomeIpXf_Struct{event['type']}Def);
+    {SomeIpXfDecode(event, allStructs, 'evt->data', 'evt->length', 'sample')};
   if (serializedSize > 0) {{
     {service_name}Manager::GetInstance()->On{event['name']}(sample);
   }} else {{
@@ -819,12 +1338,92 @@ Std_ReturnType SomeIp_{service_name}_Object_{event['name']}_OnNotification(uint3
   }}
 
   return ret;
-}}
-
-void SomeIp_{service_name}_Object_OnSubscribeAck(boolean isSubscribe) {{
-  ASLOG(RADAR_SERVICE, ("{eg['name']} %ssubscribed\\n", isSubscribe ? "" : "un"));
-  {service_name}Manager::GetInstance()->On{event['name']}SubscribeAck(isSubscribe);
 }}\n"""
             )
+    eventNotifyFncs = {}
+    for eg in service.get("event-groups", []):
+        notifyEvents = ""
+        for event in eg.get("events", []):
+            if "for" in event:
+                continue
+            if eg["name"] not in eventNotifyFncs:
+                eventNotifyFncs[eg["name"]] = []
+            eventNotifyFncs[eg["name"]].append(
+                f"  {service_name}Manager::GetInstance()->On{event['name']}SubscribeAck(isSubscribe);"
+            )
+    for field in service.get("fields", []):
+        isTp = field.get("tp", False)
+        if "get" in field:
+            C.write(
+                f"""
+Std_ReturnType SomeIp_{service_name}_Get{field['name']}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {{
+  return {service_name}Manager::GetInstance()->OnGet{field['name']}Response(requestId, res);
+}}
+
+Std_ReturnType SomeIp_{service_name}_Get{field['name']}_OnError(uint32_t requestId, Std_ReturnType ercd) {{
+  return {service_name}Manager::GetInstance()->OnGet{field['name']}Error(requestId, ercd);
+}}\n"""
+            )
+            if isTp:
+                C.write(
+                    f"""
+Std_ReturnType SomeIp_{service_name}_Get{field['name']}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->OnGet{field['name']}TpCopyRxData(requestId, msg);
+}}
+
+Std_ReturnType SomeIp_{service_name}_Get{field['name']}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->OnGet{field['name']}TpCopyTxData(requestId, msg);
+}}\n"""
+                )
+        if "set" in field:
+            C.write(
+                f"""
+Std_ReturnType SomeIp_{service_name}_Set{field['name']}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {{
+  return {service_name}Manager::GetInstance()->OnSet{field['name']}Response(requestId, res);
+}}
+
+Std_ReturnType SomeIp_{service_name}_Set{field['name']}_OnError(uint32_t requestId, Std_ReturnType ercd) {{
+  return {service_name}Manager::GetInstance()->OnSet{field['name']}Error(requestId, ercd);
+}}\n"""
+            )
+            if isTp:
+                C.write(
+                    f"""
+Std_ReturnType SomeIp_{service_name}_Set{field['name']}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->OnSet{field['name']}TpCopyRxData(requestId, msg);
+}}
+
+Std_ReturnType SomeIp_{service_name}_Set{field['name']}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->OnSet{field['name']}TpCopyTxData(requestId, msg);
+}}\n"""
+                )
+        if "event" in field:
+            if field["event"]["groupName"] not in eventNotifyFncs:
+                eventNotifyFncs[field["event"]["groupName"]] = []
+            eventNotifyFncs[field["event"]["groupName"]].append(
+                f"  {service_name}Manager::GetInstance()->On{field['name']}SubscribeAck(isSubscribe);"
+            )
+            C.write(
+                f"""
+Std_ReturnType SomeIp_{service_name}_{field['event']['groupName']}_{field['name']}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {{
+  return {service_name}Manager::GetInstance()->On{field['name']}Notification(requestId, evt);
+}}\n"""
+            )
+            if isTp:
+                C.write(
+                    f"""
+Std_ReturnType SomeIp_{service_name}_{field['event']['groupName']}_{field['name']}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
+  return {service_name}Manager::GetInstance()->On{field['name']}TpCopyRxData(requestId, msg);
+}}\n"""
+                )
+    for groupName, fields in eventNotifyFncs.items():
+        notifyEvents = "\n".join(fields)
+        C.write(
+            f"""
+void SomeIp_{service_name}_{groupName}_OnSubscribeAck(boolean isSubscribe) {{
+  ASLOG({toMacro(service_name)}, ("{groupName} %ssubscribed\\n", isSubscribe ? "" : "un"));
+{notifyEvents}
+}}\n"""
+        )
     C.write('} /* extern "C" */\n')
     C.close()

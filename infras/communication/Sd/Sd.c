@@ -24,7 +24,7 @@
 #include "Det.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_SD 0
-#define AS_LOG_SDI 2
+#define AS_LOG_SDI 0
 #define AS_LOG_SDE 3
 
 #ifdef USE_SD_CRITICAL
@@ -742,6 +742,8 @@ static Std_ReturnType Sd_HandleOfferService(const Sd_InstanceType *Instance,
       if (0u != (SD_FLG_LINK_UP & context->flags)) {
         (void)SoAd_CloseSoCon(config->SoConId, TRUE);
         SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+        ASLOG(SDI, ("SOCK[%u] client service %x:-:%x link down\n", config->SoConId,
+                    config->ServiceId, config->InstanceId));
       }
       Sd_InitClientServiceConsumedEventGroups(config, TRUE);
     }
@@ -821,6 +823,9 @@ static Sd_EventHandlerSubscriberType *Sd_LookupSubscribe(const Sd_EventHandlerTy
   int result;
   DEC_SQP(EventHandlerSubscriber);
   SQP_WHILE(EventHandlerSubscriber) {
+    ASLOG(SDI, ("Exist subscriber(%p) %d.%d.%d.%d:%d for event group %x\n", var,
+                var->RemoteAddr.addr[0], var->RemoteAddr.addr[1], var->RemoteAddr.addr[2],
+                var->RemoteAddr.addr[3], var->RemoteAddr.port, EventHandler->EventGroupId));
     result = memcmp(&var->RemoteAddr, RemoteAddr, sizeof(TcpIp_SockAddrType));
     if (0 == result) {
       sub = var;
@@ -833,6 +838,9 @@ static Sd_EventHandlerSubscriberType *Sd_LookupSubscribe(const Sd_EventHandlerTy
     sub = SQP_ALLOC(EventHandlerSubscriber);
     if (NULL != sub) {
       (void)memset(sub, 0u, sizeof(Sd_EventHandlerSubscriberType));
+      ASLOG(SDI, ("New subscriber(%p) %d.%d.%d.%d:%d for event group %x\n", sub,
+                  RemoteAddr->addr[0], RemoteAddr->addr[1], RemoteAddr->addr[2],
+                  RemoteAddr->addr[3], RemoteAddr->port, EventHandler->EventGroupId));
     }
   }
 
@@ -924,6 +932,10 @@ static Std_ReturnType Sd_HandleSubscribeEventGroup(const Sd_InstanceType *Instan
         if (FALSE == context->isMulticastOpened) {
           (void)SoAd_OpenSoCon(EventHandler->MulticastEventSoConRef);
           context->isMulticastOpened = TRUE;
+          ASLOG(SDI, ("SOCK[%u] consumed event group %x:%x:%x multicast on %d.%d.%d.%d:%d\n",
+                      EventHandler->MulticastEventSoConRef, entry2->serviceId, entry2->eventGroupId,
+                      entry2->instanceId, ipv4Opt->Addr.addr[0], ipv4Opt->Addr.addr[1],
+                      ipv4Opt->Addr.addr[2], ipv4Opt->Addr.addr[3], ipv4Opt->Addr.port));
         }
       }
     }
@@ -999,8 +1011,9 @@ static Std_ReturnType Sd_HandleSubscribeEventGroupAck(const Sd_InstanceType *Ins
         if ((NULL != ipv4Opt) && (ConsumedEventGroup->MulticastThreshold > 0u)) {
           (void)SoAd_SetRemoteAddr(ConsumedEventGroup->MulticastEventSoConRef, &ipv4Opt->Addr);
           (void)SoAd_OpenSoCon(ConsumedEventGroup->MulticastEventSoConRef);
-          ASLOG(SDI, ("0x%x:0x%x event group 0x%x multicast on %d.%d.%d.%d:%d\n", entry2->serviceId,
-                      entry2->instanceId, entry2->eventGroupId, ipv4Opt->Addr.addr[0],
+          ASLOG(SDI, ("SOCK[%u] consumed event group %x:%x:%x multicast on %d.%d.%d.%d:%d\n",
+                      ConsumedEventGroup->MulticastEventSoConRef, entry2->serviceId,
+                      entry2->eventGroupId, entry2->instanceId, ipv4Opt->Addr.addr[0],
                       ipv4Opt->Addr.addr[1], ipv4Opt->Addr.addr[2], ipv4Opt->Addr.addr[3],
                       ipv4Opt->Addr.port));
         }
@@ -1012,6 +1025,9 @@ static Std_ReturnType Sd_HandleSubscribeEventGroupAck(const Sd_InstanceType *Ins
       ConsumedEventGroup->context->isSubscribed = FALSE;
       if (ConsumedEventGroup->MulticastThreshold > 0u) {
         (void)SoAd_CloseSoCon(ConsumedEventGroup->MulticastEventSoConRef, TRUE);
+        ASLOG(SDI, ("SOCK[%u] consumed event group %x:%x:%x multicast off\n",
+                    ConsumedEventGroup->MulticastEventSoConRef, entry2->serviceId,
+                    entry2->eventGroupId, entry2->instanceId));
       }
       ConsumedEventGroup->onSubscribe(FALSE);
     }
@@ -1114,6 +1130,8 @@ static void Sd_ReInitServerServiceEventHandlers(const Sd_ServerServiceType *conf
     SQP_WHILE_END()
     if (TRUE == context->isMulticastOpened) {
       (void)SoAd_CloseSoCon(EventHandler->MulticastEventSoConRef, TRUE);
+      ASLOG(SDI, ("SOCK[%u] event group %x:-:%x multicast off\n",
+                  EventHandler->MulticastEventSoConRef, config->ServiceId, config->InstanceId));
     }
     (void)memset(EventHandler->context, 0u, sizeof(Sd_EventHandlerContextType));
     STAILQ_INIT(&EventHandler->context->listEventHandlerSubscribers);
@@ -1149,6 +1167,9 @@ static void Sd_InitClientServiceConsumedEventGroups(const Sd_ClientServiceType *
     if ((TRUE == soft) && (TRUE == context->isSubscribed) &&
         (ConsumedEventGroup->MulticastThreshold > 0u)) {
       (void)SoAd_CloseSoCon(ConsumedEventGroup->MulticastEventSoConRef, TRUE);
+      ASLOG(SDI,
+            ("SOCK[%u] consumed event group %x:-:%x multicast off\n",
+             ConsumedEventGroup->MulticastEventSoConRef, config->ServiceId, config->InstanceId));
     }
     (void)memset(context, 0u, sizeof(Sd_ConsumedEventGroupContextType));
     if ((TRUE == ConsumedEventGroup->AutoRequire) ||
@@ -1183,12 +1204,17 @@ static void Sd_ServerServiceLinkControl(const Sd_ServerServiceType *config) {
   if (context->phase != SD_PHASE_DOWN) {
     if (0u == (SD_FLG_LINK_UP & context->flags)) {
       (void)SoAd_OpenSoCon(config->SoConId);
+      ASLOG(SDI, ("SOCK[%u] server service %x:-:%x link up with %s\n", config->SoConId,
+                  config->ServiceId, config->InstanceId,
+                  (config->ProtocolType == TCPIP_IPPROTO_TCP) ? "TCP" : "UDP"));
       SD_SET(context->flags, SD_FLG_LINK_UP);
     }
   } else {
     if (0u != (SD_FLG_LINK_UP & context->flags)) {
       (void)SoAd_CloseSoCon(config->SoConId, TRUE);
       SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+      ASLOG(SDI, ("SOCK[%u] server service %x:-:%x link down\n", config->SoConId, config->ServiceId,
+                  config->InstanceId));
     }
   }
 }
@@ -1580,6 +1606,9 @@ static void Sd_ServerServiceMain_TTL(const Sd_ServerServiceType *config) {
         if (var->TTL > 0u) {
           var->TTL--;
           if (0u == var->TTL) {
+            ASLOG(SDI, ("Delete subscriber(%p) %d.%d.%d.%d:%d for event group %x\n", var,
+                        var->RemoteAddr.addr[0], var->RemoteAddr.addr[1], var->RemoteAddr.addr[2],
+                        var->RemoteAddr.addr[3], var->RemoteAddr.port, EventHandler->EventGroupId));
             EventHandler->onSubscribe(FALSE, &var->RemoteAddr);
             SQP_CRM_AND_FREE(EventHandlerSubscriber, var);
           }
@@ -1593,6 +1622,8 @@ static void Sd_ServerServiceMain_TTL(const Sd_ServerServiceType *config) {
       if (TRUE == context->isMulticastOpened) {
         context->isMulticastOpened = FALSE;
         (void)SoAd_CloseSoCon(EventHandler->MulticastEventSoConRef, TRUE);
+        ASLOG(SDI, ("SOCK[%u] event group %x:-:%x multicast off\n",
+                    EventHandler->MulticastEventSoConRef, config->ServiceId, config->InstanceId));
       }
     }
   }
@@ -1633,18 +1664,28 @@ static void Sd_ClientServiceLinkControl(const Sd_ClientServiceType *config) {
       if (0u == (SD_FLG_LINK_UP & context->flags)) {
         (void)SoAd_SetRemoteAddr(config->SoConId, &(context->RemoteAddr));
         (void)SoAd_OpenSoCon(config->SoConId);
+        ASLOG(SDI,
+              ("SOCK[%u] client service %x:-:%x link up with %s:%d.%d.%d.%d:%d\n", config->SoConId,
+               config->ServiceId, config->InstanceId,
+               (config->ProtocolType == TCPIP_IPPROTO_TCP) ? "TCP" : "UDP",
+               context->RemoteAddr.addr[0], context->RemoteAddr.addr[1],
+               context->RemoteAddr.addr[2], context->RemoteAddr.addr[3], context->RemoteAddr.port));
         SD_SET(context->flags, SD_FLG_LINK_UP);
       }
     } else {
       if (0u != (SD_FLG_LINK_UP & context->flags)) {
         (void)SoAd_CloseSoCon(config->SoConId, TRUE);
         SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+        ASLOG(SDI, ("SOCK[%u] client service %x:-:%x link down\n", config->SoConId,
+                    config->ServiceId, config->InstanceId));
       }
     }
   } else {
     if (0u != (SD_FLG_LINK_UP & context->flags)) {
       (void)SoAd_CloseSoCon(config->SoConId, TRUE);
       SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+      ASLOG(SDI, ("SOCK[%u] client service %x:-:%x link down\n", config->SoConId, config->ServiceId,
+                  config->InstanceId));
     }
   }
 }
@@ -1729,6 +1770,9 @@ Sd_SendSubscribeEventGroup(const Sd_InstanceType *Instance, const Sd_ClientServi
                      ConsumedEventGroup->EventGroupId, TTL);
   ret = SoAd_GetLocalAddr(config->SoConId, &LocalAddr, NULL, NULL);
   if (E_OK == ret) {
+    ASLOG(SDI, ("SOCK[%u] local addr %d.%d.%d.%d:%d subscribe event group %x\n", config->SoConId,
+                LocalAddr.addr[0], LocalAddr.addr[1], LocalAddr.addr[2], LocalAddr.addr[3],
+                LocalAddr.port, ConsumedEventGroup->EventGroupId));
     Sd_BuildOptionIPv4Endpoint(&Instance->buffer[44], &LocalAddr, config->ProtocolType);
     Sd_BuildHeader(Instance->buffer, Instance->context->flags,
                    Instance->context->multicastSessionId, 16, 12);
@@ -2106,6 +2150,21 @@ void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId) {
       }
     }
     SQP_WHILE_END()
+  }
+}
+
+void Sd_NotifyServiceOffline(uint16_t SdServerServiceHandleId) {
+  const Sd_ServerServiceType *config;
+  Sd_ServerServiceContextType *context;
+  if (SdServerServiceHandleId < SD_CONFIG->numOfServerServices) {
+    config = SD_CONFIG->ServerServicesMap[SdServerServiceHandleId];
+    context = config->context;
+    if (0 != (SD_FLG_LINK_UP & context->flags)) {
+      ASLOG(SDE, ("SOCK[%u] server service %x:-:%x offline unexpected\n", config->SoConId,
+                  config->ServiceId, config->InstanceId));
+      SD_CLEAR(context->flags, SD_FLG_LINK_UP);
+      Sd_ServerServiceLinkControl(config);
+    }
   }
 }
 

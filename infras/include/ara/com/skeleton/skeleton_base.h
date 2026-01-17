@@ -17,6 +17,7 @@
 #include "ara/com/service/instance_identifier.h"
 #include "ara/com/types.h"
 #include "ara/core/future.h"
+#include "ara/com/com_error_domain.h"
 
 namespace ara {
 namespace com {

@@ -93,19 +93,36 @@ static void BrakeEventHandler(RadarServiceImpl &myRadarService) {
 
 static void RadarServiceMain(void) {
   uint16_t instanceId = SOMEIP_SSID_RADAR_SERVICE;
+  fields::UpdateRate::FieldType updateRate = 0;
   ara::core::StringView instanceIdStr((char *)&instanceId, 2);
   RadarServiceImpl myRadarService{InstanceIdentifier(instanceIdStr)};
 
   myRadarService.Init();
 
-  myRadarService.OfferService();
+  myRadarService.UpdateRate.RegisterGetHandler([&updateRate]() {
+    ara::core::Promise<fields::UpdateRate::FieldType> prom;
+    prom.set_value(++updateRate);
+    return prom.get_future();
+  });
+
+  myRadarService.UpdateRate.RegisterSetHandler(
+    [&updateRate](const fields::UpdateRate::FieldType &data) {
+      ara::core::Promise<fields::UpdateRate::FieldType> prom;
+      updateRate = data;
+      prom.set_value(updateRate);
+      return prom.get_future();
+    });
 
   while (true) {
+    myRadarService.OfferService();
     while (ara::com::SubscriptionState::kSubscribed ==
            myRadarService.BrakeEvent.GetSubscriptionState()) {
       BrakeEventHandler(myRadarService);
+      myRadarService.UpdateRate.Update(++updateRate);
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
+    ASLOG(RADAR, ("No subscription\n"));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
 }
 

@@ -15,6 +15,7 @@ namespace com {
 /* ================================ [ TYPES     ] ============================================== */
 /** @SWS_CM_10432 */
 enum class ComErrc : ara::core::ErrorDomain::CodeType {
+  kOk = 0,
   kServiceNotAvailable = 1,
   kMaxSamplesExceeded = 2,
   kNetworkBindingFailure = 3,

@@ -186,7 +186,10 @@ static Std_ReturnType soAdSocketRecvStart(SoAd_SoConIdType SoConId) {
       context->errorCounter++;
       if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
         SoAd_CloseSoCon(SoConId, TRUE);
+        ASLOG(SOADE, ("[%u] socket closed\n", SoConId));
       }
+#else
+      ASLOG(SOADE, ("[%u] socket closed\n", SoConId));
 #endif
     }
     if (data != header) {
@@ -519,8 +522,10 @@ Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *L
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
       LocalAddrPtr->port = conG->LocalPort;
 #else
-      (void)TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
-      ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
+      ret = TcpIp_GetLocalAddr(context->sock, LocalAddrPtr);
+      if (E_OK == ret) {
+        ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
+      }
 #endif
     } else if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
       ret = TcpIp_GetIpAddr(conG->LocalAddrId, LocalAddrPtr, NULL, NULL);
@@ -599,15 +604,15 @@ Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort) {
     connection = &SOAD_CONFIG->Connections[SoConId];
     conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
     if (SOAD_SOCKET_CLOSED != context->state) {
-      if (conG->SoConModeChgNotification) {
-        conG->SoConModeChgNotification(SoConId, SOAD_SOCON_OFFLINE);
-      }
       ret = TcpIp_Close(context->sock, abort);
       if (E_OK == ret) {
         context->state = SOAD_SOCKET_CLOSED;
         TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
       } else {
         ASLOG(SOADE, ("[%u] close fail: %d\n", SoConId, ret));
+      }
+      if (conG->SoConModeChgNotification) {
+        conG->SoConModeChgNotification(SoConId, SOAD_SOCON_OFFLINE);
       }
     }
   }

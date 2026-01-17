@@ -198,6 +198,7 @@ typedef struct {
 typedef struct {
   uint16_t serviceId;
   uint16_t clientId;
+  uint16_t sdHandleID;
   const SomeIp_ServerMethodType *methods;
   uint16_t numOfMethods;
   const SomeIp_ServerEventType *events;

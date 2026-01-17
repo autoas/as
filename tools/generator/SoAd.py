@@ -77,7 +77,7 @@ def Gen_SoAd(cfg, dir):
             headerMaxLen = headerLen
     H.write("\n")
     H.write("#define SOAD_HEADER_MAX_LEN %su\n" % (headerMaxLen))
-    H.write("#define SOAD_ERROR_COUNTER_LIMIT %su\n" % (cfg.get("ErrorCounterLimit", 10)))
+    H.write("#define SOAD_ERROR_COUNTER_LIMIT %su\n" % (cfg.get("ErrorCounterLimit", 3)))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")

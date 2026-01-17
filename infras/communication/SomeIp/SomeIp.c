@@ -426,12 +426,13 @@ static void SomeIp_InitClient(const SomeIp_ClientServiceType *config) {
 }
 
 static SomeIp_RxTpMsgType *SomeIp_RxTpMsgFind(SomeIp_RxTpMsgList *pendingRxTpMsgs,
-                                              uint16_t methodId) {
+                                              uint16_t methodId, SomeIp_MsgType *msg) {
   SomeIp_RxTpMsgType *rxTpMsg = NULL;
   SomeIp_RxTpMsgType *var;
   EnterCritical();
   STAILQ_FOREACH(var, pendingRxTpMsgs, entry) {
-    if (var->methodId == methodId) {
+    if ((var->methodId == methodId) &&
+        (0u == memcmp(&var->RemoteAddr, &msg->RemoteAddr, sizeof(TcpIp_SockAddrType)))) {
       rxTpMsg = var;
       break;
     }
@@ -452,7 +453,7 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
   int result;
   (void)conId;
   if (NULL != onTpCopyRxData) {
-    var = SomeIp_RxTpMsgFind(pendingRxTpMsgs, methodId);
+    var = SomeIp_RxTpMsgFind(pendingRxTpMsgs, methodId, msg);
     if (NULL == var) {
       if ((0u == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
         ASLOG(SOMEIP, ("%x:%x:%x:%d FF length = %u\n", msg->header.serviceId, msg->header.methodId,
@@ -596,11 +597,9 @@ static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *conf
   sub = STAILQ_FIRST(list);
   while (NULL != sub) {
     if (0u != sub->flags) {
-      if (0u == (SD_FLG_EVENT_GROUP_MULTICAST & sub->flags)) {
-        RemoteAddr = &sub->RemoteAddr;
-        if (FALSE == bMulticast) {
+      RemoteAddr = &sub->RemoteAddr;
+      if (0u != (SD_FLG_EVENT_GROUP_MULTICAST & sub->flags)) {
           bMulticast = TRUE;
-        }
       }
       ret2 = SomeIp_Transmit(sub->TxPduId, RemoteAddr, data, config->serviceId, event->eventId,
                              config->clientId, sessionId, event->interfaceVersion, messageType, 0u,
@@ -906,8 +905,9 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
         ASLOG(SOMEIPW, ("For short message, better to fill in response in res.data\n"));
         res.data -= 16;
       }
+    } else {
+      res.data = resData;
     }
-    res.data = resData;
   }
 
   if (E_OK == ret) {
@@ -1454,6 +1454,7 @@ static void SomeIp_ServerServiceModeChg(const SomeIp_ServerServiceType *service,
     for (i = 0u; i < service->numOfEvents; i++) {
       Sd_RemoveSubscriber(service->events[i].sdHandleID, service->connections[conId].TxPduId);
     }
+    Sd_NotifyServiceOffline(service->sdHandleID);
   } else {
     context->online = TRUE;
     service->onConnect(conId, TRUE);
@@ -1748,7 +1749,7 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
   if (ServiceId < SOMEIP_CONFIG->numOfService) {
     if (TRUE == SOMEIP_CONFIG->services[ServiceId].isServer) {
       service = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[ServiceId].service;
-      if (service->context->online) {
+      if (TRUE == service->context->online) {
         if (TCPIP_IPPROTO_UDP == service->protocol) {
           connection = &service->connections[0];
           sub->TxPduId = connection->TxPduId;
@@ -1756,7 +1757,7 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
         } else {
           for (i = 0u; i < service->numOfConnections; i++) {
             connection = &service->connections[i];
-            if (connection->context->online) {
+            if (TRUE == connection->context->online) {
               ret2 = SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
               if (E_OK == ret2) {
                 result = memcmp(&sub->RemoteAddr, &RemoteAddr, sizeof(RemoteAddr));
@@ -1769,6 +1770,8 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
             }
           }
         }
+      } else {
+        ASLOG(SOMEIPE, ("service[%d] not online\n", ServiceId));
       }
     }
   }

@@ -111,6 +111,7 @@ void Sd_MainFunction(void);
 Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddrType *RemoteAddr);
 Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId, Sd_EventHandlerSubscriberListType **list);
 void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
+void Sd_NotifyServiceOffline(uint16_t SdServerServiceHandleId);
 
 Std_ReturnType Sd_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
                                    PduLengthType *payloadLength);
