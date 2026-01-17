@@ -109,6 +109,17 @@ def Gen_CanIf(cfg, dir):
             continue
         C.write("static const CanIf_RxPduType CanIf_RxPdus_%s[] = {\n" % (network["name"]))
         for pdu in network["RxPdus"]:
+            for pdu_ in network["RxPdus"]:
+                if pdu_ == pdu:
+                    break
+                canid = toNum(pdu["id"]) & 0x1FFFFFFF
+                mask = toNum(pdu.get("mask", "0xFFFFFFFF")) & 0x1FFFFFFF
+                canid_ = toNum(pdu_["id"]) & 0x1FFFFFFF
+                mask_ = toNum(pdu_.get("mask", "0xFFFFFFFF")) & 0x1FFFFFFF
+                if (canid & mask_) == (canid_ & mask_):
+                    raise Exception(f"Duplicate Rx Pdus: {pdu} vs {pdu_}")
+                if (canid & mask) == (canid_ & mask):
+                    raise Exception(f"Duplicate Rx Pdus: {pdu} vs {pdu_}")
             C.write("  {\n")
             if pdu["up"] in ["PduR", "Xcp"]:
                 C.write("    %s_CanIfRxIndication,\n" % (pdu["up"]))
