@@ -538,10 +538,14 @@ Std_ReturnType Dcm_DspRequestDownload(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x20u; /* lengthFormatIdentifier */
-    msgContext->resData[1] = (BlockLength >> 8) & 0xFFu;
-    msgContext->resData[2] = BlockLength & 0xFFu;
-    msgContext->resDataLen = 3u;
+    if ((BlockLength > 0xFFFF) && (memorySizeLen <= 2)) {
+      memorySizeLen = 4;
+    }
+    msgContext->resData[0] = memorySizeLen << 4; /* lengthFormatIdentifier */
+    for (i = 0u; i < memorySizeLen; i++) {
+      msgContext->resData[memorySizeLen - i] = (BlockLength >> (8 * i)) & 0xFFu;
+    }
+    msgContext->resDataLen = 1u + memorySizeLen;
     context->UDTData.state = DCM_UDT_DOWNLOAD_STATE;
     context->UDTData.memoryAddress = memoryAddress;
     context->UDTData.memorySize = memorySize;
@@ -612,10 +616,14 @@ Std_ReturnType Dcm_DspRequestUpload(Dcm_MsgContextType *msgContext,
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = 0x20u; /* lengthFormatIdentifier */
-    msgContext->resData[1] = (BlockLength >> 8) & 0xFFu;
-    msgContext->resData[2] = BlockLength & 0xFFu;
-    msgContext->resDataLen = 3u;
+    if ((BlockLength > 0xFFFF) && (memorySizeLen <= 2)) {
+      memorySizeLen = 4;
+    }
+    msgContext->resData[0] = memorySizeLen << 4; /* lengthFormatIdentifier */
+    for (i = 0u; i < memorySizeLen; i++) {
+      msgContext->resData[memorySizeLen - i] = (BlockLength >> (8 * i)) & 0xFFu;
+    }
+    msgContext->resDataLen = 1u + memorySizeLen;
     context->UDTData.state = DCM_UDT_UPLOAD_STATE;
     context->UDTData.memoryAddress = memoryAddress;
     context->UDTData.memorySize = memorySize;
