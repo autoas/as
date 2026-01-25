@@ -42,6 +42,7 @@ def Gen_SomeIpSkeleton(cfg, service, dir, source):
     def_methods = ""
     def_fields = ""
     used_types = ""
+    MaxPayloadSize = 32
     for eg in service.get("event-groups", []):
         for event in eg["events"]:
             if "for" in event:
@@ -75,7 +76,7 @@ public:
 
 private:
   uint16_t m_sessionId = 0;
-  uint8_t m_payload[{payloadSize}];
+  uint8_t m_payload[20 + {payloadSize}];
 {defTpVars}
 }};\n\n"""
             )
@@ -84,6 +85,9 @@ private:
     for field in service.get("fields", []):
         def_fields += f"  fields::{field['name']} {field['name']};\n"
         fieldPayloadSize = GetTypePayloadSize(field, allStructs)
+        if 'get' in field or 'set' in field:
+          if MaxPayloadSize < fieldPayloadSize:
+              MaxPayloadSize = fieldPayloadSize
         H.write(
             f"""
 class {field['name']} {{
@@ -116,7 +120,7 @@ private:
 {"  std::function<ara::core::Future<FieldType>()> m_getHandler = nullptr;" if 'get' in field else ""}
 {"  ara::core::Future<FieldType> m_futureGet;" if 'get' in field else ""}
 {"  FieldType m_fieldGet;" if 'get' in field else ""}
-{f"  uint8_t m_responseGet[16+{fieldPayloadSize}];" if 'get' in field and field.get("tp", False) else ""}
+{f"  uint8_t m_responseGet[20 + {fieldPayloadSize}];" if 'get' in field and field.get("tp", False) else ""}
 {f"  bool m_responseGetInUse = false;" if 'get' in field else ""}
 {f"  bool m_bValid = false;"}
 
@@ -124,16 +128,17 @@ private:
 {"  ara::core::Future<FieldType> m_futureSet;" if 'get' in field else ""}
 {"  FieldType m_fieldSet;" if 'set' in field else ""}
 {f"  uint8_t m_requestSet[{fieldPayloadSize}];" if 'set' in field and field.get("tp", False) else ""}
-{f"  uint8_t m_responseSet[16+{fieldPayloadSize}];" if 'set' in field and field.get("tp", False) else ""}
+{f"  uint8_t m_responseSet[20 + {fieldPayloadSize}];" if 'set' in field and field.get("tp", False) else ""}
 {f"  bool m_responseSetInUse = false;" if 'set' in field else ""}
 
-{f"  uint8_t m_payload[{fieldPayloadSize}];" if 'event' in field else ""}
+{f"  uint8_t m_payload[20 + {fieldPayloadSize}];" if 'event' in field else ""}
 {f"  bool m_payloadInUse = false;" if 'event' in field else ""}
 {f"  uint16_t m_sessionId = 0;" if 'event' in field else ""}
 }};\n"""
         )
     H.write("} // namespace fields\n\n")
     for method in service.get("methods", []):
+        listenNum = service.get("listen", 1)
         if "for" in method:
             continue
         UsedTypes = []
@@ -143,10 +148,14 @@ private:
         Args = []
         if "args" in method:
             args = GetArgs(cfg, method["args"])
+            argsPayloadSize = 0
             for arg in args:
                 Args.append(f"const {arg['type']} &{arg['name']}")
+                argsPayloadSize += GetTypePayloadSize(arg, allStructs)
                 if arg["type"] not in UsedTypes:
                     UsedTypes.append(arg["type"])
+            if MaxPayloadSize < argsPayloadSize:
+                MaxPayloadSize = argsPayloadSize
         def_methods += f"  virtual ara::core::Future<{ReturnType}> {method['name']}({','.join(Args)}) = 0;\n"
         for utype in UsedTypes:
             used_types += f"  using {utype} = {GetXfCType(utype, allStructs)};\n"
@@ -197,6 +206,17 @@ public:
 {def_methods}
 
 {def_fields}
+
+  void OnConnect(uint16_t conId, boolean isConnected);
+
+private:
+  void ThreadRxCtrl(uint16_t conId);
+private:
+  ara::com::MethodCallProcessingMode m_mode;
+  bool m_stop[{listenNum}] = {{false}};
+  std::thread m_thRxCtrl[{listenNum}];
+  uint8_t m_rxBuf[{listenNum}][{MaxPayloadSize}+32];
+  SomeIp_CtrlRxBufferType m_ctrlRxBuf[{listenNum}];
 }};\n"""
     )
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
@@ -243,8 +263,8 @@ public:
                     f"""
 Std_ReturnType {event['name']}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_payload))) {{
-    memcpy(msg->data, &m_payload[msg->offset], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_payload))) {{
+    msg->data = &m_payload[msg->offset + 20];
     if (false == msg->moreSegmentsFlag) {{
       m_payloadInUse = false;
     }}
@@ -262,9 +282,9 @@ Result<void> {event['name']}::Send(const {event['name']}::SampleType &data) {{
     uint32_t requestId =
       ((uint32_t)SOMEIP_TX_EVT_{toMacro(service_name)}_{toMacro(eg['name'])}_{toMacro(event['name'])} << 16) + (++m_sessionId);
     int32_t serializedSize =
-      {SomeIpXfEncode(event, allStructs, 'm_payload', 'sizeof(m_payload)', 'data')};
+      {SomeIpXfEncode(event, allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data')};
     if (serializedSize > 0) {{
-      Std_ReturnType ret = SomeIp_Notification(requestId, m_payload, serializedSize);
+      Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
       if (E_OK != ret) {{
         rslt = Result<void>(ret);
       }} else {{
@@ -293,9 +313,9 @@ Result<void> {event['name']}::Send(const {event['name']}::SampleType &data) {{
   uint32_t requestId =
     ((uint32_t)SOMEIP_TX_EVT_{toMacro(service_name)}_{toMacro(eg['name'])}_{toMacro(event['name'])} << 16) + (++m_sessionId);
   int32_t serializedSize =
-    SomeIpXf_EncodeStruct(m_payload, sizeof(m_payload), &data, &SomeIpXf_Struct{event['type']}Def);
+    {SomeIpXfEncode(event, allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data')};
   if (serializedSize > 0) {{
-    Std_ReturnType ret = SomeIp_Notification(requestId, m_payload, serializedSize);
+    Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
     if (E_OK != ret) {{
       rslt = Result<void>(ret);
     }}
@@ -386,8 +406,8 @@ Std_ReturnType {field['name']}::OnGetRequest(uint32_t requestId, SomeIp_MessageT
   }}
 
   if (true == bValid) {{
-    res->data = &m_responseGet[16];
-    serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', 'sizeof(m_responseGet) - 16', 'm_fieldGet')};
+    res->data = &m_responseGet[20];
+    serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', 'sizeof(m_responseGet) - 20', 'm_fieldGet')};
     if (serializedSize > 0) {{
       res->length = serializedSize;
       if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -414,8 +434,8 @@ Std_ReturnType {field['name']}::OnGetAsyncRequest(uint32_t requestId, SomeIp_Mes
   }} else if (true == m_futureGet.is_ready()) {{
     ara::core::Result<FieldType> result = m_futureGet.GetResult();
     if (result.HasValue()) {{
-      res->data = &m_responseGet[16];
-      serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', "sizeof(m_responseGet) - 16", "result.Value()")};
+      res->data = &m_responseGet[20];
+      serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', "sizeof(m_responseGet) - 20", "result.Value()")};
       if (serializedSize > 0) {{
         res->length = serializedSize;
         if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -442,8 +462,8 @@ Std_ReturnType {field['name']}::OnGetAsyncRequest(uint32_t requestId, SomeIp_Mes
                 f"""
 Std_ReturnType {field['name']}::OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length + 16) <= sizeof(m_responseGet))) {{
-    memcpy(msg->data, &m_responseGet[msg->offset + 16], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_responseGet))) {{
+    msg->data = &m_responseGet[msg->offset + 20];
     if (false == msg->moreSegmentsFlag) {{
       m_responseGetInUse = false;
     }}
@@ -477,8 +497,8 @@ Std_ReturnType {field['name']}::OnSetRequest(uint32_t requestId, SomeIp_MessageT
       if (true == m_futureSet.is_ready()) {{
         ara::core::Result<FieldType> result = m_futureSet.GetResult();
         if (result.HasValue()) {{
-          res->data = &m_responseSet[16];
-          serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', 'sizeof(m_responseSet) - 16', 'result.Value()')};
+          res->data = &m_responseSet[20];
+          serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', 'sizeof(m_responseSet) - 20', 'result.Value()')};
           if (serializedSize > 0) {{
             res->length = serializedSize;
             if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -518,8 +538,8 @@ Std_ReturnType {field['name']}::OnSetAsyncRequest(uint32_t requestId, SomeIp_Mes
   }} else if (true == m_futureSet.is_ready()) {{
     ara::core::Result<FieldType> result = m_futureSet.GetResult();
     if (result.HasValue()) {{
-      res->data = &m_responseSet[16];
-      serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', "sizeof(m_responseSet) - 16", "result.Value()")};
+      res->data = &m_responseSet[20];
+      serializedSize = {SomeIpXfEncode(field, allStructs, 'res->data', "sizeof(m_responseSet) - 20", "result.Value()")};
       if (serializedSize > 0) {{
         res->length = serializedSize;
         if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -551,8 +571,8 @@ Std_ReturnType {field['name']}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpM
 
 Std_ReturnType {field['name']}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length + 16) <= sizeof(m_responseSet))) {{
-    memcpy(msg->data, &m_responseSet[msg->offset + 16], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_responseSet))) {{
+    msg->data = &m_responseSet[msg->offset + 20];
     if (false == msg->moreSegmentsFlag) {{
       m_responseSetInUse = false;
     }}
@@ -569,8 +589,8 @@ Std_ReturnType {field['name']}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpM
                     f"""
 Std_ReturnType {field['name']}::OnEventTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_payload))) {{
-    memcpy(msg->data, &m_payload[msg->offset], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_payload))) {{
+    msg->data = &m_payload[msg->offset + 20];
     if (false == msg->moreSegmentsFlag) {{
       m_payloadInUse = false;
     }}
@@ -581,7 +601,7 @@ Std_ReturnType {field['name']}::OnEventTpCopyTxData(uint32_t requestId, SomeIp_T
   return ret; 
 }}\n"""
                 )
-          
+
         if "event" in field or "get" in field:
             exprs = ""
             if "get" in field:
@@ -597,9 +617,9 @@ Std_ReturnType {field['name']}::OnEventTpCopyTxData(uint32_t requestId, SomeIp_T
     uint32_t requestId =
       ((uint32_t)SOMEIP_TX_EVT_{toMacro(service_name)}_{toMacro(field['event']['groupName'])}_{toMacro(field['name'])} << 16) + (++m_sessionId);
     int32_t serializedSize =
-      {SomeIpXfEncode(field, allStructs, 'm_payload', 'sizeof(m_payload)', 'data')};
+      {SomeIpXfEncode(field, allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data')};
     if (serializedSize > 0) {{
-      Std_ReturnType ret = SomeIp_Notification(requestId, m_payload, serializedSize);
+      Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
       if (E_OK != ret) {{
         rslt = Result<void>(ret);
       }} else {{
@@ -624,13 +644,13 @@ Result<void> {field['name']}::Update(const FieldType& data) {{
 }}\n"""
             )
         C.write(
-                f"""
+            f"""
 ara::com::ComErrc {field['name']}::Validate() {{
   ara::com::ComErrc ercd = ara::com::ComErrc::kOk;
 {exprsValidate}
   return ercd;
 }}\n"""
-            )
+        )
     C.write("} // namespace fields\n")
     C.write(
         f"""
@@ -641,6 +661,8 @@ ara::com::ComErrc {field['name']}::Validate() {{
   }} else {{
     throw std::runtime_error("{service_name} already created");
   }}
+
+  m_mode = mode;
 }}
 
 {service_name}Skeleton::~{service_name}Skeleton() {{
@@ -666,6 +688,63 @@ Result<void> {service_name}Skeleton::OfferService() {{
   }}
 
   return rslt;
+}}
+
+bool {service_name}Skeleton::ProcessNextMethodCall() {{
+  bool pending = false;
+  Std_ReturnType ret;
+
+  for(uint16_t conId = 0; conId < {listenNum}; conId++) {{
+    m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+    m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+    do {{
+      ret = SomeIp_ConnectionRxControl(SOMEIP_SSID_{toMacro(service_name)}, conId, &m_ctrlRxBuf[conId]);
+      if (E_OK == ret) {{
+        ASLOG(RADAR_SERVICE, ("a service message received in poll mode\\n"));
+        pending = true;
+      }}
+    }} while (SOMEIP_E_PENDING == ret);
+  }}
+
+  return pending;
+}}
+
+void {service_name}Skeleton::ThreadRxCtrl(uint16_t conId) {{
+  Std_ReturnType ret;
+  m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+  m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+  m_ctrlRxBuf[conId].offset = 0;
+  m_ctrlRxBuf[conId].length = 0;
+  ASLOG({toMacro(service_name)}, ("thread receive control online\\n"));
+  while (false == m_stop[conId]) {{
+    ret = SomeIp_ConnectionRxControl(SOMEIP_SSID_{toMacro(service_name)}, conId, &m_ctrlRxBuf[conId]);
+    if (E_OK == ret) {{
+      ASLOG({toMacro(service_name)}, ("a service message received in thread mode\\n"));
+    }}
+  }}
+  ASLOG({toMacro(service_name)}, ("thread receive control offline\\n"));
+}}
+
+void {service_name}Skeleton::OnConnect(uint16_t conId, boolean isConnected) {{
+  if (true == isConnected) {{
+    m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+    m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+    m_ctrlRxBuf[conId].offset = 0;
+    m_ctrlRxBuf[conId].length = 0;
+    if (MethodCallProcessingMode::kPoll == m_mode) {{
+      SomeIp_ConnectionTakeControl(SOMEIP_SSID_{toMacro(service_name)}, conId);
+    }} else if (MethodCallProcessingMode::kEvent == m_mode) {{
+      SomeIp_ConnectionTakeControl(SOMEIP_SSID_{toMacro(service_name)}, conId);
+      m_stop[conId] = false;
+      m_thRxCtrl[conId] = std::thread(&{service_name}Skeleton::ThreadRxCtrl, this, conId);
+    }} else {{  /* kEventSingleThread */
+    }}
+  }} else {{
+    m_stop[conId] = true;
+    if ( m_thRxCtrl[conId].joinable()) {{
+      m_thRxCtrl[conId].join();
+    }}
+  }}
 }}\n"""
     )
     C.write(f"}} // namespace {service_name}\n")
@@ -685,6 +764,9 @@ boolean Sd_ServerService{service_name}_CRMC(PduIdType pduID, uint8_t type, uint1
 
 void SomeIp_{service_name}_OnConnect(uint16_t conId, boolean isConnected) {{
   ASLOG({toMacro(service_name)}, ("{service_name} [%u] %sconnected\\n", conId, isConnected?"":"dis"));
+  if (nullptr != s_h{service_name}) {{
+    s_h{service_name}->OnConnect(conId, isConnected);
+  }}
 }}
 \n"""
     )
@@ -712,12 +794,12 @@ void SomeIp_{service_name}_OnConnect(uint16_t conId, boolean isConnected) {{
       }}
     }}
 """
-        C.write(f"static ara::core::Future<{ReturnType}> s_future{method['name']};")
-        C.write(f"static bool s_{method['name']}InRequest = false;")
+        C.write(f"static ara::core::Future<{ReturnType}> s_future{method['name']};\n")
+        C.write(f"static bool s_{method['name']}InRequest = false;\n")
         if method.get("tp", False):
-            C.write(f"static uint8_t s_{method['name']}RequestPayload[{reqPayloadSize}+1];\n")
+            C.write(f"static uint8_t s_{method['name']}RequestPayload[{reqPayloadSize}];\n")
             resPayloadSize = GetTypePayloadSize(ReturnType, allStructs)
-        C.write(f"static uint8_t s_{method['name']}ResponsePayload[{resPayloadSize}+16];\n")
+        C.write(f"static uint8_t s_{method['name']}ResponsePayload[{resPayloadSize}+20];\n")
         C.write(
             f"""
 Std_ReturnType SomeIp_{service_name}_{method['name']}_OnRequest(uint32_t requestId, SomeIp_MessageType *req, SomeIp_MessageType *res) {{
@@ -738,8 +820,8 @@ Std_ReturnType SomeIp_{service_name}_{method['name']}_OnRequest(uint32_t request
       if (true == s_future{method['name']}.is_ready()) {{
         ara::core::Result<{ReturnType}> result = s_future{method['name']}.GetResult();
         if (result.HasValue()) {{
-          res->data = &s_{method['name']}ResponsePayload[16];
-          serializedSize = {SomeIpXfEncode(ReturnType, allStructs, 'res->data', f"sizeof(s_{method['name']}ResponsePayload)-16", "result.Value()")};
+          res->data = &s_{method['name']}ResponsePayload[20];
+          serializedSize = {SomeIpXfEncode(ReturnType, allStructs, 'res->data', f"sizeof(s_{method['name']}ResponsePayload)-20", "result.Value()")};
           if (serializedSize > 0) {{
             res->length = serializedSize;
             if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -785,8 +867,8 @@ Std_ReturnType SomeIp_{service_name}_{method['name']}_OnAsyncRequest(uint32_t re
   }} else if (true == s_future{method['name']}.is_ready()) {{
     ara::core::Result<{ReturnType}> result = s_future{method['name']}.GetResult();
     if (result.HasValue()) {{
-      res->data = &s_{method['name']}ResponsePayload[16];
-      serializedSize = {SomeIpXfEncode(ReturnType, allStructs, 'res->data', f"sizeof(s_{method['name']}ResponsePayload)-16", "result.Value()")};
+      res->data = &s_{method['name']}ResponsePayload[20];
+      serializedSize = {SomeIpXfEncode(ReturnType, allStructs, 'res->data', f"sizeof(s_{method['name']}ResponsePayload) - 20", "result.Value()")};
       if (serializedSize > 0) {{
         res->length = serializedSize;
         if (serializedSize <= SOMEIP_SF_MAX) {{
@@ -827,8 +909,8 @@ Std_ReturnType SomeIp_{service_name}_{method['name']}_OnTpCopyRxData(uint32_t re
 
 Std_ReturnType SomeIp_{service_name}_{method['name']}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length + 16) <= sizeof(s_{method['name']}ResponsePayload))) {{
-    memcpy(msg->data, &s_{method['name']}ResponsePayload[msg->offset + 16], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(s_{method['name']}ResponsePayload))) {{
+    msg->data = &s_{method['name']}ResponsePayload[msg->offset + 20];
     if (FALSE == msg->moreSegmentsFlag) {{
       s_{method['name']}InRequest = false;
     }}

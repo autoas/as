@@ -753,6 +753,11 @@ def Gen_SD(cfg, dir):
     H.write("#define SD_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
+    subscriberPoolSize = 8
+    for service in cfg.get("servers", []):
+        listenNum = service.get("listen", 1)
+        subscriberPoolSize += listenNum * len(service.get("event-groups", []))
+    H.write(f"#define SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE {subscriberPoolSize}\n\n")
     H.write("#define SD_RX_PID_MULTICAST 0\n")
     H.write("#define SD_RX_PID_UNICAST 0\n\n")
     for ID, service in enumerate(cfg.get("servers", [])):
@@ -1218,11 +1223,48 @@ def Gen_SOMEIP(cfg, dir, source):
     H.write("#define SOMEIP_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    H.write("#define SOMEIP_ASYNC_REQUEST_MESSAGE_POOL_SIZE %s\n" % (cfg.get("AsyncRequestMessagePoolSize", 32)))
-    H.write("#define SOMEIP_RX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("RxTpMessagePoolSize", 32)))
-    H.write("#define SOMEIP_TX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("TxTpMessagePoolSize", 32)))
-    H.write("#define SOMEIP_TCP_BUFFER_POOL_SIZE %s\n" % (cfg.get("TxTpMessagePoolSize", 32)))
-    H.write("#define SOMEIP_WAIT_RESPOSE_MESSAGE_POOL_SIZE %s\n\n" % (cfg.get("WaitResposeTpMessagePoolSize", 32)))
+    H.write("%s#define SOMEIP_ENABLE_ZERO_COPY\n" % ("" if cfg.get("EnableZeroCopy", False) else "// "))
+    WaitResposeTpMessagePoolSize = 8
+    AsyncRequestMessagePoolSize = 8
+    RxTpMessagePoolSize = 8
+    TxTpMessagePoolSize = 8
+    TxTpEventMessagePoolSize = 8
+    for service in cfg.get("servers", []):
+        listenNum = service.get("listen", 1)
+        AsyncRequestMessagePoolSize += len(service.get("methods", [])) * listenNum
+        for method in service.get("methods", []):
+            if method.get("tp", False):
+                WaitResposeTpMessagePoolSize += listenNum
+                RxTpMessagePoolSize += listenNum
+                TxTpMessagePoolSize += listenNum
+        for eg in service.get("event-groups", []):
+            for event in eg.get("events", []):
+                if event.get("tp", False):
+                    TxTpEventMessagePoolSize += listenNum
+    for service in cfg.get("clients", []):
+        for method in service.get("methods", []):
+            if method.get("tp", False):
+                WaitResposeTpMessagePoolSize += 1
+                RxTpMessagePoolSize += 1
+                TxTpMessagePoolSize += 1
+        for eg in service.get("event-groups", []):
+            for event in eg.get("events", []):
+                if event.get("tp", False):
+                    RxTpMessagePoolSize += 1
+    H.write(
+        "#define SOMEIP_ASYNC_REQUEST_MESSAGE_POOL_SIZE %s\n"
+        % (cfg.get("AsyncRequestMessagePoolSize", AsyncRequestMessagePoolSize))
+    )
+    H.write(
+        "#define SOMEIP_WAIT_RESPOSE_MESSAGE_POOL_SIZE %s\n\n"
+        % (cfg.get("WaitResposeTpMessagePoolSize", WaitResposeTpMessagePoolSize))
+    )
+    H.write("#define SOMEIP_RX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("RxTpMessagePoolSize", RxTpMessagePoolSize)))
+    H.write("#define SOMEIP_TX_TP_MESSAGE_POOL_SIZE %s\n" % (cfg.get("TxTpMessagePoolSize", TxTpMessagePoolSize)))
+    H.write(
+        "#define SOMEIP_TX_TP_EVENT_MESSAGE_POOL_SIZE %s\n"
+        % (cfg.get("TxTpEventMessagePoolSize", TxTpEventMessagePoolSize))
+    )
     ID = 0
     for service in cfg.get("servers", []):
         mn = toMacro(service["name"])
@@ -1294,7 +1336,6 @@ def Gen_SOMEIP(cfg, dir, source):
                 H.write("#define SOMEIP_RX_EVT_%s %s\n" % (toMacro(beName), ID))
                 ID += 1
     H.write("\n")
-    H.write("%s#define SOMEIP_USE_TP_BUF\n\n" % ("" if cfg.get("UseTpBuf", False) else "// "))
     H.write("#ifndef SOMEIP_MAIN_FUNCTION_PERIOD\n")
     H.write("#define SOMEIP_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")

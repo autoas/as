@@ -80,7 +80,7 @@ def ProcSomeIp(cfg, mod):
             "RxPduId": "SOMEIP_RX_PID_%s" % (name),
         }
         if "reliable" in service:
-            sock["listen"] = service["listen"] if "listen" in service else 3
+            sock["listen"] = service["listen"] if "listen" in service else 1
         cfg["sockets"].append(sock)
         for eg in service.get("event-groups", []):
             if "multicast" in eg:

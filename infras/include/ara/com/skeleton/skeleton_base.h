@@ -12,6 +12,8 @@
 #include <mutex>
 #include <deque>
 #include <atomic>
+#include <thread>
+#include <chrono>
 #include "ara/core/result.h"
 #include "ara/core/instance_specifier.h"
 #include "ara/com/service/instance_identifier.h"

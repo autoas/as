@@ -104,10 +104,6 @@
 #define PCAP_TRACE(data, length, RemoteAddr, isRx)
 #endif
 
-#ifndef SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE
-#define SD_EVENT_HANDLER_SUBSCRIBER_POOL_SIZE 32u
-#endif
-
 /* SQP: SD Queue and Pool */
 #define DEF_SQP(T, size)                                                                           \
   static Sd_##T##Type sd##T##Slots[size];                                                          \

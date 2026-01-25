@@ -185,9 +185,6 @@ typedef struct {
   PduIdType RxPduId; /* SOMEIP RxPduId used by Rx Control */
   PduIdType TxPduId;
   SoAd_SoConIdType SoConId;
-#ifdef SOMEIP_USE_TP_BUF
-  SomeIp_TpBufferType *tpBuf;
-#endif
 } SomeIp_ServerConnectionType;
 
 typedef struct {

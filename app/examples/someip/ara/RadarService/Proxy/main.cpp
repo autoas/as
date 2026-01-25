@@ -196,6 +196,8 @@ int main(int argc, char *argv[]) {
     if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {
       Std_TimerStart(&timer1s);
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   return 0;

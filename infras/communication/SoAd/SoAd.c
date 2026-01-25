@@ -687,19 +687,23 @@ Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_
   if (SoConId < SOAD_CONFIG->numOfConnections) {
     context = &SOAD_CONFIG->Contexts[SoConId];
     if (SOAD_SOCKET_TAKEN_CONTROL == context->state) {
-      if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
-        ret = TcpIp_Recv(context->sock, data, length);
-        if (E_OK != ret) {
-          ASLOG(SOADE, ("[%u] TCP read failed\n", SoConId));
-#if SOAD_ERROR_COUNTER_LIMIT > 0
-          context->errorCounter++;
-          if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
-            SoAd_CloseSoCon(SoConId, TRUE);
-          }
-#endif
-        }
+      if (NULL == data) {
+        *length = TcpIp_Tell(context->sock);
       } else {
-        ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, length);
+        if (TCPIP_IPPROTO_TCP == conG->ProtocolType) {
+          ret = TcpIp_Recv(context->sock, data, length);
+          if (E_OK != ret) {
+            ASLOG(SOADE, ("[%u] TCP read failed\n", SoConId));
+#if SOAD_ERROR_COUNTER_LIMIT > 0
+            context->errorCounter++;
+            if (context->errorCounter >= SOAD_ERROR_COUNTER_LIMIT) {
+              SoAd_CloseSoCon(SoConId, TRUE);
+            }
+#endif
+          }
+        } else {
+          ret = TcpIp_RecvFrom(context->sock, &context->RemoteAddr, data, length);
+        }
       }
     }
   }

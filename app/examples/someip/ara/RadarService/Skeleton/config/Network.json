@@ -4,6 +4,7 @@
     {
       "name": "SomeIp",
       "class": "SomeIp",
+      "EnableZeroCopy": true,
       "SD": {
         "hostname" : "ssas",
         "multicast" : "224.244.224.245"

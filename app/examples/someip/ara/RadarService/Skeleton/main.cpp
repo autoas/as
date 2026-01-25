@@ -95,7 +95,8 @@ static void RadarServiceMain(void) {
   uint16_t instanceId = SOMEIP_SSID_RADAR_SERVICE;
   fields::UpdateRate::FieldType updateRate = 0;
   ara::core::StringView instanceIdStr((char *)&instanceId, 2);
-  RadarServiceImpl myRadarService{InstanceIdentifier(instanceIdStr)};
+  RadarServiceImpl *myRadarServicePtr = new RadarServiceImpl(InstanceIdentifier(instanceIdStr));
+  RadarServiceImpl &myRadarService = *myRadarServicePtr;
 
   myRadarService.Init();
 
@@ -149,6 +150,7 @@ int main(int argc, char *argv[]) {
     if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {
       Std_TimerStart(&timer1s);
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   return 0;

@@ -213,7 +213,7 @@ private:
 
 {"  std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;" if 'set' in field else ""}
 {"  uint16_t m_sessionIdSet = 0;" if 'set' in field else ""}
-{f"  uint8_t m_requestSet[{fieldPayloadSize}];" if 'set' in field else ""}
+{f"  uint8_t m_requestSet[20+{fieldPayloadSize}];" if 'set' in field else ""}
 {f"  uint8_t m_responseSet[{fieldPayloadSize}];" if 'set' in field and field.get("tp", False) else ""}
 {f"  bool m_requestSetInUse = false;" if 'set' in field and field.get("tp", False) else ""}
 {"  FieldType m_fieldSet;" if 'set' in field else ""}
@@ -271,7 +271,7 @@ private:
 private:
   std::shared_ptr<ara::core::Promise<{ReturnType}>> m_promise = nullptr;
   uint16_t m_sessionId = 0;
-  uint8_t m_request[{payloadSize}];
+  uint8_t m_request[20 + {payloadSize}];
   {toMethodTypeName(ReturnType, method)} m_{toMethodTypeName(ReturnType, method)};
 {defTpBuf}
 }};\n"""
@@ -908,10 +908,10 @@ ara::core::Future<{field['name']}::FieldType> {field['name']}::Set(const {field[
   if ((nullptr == m_promiseSet){" && (false == m_requestSetInUse)" if field.get('tp', False) else ""}) {{
     m_promiseSet = std::make_shared<Promise<FieldType>>();
     future = m_promiseSet->get_future();
-    serializedSize = {SomeIpXfEncode(field, allStructs, 'm_requestSet', 'sizeof(m_requestSet)', 'value')};
+    serializedSize = {SomeIpXfEncode(field, allStructs, '&m_requestSet[20]', 'sizeof(m_requestSet)-20', 'value')};
     if (serializedSize > 0) {{
       uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_SET_{toMacro(field['name'])} << 16) + (++m_sessionIdSet);
-      Std_ReturnType ret = SomeIp_Request(requestId, m_requestSet, serializedSize);
+      Std_ReturnType ret = SomeIp_Request(requestId, &m_requestSet[20], serializedSize);
       if (E_OK != ret) {{
         m_promiseSet->SetError(ret);
         m_promiseSet = nullptr;
@@ -981,8 +981,8 @@ Std_ReturnType {field['name']}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpM
 
 Std_ReturnType {field['name']}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_requestSet)) {{
-    memcpy(msg->data, &m_requestSet[msg->offset], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20)) <= sizeof(m_requestSet)) {{
+    msg->data = &m_requestSet[msg->offset + 20];
     if (false == msg->moreSegmentsFlag) {{
       m_requestSetInUse = false;
     }}
@@ -1092,9 +1092,8 @@ Std_ReturnType {field['name']}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMess
             for arg in args:
                 Args.append(f"const {toMethodTypeName(arg['type'], method)} &{arg['name']}")
                 serArgs += f"""
-    if ((offset >= 0) && ((int32_t)sizeof(m_request) > offset)) {{
-      serializedSize = SomeIpXf_EncodeStruct(m_request + offset, sizeof(m_request) - offset,
-                                &{arg['name']}, &SomeIpXf_Struct{arg['type']}Def);
+    if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + 20))) {{
+      serializedSize = {SomeIpXfEncode(arg, allStructs, '&m_request[offset + 20]', 'sizeof(m_request) - offset - 20', arg['name'])};
       if (serializedSize > 0) {{
         offset += serializedSize;
       }} else {{
@@ -1120,8 +1119,8 @@ Std_ReturnType {method['name']}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMes
 
 Std_ReturnType {method['name']}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {{
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_request))) {{
-    memcpy(msg->data, &m_request[msg->offset], msg->length);
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_request))) {{
+    memcpy(msg->data, &m_request[msg->offset + 20], msg->length);
     if (false == msg->moreSegmentsFlag) {{
       m_requestInUse = false;
     }}
@@ -1142,7 +1141,7 @@ ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {met
     uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_{toMacro(method['name'])} << 16) + (++m_sessionId);
 {serArgs}
     if (offset >= 0) {{
-      Std_ReturnType ret = SomeIp_Request(requestId, m_request, offset);
+      Std_ReturnType ret = SomeIp_Request(requestId, &m_request[20], offset);
       if (E_OK != ret) {{
         m_promise->SetError(ret);
         m_promise = nullptr;
@@ -1179,7 +1178,7 @@ ara::core::Future<{method['name']}::{toMethodTypeName(ReturnType, method)}> {met
     uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{toMacro(service_name)}_{toMacro(method['name'])} << 16) + (++m_sessionId);
 {serArgs}
     if (offset >= 0) {{
-      Std_ReturnType ret = SomeIp_Request(requestId, m_request, offset);
+      Std_ReturnType ret = SomeIp_Request(requestId, &m_request[20], offset);
       if (E_OK != ret) {{
         m_promise->SetError(ret);
         m_promise = nullptr;
