@@ -15,13 +15,6 @@
 #include "SoAd.h"
 #include "TcpIp.h"
 #include "plugin.h"
-#ifdef USE_SOMEIPXF
-extern "C" {
-#include "SomeIpXf_Cfg.h"
-}
-#else
-#include "display.msg.pb.h"
-#endif
 #include "Log.hpp"
 using namespace as;
 /* ================================ [ MACROS    ] ============================================== */
@@ -167,7 +160,7 @@ VICGraphicView::VICGraphicView(QWidget *parent) : QGraphicsView(parent) {
   setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
   setResizeAnchor(QGraphicsView::AnchorViewCenter);
 
-  m_MsgQ = MessageQueue<std::shared_ptr<Message>>::add("VIC");
+  m_MsgQ = MessageQueue<std::shared_ptr<Display_Type>>::add("VIC");
 
   startTimer(1);
 }
@@ -212,71 +205,34 @@ void VICGraphicView::drawBackground(QPainter *painter, const QRectF &rect) {
 
 void VICGraphicView::timerEvent(QTimerEvent *e) {
   (void)e;
-  std::shared_ptr<Message> msg;
+  std::shared_ptr<Display_Type> msg;
   auto ret = m_MsgQ->get(msg, false, 0);
   if (true == ret) {
-#ifdef USE_SOMEIPXF
-    Display_Type display;
-    auto r = SomeIpXf_DecodeStruct((uint8_t *)msg->payload->data, msg->payload->size, &display,
-                                   &SomeIpXf_StructDisplayDef);
-    if (r > 0) {
-      for (int i = 0; i < display.gaugesLen; i++) {
-        auto &gauge = display.gauges[i];
-        std::string name((char *)gauge.name);
-        auto degree = gauge.degree;
-        auto it = m_MapPointers.find(name);
-        if (it != m_MapPointers.end()) {
-          auto ptr = it->second;
-          ptr->setDegree(degree);
-        } else {
-          LOG(ERROR, "pointer %s is not found\n", name.c_str());
-        }
+    Display_Type &display = *msg;
+    for (int i = 0; i < display.gaugesLen; i++) {
+      auto &gauge = display.gauges[i];
+      std::string name((char *)gauge.name);
+      auto degree = gauge.degree;
+      auto it = m_MapPointers.find(name);
+      if (it != m_MapPointers.end()) {
+        auto ptr = it->second;
+        ptr->setDegree(degree);
+      } else {
+        LOG(ERROR, "pointer %s is not found\n", name.c_str());
       }
+    }
 
-      for (int i = 0; i < display.telltalesLen; i++) {
-        auto &telltale = display.telltales[i];
-        std::string name((char *)telltale.name);
-        auto on = telltale.on;
-        auto it = m_MapTelltales.find(name);
-        if (it != m_MapTelltales.end()) {
-          auto tt = it->second;
-          tt->setOn(on);
-        } else {
-          LOG(ERROR, "telltale %s is not found\n", name.c_str());
-        }
+    for (int i = 0; i < display.telltalesLen; i++) {
+      auto &telltale = display.telltales[i];
+      std::string name((char *)telltale.name);
+      auto on = telltale.on;
+      auto it = m_MapTelltales.find(name);
+      if (it != m_MapTelltales.end()) {
+        auto tt = it->second;
+        tt->setOn(on);
+      } else {
+        LOG(ERROR, "telltale %s is not found\n", name.c_str());
       }
-#else
-    vic::display display;
-    ret = display.ParseFromArray(msg->payload->data, msg->payload->size);
-    if (true == ret) {
-      for (int i = 0; i < display.gauges_size(); i++) {
-        auto &gauge = display.gauges(i);
-        auto name = gauge.name();
-        auto degree = gauge.degree();
-        auto it = m_MapPointers.find(name);
-        if (it != m_MapPointers.end()) {
-          auto ptr = it->second;
-          ptr->setDegree(degree);
-        } else {
-          LOG(ERROR, "pointer %s is not found\n", name.c_str());
-        }
-      }
-
-      for (int i = 0; i < display.telltales_size(); i++) {
-        auto &telltale = display.telltales(i);
-        auto name = telltale.name();
-        auto on = telltale.on();
-        auto it = m_MapTelltales.find(name);
-        if (it != m_MapTelltales.end()) {
-          auto tt = it->second;
-          tt->setOn(on);
-        } else {
-          LOG(ERROR, "telltale %s is not found\n", name.c_str());
-        }
-      }
-#endif
-    } else {
-      LOG(ERROR, "invalid message\n");
     }
   }
 }

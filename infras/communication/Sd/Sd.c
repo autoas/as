@@ -626,12 +626,13 @@ static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
   }
 
   if (E_OK == ret) {
-    if ((config->MajorVersion != SD_ANY_MAJOR_VERSION) && (config->MajorVersion != entry1->major)) {
-      ASLOG(SDE, ("major version not matched\n"));
+    if ((config->MajorVersion != SD_ANY_MAJOR_VERSION) && (entry1->major != SD_ANY_MAJOR_VERSION) &&
+        (config->MajorVersion != entry1->major)) {
+      ASLOG(SDE, ("major version not matched: %u != %u\n", config->MajorVersion, entry1->major));
       ret = E_NOT_OK;
     } else if ((config->MinorVersion != SD_ANY_MINOR_VERSION) &&
-               (config->MinorVersion != entry1->minor)) {
-      ASLOG(SDE, ("minor version not matched\n"));
+               (entry1->minor != SD_ANY_MINOR_VERSION) && (config->MinorVersion != entry1->minor)) {
+      ASLOG(SDE, ("minor version not matched: %du != %u\n", config->MinorVersion, entry1->minor));
       ret = E_NOT_OK;
     } else {
       /* version okay */
@@ -654,6 +655,7 @@ static Std_ReturnType Sd_HandleFindService(const Sd_InstanceType *Instance,
     Sd_BuildOptionIPv4Endpoint(&Instance->buffer[44u], &LocalAddr, config->ProtocolType);
     Sd_BuildHeader(Instance->buffer, Instance->context->flags,
                    Instance->context->multicastSessionId, 16u, 12u);
+    Instance->context->multicastSessionId++;
     if (0u == Instance->context->multicastSessionId) {
       Instance->context->multicastSessionId = 1u;
       Instance->context->flags &= ~SD_REBOOT_FLAG;

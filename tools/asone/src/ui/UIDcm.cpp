@@ -18,7 +18,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <libgen.h>
-#include <dlfcn.h>
+#include "PAL.h"
 #include <mutex>
 #include <iostream>
 
@@ -272,9 +272,9 @@ UISecurityAccess::UISecurityAccess(json &js, UIDcm *dcm)
       LOG(INFO, "lua script for security level %s:\n%s\n", name.c_str(), info.m_Scripts.c_str());
     } else if (jsLvl.contains("dll")) {
       auto dllPath = jsLvl["dll"].get<std::string>();
-      info.dll = dlopen(dllPath.c_str(), RTLD_NOW);
+      info.dll = PAL_DlOpen(dllPath.c_str());
       if (nullptr != info.dll) {
-        info.calculate_key = (calculate_key_t)dlsym(info.dll, "CalculateKey");
+        info.calculate_key = (calculate_key_t)PAL_DlSym(info.dll, "CalculateKey");
       }
       if ((nullptr == info.dll) || (nullptr == info.calculate_key)) {
         throw std::runtime_error("invalid dll " + dllPath + " for level " + name);

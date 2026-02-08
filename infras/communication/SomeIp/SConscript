@@ -2,7 +2,6 @@ from building import *
 
 CWD = GetCurrentDir()
 objs = Glob("*.c")
-objscpp = Glob("cpp/src/*.cpp")
 
 
 @register_library
@@ -21,6 +20,5 @@ class LibrarySomeIp(Library):
                 self.CPPDEFINES += ["USE_PCAP"]
             self.include += ["%s/cpp/include" % (CWD)]
             self.LIBS += ["Utils", "Plugin"]
-            self.source += objscpp
             if not IsBuildForWindows():
                 self.CXXFLAGS = ["--std=c++17"]

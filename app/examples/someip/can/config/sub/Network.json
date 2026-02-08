@@ -19,9 +19,6 @@
           ]
         }
       ],
-      "args": [
-        { "name": "canframe-args", "args": [ { "name": "canframe", "type": "CanFrame" } ] }
-      ],
       "clients": [
         {
           "name": "CANBus",
@@ -32,7 +29,7 @@
           "methods": [],
           "event-groups": [
             {
-              "name": "canframe",
+              "name": "CanFrame",
               "groupId": "0x8100",
               "enable_multicast": true,
               "multicast": {
@@ -40,8 +37,8 @@
               },
               "events": [
                 {
-                  "name": "canframe",
-                  "args": "canframe-args",
+                  "name": "CanFrame",
+                  "type": "CanFrame",
                   "eventId": "0x8100",
                   "tp": false,
                   "version": 0

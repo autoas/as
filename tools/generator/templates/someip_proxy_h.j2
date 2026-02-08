@@ -1,0 +1,128 @@
+/**
+ * SSAS - Simple Smart Automotive Software
+ * Copyright (C) 2021-{{ now.year }} Parai Wang <parai@foxmail.com>
+ *
+ * Generated at {{ now.strftime("%c") }}
+ */
+
+#ifndef SOMEIP_{{ toMacro(service_name) }}_PROXY_H
+#define SOMEIP_{{ toMacro(service_name) }}_PROXY_H
+/* ================================ [ INCLUDES  ] ============================================== */
+#include "SomeIpXf_Cfg.h"
+#include "SomeIp.h"
+#include "Sd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* ================================ [ MACROS    ] ============================================== */
+/* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
+/* ================================ [ FUNCTIONS ] ============================================== */
+Std_ReturnType {{ service_name }}_FindService(void);
+Std_ReturnType {{ service_name }}_StopFindService(void);
+
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+void {{ service_name }}_Subscribe{{ event['name'] }}Ack(boolean isSubscribe);
+Std_ReturnType {{ service_name }}_Subscribe{{ event['name'] }}(void);
+boolean {{ service_name }}_Get{{ event['name'] }}SubscriptionState(void);
+void {{ service_name }}_Unsubscribe{{ event['name'] }}(void);
+void {{ service_name }}_{{ event['name'] }}(const {{ GetArgTypeC(event, allStructs) }} sample);
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% for field in service.get('fields', []) %}
+{% if 'event' in field %}
+void {{ service_name }}_Subscribe{{ field['name'] }}Ack(boolean isSubscribe);
+Std_ReturnType {{ service_name }}_Subscribe{{ field['name'] }}(void);
+boolean {{ service_name }}_Get{{ field['name'] }}SubscriptionState(void);
+void {{ service_name }}_{{ field['name'] }}({{ GetArgTypeC(field, allStructs) }} field);
+void {{ service_name }}_Unsubscribe{{ field['name'] }}(void);
+{% endif %}
+{% if 'get' in field %}
+Std_ReturnType {{ service_name }}_Get{{ field['name'] }}(void);
+void {{ service_name }}_Get{{ field['name'] }}_Return(Std_ReturnType ercd, {{ GetArgTypeC(field, allStructs) }} field);
+{% endif %}
+{% if 'set' in field %}
+Std_ReturnType {{ service_name }}_Set{{ field['name'] }}(const {{ GetArgTypeC(field, allStructs) }} value);
+void {{ service_name }}_Set{{ field['name'] }}_Return(Std_ReturnType ercd, const {{ GetArgTypeC(field, allStructs) }} value);
+{% endif %}
+
+{% endfor %}
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+{% set ReturnType = method.get('return', 'void') %}
+{% set Args = [] %}
+{% set ArgsR = ["Std_ReturnType ercd"] %}
+{% if 'args' in method %}
+{% set args = GetArgs(cfg, method['args']) %}
+{% for arg in args %}
+{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['name']) %}
+{% endfor %}
+{% endif %}
+{% if ReturnType != 'void' %}
+{% set _ = ArgsR.append('const ' ~ GetArgTypeC(ReturnType, allStructs) ~ ' ' ~ ReturnType) %}
+{% endif %}
+Std_ReturnType {{ service_name }}_{{ method['name'] }}({{ Args | join(', ') }});
+void {{ service_name }}_{{ method['name'] }}_Return({{ ArgsR | join(', ') }});
+{% endif %}
+{% endfor %}
+
+void SomeIp_{{ service_name }}_OnAvailability(boolean isAvailable);
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if method.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for egroup in service.get('event-groups', []) %}
+void SomeIp_{{ service_name }}_{{ egroup['name'] }}_OnSubscribeAck(boolean isSubscribe);
+{% for event in egroup['events'] %}
+{% if 'for' not in event %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['name'] }}_{{ event['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
+{% if event.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['name'] }}_{{ event['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% for field in service.get('fields', []) %}
+{% if 'get' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+
+{% if 'set' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+
+{% if 'event' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
+{% if field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+{% endfor %}
+#ifdef __cplusplus
+}
+#endif
+#endif /* SOMEIP_{{ toMacro(service_name) }}_PROXY_H */

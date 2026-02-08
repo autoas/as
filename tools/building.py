@@ -42,6 +42,8 @@ AddOption("--prebuilt", dest="prebuilt", action="store_true", default=False, hel
 
 AddOption("--det", dest="det", action="store_true", default=False, help="enable development error trace")
 
+AddOption("--gcov", dest="gcov", action="store_true", default=False, help="enable gnu code covergae")
+
 CWD = os.path.abspath(".")
 appName = GetOption("application")
 libName = GetOption("library")
@@ -1336,6 +1338,9 @@ def __CompilerGCC(**kwargs):
         env["CC"] = "%s/bin/clang" % (prefix)
         env["CXX"] = "%s/bin/clang++" % (prefix)
         env.Append(LIBS=["stdc++"])
+    if GetOption("gcov"):
+        env.Append(LIBS=["gcov"])
+        env.Append(CPPFLAGS=["-fprofile-arcs", "-ftest-coverage"])
     return env
 
 
@@ -2139,10 +2144,12 @@ class BuildBase:
             if type(x) is list:
                 for x1 in x:
                     if x1 not in newL:
-                        newL.append(x1)
+                        if x1 not in __libraries__:
+                            newL.append(x1)
             else:
                 if x not in newL:
-                    newL.append(x)
+                    if x not in __libraries__:
+                        newL.append(x)
         return newL
 
 
@@ -2151,7 +2158,7 @@ class Library(BuildBase):
     def __init__(self, **kwargs):
         if not hasattr(self, "name"):
             self.name = self.__class__.__name__[7:]
-        aslog("init library %s" % (self.name))
+        aslog(f"init {'SHARED' if getattr(self, 'shared', False) else 'STATIC'} library {self.name}")
         # local cpp_path for libraries
         self.__cpppath__ = {}
         self.__cfgs__ = {}
@@ -2280,6 +2287,7 @@ class Library(BuildBase):
             else:
                 objs += objs_
             LIBPATH += getattr(lib, "LIBPATH", [])
+            LIBS += getattr(lib, "LIBS", []) + lib.__extra_libs__
         objs += self.objs()
         if self.is_shared_library():
             LINKFLAGS = getattr(self, "LINKFLAGS", []) + list(env.get("LINKFLAGS", []))
@@ -2303,6 +2311,7 @@ class Library(BuildBase):
                 else:
                     objs2.append(obj)
             LIBS += list(env.get("LIBS", [])) + self.__extra_libs__
+            LIBS = self.sortL(LIBS)
             aslog("build shared library %s" % (libName))
             target = env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         else:

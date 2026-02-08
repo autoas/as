@@ -1,0 +1,222 @@
+r"""
+scons --lib=vsomeip3 -j8
+scons --lib=vsomeip3-cfg --prebuilt -j8
+scons --lib=vsomeip3-sd --prebuilt -j8
+scons --lib=vsomeip3-e2e --prebuilt -j8
+scons --app=vsomeip3-client-example --prebuilt -j8
+scons --app=vsomeip3-server-example --prebuilt -j8
+scons --app=vsomeip3-routingmanagerd --prebuilt -j8
+"""
+from building import *
+
+Import("BUILD_DIR")
+CWD = GetCurrentDir()
+
+
+def GetVSomeIP():
+    pkg = Package(url="https://gitee.com/autoas/vsomeip.git")
+    return pkg
+
+
+@RegisterLibrary(name="vsomeip3")
+class LibraryVSomeIP(Library):
+    shared = True
+
+    def get_objs(self, pkg):
+        objs = [
+            "implementation/configuration/src/configuration_impl.cpp",
+            "implementation/endpoints/src/*.cpp",
+            "implementation/logger/src/*.cpp",
+            "implementation/message/src/*.cpp",
+            "implementation/plugin/src/*.cpp",
+            "implementation/protocol/src/*.cpp",
+            "implementation/routing/src/*.cpp",
+            "implementation/runtime/src/*.cpp",
+            "implementation/security/src/*.cpp",
+            "implementation/tracing/src/*.cpp",
+            "implementation/utility/src/*.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        if IsBuildForWindows():
+            SrcRemove(objs, [".*uds.*.cpp"])
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.include += [
+            "%s/interface" % (pkg),
+            "%s/implementation/configuration/include" % (pkg),
+            "%s/implementation/e2e_protection/include" % (pkg),
+            "%s/implementation/endpoints/include" % (pkg),
+            "%s/implementation/logger/include" % (pkg),
+            "%s/implementation/message/include" % (pkg),
+            "%s/implementation/plugin/include" % (pkg),
+            "%s/implementation/protocol/include" % (pkg),
+            "%s/implementation/routing/include" % (pkg),
+            "%s/implementation/runtime/include" % (pkg),
+            "%s/implementation/security/include" % (pkg),
+            "%s/implementation/service_discovery/include" % (pkg),
+            "%s/implementation/tracing/include" % (pkg),
+            "%s/implementation/utility/include" % (pkg),
+        ]
+        self.Append(CPPDEFINES=["WITHOUT_SYSTEMD", "VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS"])
+        if IsBuildForWindows():
+            self.Append(CPPDEFINES=["VSOMEIP_DLL_COMPILATION=1", "VSOMEIP_DLL_COMPILATION_PLUGIN=1"])
+            self.Append(CXXFLAGS=["-std=c++17"])
+            self.LIBS += ["ws2_32", "mswsock", "iphlpapi", "stdc++", "boost_filesystem-mt", "boost_thread-mt"]
+        else:
+            self.LIBS += ["pthread", "stdc++", "boost_filesystem", "boost_thread"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterLibrary(name="vsomeip3-sd")
+class LibraryVSomeIP_SD(Library):
+    shared = True
+
+    def get_objs(self, pkg):
+        objs = [
+            "implementation/service_discovery/src/*.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterLibrary(name="vsomeip3-e2e")
+class LibraryVSomeIP_E2E(Library):
+    shared = True
+
+    def get_objs(self, pkg):
+        objs = [
+            "implementation/e2e_protection/src/buffer/*.cpp",
+            "implementation/e2e_protection/src/crc/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/profile01/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/profile04/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/profile05/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/profile07/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/*.cpp",
+            "implementation/e2e_protection/src/e2exf/*.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3"]
+
+    def config(self):
+        self.source = objs
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterLibrary(name="vsomeip3-cfg")
+class LibraryVSomeIP_Cfg(Library):
+    shared = True
+
+    def get_objs(self, pkg):
+        objs = [
+            "implementation/configuration/src/*.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterApplication(name="vsomeip3-client-example")
+class ApplicationVSomeIPClientExample(Application):
+
+    def get_objs(self, pkg):
+        objs = [
+            "examples/ssas/client-example.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3", "Utils"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterApplication(name="vsomeip3-server-example")
+class ApplicationVSomeIPServerExample(Application):
+    def get_objs(self, pkg):
+        objs = [
+            "examples/ssas/service-example.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3", "Utils"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")
+
+
+@RegisterApplication(name="vsomeip3-routingmanagerd")
+class ApplicationVSomeIPRoutingManagerD(Application):
+    def get_objs(self, pkg):
+        objs = [
+            "examples/routingmanagerd/routingmanagerd.cpp",
+        ]
+        objs = PkgGlob(pkg, objs)
+        return objs
+
+    def download(self):
+        pkg = GetVSomeIP()
+        objs = self.get_objs(pkg)
+        self.source += objs
+        self.LIBS += ["vsomeip3", "Utils"]
+
+    def config(self):
+        self.source = []
+        self.download()
+        self.Install("../prebuilt")
+        self.Install("../someip")

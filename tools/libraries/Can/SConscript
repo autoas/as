@@ -41,8 +41,6 @@ class LibraryCanLib(Library):
             ControlCAN = Glob("%s/ControlCAN*/ControlCANx64" % (pkg))[0].rstr()
         self.CPPPATH += [ControlCAN]
         if not IsBuildForWin32():  # mingw32 has no dlfcn
-            if not IsBuildForMSVC():
-                self.LIBS += ["dl"]
             self.CPPDEFINES += ["USE_ZLG_DLL"]
         else:
             self.LIBS += ["ControlCAN"]

@@ -16,7 +16,8 @@ class ApplicationRadarServiceClient(Application):
             "SomeIpXf": source["SomeIpXf"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/GEN" % (CWD)]
-        self.source = objs + source["RadarServiceProxy"]
+        self.source = objs
+        self.source += source["RadarServiceProxy"]
         self.LIBS = ["TcpIp", "StdTimer", "Critical"]
         self.Append(CPPDEFINES=["USE_TCPIP"])
         for libName, source in libs.items():

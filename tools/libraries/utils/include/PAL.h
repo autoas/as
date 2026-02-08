@@ -19,6 +19,7 @@ extern "C" {
 /* ================================ [ FUNCTIONS ] ============================================== */
 void *PAL_DlOpen(const char *path);
 void *PAL_DlSym(void *dll, const char *symbol);
+const char *PAL_DlErr(void);
 void PAL_DlClose(void *dll);
 
 bool PAL_FileExists(const char *file);

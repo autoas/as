@@ -50,36 +50,57 @@
     {
       "name": "SomeIp",
       "class": "SomeIp",
+      "EnableZeroCopy": true,
       "SD": {
         "hostname": "ssas",
         "multicast": "224.244.224.245"
       },
+      "structs": [
+        {
+          "name": "Message",
+          "data": [
+            { "name": "buffer", "type": "uint8_n", "size": 2048, "variable_array": true }
+          ]
+        }
+      ],
+      "args": [
+        { "name": "common-args", "args": [ { "name": "message", "type": "Message" } ] }
+      ],
       "servers": [
         {
-          "name": "server0",
-          "service": "0x1234",
-          "instance": "0x5678",
-          "clientId": "0x4444",
+          "name": "Service0",
+          "service": "0x1000",
+          "instance": "0x1000",
+          "clientId": "0x1000",
           "unreliable": "30560",
           "methods": [
             {
-              "name": "method1",
-              "methodId": "0x421",
+              "name": "Method0",
+              "methodId": "0x1000",
               "tp": true,
-              "TxMaxSize": 2048,
-              "RxMaxSize": 2048,
+              "args": "common-args",
+              "return": "Message",
+              "version": "0"
+            },
+            {
+              "name": "Method2",
+              "methodId": "0x1002",
+              "tp": true,
+              "args": "common-args",
+              "return": "Message",
               "version": "0"
             }
           ],
           "event-groups": [
             {
-              "name": "event_group1",
-              "groupId": "0x8001",
+              "name": "EventGroup0",
+              "groupId": "0x8000",
               "enable_multicast": false,
               "events": [
                 {
-                  "name": "event0",
-                  "eventId": "0xbeef",
+                  "name": "Event0",
+                  "eventId": "0x8000",
+                  "type": "Message",
                   "tp": true,
                   "TxMaxSize": 2048,
                   "version": "0"
@@ -91,15 +112,17 @@
       ],
       "clients": [
         {
-          "name": "client0",
-          "service": "0xabcd",
-          "instance": "0xbeef",
-          "clientId": "0x5555",
+          "name": "Service1",
+          "service": "0x1001",
+          "instance": "0x1001",
+          "clientId": "0x1001",
           "unreliable": "30568",
           "methods": [
             {
-              "name": "method2",
-              "methodId": "0x424",
+              "name": "Method1",
+              "methodId": "0x1001",
+              "args": "common-args",
+              "return": "Message",
               "tp": true,
               "TxMaxSize": 2048,
               "RxMaxSize": 2048,
@@ -108,13 +131,14 @@
           ],
           "event-groups": [
             {
-              "name": "event_group2",
-              "groupId": "0x8002",
+              "name": "EventGroup1",
+              "groupId": "0x8001",
               "enable_multicast": false,
               "events": [
                 {
-                  "name": "event0",
-                  "eventId": "0xabcd",
+                  "name": "Event1",
+                  "eventId": "0x8001",
+                  "type": "Message",
                   "tp": true,
                   "TxMaxSize": 2048,
                   "version": "0"

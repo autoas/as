@@ -1,0 +1,357 @@
+/**
+ * SSAS - Simple Smart Automotive Software
+ * Copyright (C) 2021-{{ now.year }} Parai Wang <parai@foxmail.com>
+ *
+ * Generated at {{ now.strftime("%c") }}
+ */
+
+
+
+#ifndef ARA_SOMEIP_{{ toMacro(service_name) }}_PROXY_HPP
+#define ARA_SOMEIP_{{ toMacro(service_name) }}_PROXY_HPP
+/* ================================ [ INCLUDES  ] ============================================== */
+#include "ara/com/proxy/proxy_base.h"
+#include "SomeIpXf_Cfg.h"
+#include "SomeIp.h"
+namespace ara {
+namespace com {
+namespace {{ service_name }} {
+using namespace ara::com;
+using namespace ara::core;
+/* ================================ [ MACROS    ] ============================================== */
+/* ================================ [ TYPES     ] ============================================== */
+{% for struct in cfg.get('structs', []) %}
+using {{ struct['name'] }} = {{ struct['name'] }}_Type;
+{% endfor %}
+class {{ service_name }}Manager;
+/* ================================ [ CLASS     ] ============================================== */
+namespace events {
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+class {{ event['name'] }} {
+public:
+  using SampleType = {{ GetXfCType(event, allStructs) }};
+
+  {{ event['name'] }}();
+  ~{{ event['name'] }}();
+
+  ara::core::Result<void> Subscribe(size_t maxSampleCount);
+
+  ara::com::SubscriptionState GetSubscriptionState() const;
+
+  void Unsubscribe();
+
+  size_t GetFreeSampleCount() const noexcept;
+
+  ara::core::Result<void> SetReceiveHandler(ara::com::EventReceiveHandler handler) {
+    m_evtRxHandler = handler;
+    return ara::core::Result<void>(0);
+  }
+
+  ara::core::Result<void> UnsetReceiveHandler() {
+    m_evtRxHandler = nullptr;
+    return ara::core::Result<void>(0);
+  }
+
+  ara::core::Result<void>
+  SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler) {
+    m_stateChgHandler = handler;
+    return ara::core::Result<void>(0);
+  }
+
+  void UnsetSubscriptionStateChangeHandler() {
+    m_stateChgHandler = nullptr;
+  }
+
+  template <typename F>
+  ara::core::Result<size_t>
+  GetNewSamples(F &&f, size_t maxNumberOfSamples = std::numeric_limits<size_t>::max()) {
+    ara::core::Result<size_t> rslt(0);
+    size_t count = 0;
+    for (size_t i = 0; i < maxNumberOfSamples; i++) {
+      if (false == m_lastNSamples.empty()) {
+        SamplePtr<SampleType> samplePtr(std::move(m_lastNSamples.front()));
+        m_lastNSamples.pop_front();
+        f(std::move(samplePtr));
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    rslt = ara::core::Result<size_t>(count);
+
+    return rslt;
+  }
+
+private:
+  void OnEvent(const SampleType &sample);
+  void OnSubscribeAck(bool isSubscribe);
+  friend class {{ service_name }}::{{ service_name }}Manager;
+
+private:
+  std::deque<SamplePtr<SampleType>> m_lastNSamples;
+  ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
+  ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
+  size_t m_maxSampleCount = 0;
+};
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+} // namespace events
+
+namespace fields {
+{% for field in service.get('fields', []) %}
+class {{ field['name'] }} {
+public:
+  using FieldType = {{ GetXfCType(field, allStructs) }};
+
+  {{ field['name'] }}();
+  ~{{ field['name'] }}();
+
+{% if 'event' in field %}
+  ara::core::Result<void> Subscribe(size_t maxSampleCount);
+
+  size_t GetFreeSampleCount() const noexcept;
+
+  ara::com::SubscriptionState GetSubscriptionState() const;
+
+  void Unsubscribe();
+
+  ara::core::Result<void> SetReceiveHandler(ara::com::EventReceiveHandler handler);
+
+  ara::core::Result<void> UnsetReceiveHandler();
+
+  ara::core::Result<void> SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler);
+  
+  void UnsetSubscriptionStateChangeHandler();
+  
+  template <typename F>
+  ara::core::Result<size_t>
+  GetNewSamples(F &&f, size_t maxNumberOfSamples = std::numeric_limits<size_t>::max()) {
+    ara::core::Result<size_t> rslt(0);
+    size_t count = 0;
+    for (size_t i = 0; i < maxNumberOfSamples; i++) {
+      if (false == m_lastNSamples.empty()) {
+        SamplePtr<FieldType> samplePtr(std::move(m_lastNSamples.front()));
+        m_lastNSamples.pop_front();
+        f(std::move(samplePtr));
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    rslt = ara::core::Result<size_t>(count);
+
+    return rslt;
+  }
+{% endif %}
+
+{% if 'get' in field %}
+  ara::core::Future<FieldType> Get();
+{% endif %}
+
+{% if 'set' in field %}
+  ara::core::Future<FieldType> Set(const FieldType& value);
+{% endif %}
+
+private:
+{% if 'event' in field %}
+  void OnSubscribeAck(bool isSubscribe);
+  void OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
+{% if field.get('tp', False) %}
+  Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+
+{% if 'get' in field %}
+  Std_ReturnType OnGetResponse(uint32_t requestId, SomeIp_MessageType* res);
+  Std_ReturnType OnGetError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('tp', False) %}
+  Std_ReturnType OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+  Std_ReturnType OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+
+{% if 'set' in field %}
+  Std_ReturnType OnSetResponse(uint32_t requestId, SomeIp_MessageType* res);
+  Std_ReturnType OnSetError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('tp', False) %}
+  Std_ReturnType OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+  Std_ReturnType OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+{% endif %}
+
+friend class {{ service_name }}::{{ service_name }}Manager;
+
+private:
+{% if 'event' in field %}
+  std::deque<SamplePtr<FieldType>> m_lastNSamples;
+  ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
+  ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
+  size_t m_maxSampleCount = 1;
+  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }}];
+{% endif %}
+
+{% if 'get' in field %}
+  std::shared_ptr<ara::core::Promise<FieldType>> m_promiseGet = nullptr;
+{% if field.get('tp', False) %}
+  uint8_t m_responseGet[{{ GetTypePayloadSize(field, allStructs) }}];
+{% endif %}
+  FieldType m_fieldGet;
+{% endif %}
+
+{% if 'set' in field %}
+  std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;
+  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }}];
+{% if field.get('tp', False) %}
+  uint8_t m_responseSet[{{ GetTypePayloadSize(field, allStructs) }}];
+  bool m_requestSetInUse = false;
+{% endif %}
+  FieldType m_fieldSet;
+{% endif %}
+};
+
+{% endfor %}
+} // namespace fields
+
+namespace methods {
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+class {{ method['name'] }} {
+public:
+{% set UsedTypes = [] %}
+{% set ReturnType = method.get('return', 'void') %}
+{% if ReturnType != 'void' %}
+{% do UsedTypes.append(ReturnType) %}
+{% endif %}
+{% if 'args' in method %}
+{% for arg in GetArgs(cfg, method['args']) %}
+{% if arg['type'] not in UsedTypes %}
+{% do UsedTypes.append(arg['type']) %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% for utype in UsedTypes %}
+  using {{ toMethodTypeName(utype, method) }} = {{ GetXfCType(utype, allStructs) }};
+{% endfor %}
+
+  ara::core::Future<{{ toMethodTypeName(ReturnType, method) }}> operator()({{ GetArgsList(method, cfg) }});
+
+  {{ method['name'] }}();
+  ~{{ method['name'] }}();
+
+private:
+  Std_ReturnType OnError(uint32_t requestId, Std_ReturnType ercd);
+  Std_ReturnType OnResponse(uint32_t requestId, SomeIp_MessageType *res);
+{% if method.get('tp', False) %}
+  Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+  Std_ReturnType OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% endif %}
+  friend class {{ service_name }}::{{ service_name }}Manager;
+
+private:
+  std::shared_ptr<ara::core::Promise<{{ ReturnType }}>> m_promise = nullptr;
+  uint8_t m_request[20 + {{ GetMethodPayloadSize(method, cfg, allStructs) }}];
+{% if ReturnType != 'void' %}
+  {{ toMethodTypeName(ReturnType, method) }} m_{{ toMethodTypeName(ReturnType, method) }};
+{% endif %}
+{% if method.get('tp', False) %}
+{% if ReturnType != 'void' %}
+  uint8_t m_response[{{ GetTypePayloadSize(ReturnType, allStructs) }}];
+{% endif %}
+  bool m_requestInUse = false;
+{% endif %}
+};
+
+{% endif %}
+{% endfor %}
+} // namespace methods
+
+class {{ service_name }}Proxy {
+public:
+  class HandleType {
+  public:
+    inline bool operator==(const HandleType &other) const;
+    const ara::com::InstanceIdentifier &GetInstanceId() const;
+    HandleType();
+    ~HandleType();
+
+  private:
+    const uint16_t m_clientId;
+    const uint16_t m_serviceId;
+  };
+
+  /** @SWS_CM_00123 */
+  static ara::core::Result<ara::com::FindServiceHandle>
+  StartFindService(ara::com::FindServiceHandler<HandleType> handler,
+                   ara::com::InstanceIdentifier instanceId) noexcept;
+
+  /** @SWS_CM_00623 */
+  static ara::core::Result<ara::com::FindServiceHandle>
+  StartFindService(ara::com::FindServiceHandler<HandleType> handler,
+                   ara::core::InstanceSpecifier instanceSpec);
+
+  /** @SWS_CM_11365 */
+  template <typename ExecutorT>
+  static ara::com::FindServiceHandle
+  StartFindService(ara::com::FindServiceHandler<HandleType> handler,
+                   ara::core::InstanceSpecifier instance, ExecutorT &&executor) noexcept;
+
+  /** @SWS_CM_11352 */
+  template <typename ExecutorT>
+  static ara::com::FindServiceHandle
+  StartFindService(ara::com::FindServiceHandler<HandleType> handler,
+                   ara::com::InstanceIdentifier instance, ExecutorT &&executor) noexcept;
+
+  /** @SWS_CM_00125 */
+  static void StopFindService(ara::com::FindServiceHandle handle) noexcept;
+
+  /** @SWS_CM_00122 */
+  static ara::core::Result<ara::com::ServiceHandleContainer<HandleType>>
+  FindService(ara::com::InstanceIdentifier instance) noexcept;
+
+  /** @SWS_CM_00622 */
+  static ara::core::Result<ara::com::ServiceHandleContainer<HandleType>>
+  FindService(ara::core::InstanceSpecifier instanceSpec);
+
+  explicit {{ service_name }}Proxy(HandleType &handle);
+
+  {{ service_name }}Proxy({{ service_name }}Proxy &other) = delete;
+
+  {{ service_name }}Proxy &operator=(const {{ service_name }}Proxy &other) = delete;
+
+public:
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+  events::{{ event['name'] }} {{ event['name'] }};
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+  methods::{{ method['name'] }} {{ method['name'] }};
+{% endif %}
+{% endfor %}
+
+{% for field in service.get('fields', []) %}
+  fields::{{ field['name'] }} {{ field['name'] }};
+{% endfor %}
+
+private:
+  HandleType &m_handle;
+};
+
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
+/* ================================ [ FUNCTIONS ] ============================================== */
+} // namespace {{ service_name }}
+} // namespace com
+} // namespace ara
+#endif /* ARA_SOMEIP_{{ toMacro(service_name) }}_PROXY_HPP */

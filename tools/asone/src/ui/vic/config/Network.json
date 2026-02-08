@@ -32,9 +32,6 @@
           ]
         }
       ],
-      "args": [
-        { "name": "display-args", "args": [ {"name": "display", "type": "Display"} ] }
-      ],
       "servers": [
         {
           "name": "VIC",
@@ -44,7 +41,7 @@
           "unreliable":"30560",
           "event-groups": [
             {
-              "name": "cluster",
+              "name": "Cluster",
               "groupId": "0x8001",
               "enable_multicast": true,
               "multicast": {
@@ -53,10 +50,10 @@
               },
               "events": [
                 {
-                  "name" : "status",
+                  "name" : "DisplayStatus",
                   "eventId": "0xbeef",
                   "tp": true,
-                  "args": "display-args",
+                  "type": "Display",
                   "version" : "0"
                 }
               ]

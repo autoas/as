@@ -20,7 +20,7 @@ class LibraryVicServer(Library):
         mylibs = {
             "SoAd": source["SoAd"] + source["MemCluster"],
             "Sd": source["Sd"],
-            "SomeIp": source["SomeIp"] + objVicServer + source["SS_VICCpp"],  # + Glob('GEN/msg/*.pb.cc'),
+            "SomeIp": source["SomeIp"] + objVicServer + source["VICSkeletonC"],  # + Glob('GEN/msg/*.pb.cc'),
             "SomeIpXf": source["SomeIpXf"],
         }
         for libName, source in mylibs.items():
@@ -28,6 +28,7 @@ class LibraryVicServer(Library):
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
         # self.LIBS += ['protobuf']
+        self.LIBS += ["Plugin"]
         self.source = []
 
 
@@ -41,13 +42,14 @@ class LibraryVicClient(Library):
         mylibs = {
             "SoAd": source["MemCluster"] + source["SoAd_T"],
             "Sd": source["Sd_T"],
-            "SomeIp": source["SomeIp_T"] + objVicClient + source["CS_VICCpp_T"],  # + Glob('GEN/msg/*.pb.cc'),
+            "SomeIp": source["SomeIp_T"] + objVicClient + source["VICProxyC_T"],  # + Glob('GEN/msg/*.pb.cc'),
             "SomeIpXf": source["SomeIpXf_T"],
         }
         for libName, source in mylibs.items():
             self.LIBS.append(libName)
             self.RegisterConfig(libName, source)
             self.Append(CPPDEFINES=["USE_%s" % (libName.split(":")[0].upper())])
+        self.LIBS += ["Plugin"]
         # self.LIBS += ['protobuf']
         self.source = []
         files = ["%s/../../../examples/vic.json" % (CWD)]

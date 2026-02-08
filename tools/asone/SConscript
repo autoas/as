@@ -1,11 +1,24 @@
+r"""
 # How to build this, this is for windows
-# scons --lib=AsOne
-# scons --app=asone --prebuilt
-# scons --lib=UIFBL --prebuilt
-# scons --lib=UICan --prebuilt
-# scons --lib=UICom --prebuilt
-# scons --lib=UIDcm --prebuilt
-# scons --lib=UIVIC --os=OSAL --prebuilt
+# Note: Fully build with the mingw provided by QT tool
+set MSYS2=C:\msys64
+set QT=C:\Qt\Tools\mingw1120_64\bin;C:\Qt\6.6.2\mingw_64\bin;C:\Qt\Tools\CMake_64\bin
+set PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0
+set PATH=C:\Anaconda3;C:\Anaconda3\Scripts;%QT%;%MSYS2%\usr\bin;%PATH%
+scons --lib=AsOne
+scons --app=asone --prebuilt
+scons --lib=Figure --prebuilt
+scons --lib=UICommon --prebuilt
+scons --lib=LoaderFBL --prebuilt
+scons --lib=UIFBL --prebuilt
+scons --lib=UICan --prebuilt
+scons --lib=UICom --prebuilt
+scons --lib=UIDcm --prebuilt
+scons --lib=UIXcp --prebuilt
+scons --lib=UITrace --prebuilt
+scons --lib=UITester --prebuilt
+scons --lib=UIVIC --os=OSAL --prebuilt
+"""
 
 from building import *
 
@@ -44,7 +57,7 @@ class Applicationasone(Application):
 
     def config(self):
         self.source = objs
-        self.LIBS = ["dl", "AsOne"]
+        self.LIBS = ["AsOne"]
         self.Install("../one")
 
 
@@ -58,7 +71,7 @@ extraInfos = {
             "$INFRAS",
         ],
     },
-    "UIDcm": {"LIBS": ["AsOne", "UICommon", "dl"], "CPPPATH": ["$INFRAS"]},
+    "UIDcm": {"LIBS": ["AsOne", "UICommon"], "CPPPATH": ["$INFRAS"]},
     "UIXcp": {"LIBS": ["AsOne", "UICommon"], "CPPPATH": ["$INFRAS"]},
     "UIVIC": {"LIBS": ["AsOne", "VicClient"], "CPPPATH": ["$INFRAS"]},
     "UITrace": {"LIBS": ["AsOne"], "CPPPATH": ["$INFRAS"]},

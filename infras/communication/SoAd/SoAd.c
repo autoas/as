@@ -38,16 +38,16 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
   const SoAd_SocketConnectionGroupType *conG = &SOAD_CONFIG->ConnectionGroups[connection->GID];
   SoAd_SocketContextType *context = &SOAD_CONFIG->Contexts[SoConId];
   TcpIp_SocketIdType sockId;
-  TcpIp_SockAddrType addr;
+  uint16_t port;
   Std_ReturnType ret = E_OK;
 
   sockId = TcpIp_Create(conG->ProtocolType);
   if (sockId >= 0) {
     if (IS_CON_TYPE_OF(connection, SOAD_SOCON_TCP_SERVER | SOAD_SOCON_UDP_SERVER)) {
-      TcpIp_SetupAddrFrom(&addr, conG->Remote, conG->Port);
-      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &addr.port);
+      port = conG->Port;
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &port);
       if ((E_OK == ret) && (TRUE == conG->IsMulitcast)) {
-        ret = TcpIp_AddToMulticast(sockId, &addr);
+        ret = TcpIp_AddToMulticast(sockId, &context->RemoteAddr);
       }
       if (E_OK != ret) {
         TcpIp_Close(sockId, TRUE);
@@ -56,11 +56,11 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
 #ifdef USE_LWIP
       /* See for LWIP, for a UDP socket created without port assigned, it takes several seconds to
        * make it ready to recevice packet, so, give one. */
-      addr.port = conG->LocalPort;
+      port = conG->LocalPort;
 #else
-      addr.port = TCPIP_PORT_ANY;
+      port = TCPIP_PORT_ANY;
 #endif
-      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &addr.port);
+      ret = TcpIp_Bind(sockId, conG->LocalAddrId, &port);
     } else {
       /* do nothing */
     }

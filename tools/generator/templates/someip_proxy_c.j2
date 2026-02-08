@@ -1,0 +1,429 @@
+/**
+ * SSAS - Simple Smart Automotive Software
+ * Copyright (C) 2021-{{ now.year }} Parai Wang <parai@foxmail.com>
+ *
+ * Generated at {{ now.strftime("%c") }}
+ */
+
+/* ================================ [ INCLUDES  ] ============================================== */
+#include "Std_Types.h"
+#include "Std_Debug.h"
+#include "Sd.h"
+#include "SomeIp_Cfg.h"
+#include "Sd_Cfg.h"
+#include "{{ service_name }}Proxy.h"
+#include <string.h>
+/* ================================ [ MACROS    ] ============================================== */
+#define AS_LOG_{{ toMacro(service_name) }} 0
+#define AS_LOG_{{ toMacro(service_name) }}_E 2
+#define SOMEIP_SF_MAX 1396
+/* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ CLASS     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+static uint8_t s_{{ event['name'] }}_Payload[{{ GetTypePayloadSize(event, allStructs) }}];
+static {{ GetXfCType(event, allStructs) }} s_{{ event['name'] }}_Sample;
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+{% set isTp = method.get('tp', false) %}
+{% set ReturnType = method.get('return', 'void') %}
+{% set ns = namespace(payloadSize=0) %}
+{% if 'args' in method %}
+{% set args = GetArgs(cfg, method['args']) %}
+{% for arg in args %}
+{% set ns.payloadSize = ns.payloadSize + GetTypePayloadSize(arg, allStructs) %}
+{% endfor %}
+{% endif %}
+
+static uint8_t s_{{ method['name'] }}_Request[20+{{ ns.payloadSize }}];
+{% if ReturnType != 'void' %}
+{% if isTp %}
+static uint8_t s_{{ method['name'] }}_Response[{{ GetTypePayloadSize(ReturnType, allStructs) }}];
+{% endif %}
+static {{ GetXfCType(ReturnType, allStructs) }} s_{{ method['name'] }}_{{ ReturnType }};
+{% endif %}
+{% endif %}
+{% endfor %}
+{% for field in service.get('fields', []) %}
+{% set isTp = field.get('tp', false) %}
+{% if 'get' in field or 'set' in field %}
+static {{ GetXfCType(field, allStructs) }} s_{{ field['name'] }};
+static uint8_t s_{{ field['name'] }}Payload[20+{{ GetTypePayloadSize(field, allStructs) }}];
+{% endif %}
+{% endfor %}
+/* ================================ [ LOCALS    ] ============================================== */
+/* ================================ [ FUNCTIONS ] ============================================== */
+Std_ReturnType {{ service_name }}_FindService(void) {
+  return Sd_ClientServiceSetState(SD_CLIENT_SERVICE_HANDLE_ID_{{ toMacro(service_name) }},
+                SD_CLIENT_SERVICE_REQUESTED);
+}
+
+Std_ReturnType {{ service_name }}_StopFindService(void) {
+  return Sd_ClientServiceSetState(SD_CLIENT_SERVICE_HANDLE_ID_{{ toMacro(service_name) }},
+              SD_CLIENT_SERVICE_DOWN);
+}
+
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+{% set isTp = event.get('tp', false) %}
+{% if isTp %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(s_{{ event['name'] }}_Payload))) {
+    memcpy(&s_{{ event['name'] }}_Payload[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {
+      msg->data = (uint8_t *)s_{{ event['name'] }}_Payload;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+{% endif %}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_OnNotification(uint32_t requestId,
+                                                                    SomeIp_MessageType *evt) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+
+  serializedSize =
+    {{ SomeIpXfDecode(event, allStructs, 'evt->data', 'evt->length', 's_' ~ event['name'] ~ '_Sample') }};
+  if (serializedSize > 0) {
+    {{ service_name }}_{{ event['name'] }}({{ GetArgRefC(event, allStructs) }}s_{{ event['name'] }}_Sample);
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ event['name'] }}\n"));
+    ret = E_NOT_OK;
+  }
+
+  return ret;
+}
+
+Std_ReturnType {{ service_name }}_Subscribe{{ event['name'] }}(void) {
+  Std_ReturnType ret;
+  ret = Sd_ConsumedEventGroupSetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }},
+                SD_CONSUMED_EVENTGROUP_REQUESTED);
+  return ret;
+}
+
+boolean {{ service_name }}_Get{{ event['name'] }}SubscriptionState(void) {
+  boolean bSubscribed = FALSE;
+  Std_ReturnType ret;
+  Sd_ConsumedEventGroupCurrentStateType ConsumedEventGroupCurrentState;
+
+  ret = Sd_ConsumedEventGroupGetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }},
+                &ConsumedEventGroupCurrentState);
+  if (E_OK == ret) {
+    if (SD_CONSUMED_EVENTGROUP_AVAILABLE == ConsumedEventGroupCurrentState) {
+      bSubscribed = TRUE;
+    }
+  }
+
+  return bSubscribed;
+}
+
+void {{ service_name }}_Unsubscribe{{ event['name'] }}(void) {
+  (void)Sd_ConsumedEventGroupSetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }},
+                SD_CONSUMED_EVENTGROUP_RELEASED);
+}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+{% set ReturnType = method.get('return', 'void') %}
+{% set Args = [] %}
+{% set ArgsR = ["Std_ReturnType ercd"] %}
+{% set ArgsRErrorCall = ["ercd"] %}
+{% set ArgsROkCall = ["ercd"] %}
+{% if 'args' in method %}
+{% set args = GetArgs(cfg, method['args']) %}
+{% for arg in args %}
+{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['name']) %}
+{% endfor %}
+{% endif %}
+{% if ReturnType != 'void' %}
+{% set _ = ArgsR.append(GetArgTypeC(ReturnType, allStructs) ~ ' ' ~ ReturnType) %}
+{% set _ = ArgsRErrorCall.append("0") %}
+{% set _ = ArgsROkCall.append(GetArgRefC(ReturnType, allStructs) ~ 's_' ~ method['name'] ~ '_' ~ ReturnType) %}
+{% endif %}
+Std_ReturnType {{ service_name }}_{{ method['name'] }}({{ Args | join(', ') }}) {
+  Std_ReturnType ret = E_OK;
+  int32_t offset = 0;
+  int32_t serializedSize;
+  uint32_t requestId;
+{% if 'args' in method %}
+{% set args = GetArgs(cfg, method['args']) %}
+{% for arg in args %}
+  if ((offset >= 0) && ((int32_t)sizeof(s_{{ method['name'] }}_Request) > (offset + 20))) {
+    serializedSize = {{ SomeIpXfEncode(arg, allStructs, '(&s_' ~ method['name'] ~ '_Request[offset + 20])', '(sizeof(s_' ~ method['name'] ~ '_Request) - offset - 20)', arg['name'], stype="C") }};
+    if (serializedSize > 0) {
+      offset += serializedSize;
+    } else {
+      offset = -E_NOT_OK;
+    }
+  }
+{% endfor %}
+{% endif %}
+  if (offset >= 0) {
+    requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
+    ret = SomeIp_Request(requestId, &s_{{ method['name'] }}_Request[20], offset);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
+  Std_ReturnType ercd = E_OK;
+{% if ReturnType != 'void' %}
+  int32_t serializedSize;
+  serializedSize =
+    {{ SomeIpXfDecode(ReturnType, allStructs, 'res->data', 'res->length', 's_' ~ method['name'] ~ '_' ~ ReturnType) }};
+  if (serializedSize <= 0) {
+    ercd = E_NOT_OK;
+  }
+{% endif %}
+  if (E_OK == ercd) {
+    {{ service_name }}_{{ method['name'] }}_Return({{ ArgsROkCall | join(', ') }});
+  } else {
+    {{ service_name }}_{{ method['name'] }}_Return({{ ArgsRErrorCall | join(', ') }});
+  }
+  
+  return ercd;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  Std_ReturnType ret = E_OK;
+  {{ service_name }}_{{ method['name'] }}_Return({{ ArgsRErrorCall | join(', ') }});
+  return ret;
+}
+{% if method.get('tp', false) %}
+{% if ReturnType != 'void' %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(s_{{ method['name'] }}_Response)) {
+    memcpy(&s_{{ method['name'] }}_Response[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {
+      msg->data = s_{{ method['name'] }}_Response;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+{% else %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return E_NOT_OK;
+}
+{% endif %}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(s_{{ method['name'] }}_Request))) {
+    memcpy(msg->data, &s_{{ method['name'] }}_Request[msg->offset + 20], msg->length);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+{% for field in service.get('fields', []) %}
+{% set isTp = field.get('tp', false) %}
+{% if 'get' in field %}
+Std_ReturnType {{ service_name }}_Get{{ field['name'] }}(void) {
+  Std_ReturnType ret = E_OK;
+  uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_GET_{{ toMacro(field['name']) }} << 16) + 0;
+  ret = SomeIp_Request(requestId, NULL, 0);
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 's_' ~ field['name']) }};
+  if (serializedSize > 0) {
+    {{ service_name }}_Get{{ field['name'] }}_Return(E_OK, {{ GetArgRefC(field, allStructs) }}s_{{ field['name'] }});
+  } else {
+    {{ service_name }}_Get{{ field['name'] }}_Return(E_NOT_OK, 0);
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  Std_ReturnType ret = E_OK;
+  {{ service_name }}_Get{{ field['name'] }}_Return(ercd, 0);
+  return ret;
+}
+
+{% if isTp %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(s_{{ field['name'] }}Payload))) {
+    memcpy(&s_{{ field['name'] }}Payload[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {
+      msg->data = (uint8_t *)s_{{ field['name'] }}Payload;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(s_{{ field['name'] }}Payload))) {
+    memcpy(msg->data, &s_{{ field['name'] }}Payload[msg->offset + 20], msg->length);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endif %}
+{% if 'set' in field %}
+Std_ReturnType {{ service_name }}_Set{{ field['name'] }}(const {{ GetArgTypeC(field, allStructs) }} value) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  serializedSize = {{ SomeIpXfEncode(field, allStructs, '(&s_' ~ field['name'] ~ 'Payload[20])', '(sizeof(s_' ~ field['name'] ~ 'Payload)-20)', 'value', stype="C") }};
+  if (serializedSize > 0) {
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_SET_{{ toMacro(field['name']) }} << 16) + 0;
+    ret = SomeIp_Request(requestId, &s_{{ field['name'] }}Payload[20], serializedSize);
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 's_' ~ field['name']) }};
+  if (serializedSize > 0) {
+    {{ service_name }}_Set{{ field['name'] }}_Return(E_OK, {{ GetArgRefC(field, allStructs) }}s_{{ field['name'] }});
+  } else {
+    {{ service_name }}_Set{{ field['name'] }}_Return(E_NOT_OK, 0);
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  Std_ReturnType ret = E_OK;
+  {{ service_name }}_Set{{ field['name'] }}_Return(ercd, 0);
+  return ret;
+}
+
+{% if isTp %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(s_{{ field['name'] }}Payload))) {
+    memcpy(&s_{{ field['name'] }}Payload[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {
+      msg->data = (uint8_t *)s_{{ field['name'] }}Payload;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(s_{{ field['name'] }}Payload))) {
+    memcpy(msg->data, &s_{{ field['name'] }}Payload[msg->offset + 20], msg->length);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+{% endif %}
+{% endif %}
+
+{% if 'event' in field %}
+Std_ReturnType {{ service_name }}_Subscribe{{ field['name'] }}(void) {
+  Std_ReturnType ret;
+  ret = Sd_ConsumedEventGroupSetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }},
+                SD_CONSUMED_EVENTGROUP_REQUESTED);
+  return ret;
+}
+
+boolean {{ service_name }}_Get{{ field['name'] }}SubscriptionState(void) {
+  boolean bSubscribed = FALSE;
+  Std_ReturnType ret;
+  Sd_ConsumedEventGroupCurrentStateType ConsumedEventGroupCurrentState;
+
+  ret = Sd_ConsumedEventGroupGetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }},
+                &ConsumedEventGroupCurrentState);
+  if (E_OK == ret) {
+    if (SD_CONSUMED_EVENTGROUP_AVAILABLE == ConsumedEventGroupCurrentState) {
+      bSubscribed = TRUE;
+    }
+  }
+
+  return bSubscribed;
+}
+
+void {{ service_name }}_Unsubscribe{{ field['name'] }}(void) {
+  (void)Sd_ConsumedEventGroupSetState(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }},
+                SD_CONSUMED_EVENTGROUP_RELEASED);
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+
+  serializedSize =
+    {{ SomeIpXfDecode(field, allStructs, 'evt->data', 'evt->length', 's_' ~ field['name']) }};
+  if (serializedSize > 0) {
+    {{ service_name }}_{{ field['name'] }}({{ GetArgRefC(field, allStructs) }}s_{{ field['name'] }});
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ field['name'] }}\n"));
+    ret = E_NOT_OK;
+  }
+
+  return ret;
+}
+
+{% if isTp %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(s_{{ field['name'] }}Payload))) {
+    memcpy(&s_{{ field['name'] }}Payload[msg->offset], msg->data, msg->length);
+    if (false == msg->moreSegmentsFlag) {
+      msg->data = (uint8_t *)s_{{ field['name'] }}Payload;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for eg in service.get('event-groups', []) %}
+void SomeIp_{{ service_name }}_{{ eg['name'] }}_OnSubscribeAck(boolean isSubscribe) {
+  ASLOG({{ toMacro(service_name) }}, ("{{ eg['name'] }} %ssubscribed\n", isSubscribe ? "" : "un"));
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+  {{ service_name }}_Subscribe{{ event['name'] }}Ack(isSubscribe);
+{% endif %}
+{% endfor %}
+{% for field in service.get('fields', []) %}
+{% if 'event' in field and field['event']['groupName'] == eg['name'] %}
+  {{ service_name }}_Subscribe{{ field['name'] }}Ack(isSubscribe);
+{% endif %}
+{% endfor %}
+}
+{% endfor %}
+

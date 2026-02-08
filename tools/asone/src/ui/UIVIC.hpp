@@ -16,13 +16,12 @@
 #include <nlohmann/json_fwd.hpp>
 #include <map>
 #include <chrono>
-#include "usomeip/usomeip.hpp"
+#include "VICProxy.h"
 #include "MessageQueue.hpp"
 #include "Std_Timer.h"
 
 using json = nlohmann::json;
 using namespace as;
-using namespace as::usomeip;
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 class VICPointer : public QGraphicsItem {
@@ -109,7 +108,7 @@ private:
   QImage m_Background;
   bool m_Loaded = false;
 
-  std::shared_ptr<MessageQueue<std::shared_ptr<Message>>> m_MsgQ = nullptr;
+  std::shared_ptr<MessageQueue<std::shared_ptr<Display_Type>>> m_MsgQ = nullptr;
 };
 
 class UIVIC : public QWidget {

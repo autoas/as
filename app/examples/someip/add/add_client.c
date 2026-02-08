@@ -11,7 +11,7 @@
 #include "SomeIpXf.h"
 
 #include "Sd_Cfg.h"
-#include "CS_Math.h"
+#include "MathProxy.h"
 #include "SomeIp_Cfg.h"
 #include "SomeIpXf_Cfg.h"
 
@@ -26,19 +26,12 @@
 static Std_TimerType timer10ms;
 static Std_TimerType timer1s;
 static boolean lIsAvailable = FALSE;
-static uint8_t Math_addTpRxBuf[8192];
-static uint8_t Math_addTpTxBuf[8192];
-static Vectors_Type lVectors;
-static uint32_t lSummary;
+static Vector_Type A = {0};
+static Vector_Type B = {0};
+static Result_Type result = {0};
 static boolean lIsBusy = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-boolean Sd_ServerService0_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,
-                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,
-                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,
-                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray) {
-  return TRUE;
-}
 
 void SomeIp_Math_OnAvailability(boolean isAvailable) {
   ASLOG(MATH, ("%s\n", isAvailable ? "online" : "offline"));
@@ -46,76 +39,46 @@ void SomeIp_Math_OnAvailability(boolean isAvailable) {
 }
 
 void Math_add_request(void) {
+  Std_ReturnType ret;
   static uint16_t sessionId = 0;
   int32_t length, i;
-  uint32_t requestId;
-  uint8_t *data = Math_addTpTxBuf;
   if (lIsAvailable && (FALSE == lIsBusy)) {
-    requestId = ((uint32_t)SOMEIP_TX_METHOD_MATH_ADD << 16) | (++sessionId);
-    length = sessionId % sizeof(lVectors.A);
+    length = sessionId % sizeof(A.number);
     if (length < 32) {
       length = 32;
     }
-    lSummary = 0;
+    result.summary = 0;
+    result.numberLen = length;
     for (i = 0; i < length; i++) {
-      lVectors.A[i] = (i + sessionId) & 0xFF;
-      lVectors.B[i] = (i * i + sessionId) & 0xFF;
-      lSummary += lVectors.A[i] * lVectors.B[i];
+      A.number[i] = (i + sessionId) & 0xFF;
+      B.number[i] = (i * i + sessionId) & 0xFF;
+      result.number[i] = A.number[i] + B.number[i];
+      result.summary += (uint32_t)A.number[i] + B.number[i];
     }
-    lVectors.ALen = length;
-    lVectors.BLen = length;
+    A.numberLen = length;
+    B.numberLen = length;
 
-    length =
-      SomeIpXf_EncodeStruct(data, sizeof(Math_addTpTxBuf), &lVectors, &SomeIpXf_StructVectorsDef);
-    if (length > 0) {
+    ret = Math_add(&A, &B);
+    if (ret == E_OK) {
       lIsBusy = TRUE;
-      (void)SomeIp_Request(requestId, data, length);
+      sessionId++;
     }
   }
 }
 
-Std_ReturnType SomeIp_Math_add_OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
-  Result_Type lResult = {E_NOT_OK, 0};
-  int32_t length;
+void Math_add_Return(Std_ReturnType ercd, const Result_Type *Result) {
   lIsBusy = FALSE;
-  length = SomeIpXf_DecodeStruct(res->data, res->length, &lResult, &SomeIpXf_StructResultDef);
-  if (length > 0) {
-    ASLOG(MATH,
-          ("add response session=%d: ercd = %d summary %u %s %u\n", requestId & 0xFFFF,
-           lResult.ercd, lResult.summary, (lResult.summary == lSummary) ? "==" : "!=", lSummary));
+  if ((ercd == E_OK) && (NULL != Result) && (Result->summary == result.summary) &&
+      (Result->numberLen == result.numberLen) &&
+      (0 == memcmp(Result->number, result.number, Result->numberLen))) {
+    ASLOG(MATH, ("success: summary = %u, len = %u, S=[%u, %u, %u]\n", Result->summary,
+                 Result->numberLen, Result->number[0], Result->number[1], Result->number[2]));
   } else {
-    ASLOG(MATH, ("Malform response message\n"));
+    ASLOG(MATH, ("failed(%u): summary = %u vs %u, len = %u vs %u, S=[%u, %u, %u] vs [%u, %u, %u]\n",
+                 ercd, Result->summary, result.summary, Result->numberLen, result.numberLen,
+                 Result->number[0], Result->number[1], Result->number[2], result.number[0],
+                 result.number[1], result.number[2]));
   }
-  return E_OK;
-}
-
-Std_ReturnType SomeIp_Math_add_OnError(uint32_t requestId, Std_ReturnType ercd) {
-  ASLOG(MATH, ("add OnError %X: %d\n", requestId, ercd));
-  lIsBusy = FALSE;
-  return E_OK;
-}
-
-Std_ReturnType SomeIp_Math_add_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length)) < sizeof(Math_addTpRxBuf)) {
-    memcpy(&Math_addTpRxBuf[msg->offset], msg->data, msg->length);
-    if (FALSE == msg->moreSegmentsFlag) {
-      msg->data = Math_addTpRxBuf;
-    }
-  } else {
-    ret = E_NOT_OK;
-  }
-  return ret;
-}
-
-Std_ReturnType SomeIp_Math_add_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length) < sizeof(Math_addTpTxBuf))) {
-    memcpy(msg->data, &Math_addTpTxBuf[msg->offset], msg->length);
-  } else {
-    ret = E_NOT_OK;
-  }
-  return ret;
 }
 
 int main(int argc, char *argv[]) {
@@ -124,7 +87,7 @@ int main(int argc, char *argv[]) {
   Sd_Init(NULL);
   SomeIp_Init(NULL);
 
-  Sd_ClientServiceSetState(SD_CLIENT_SERVICE_HANDLE_ID_MATH, SD_SERVER_SERVICE_AVAILABLE);
+  Math_FindService();
 
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer1s);

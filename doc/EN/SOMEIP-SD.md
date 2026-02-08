@@ -12,6 +12,31 @@ comments: true
 
 ---
 
+## Table of Contents
+
+1. [Key Concepts](#1-key-concepts)
+   1.1 [SOMEIP/SD Fundamentals](#11-someipsd-fundamentals)
+   1.2 [Example Applications](#12-example-applications)
+2. [Environment Setup and Build Instructions](#2-environment-setup-and-build-instructions)
+   2.1 [Prerequisites](#21-prerequisites)
+   2.2 [Build NetApp (Full Stack Example)](#22-build-netapp-full-stack-example)
+   2.3 [Build NetAppT (SOMEIP/SD-Only Test)](#23-build-netappt-someipsd-only-test)
+3. [Running the Example Applications](#3-running-the-example-applications)
+   3.1 [Launch NetApp and NetAppT](#31-launch-netapp-and-netappt)
+   3.2 [Key Observations in Logs](#32-key-observations-in-logs)
+   3.3 [Controlling Service Online/Offline](#33-controlling-service-onlineoffline)
+   3.4 [Analyzing Network Traffic](#34-analyzing-network-traffic)
+4. [Verifying Communication with vsomeip](#4-verifying-communication-with-vsomeip)
+   4.1 [Build vsomeip on WSL Ubuntu 20.04](#41-build-vsomeip-on-wsl-ubuntu-2004)
+   4.2 [Run the SSAS Client Example](#42-run-the-ssas-client-example)
+   4.3 [Expected Outcome](#43-expected-outcome)
+5. [Troubleshooting Common Issues](#5-troubleshooting-common-issues)
+   5.1 [VirtualBox Adapter Not Detected](#51-virtualbox-adapter-not-detected)
+   5.2 [LWIP Fails to Initialize](#52-lwip-fails-to-initialize)
+   5.3 [vsomeip Client Fails to Connect](#53-vsomeip-client-fails-to-connect)
+
+---
+
 ## 1. Key Concepts
 
 ### 1.1 SOMEIP/SD Fundamentals  
@@ -150,7 +175,7 @@ The client should discover and communicate with the SOMEIP/SD server (NetApp), c
 
 ### 5.1 VirtualBox Adapter Not Detected  
 - Ensure VirtualBox is installed and the "Oracle VM VirtualBox Network Adapter" is enabled.  
-- Manually set its IPv4 address to `172.18.0.1` (via "Settings ¡ú Network & Internet").  
+- Manually set its IPv4 address to `172.18.0.1` (via "Settings -> Network & Internet").  
 
 ### 5.2 LWIP Fails to Initialize  
 - Check `PACKET_LIB_ADAPTER_NR` matches the correct VirtualBox adapter index (use `ipconfig` to list adapters).  

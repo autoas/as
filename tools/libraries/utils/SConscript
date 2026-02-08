@@ -17,7 +17,7 @@ class LibraryUtils(Library):
         self.include = ["%s/include" % (CWD)]
         self.CPPPATH = ["$INFRAS"]
         self.LIBS += ["StdTimer"]
-        if IsBuildForMSVC():
+        if IsBuildForWindows():
             self.LIBS += ["Shlwapi"]
         else:
             if not IsBuildForAndroid():

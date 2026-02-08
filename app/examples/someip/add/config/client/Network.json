@@ -10,22 +10,22 @@
       },
       "structs": [
         {
-          "name": "Vectors",
+          "name": "Vector",
           "data": [
-            { "name": "A", "type": "uint8_n", "variable_array": true, "size": 2048 },
-            { "name": "B", "type": "uint8_n", "variable_array": true, "size": 2048 }
+            { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 }
           ]
         },
         {
           "name": "Result",
           "data": [
             { "name": "ercd", "type": "uint8" },
-            { "name": "summary", "type": "uint32" }
+            { "name": "summary", "type": "uint32" },
+            { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 }
           ]
         }
       ],
       "args": [
-        { "name": "add-args", "args": [ { "name": "vectors", "type": "Vectors" } ] }
+        { "name": "add-args", "args": [ { "name": "A", "type": "Vector" }, { "name": "B", "type": "Vector" } ] }
       ],
       "clients": [
         {
@@ -39,6 +39,7 @@
               "name" : "add",
               "methodId" : "0x0add",
               "args": "add-args",
+              "return": "Result",
               "tp": true,
               "version" : "0"
             }

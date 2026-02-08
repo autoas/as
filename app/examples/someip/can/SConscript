@@ -14,7 +14,7 @@ class ApplicationCanPubEx(Application):
         libsForCanPub = {
             "SoAd": source["SoAd"] + source["MemCluster"],
             "Sd": source["Sd"],
-            "SomeIp": source["SomeIp"],
+            "SomeIp": source["SomeIp"] + source["CANBusSkeletonC"],
             "SomeIpXf": source["SomeIpXf"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/pub/GEN" % (CWD)]
@@ -37,7 +37,7 @@ class ApplicationCanSubEx(Application):
         libsForCanSub = {
             "SoAd": source["SoAd"] + source["MemCluster"],
             "Sd": source["Sd"],
-            "SomeIp": source["SomeIp"],
+            "SomeIp": source["SomeIp"] + source["CANBusProxyC"],
             "SomeIpXf": source["SomeIpXf"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/sub/GEN" % (CWD)]

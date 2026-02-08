@@ -14,7 +14,7 @@ class ApplicationAddServerEx(Application):
         libsForAddSrv = {
             "SoAd": source["SoAd"] + source["MemCluster"],
             "Sd": source["Sd"],
-            "SomeIp": source["SomeIp"],
+            "SomeIp": source["SomeIp"] + source["MathSkeletonC"],
             "SomeIpXf": source["SomeIpXf"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/server/GEN" % (CWD)]
@@ -37,7 +37,7 @@ class ApplicationAddClientEx(Application):
         libsForAddClient = {
             "SoAd": source["SoAd"] + source["MemCluster"],
             "Sd": source["Sd"],
-            "SomeIp": source["SomeIp"],
+            "SomeIp": source["SomeIp"] + source["MathProxyC"],
             "SomeIpXf": source["SomeIpXf"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/client/GEN" % (CWD)]

@@ -344,13 +344,19 @@ public:
   Optional<E> Err() && noexcept(std::is_nothrow_constructible<Optional<E>, E &&>::value);
 
   /** @SWS_CORE_00858 */
-  E &&Error() && noexcept;
+  E &&Error() && noexcept {
+    return m_error;
+  }
 
   /** @SWS_CORE_00878 */
-  E &Error() & noexcept;
+  E &Error() & noexcept {
+    return m_error;
+  }
 
   /** @SWS_CORE_00857 */
-  const E &Error() const & noexcept;
+  const E &Error() const & noexcept {
+    return m_error;
+  }
 
   /** @SWS_CORE_00864 */
   template <typename G>

@@ -12,7 +12,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdarg.h>
-#include <dlfcn.h>
+#include "PAL.h"
 #include "Log.hpp"
 using namespace as;
 /* ================================ [ MACROS    ] ============================================== */
@@ -51,10 +51,10 @@ void Window::loadUIs(void) {
   while ((file = readdir(d)) != NULL) {
     if (strstr(file->d_name, DLL)) {
       UIInfo uinfo;
-      uinfo.dll = dlopen(file->d_name, RTLD_NOW);
+      uinfo.dll = PAL_DlOpen(file->d_name);
       if (nullptr != uinfo.dll) {
-        uinfo.createUIFnc = (CreateUIFncType)dlsym(uinfo.dll, "create");
-        uinfo.getNameFnc = (GetNameFncType)dlsym(uinfo.dll, "name");
+        uinfo.createUIFnc = (CreateUIFncType)PAL_DlSym(uinfo.dll, "create");
+        uinfo.getNameFnc = (GetNameFncType)PAL_DlSym(uinfo.dll, "name");
         if ((nullptr != uinfo.createUIFnc) && (nullptr != uinfo.getNameFnc)) {
           uinfo.rpath = file->d_name;
           uinfo.name = uinfo.getNameFnc();
@@ -63,7 +63,7 @@ void Window::loadUIs(void) {
           }
         }
       } else {
-        LOG(ERROR, "fail to load UI %s: %s\n", file->d_name, dlerror());
+        LOG(ERROR, "fail to load UI %s: %s\n", file->d_name, PAL_DlErr());
       }
     }
   }

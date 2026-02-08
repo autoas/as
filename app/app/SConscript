@@ -180,6 +180,8 @@ libsForNetApp = {
 }
 libsForNetApp.update(libsCommon)
 
+objsNet = Glob("config/Net/src/*.c")
+objsNetT = Glob("config/Net/srcT/*.c")
 
 @register_application
 class ApplicationNetApp(Application):
@@ -199,11 +201,11 @@ class ApplicationNetApp(Application):
             "SoAd": source["SoAd"] + source["MemCluster"],
             "DoIP": source["DoIP"],
             "Sd": source["Sd"],
+            "SomeIpXf": source["SomeIpXf"],
             "SomeIp": source["SomeIp"]
-            + source["SS_Exserver0Cpp"]
-            + source["SS_server0Cpp"]
-            + source["CS_client0Cpp"]
-            + source["CS_Exclient0Cpp"],
+            + source["Service0SkeletonC"]
+            + source["Service1ProxyC"]
+            + objsNet
         }
         self.mylibs.update(libs)
 
@@ -230,11 +232,11 @@ class ApplicationNetAppT(query_application("NetApp")):
         libs = {
             "SoAd": source["SoAd_T"] + source["MemCluster"],
             "Sd": source["Sd_T"],
+            "SomeIpXf": source["SomeIpXf"],
             "SomeIp": source["SomeIp_T"]
-            + source["SS_Exclient0Cpp_T"]
-            + source["SS_client0Cpp_T"]
-            + source["CS_server0Cpp_T"]
-            + source["CS_Exserver0Cpp_T"],
+            + source["Service0ProxyC_T"]
+            + source["Service1SkeletonC_T"]
+            + objsNetT,
         }
         self.mylibs.update(libs)
 

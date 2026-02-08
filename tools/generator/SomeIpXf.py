@@ -3,6 +3,11 @@
 
 from .helper import *
 
+def GetArgs(cfg, name):
+    for args in cfg.get("args", []):
+        if name == args["name"]:
+            return args["args"]
+    raise Exception(f"args {name} not found")
 
 def GetTypeInfo(data, structs={}):
     if type(data) is str:
@@ -107,6 +112,8 @@ def GetTypePayloadSize(data, structs={}):
         typ = data
     else:
         typ = data["type"]
+    if typ == "void":
+        return 0
     if typ in TypeInfoMap:
         return TypeInfoMap[typ]["size"]
     elif typ in structs:
@@ -131,12 +138,38 @@ def GetTypeCatlog(data, structs={}):
         dtype += "Array"
     return dtype
 
+
 def GetXfCType(data, structs={}):
     dinfo = GetTypeInfo(data, structs)
     dtype = dinfo["ctype"]
     if dinfo["IsArray"]:
         dtype += f"[{dinfo['size']}]"
     return dtype
+
+
+def GetArgTypeC(data, structs):
+    ptr = ""
+    dinfo = GetTypeInfo(data, structs)
+    dtype = dinfo["ctype"]
+    if dinfo.get("IsArray", False):
+        dtype += f"[{dinfo['size']}]"
+        ptr = "*"
+    if dinfo.get("IsStruct", False):
+        ptr = "*"
+    return f"{dtype}{ptr}"
+
+
+def GetArgRefC(data, structs):
+    ref = ""
+    dinfo = GetTypeInfo(data, structs)
+    dtype = dinfo["ctype"]
+    if dinfo.get("IsArray", False):
+        dtype += f"[{dinfo['size']}]"
+        ref = "&"
+    if dinfo.get("IsStruct", False):
+        ref = "&"
+    return ref
+
 
 def SomeIpXfDecode(typ, structs, buffer, bufferSize, data, **kwargs):
     if type(typ) is str:
@@ -154,18 +187,24 @@ def SomeIpXfDecode(typ, structs, buffer, bufferSize, data, **kwargs):
         return f"SomeIpXf_Decode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def), &{kwargs['length']})"
     raise Exception("unsupported type catlog: %s" % (typCatlog))
 
+
 def SomeIpXfEncode(typ, structs, buffer, bufferSize, data, **kwargs):
     if type(typ) is str:
         typ_ = typ
     else:
         typ_ = typ["type"]
+    stype = kwargs.get("stype", "C++")
+    if stype == "C":
+        ref = ""
+    else:
+        ref = "&"
     typCatlog = GetTypeCatlog(typ, structs)
     if typCatlog in ["Byte", "Short", "Long", "LongLong"]:
         return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, {data})"
     elif typCatlog in ["ByteArray", "ShortArray", "LongArray", "LongLongArray"]:
         return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, {data}, sizeof({data})/sizeof({data}[0]))"
     elif typCatlog in ["Struct"]:
-        return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def)"
+        return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, {ref}{data}, &SomeIpXf_Struct{typ_}Def)"
     elif typCatlog in ["StructArray"]:
-        return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def), sizeof({data})/sizeof({data}[0])"
+        return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, {ref}{data}, &SomeIpXf_Struct{typ_}Def), sizeof({data})/sizeof({data}[0])"
     raise Exception("unsupported type catlog: %s" % (typCatlog))

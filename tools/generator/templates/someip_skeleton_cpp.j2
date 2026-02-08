@@ -1,0 +1,839 @@
+/**
+ * SSAS - Simple Smart Automotive Software
+ * Copyright (C) 2021-{{ now.year }} Parai Wang <parai@foxmail.com>
+ *
+ * Generated at {{ now.strftime("%c") }}
+ */
+
+/* ================================ [ INCLUDES  ] ============================================== */
+#include "{{ service_name }}Skeleton.hpp"
+#include "Std_Types.h"
+#include "Std_Debug.h"
+#include "Sd.h"
+#include "SomeIp_Cfg.h"
+#include "Sd_Cfg.h"
+namespace ara {
+namespace com {
+namespace {{ service_name }} {
+/* ================================ [ MACROS    ] ============================================== */
+#define AS_LOG_{{ service_name | toMacro }} 0
+#define AS_LOG_{{ service_name | toMacro }}_E 2
+#define SOMEIP_SF_MAX 1396
+/* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ CLASS     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
+static {{ service_name }}Skeleton *s_h{{ service_name }} = nullptr;
+/* ================================ [ FUNCTIONS ] ============================================== */
+namespace events {
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+{% if event.get('tp', false) %}
+Std_ReturnType {{ event['name'] }}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_payload))) {
+    msg->data = &m_payload[msg->offset + 20];
+    if (false == msg->moreSegmentsFlag) {
+      m_payloadInUse = false;
+    }
+  } else {
+    m_payloadInUse = false;
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Result<void> {{ event['name'] }}::Send(const {{ event['name'] }}::SampleType &data) {
+  Result<void> rslt;
+
+  if ( false == m_payloadInUse ) {
+    int32_t serializedSize = 
+      {{ event | SomeIpXfEncode(allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data') }};
+    if (serializedSize > 0) {
+      uint32_t requestId = 
+        ((uint32_t)SOMEIP_TX_EVT_{{ service_name | toMacro }}_{{ eg['name'] | toMacro }}_{{ event['name'] | toMacro }} << 16) + 0;
+      Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
+      if (E_OK != ret) {
+        rslt = Result<void>(ret);
+      } else {
+        if (serializedSize > SOMEIP_SF_MAX) {
+          m_payloadInUse = true;
+        }
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ event['name'] }} serialization failed!\n"));
+      rslt = Result<void>(-EINVAL);
+    }
+  } else {
+    rslt = Result<void>(-EBUSY);
+  }
+
+  return rslt;
+}
+
+{% else %}
+Result<void> {{ event['name'] }}::Send(const {{ event['name'] }}::SampleType &data) {
+  Result<void> rslt;
+
+  uint32_t requestId = 
+    ((uint32_t)SOMEIP_TX_EVT_{{ service_name | toMacro }}_{{ eg['name'] | toMacro }}_{{ event['name'] | toMacro }} << 16) + 0;
+  int32_t serializedSize = 
+    {{ event | SomeIpXfEncode(allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data') }};
+  if (serializedSize > 0) {
+    Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
+    if (E_OK != ret) {
+      rslt = Result<void>(ret);
+    }
+  } else {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ event['name'] }} serialization failed!\n"));
+    rslt = Result<void>(-EINVAL);
+  }
+
+  return rslt;
+}
+
+{% endif %}
+Result<SampleAllocateePtr<{{ event['name'] }}::SampleType>> {{ event['name'] }}::Allocate() {
+  Result<SampleAllocateePtr<{{ event['name'] }}::SampleType>> rslt(ErrorCode(0));
+  SampleAllocateePtr<{{ event['name'] }}::SampleType> SamplePtr = std::make_unique<{{ event['name'] }}::SampleType>();
+
+  if (nullptr != SamplePtr) {
+    rslt = Result<SampleAllocateePtr<{{ event['name'] }}::SampleType>>(std::move(SamplePtr));
+  } else {
+    rslt = Result<SampleAllocateePtr<{{ event['name'] }}::SampleType>>(ErrorCode(-ENOMEM));
+  }
+
+  return rslt;
+}
+
+Result<void> {{ event['name'] }}::Send(SampleAllocateePtr<{{ event['name'] }}::SampleType> data) {
+  Result<void> rslt;
+
+  if (nullptr != data) {
+    rslt = {{ event['name'] }}::Send(*data.get());
+  }
+
+  return rslt;
+}
+
+ara::com::SubscriptionState {{ event['name'] }}::GetSubscriptionState () const noexcept {
+  ara::com::SubscriptionState state = ara::com::SubscriptionState::kNotSubscribed;
+  Sd_EventHandlerSubscriberListType *list;
+  Std_ReturnType ret = Sd_GetSubscribers(SD_EVENT_HANDLER_{{ service_name | toMacro }}_{{ eg['name'] | toMacro }}, &list);
+  if (E_OK == ret) {
+    state = ara::com::SubscriptionState::kSubscribed;
+  }
+  return state;
+}
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+} // namespace events
+
+namespace fields {
+{% for field in service.get('fields', []) %}
+{% if 'get' in field %}
+ara::core::Result<void> {{ field['name'] }}::RegisterGetHandler(std::function<ara::core::Future<FieldType>()> getHandler) {
+  m_getHandler = getHandler;
+  return ara::core::Result<void>(0);
+}
+
+Std_ReturnType {{ field['name'] }}::OnGetRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  bool bValid = false;
+  int32_t serializedSize;
+  if (false != m_responseGetInUse) {
+    ret = E_NOT_OK;
+  } else if (nullptr != m_getHandler) {
+    m_responseGetInUse = true;
+    m_futureGet = m_getHandler();
+    if (true == m_futureGet.is_ready()) {
+      ara::core::Result<FieldType> result = m_futureGet.GetResult();
+      if (result.HasValue()) {
+          m_fieldGet = result.Value();
+          bValid = true;
+      } else {
+        ret = E_NOT_OK;
+        m_responseGetInUse = false;
+      }
+    } else {
+      ret = SOMEIP_E_PENDING;
+    }
+  } else if (true == m_bValid) {
+    bValid = true;
+  } else {
+    ret = E_NOT_OK;
+  }
+
+  if (true == bValid) {
+    res->data = &m_responseGet[20];
+    serializedSize = {{ field | SomeIpXfEncode(allStructs, 'res->data', 'sizeof(m_responseGet) - 20', 'm_fieldGet') }};
+    if (serializedSize > 0) {
+      res->length = serializedSize;
+      if (serializedSize <= SOMEIP_SF_MAX) {
+        m_responseGetInUse = false;
+      }
+    } else {
+      ret = E_NOT_OK;
+      m_responseGetInUse = false;
+    }
+  }
+
+  return ret;
+}
+
+Std_ReturnType {{ field['name'] }}::OnGetAsyncRequest(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  if (false == m_responseGetInUse) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Get is not in busy request status!\n"));
+    ret = E_NOT_OK;
+  } else if (nullptr == res) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Get response transmission failed!\n"));
+    m_responseGetInUse = false;
+  } else if (true == m_futureGet.is_ready()) {
+    ara::core::Result<FieldType> result = m_futureGet.GetResult();
+    if (result.HasValue()) {
+      res->data = &m_responseGet[20];
+      serializedSize = {{ field | SomeIpXfEncode(allStructs, 'res->data', "sizeof(m_responseGet) - 20", "result.Value()") }};
+      if (serializedSize > 0) {
+        res->length = serializedSize;
+        if (serializedSize <= SOMEIP_SF_MAX) {
+          m_responseGetInUse = false;
+        }
+      } else {
+        ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Get encode response failed!\n"));
+        ret = E_NOT_OK;
+        m_responseGetInUse = false;
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Get execution failed!\n"));
+      ret = E_NOT_OK;
+      m_responseGetInUse = false;
+    }
+  } else {
+    ret = SOMEIP_E_PENDING;
+  }
+  return ret;
+}
+
+{% endif %}
+{% if field.get('tp', false) %}
+Std_ReturnType {{ field['name'] }}::OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_responseGet))) {
+    msg->data = &m_responseGet[msg->offset + 20];
+    if (false == msg->moreSegmentsFlag) {
+      m_responseGetInUse = false;
+    }
+  } else {
+    ret = E_NOT_OK;
+    m_responseGetInUse = false;
+  }
+  return ret;
+}
+
+{% endif %}
+{% if 'set' in field %}
+ara::core::Result<void> {{ field['name'] }}::RegisterSetHandler(std::function<ara::core::Future<FieldType>(const FieldType& data)> setHandler) {
+  m_setHandler = setHandler;
+  return ara::core::Result<void>(0);
+}
+
+Std_ReturnType {{ field['name'] }}::OnSetRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  if ((nullptr != m_setHandler) && (false == m_responseSetInUse)) {
+    m_responseSetInUse = true;
+    serializedSize = {{ field | SomeIpXfDecode(allStructs, 'req->data', 'req->length', 'm_fieldSet') }};
+    if (serializedSize > 0) {
+      m_futureSet = m_setHandler(m_fieldSet);
+      if (true == m_futureSet.is_ready()) {
+        ara::core::Result<FieldType> result = m_futureSet.GetResult();
+        if (result.HasValue()) {
+          res->data = &m_responseSet[20];
+          serializedSize = {{ field | SomeIpXfEncode(allStructs, 'res->data', 'sizeof(m_responseSet) - 20', 'result.Value()') }};
+          if (serializedSize > 0) {
+            res->length = serializedSize;
+            if (serializedSize <= SOMEIP_SF_MAX) {
+              m_responseSetInUse = false;
+            }
+          } else {
+            ret = E_NOT_OK;
+            m_responseSetInUse = false;
+          }
+        } else {
+          ret = E_NOT_OK;
+          m_responseSetInUse = false;
+        }
+      } else {
+        ret = SOMEIP_E_PENDING;
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Set request malformed!\n"));
+      ret = E_NOT_OK;
+      m_responseSetInUse = false;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType {{ field['name'] }}::OnSetAsyncRequest(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  int32_t serializedSize;
+  if (false == m_responseSetInUse) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Set is not in busy request status!\n"));
+    ret = E_NOT_OK;
+  } else if (nullptr == res) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Set response transmission failed!\n"));
+    m_responseSetInUse = false;
+  } else if (true == m_futureSet.is_ready()) {
+    ara::core::Result<FieldType> result = m_futureSet.GetResult();
+    if (result.HasValue()) {
+      res->data = &m_responseSet[20];
+      serializedSize = {{ field | SomeIpXfEncode(allStructs, 'res->data', "sizeof(m_responseSet) - 20", "result.Value()") }};
+      if (serializedSize > 0) {
+        res->length = serializedSize;
+        if (serializedSize <= SOMEIP_SF_MAX) {
+          m_responseSetInUse = false;
+        }
+      } else {
+        ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Set encode response failed!\n"));
+        ret = E_NOT_OK;
+        m_responseSetInUse = false;
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} Set execution failed!\n"));
+      ret = E_NOT_OK;
+      m_responseSetInUse = false;
+    }
+  } else {
+    ret = SOMEIP_E_PENDING;
+  }
+  return ret;
+}
+
+{% endif %}
+{% if field.get('tp', false) %}
+Std_ReturnType {{ field['name'] }}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  return ret;
+}
+
+Std_ReturnType {{ field['name'] }}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_responseSet))) {
+    msg->data = &m_responseSet[msg->offset + 20];
+    if (false == msg->moreSegmentsFlag) {
+      m_responseSetInUse = false;
+    }
+  } else {
+    ret = E_NOT_OK;
+    m_responseSetInUse = false;
+  }
+  return ret;
+}
+
+{% endif %}
+{% if 'event' in field %}
+{% if field.get('tp', false) %}
+Std_ReturnType {{ field['name'] }}::OnEventTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_payload))) {
+    msg->data = &m_payload[msg->offset + 20];
+    if (false == msg->moreSegmentsFlag) {
+      m_payloadInUse = false;
+    }
+  } else {
+    ret = E_NOT_OK;
+    m_payloadInUse = false;
+  }
+  return ret; 
+}
+
+{% endif %}
+{% endif %}
+{% if 'event' in field or 'get' in field %}
+Result<void> {{ field['name'] }}::Update(const FieldType& data) {
+  Result<void> rslt;
+
+{% if 'get' in field %}
+  m_fieldGet = data;
+  m_bValid = true;
+{% endif %}
+{% if 'event' in field %}
+  if ( false == m_payloadInUse ) {
+    int32_t serializedSize = 
+      {{ field | SomeIpXfEncode(allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data') }};
+    if (serializedSize > 0) {
+      uint32_t requestId = ((uint32_t)SOMEIP_TX_EVT_{{ service_name | toMacro }}_{{ field['event']['groupName'] | toMacro }}_{{ field['name'] | toMacro }} << 16) + 0;
+      Std_ReturnType ret = SomeIp_Notification(requestId, &m_payload[20], serializedSize);
+      if (E_OK != ret) {
+        rslt = Result<void>(ret);
+      } else {
+        if (serializedSize > SOMEIP_SF_MAX) {
+          m_payloadInUse = true;
+        }
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ field['name'] }} serialization failed!\n"));
+      rslt = Result<void>(-EINVAL);
+    }
+  } else {
+    rslt = Result<void>(-EBUSY);
+  }
+{% endif %}
+  return rslt;
+}
+
+{% endif %}
+ara::com::ComErrc {{ field['name'] }}::Validate() {
+  ara::com::ComErrc ercd = ara::com::ComErrc::kOk;
+{% if 'set' in field %}
+  if (nullptr == m_setHandler) {
+    ercd = ara::com::ComErrc::kFieldSetHandlerNotSet;
+  }
+{% endif %}
+{% if 'get' in field %}
+  if ((nullptr == m_getHandler) && (false == m_bValid)) {
+    ercd = ara::com::ComErrc::kFieldValueNotInitialized;
+  }
+{% endif %}
+  return ercd;
+}
+
+{% endfor %}
+} // namespace fields
+
+{{ service_name }}Skeleton::{{ service_name }}Skeleton(const InstanceIdentifier &instanceId,
+                                           MethodCallProcessingMode mode) {
+  if (nullptr == s_h{{ service_name }}) {
+    s_h{{ service_name }} = this;
+  } else {
+    throw std::runtime_error("{{ service_name }} already created");
+  }
+
+  m_mode = mode;
+}
+
+{{ service_name }}Skeleton::~{{ service_name }}Skeleton() {
+  if (this == s_h{{ service_name }}) {
+    s_h{{ service_name }} = nullptr;
+  }
+}
+
+Result<void> {{ service_name }}Skeleton::OfferService() {
+  Result<void> rslt;
+  ara::com::ComErrc ercd = ara::com::ComErrc::kOk;
+  Std_ReturnType ret;
+{% for field in service.get('fields', []) %}
+  if (ara::com::ComErrc::kOk == ercd) {
+    ercd = {{ field['name'] }}.Validate();
+  }
+{% endfor %}
+  if (ara::com::ComErrc::kOk == ercd) {
+    ret = Sd_ServerServiceSetState(SD_SERVER_SERVICE_HANDLE_ID_{{ service_name | toMacro }},
+                                  SD_SERVER_SERVICE_AVAILABLE);
+    if (E_OK != ret) {
+      rslt = Result<void>(ret);
+    }
+  } else {
+    ASLOG({{ service_name | toMacro }}_E, ("Fail to offer: %d\n", (int)ercd));
+    rslt = Result<void>(ercd);
+  }
+
+  return rslt;
+}
+
+bool {{ service_name }}Skeleton::ProcessNextMethodCall() {
+  bool pending = false;
+  Std_ReturnType ret;
+
+  for(uint16_t conId = 0; conId < {{ service.get('listen', 1) }}; conId++) {
+    m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+    m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+    do {
+      ret = SomeIp_ConnectionRxControl(SOMEIP_SSID_{{ service_name | toMacro }}, conId, &m_ctrlRxBuf[conId]);
+      if (E_OK == ret) {
+        ASLOG({{ service_name | toMacro }}, ("a service message received in poll mode\n"));
+        pending = true;
+      }
+    } while (SOMEIP_E_PENDING == ret);
+  }
+
+  return pending;
+}
+
+void {{ service_name }}Skeleton::ThreadRxCtrl(uint16_t conId) {
+  Std_ReturnType ret;
+  m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+  m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+  m_ctrlRxBuf[conId].offset = 0;
+  m_ctrlRxBuf[conId].length = 0;
+  ASLOG({{ service_name | toMacro }}, ("thread receive control online\n"));
+  while (false == m_stop[conId]) {
+    ret = SomeIp_ConnectionRxControl(SOMEIP_SSID_{{ service_name | toMacro }}, conId, &m_ctrlRxBuf[conId]);
+    if (E_OK == ret) {
+      ASLOG({{ service_name | toMacro }}, ("a service message received in thread mode\n"));
+    }
+  }
+  ASLOG({{ service_name | toMacro }}, ("thread receive control offline\n"));
+}
+
+void {{ service_name }}Skeleton::OnConnect(uint16_t conId, boolean isConnected) {
+  if (true == isConnected) {
+    m_ctrlRxBuf[conId].data = m_rxBuf[conId];
+    m_ctrlRxBuf[conId].size = sizeof(m_rxBuf[0]);
+    m_ctrlRxBuf[conId].offset = 0;
+    m_ctrlRxBuf[conId].length = 0;
+    if (MethodCallProcessingMode::kPoll == m_mode) {
+      SomeIp_ConnectionTakeControl(SOMEIP_SSID_{{ service_name | toMacro }}, conId);
+    } else if (MethodCallProcessingMode::kEvent == m_mode) {
+      SomeIp_ConnectionTakeControl(SOMEIP_SSID_{{ service_name | toMacro }}, conId);
+      m_stop[conId] = false;
+      m_thRxCtrl[conId] = std::thread(&{{ service_name }}Skeleton::ThreadRxCtrl, this, conId);
+    } else {  /* kEventSingleThread */
+    }
+  } else {
+    m_stop[conId] = true;
+    if ( m_thRxCtrl[conId].joinable()) {
+      m_thRxCtrl[conId].join();
+    }
+  }
+}
+
+} // namespace {{ service_name }}
+} // namespace com
+} // namespace ara
+using namespace ara::com::{{ service_name }};
+extern "C" {
+
+boolean Sd_ServerService{{ service_name }}_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID, uint16_t instanceID,
+                       uint8_t majorVersion, uint32_t minorVersion,
+                       const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,
+                       const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray) {
+
+  return true;
+}
+
+void SomeIp_{{ service_name }}_OnConnect(uint16_t conId, boolean isConnected) {
+  ASLOG({{ service_name | toMacro }}, ("{{ service_name }} [%u] %sconnected\n", conId, isConnected?"":"dis"));
+  if (nullptr != s_h{{ service_name }}) {
+    s_h{{ service_name }}->OnConnect(conId, isConnected);
+  }
+}
+
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+{% set ReturnType = method.get('return', 'void') %}
+{% set args_payload_size = 0 %}
+{% set args = [] %}
+{% if 'args' in method %}
+{% set method_args = GetArgs(cfg, method['args']) %}
+{% for arg in method_args %}
+{% set args_payload_size = args_payload_size + GetTypePayloadSize(arg, allStructs) %}
+{% set _ = args.append(arg) %}
+{% endfor %}
+{% endif %}
+{% set res_payload_size = GetTypePayloadSize(ReturnType, allStructs) %}
+static ara::core::Future<{{ ReturnType }}> s_future{{ method['name'] }};
+static bool s_{{ method['name'] }}InRequest = false;
+{% if method.get('tp', false) %}
+static uint8_t s_{{ method['name'] }}RequestPayload[{{ args_payload_size }}];
+{% endif %}
+static uint8_t s_{{ method['name'] }}ResponsePayload[{{ res_payload_size }}+20];
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType *req, SomeIp_MessageType *res) {
+  Std_ReturnType ret = E_OK;
+  int32_t offset = 0;
+  {% if ReturnType != 'void' %}
+  int32_t serializedSize;
+  {% endif %}
+{% for arg in args %}
+  static {{ arg['type'] }} {{ arg['name'] }};
+{% endfor %}
+  ASLOG({{ service_name | toMacro }}, ("{{ method['name'] }} OnRequest %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
+                        req->length, req->data[0], req->data[1], req->data[2], req->data[3]));
+  if (nullptr != s_h{{ service_name }}) {
+{% for arg in args %}
+    if ((offset >= 0) && (offset < (int32_t)req->length)) {
+      {% if ReturnType != 'void' %}
+      serializedSize = {{ arg | SomeIpXfDecode(allStructs, '&req->data[offset]', 'req->length - offset', arg['name']) }};
+      {% else %}
+      int32_t argSize = {{ arg | SomeIpXfDecode(allStructs, '&req->data[offset]', 'req->length - offset', arg['name']) }};
+      {% endif %}
+      if ({% if ReturnType != 'void' %}serializedSize{% else %}argSize{% endif %} > 0) {
+        offset += {% if ReturnType != 'void' %}serializedSize{% else %}argSize{% endif %};
+      } else {
+        offset = -ENOSPC;
+      }
+    }
+{% endfor %}
+    if (true == s_{{ method['name'] }}InRequest) {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} is busy in request!\n"));
+      ret = E_NOT_OK;
+    } else if (offset >= 0) {
+      s_{{ method['name'] }}InRequest = true;
+      s_future{{ method['name'] }} = s_h{{ service_name }}->{{ method['name'] }}({% for arg in args %}{{ arg['name'] }}{% if not loop.last %},{% endif %}{% endfor %});
+      if (true == s_future{{ method['name'] }}.is_ready()) {
+        {% if ReturnType != 'void' %}
+        ara::core::Result<{{ ReturnType }}> result = s_future{{ method['name'] }}.GetResult();
+        if (result.HasValue()) {
+          res->data = &s_{{ method['name'] }}ResponsePayload[20];
+          serializedSize = {{ ReturnType | SomeIpXfEncode(allStructs, 'res->data', 'sizeof(s_'+method['name']+'ResponsePayload)-20', 'result.Value()') }};
+          if (serializedSize > 0) {
+            res->length = serializedSize;
+            if (serializedSize <= SOMEIP_SF_MAX) {
+              s_{{ method['name'] }}InRequest = false;
+            }
+          } else {
+            ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} encode response failed!\n"));
+            ret = E_NOT_OK;
+            s_{{ method['name'] }}InRequest = false;
+          }
+        } else {
+          ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} execution failed!\n"));
+          ret = E_NOT_OK;
+          s_{{ method['name'] }}InRequest = false;
+        }
+        {% else %}
+        // For void return type, no HasValue() check
+        res->data = &s_{{ method['name'] }}ResponsePayload[20];
+        res->length = 0;
+        s_{{ method['name'] }}InRequest = false;
+        {% endif %}
+      } else {
+        ret = SOMEIP_E_PENDING;
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} decode args failed!\n"));
+      ret = E_NOT_OK;
+    }
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType *req) {
+  ASLOG({{ service_name | toMacro }},
+        ("{{ method['name'] }} OnFireForgot %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId, req->length,
+         req->data[0], req->data[1], req->data[2], req->data[3]));
+  return SOMEIP_E_UNKNOWN_METHOD;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType *res) {
+  Std_ReturnType ret = E_OK;
+  {% if ReturnType != 'void' %}
+  int32_t serializedSize;
+  {% endif %}
+  if (false == s_{{ method['name'] }}InRequest) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} is not in busy request status!\n"));
+    ret = E_NOT_OK;
+  } else if (nullptr == res) {
+    ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} response transmission failed!\n"));
+    s_{{ method['name'] }}InRequest = false;
+  } else if (true == s_future{{ method['name'] }}.is_ready()) {
+    ara::core::Result<{{ ReturnType }}> result = s_future{{ method['name'] }}.GetResult();
+    {% if ReturnType != 'void' %}
+    if (result.HasValue()) {
+      res->data = &s_{{ method['name'] }}ResponsePayload[20];
+      serializedSize = {{ ReturnType | SomeIpXfEncode(allStructs, 'res->data', 'sizeof(s_'+method['name']+'ResponsePayload)-20', 'result.Value()') }};
+      if (serializedSize > 0) {
+        res->length = serializedSize;
+        if (serializedSize <= SOMEIP_SF_MAX) {
+          s_{{ method['name'] }}InRequest = false;
+        }
+      } else {
+        ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} encode response failed!\n"));
+        ret = E_NOT_OK;
+        s_{{ method['name'] }}InRequest = false;
+      }
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("{{ method['name'] }} execution failed!\n"));
+      ret = E_NOT_OK;
+      s_{{ method['name'] }}InRequest = false;
+    }
+    {% else %}
+    res->length = 0;
+    s_{{ method['name'] }}InRequest = false;
+    ret = (Std_ReturnType)result.Error().Value();
+    {% endif %}
+  } else {
+    ret = SOMEIP_E_PENDING;
+  }
+  return ret;
+}
+
+{% if method.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && (false == s_{{ method['name'] }}InRequest) && 
+      ((msg->offset + msg->length)) <= sizeof(s_{{ method['name'] }}RequestPayload)) {
+    memcpy(&s_{{ method['name'] }}RequestPayload[msg->offset], msg->data, msg->length);
+    if (FALSE == msg->moreSegmentsFlag) {
+      msg->data = s_{{ method['name'] }}RequestPayload;
+    }
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(s_{{ method['name'] }}ResponsePayload))) {
+    msg->data = &s_{{ method['name'] }}ResponsePayload[msg->offset + 20];
+    if (FALSE == msg->moreSegmentsFlag) {
+      s_{{ method['name'] }}InRequest = false;
+    }
+  } else {
+    ret = E_NOT_OK;
+    s_{{ method['name'] }}InRequest = false;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for eg in service.get('event-groups', []) %}
+
+void SomeIp_{{ service_name }}_{{ eg['name'] }}_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr) {
+  ASLOG({{ service_name | toMacro }},
+        ("{{ eg['name'] }} %ssubscribed by %d.%d.%d.%d:%d\n", isSubscribe ? "" : "stop ", RemoteAddr->addr[0],
+         RemoteAddr->addr[1], RemoteAddr->addr[2], RemoteAddr->addr[3], RemoteAddr->port));
+}
+
+{% for event in eg['events'] %}
+{% if 'for' not in event and event.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ event['name'] }}.OnTpCopyTxData(requestId, msg);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% for field in service.get('fields', []) %}
+{% if 'get' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnGetRequest(requestId, req, res);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_NOT_OK;
+  /* Not used */
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnGetAsyncRequest(requestId, res);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% if field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_NOT_OK;
+  /* Not used */
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnGetTpCopyTxData(requestId, msg);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endif %}
+{% if 'set' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnSetRequest(requestId, req, res);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_NOT_OK;
+  /* Not Used */
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnSetAsyncRequest(requestId, res);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% if field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnSetTpCopyRxData(requestId, msg);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnSetTpCopyTxData(requestId, msg);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;
+}
+
+{% endif %}
+{% endif %}
+{% if 'event' in field and field.get('tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Fields_{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType ret = E_OK;
+  if (nullptr != s_h{{ service_name }}) {
+    ret = s_h{{ service_name }}->{{ field['name'] }}.OnEventTpCopyTxData(requestId, msg);
+  } else {
+    ret = E_NOT_OK;
+  }
+  return ret;    
+}
+
+{% endif %}
+{% endfor %}
+
+} /* extern "C" */

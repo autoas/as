@@ -11,7 +11,7 @@
 #include "SomeIpXf.h"
 
 #include "Sd_Cfg.h"
-#include "CS_CANBus.h"
+#include "CANBusProxy.h"
 #include "SomeIp_Cfg.h"
 #include "SomeIpXf_Cfg.h"
 
@@ -39,19 +39,15 @@ void SomeIp_CANBus_OnAvailability(boolean isAvailable) {
   lIsAvailable = isAvailable;
 }
 
-Std_ReturnType SomeIp_CANBus_canframe_canframe_OnNotification(uint32_t requestId,
-                                                              SomeIp_MessageType *evt) {
-  CanFrame_Type canFrame;
-  int32_t length;
-  length = SomeIpXf_DecodeStruct(evt->data, evt->length, &canFrame, &SomeIpXf_StructCanFrameDef);
-  if (length > 0) {
-    ASLOG(CANBUS, ("receive: session=%d, canid = 0x%x, dlc = %d,"
-                   " data = [%02X, %02X, %02X, %02X,%02X, %02X, %02X, %02X]\n",
-                   requestId & 0xFFFF, canFrame.canid, canFrame.dlc, canFrame.data[0],
-                   canFrame.data[1], canFrame.data[2], canFrame.data[3], canFrame.data[4],
-                   canFrame.data[5], canFrame.data[6], canFrame.data[7]));
-  }
-  return E_OK;
+void CANBus_SubscribeCanFrameAck(boolean isSubscribe) {
+}
+
+void CANBus_CanFrame(const CanFrame_Type *sample) {
+  ASLOG(
+    CANBUS,
+    ("receive: canid = 0x%x, dlc = %d, data = [%02X, %02X, %02X, %02X,%02X, %02X, %02X, %02X]\n",
+     sample->canid, sample->dlc, sample->data[0], sample->data[1], sample->data[2], sample->data[3],
+     sample->data[4], sample->data[5], sample->data[6], sample->data[7]));
 }
 
 int main(int argc, char *argv[]) {
@@ -60,9 +56,8 @@ int main(int argc, char *argv[]) {
   Sd_Init(NULL);
   SomeIp_Init(NULL);
 
-  Sd_ClientServiceSetState(SD_CLIENT_SERVICE_HANDLE_ID_CANBUS, SD_SERVER_SERVICE_AVAILABLE);
-  Sd_ConsumedEventGroupSetState(SD_CONSUMED_EVENT_GROUP_CANBUS_CANFRAME,
-                                SD_CONSUMED_EVENTGROUP_REQUESTED);
+  CANBus_FindService();
+  CANBus_SubscribeCanFrame();
 
   Std_TimerStart(&timer10ms);
 

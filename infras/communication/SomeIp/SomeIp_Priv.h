@@ -177,6 +177,7 @@ typedef struct {
   SomeIp_RxTpMsgList pendingRxTpMsgs;
   SomeIp_TxTpMsgList pendingTxTpMsgs;
   SomeIp_WaitResMsgList pendingWaitResMsgs;
+  uint16_t sessionId;
   boolean online;
 } SomeIp_ClientServiceContextType;
 
@@ -189,6 +190,7 @@ typedef struct {
 
 typedef struct {
   SomeIp_TxTpEvtMsgList pendingTxTpEvtMsgs;
+  uint16_t sessionId;
   boolean online;
 } SomeIp_ServerContextType;
 
@@ -219,9 +221,6 @@ typedef struct {
   SomeIp_ClientServiceContextType *context;
   PduIdType TxPduId;
   SomeIp_OnAvailabilityFncType onAvailability;
-#ifdef SOMEIP_USE_TP_BUF
-  SomeIp_TpBufferType *tpBuf;
-#endif
   uint16_t SeparationTime; /* @ECUC_SomeIpTp_00006 */
   uint16_t ResponseTimeout;
 } SomeIp_ClientServiceType;

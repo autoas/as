@@ -326,6 +326,7 @@ static void SomeIp_InitServer(const SomeIp_ServerServiceType *config) {
   }
   (void)memset(config->context, 0u, sizeof(SomeIp_ServerContextType));
   STAILQ_INIT(&(config->context->pendingTxTpEvtMsgs));
+  config->context->sessionId = 1u;
 }
 
 static void SomeIp_InitClient(const SomeIp_ClientServiceType *config) {
@@ -335,6 +336,7 @@ static void SomeIp_InitClient(const SomeIp_ClientServiceType *config) {
   STAILQ_INIT(&(context->pendingRxTpMsgs));
   STAILQ_INIT(&(context->pendingTxTpMsgs));
   STAILQ_INIT(&(context->pendingWaitResMsgs));
+  context->sessionId = 1u;
 }
 
 static SomeIp_RxTpMsgType *SomeIp_RxTpMsgFind(SomeIp_RxTpMsgList *pendingRxTpMsgs,
@@ -770,6 +772,13 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
   }
 
   if (E_OK == ret) {
+    if (0 == sessionId) {
+      sessionId = context->sessionId;
+      context->sessionId++;
+      if (0 == context->sessionId) {
+        context->sessionId = 1;
+      }
+    }
     ret = SomeIp_SendRequest(config, index, config->clientId, sessionId, &RemoteAddr, &msg,
                              messageType);
   }
@@ -1767,6 +1776,13 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   }
 
   if (E_OK == ret) {
+    if (0 == sessionId) {
+      sessionId = config->context->sessionId;
+      config->context->sessionId++;
+      if (0 == config->context->sessionId) {
+        config->context->sessionId = 1u;
+      }
+    }
     ret = SomeIp_SendNotification(config, TxEventId, sessionId, &msg, list);
   }
 

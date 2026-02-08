@@ -11,7 +11,7 @@
 #include "SomeIpXf.h"
 
 #include "Sd_Cfg.h"
-#include "SS_Math.h"
+#include "MathSkeleton.h"
 #include "SomeIp_Cfg.h"
 #include "SomeIpXf_Cfg.h"
 
@@ -24,73 +24,45 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
-
-static uint8_t Math_addTpRxBuf[8192];
-static Vectors_Type lVectors;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-boolean Sd_ServerService0_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,
-                               uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,
-                               const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,
-                               const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray) {
+boolean Sd_ServerServiceMath_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,
+                                  uint16_t instanceID, uint8_t majorVersion, uint32_t minorVersion,
+                                  const Sd_ConfigOptionStringType *receivedConfigOptionPtrArray,
+                                  const Sd_ConfigOptionStringType *configuredConfigOptionPtrArray) {
   return TRUE;
 }
 
 void SomeIp_Math_OnConnect(uint16_t conId, boolean isConnected) {
 }
 
-Std_ReturnType SomeIp_Math_add_OnRequest(uint32_t requestId, SomeIp_MessageType *req,
-                                         SomeIp_MessageType *res) {
-  Std_ReturnType ret = E_OK;
-  Result_Type lResult = {E_OK, 0};
+Std_ReturnType Math_add(const Vector_Type *A, const Vector_Type *B, Result_Type *returnResult) {
+  Std_ReturnType ret = SOMEIP_E_PENDING;
   int32_t length, i;
 
-  length = SomeIpXf_DecodeStruct(req->data, req->length, &lVectors, &SomeIpXf_StructVectorsDef);
-  if (length > 0) {
-    for (i = 0; i < lVectors.ALen; i++) {
-      lResult.summary += lVectors.A[i] * lVectors.B[i];
-    }
-  } else {
-    ASLOG(MATH, ("Malform request message\n"));
-    lResult.ercd = E_NOT_OK;
-  }
-
-  length = SomeIpXf_EncodeStruct(res->data, res->length, &lResult, &SomeIpXf_StructResultDef);
-  if (length > 0) {
-    res->length = length;
-    ASLOG(MATH, ("add request session=%d: ercd = %d summary = %u\n", requestId & 0xFFFF,
-                 lResult.ercd, lResult.summary));
-  } else {
+  if (A->numberLen != B->numberLen) {
+    ASLOG(MATH, ("add: wrong inputs %u = %u\n", A->numberLen, B->numberLen));
     ret = E_NOT_OK;
+  } else {
+    length = A->numberLen;
+    returnResult->ercd = E_OK;
+    returnResult->numberLen = length;
+    returnResult->summary = 0;
+    for (i = 0; i < length; i++) {
+      returnResult->number[i] = A->number[i] + B->number[i];
+      returnResult->summary += (uint32_t)A->number[i] + B->number[i];
+    }
+    ASLOG(MATH, ("add: summary = %u, len = %u, A=[%u, %u, %u], B=[%u, %u, %u], S=[%u, %u, %u]\n",
+                 returnResult->summary, length, A->number[0], A->number[1], A->number[2],
+                 B->number[0], B->number[1], B->number[2], returnResult->number[0],
+                 returnResult->number[1], returnResult->number[2]));
   }
 
   return ret;
 }
-Std_ReturnType SomeIp_Math_add_OnFireForgot(uint32_t requestId, SomeIp_MessageType *req) {
-  ASLOG(MATH, ("add OnFireForgot %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
-               req->length, req->data[0], req->data[1], req->data[2], req->data[3]));
+
+Std_ReturnType Math_add_Async(Result_Type *returnResult) {
   return E_OK;
-}
-
-Std_ReturnType SomeIp_Math_add_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType *res) {
-  return E_OK;
-}
-
-Std_ReturnType SomeIp_Math_add_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length)) < sizeof(Math_addTpRxBuf)) {
-    memcpy(&Math_addTpRxBuf[msg->offset], msg->data, msg->length);
-    if (FALSE == msg->moreSegmentsFlag) {
-      msg->data = Math_addTpRxBuf;
-    }
-  } else {
-    ret = E_NOT_OK;
-  }
-  return ret;
-}
-
-Std_ReturnType SomeIp_Math_add_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return E_NOT_OK;
 }
 
 int main(int argc, char *argv[]) {
@@ -99,7 +71,7 @@ int main(int argc, char *argv[]) {
   Sd_Init(NULL);
   SomeIp_Init(NULL);
 
-  Sd_ServerServiceSetState(SD_SERVER_SERVICE_HANDLE_ID_MATH, SD_SERVER_SERVICE_AVAILABLE);
+  Math_OfferService();
 
   Std_TimerStart(&timer10ms);
 
