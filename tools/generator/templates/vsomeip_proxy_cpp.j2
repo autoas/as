@@ -5,8 +5,11 @@
  * Generated at {{ now.strftime("%c") }}
  */
 
+/* ================================ [ INCLUDES  ] ============================================== */
 #include "{{ service_name }}ProxyV.hpp"
 #include <thread>
+
+#include "Std_Debug.h"
 
 namespace ara {
 namespace com {
@@ -14,6 +17,10 @@ namespace {{ service_name }} {
 
 using namespace ara::core;
 using namespace ara::com;
+
+/* ================================ [ MACROS    ] ============================================== */
+#define AS_LOG_{{ service_name | toMacro }} 0
+#define AS_LOG_{{ service_name | toMacro }}_E 2
 
 /* ================================ [ CLASS     ] ============================================== */
 class {{ service_name }}Manager {
@@ -25,20 +32,6 @@ public:
 
   std::shared_ptr<vsomeip::application> GetApplication() {
     return m_app;
-  }
-
-  void Init() {
-    // Additional initialization if needed
-  }
-
-  template<typename FieldType>
-  void RegisterField(FieldType *field, uint32_t getMethodId, uint32_t setMethodId) {
-    // Implementation if needed
-  }
-
-  template<typename MethodType>
-  void RegisterMethod(MethodType *method, uint32_t methodId) {
-    // Implementation if needed
   }
 
   Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>
@@ -63,6 +56,7 @@ public:
   }
 
   void OnAvailability(vsomeip::service_t service, vsomeip::instance_t instance, bool isAvailable) {
+    ASLOG({{ service_name | toMacro }}, ("OnAvailability: service=0x%04x, instance=0x%04x, isAvailable=%d\n", service, instance, isAvailable));
     m_isAvailable = isAvailable;
   }
 
@@ -112,10 +106,13 @@ Result<void> events::{{ event['name'] }}::Subscribe(size_t maxSampleCount) {
     std::set<vsomeip::eventgroup_t> event_groups;
     event_groups.insert({{ eg['groupId'] }});
 
-    app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ eg['groupId'] }},
+    app->register_subscription_status_handler(
+        {{ service['service'] }}, {{ service['instance'] }},
+        {{ eg['groupId'] }}, {{ event['eventId'] }},
             std::bind(&{{ event['name'] }}::OnSubscribeAck, this,
-            std::placeholders::_1, std::placeholders::_2,
-            std::placeholders::_3, std::placeholders::_4));
+              std::placeholders::_1, std::placeholders::_2,
+              std::placeholders::_3, std::placeholders::_4,
+              std::placeholders::_5));
     app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }},
             std::bind(&{{ event['name'] }}::OnNotification, this, std::placeholders::_1));
     app->request_event({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }},
@@ -160,14 +157,18 @@ void events::{{ event['name'] }}::OnNotification(const std::shared_ptr<vsomeip::
   }
 }
 
-bool events::{{ event['name'] }}::OnSubscribeAck(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
-  m_isSubscribed = isSubscribe;
+void events::{{ event['name'] }}::OnSubscribeAck(
+                       const vsomeip::service_t _service,
+                       const vsomeip::instance_t _instance,
+                       const vsomeip::eventgroup_t _eventgroup,
+                       const vsomeip::event_t _event,
+                       const uint16_t _error) {
+  ASLOG({{ service_name | toMacro }}, ("OnSubscribeAck: service=0x%04x, instance=0x%04x, eventgroup=0x%04x, event=0x%04x, error=0x%04x\n", _service, _instance, _eventgroup, _event, _error));
+  m_isSubscribed = (0 == _error);
 
   if (m_stateChgHandler) {
-    m_stateChgHandler(isSubscribe ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
+    m_stateChgHandler(m_isSubscribed ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
   }
-
-  return true;
 }
 {% endif %}
 {% endfor %}
@@ -176,13 +177,6 @@ bool events::{{ event['name'] }}::OnSubscribeAck(vsomeip::client_t client, vsome
 /* ================================ [ FIELDS    ] ============================================== */
 {% for field in service.get('fields', []) %}
 fields::{{ field['name'] }}::{{ field['name'] }}() {
-  auto& manager = {{ service_name }}Manager::GetInstance();
-  {% if 'get' in field %}
-  manager.RegisterField(this, {{ field['get']['methodId'] }}, 0);
-  {% endif %}
-  {% if 'set' in field %}
-  manager.RegisterField(this, 0, {{ field['set']['methodId'] }});
-  {% endif %}
 }
 
 fields::{{ field['name'] }}::~{{ field['name'] }}() {
@@ -199,13 +193,17 @@ Result<void> fields::{{ field['name'] }}::Subscribe(size_t maxSampleCount) {
     std::set<vsomeip::eventgroup_t> event_groups;
     event_groups.insert({{ field['event']['groupId'] }});
 
-    app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }},
+    app->register_subscription_status_handler(
+        {{ service['service'] }}, {{ service['instance'] }},
+        {{ field['event']['groupId'] }}, {{ field['event']['eventId'] }},
             std::bind(&{{ field['name'] }}::OnSubscribeAck, this,
-            std::placeholders::_1, std::placeholders::_2,
-            std::placeholders::_3, std::placeholders::_4));
+              std::placeholders::_1, std::placeholders::_2,
+              std::placeholders::_3, std::placeholders::_4,
+              std::placeholders::_5));
+    app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }},
+            std::bind(&{{ field['name'] }}::OnNotification, this, std::placeholders::_1));
     app->request_event({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }},
                         event_groups, vsomeip::event_type_e::ET_EVENT);
-
     app->subscribe({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }});
   }
   return Result<void>(0);
@@ -249,14 +247,18 @@ void fields::{{ field['name'] }}::UnsetSubscriptionStateChangeHandler() {
   m_stateChgHandler = nullptr;
 }
 
-bool fields::{{ field['name'] }}::OnSubscribeAck(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
-  m_isSubscribed = isSubscribe;
+void fields::{{ field['name'] }}::OnSubscribeAck(
+                       const vsomeip::service_t _service,
+                       const vsomeip::instance_t _instance,
+                       const vsomeip::eventgroup_t _eventgroup,
+                       const vsomeip::event_t _event,
+                       const uint16_t _error) {
+  ASLOG({{ service_name | toMacro }}, ("OnSubscribeAck: service=0x%04x, instance=0x%04x, eventgroup=0x%04x, event=0x%04x, error=0x%04x\n", _service, _instance, _eventgroup, _event, _error));
+  m_isSubscribed = (0 == _error);
 
   if (m_stateChgHandler) {
-    m_stateChgHandler(isSubscribe ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
+    m_stateChgHandler(m_isSubscribed ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
   }
-
-  return true;
 }
 
 void fields::{{ field['name'] }}::OnNotification(const std::shared_ptr<vsomeip::message> &evt) {
@@ -295,7 +297,7 @@ Future<fields::{{ field['name'] }}::FieldType> fields::{{ field['name'] }}::Get(
   return promise->get_future();
 }
 
-int fields::{{ field['name'] }}::OnGetResponse(const std::shared_ptr<vsomeip::message> &res) {
+void fields::{{ field['name'] }}::OnGetResponse(const std::shared_ptr<vsomeip::message> &res) {
   if (nullptr != m_promiseGet) {
     int32_t serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->get_payload()->get_data()', 'res->get_payload()->get_length()', 'm_fieldGet') }};
     if (serializedSize > 0) {
@@ -305,15 +307,6 @@ int fields::{{ field['name'] }}::OnGetResponse(const std::shared_ptr<vsomeip::me
     }
     m_promiseGet = nullptr;
   }
-  return 0;
-}
-
-int fields::{{ field['name'] }}::OnGetError(int ercd) {
-  if (nullptr != m_promiseGet) {
-    m_promiseGet->SetError(ercd);
-    m_promiseGet = nullptr;
-  }
-  return 0;
 }
 {% endif %}
 
@@ -351,7 +344,7 @@ Future<fields::{{ field['name'] }}::FieldType> fields::{{ field['name'] }}::Set(
   return promise->get_future();
 }
 
-int fields::{{ field['name'] }}::OnSetResponse(const std::shared_ptr<vsomeip::message> &res) {
+void fields::{{ field['name'] }}::OnSetResponse(const std::shared_ptr<vsomeip::message> &res) {
   if (m_promiseSet && res && res->get_payload()) {
     int32_t serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->get_payload()->get_data()', 'res->get_payload()->get_length()', 'm_fieldSet') }};
     if (serializedSize > 0) {
@@ -361,15 +354,6 @@ int fields::{{ field['name'] }}::OnSetResponse(const std::shared_ptr<vsomeip::me
     }
     m_promiseSet = nullptr;
   }
-  return 0;
-}
-
-int fields::{{ field['name'] }}::OnSetError(int ercd) {
-  if (m_promiseSet) {
-    m_promiseSet->SetError(ercd);
-    m_promiseSet = nullptr;
-  }
-  return 0;
 }
 {% endif %}
 {% endfor %}
@@ -377,8 +361,6 @@ int fields::{{ field['name'] }}::OnSetError(int ercd) {
 {% for method in service.get('methods', []) %}
 {% if 'for' not in method %}
 methods::{{ method['name'] }}::{{ method['name'] }}() {
-  auto& manager = {{ service_name }}Manager::GetInstance();
-  manager.RegisterMethod(this, {{ method['methodId'] }});
 }
 
 methods::{{ method['name'] }}::~{{ method['name'] }}() {
@@ -436,15 +418,7 @@ Future<methods::{{ method['name'] }}::{{ toMethodTypeName(method.get('return', '
   return future;
 }
 
-int methods::{{ method['name'] }}::OnError(int ercd) {
-  if (m_promise) {
-    m_promise->SetError(ercd);
-    m_promise = nullptr;
-  }
-  return 0;
-}
-
-int methods::{{ method['name'] }}::OnResponse(const std::shared_ptr<vsomeip::message> &res) {
+void methods::{{ method['name'] }}::OnResponse(const std::shared_ptr<vsomeip::message> &res) {
   if (m_promise) {
     {% if method.get('return', 'void') != 'void' %}
     if (res && res->get_payload()) {
@@ -462,7 +436,6 @@ int methods::{{ method['name'] }}::OnResponse(const std::shared_ptr<vsomeip::mes
     {% endif %}
     m_promise = nullptr;
   }
-  return 0;
 }
 
 {% endif %}
@@ -488,7 +461,24 @@ Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>
 
 {{ service_name }}Proxy::{{ service_name }}Proxy(HandleType &handle)
   : m_handle(handle) {
-  {{ service_name }}Manager::GetInstance().Init();
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  auto app = manager.GetApplication();
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+  app->register_message_handler({{ service['service'] }}, {{ service['instance'] }},{{ method['methodId'] }},
+      std::bind(&methods::{{ method['name'] }}::OnResponse, &{{ method['name'] }}, std::placeholders::_1));
+{% endif %}
+{% endfor %}
+{% for field in service.get('fields', []) %}
+{% if 'get' in field %}
+  app->register_message_handler({{ service['service'] }}, {{ service['instance'] }},{{ field['get']['methodId'] }},
+      std::bind(&fields::{{ field['name'] }}::OnGetResponse, &{{ field['name'] }}, std::placeholders::_1));
+{% endif %}
+{% if 'set' in field %}
+  app->register_message_handler({{ service['service'] }}, {{ service['instance'] }},{{ field['set']['methodId'] }},
+      std::bind(&fields::{{ field['name'] }}::OnSetResponse, &{{ field['name'] }}, std::placeholders::_1));
+{% endif %}
+{% endfor %}
 }
 
 } // namespace {{ service_name }}

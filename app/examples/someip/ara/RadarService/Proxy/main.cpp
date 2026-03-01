@@ -83,6 +83,9 @@ static void RadarServiceMain(void) {
   if (false == handles.empty()) {
     myRadarProxy = std::make_unique<RadarServiceProxy>(handles[0]);
 
+    myRadarProxy->BrakeEvent.SetReceiveHandler(handleBrakeEventReception);
+    myRadarProxy->UpdateRate.SetReceiveHandler(handleUpdateRateReception);
+
     myRadarProxy->BrakeEvent.Subscribe(10);
     myRadarProxy->UpdateRate.Subscribe(10);
 
@@ -92,7 +95,6 @@ static void RadarServiceMain(void) {
       state = myRadarProxy->BrakeEvent.GetSubscriptionState();
     }
     ASLOG(RADAR, ("BrakeEvent online\n"));
-    myRadarProxy->BrakeEvent.SetReceiveHandler(handleBrakeEventReception);
 
     state = myRadarProxy->UpdateRate.GetSubscriptionState();
     while (state != SubscriptionState::kSubscribed) {
@@ -100,7 +102,6 @@ static void RadarServiceMain(void) {
       state = myRadarProxy->UpdateRate.GetSubscriptionState();
     }
     ASLOG(RADAR, ("UpdateRate online\n"));
-    myRadarProxy->UpdateRate.SetReceiveHandler(handleUpdateRateReception);
 
     while (state == SubscriptionState::kSubscribed) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -140,7 +141,8 @@ static void RadarServiceMethodMain(void) {
       if (rslt.HasValue()) {
         methods::Adjust::Output output = rslt.Value();
         ASLOG(RADAR, ("Adjust with: %s (%u, %u, %u)\n", output.success ? "success" : "fail",
-                      output.effective_position.x, output.effective_position.y, output.effective_position.z));
+                      output.effective_position.x, output.effective_position.y,
+                      output.effective_position.z));
       } else {
         ASLOG(RADAR, ("Adjust with error: %d\n", rslt.Error().Value()));
       }

@@ -85,17 +85,6 @@ NetAppT tests core SOMEIP/SD functionality without additional stacks:
 scons --app=NetAppT --os=OSAL
 ```
 
-### 2.4 Build RadarService Examples (ARA COM SOMEIP)  
-RadarService demonstrates ARA COM over SOMEIP with both server and client applications:  
-
-```sh
-# Build RadarServiceServer with LWIP and generate code
-scons --app=RadarServiceServer --net=LWIP --gen
-
-# Build RadarServiceClient and generate code
-scons --app=RadarServiceClient --gen
-```
-
 ---
 
 ## 3. Running the Example Applications
@@ -151,34 +140,68 @@ Check `net.log` (text logs) and `wireshark.pcap` (packet capture) in the project
 
 ## 4. Verifying Communication with vsomeip
 
-To validate cross-platform compatibility, use **vsomeip** (a reference SOMEIP implementation) on Linux.  
+To validate cross-platform compatibility and ensure SSAS SOMEIP/SD interoperability, we use **vsomeip** - the official open-source reference implementation of SOMEIP from the SOME/IP Working Group. This section guides you through building and running a cross-backend test between SSAS SOMEIP and vsomeip.  
 
-### 4.1 Build vsomeip on WSL Ubuntu 20.04  
+### 4.1 Build vsomeip and Test Applications
+
+1. **Build vsomeip libraries**:
 ```sh
-# Clone the repository
-git clone https://gitee.com/autoas/vsomeip.git
-cd vsomeip
+# Build vsomeip3 core library
+scons --lib=vsomeip3 -j8
 
-# Build the project
-mkdir build && cd build
-cmake ..
-make -j4
+# Build vsomeip3 configuration library
+scons --lib=vsomeip3-cfg --prebuilt -j8
+
+# Build vsomeip3 service discovery library
+scons --lib=vsomeip3-sd --prebuilt -j8
 ```
 
-### 4.2 Run the SSAS Client Example  
-Link the vsomeip configuration and start the client:  
-
+2. **Build test applications**:
 ```sh
-# Set library path and link config file
-export LD_LIBRARY_PATH=`pwd`:$LD_LIBRARY_PATH
-ln -fs ../examples/ssas/vsomeip.json vsomeip.json
+# Build RadarServiceClient with vsomeip backend
+set SOMEIP_BACKEND=vsomeip
+scons --app=RadarServiceClient --gen
 
-# Start the client example
-./examples/ssas/client-example
+# Build RadarServiceServer with SSAS SOMEIP backend
+set SOMEIP_BACKEND=someip
+scons --app=RadarServiceServer --net=LWIP --gen
 ```
 
-### 4.3 Expected Outcome  
-The client should discover and communicate with the SOMEIP/SD server (NetApp), confirming end-to-end functionality.  
+### 4.2 Run to Verify Communication Between SSAS SOMEIP and vsomeip
+
+1. **Prepare the vsomeip configuration**:
+```sh
+# Copy the vsomeip configuration file to the build directory
+cp download/vsomeip/examples/ssas/vsomeip.json build/nt/GCC/someip
+```
+
+2. **Start the test applications in separate terminals**:
+
+   **Terminal 1 (Client - vsomeip backend)**:
+   ```sh
+   cd build\nt\GCC\someip 
+   ..\RadarServiceClient\RadarServiceClient.exe
+   ```
+
+   **Terminal 2 (Server - SSAS SOMEIP backend)**:
+   ```sh
+   build\nt\GCC\RadarServiceServer\RadarServiceServer.exe
+   ```
+
+### 4.3 Expected Outcome
+
+When both applications are running:
+
+1. **Service Discovery**: The RadarServiceClient (vsomeip) will discover the RadarServiceServer (SSAS SOMEIP) via SOMEIP-SD multicast messages.
+
+2. **Communication Establishment**: The client will establish a connection to the server and exchange SOMEIP messages.
+
+3. **Log Verification**: Check the console output for:
+   - Service discovery success messages
+   - Client-server message exchange
+   - No connection errors or timeouts
+
+4. **Network Traffic**: Use Wireshark to capture and analyze the SOMEIP/SD traffic between the client and server, verifying proper protocol implementation.
 
 ---
 

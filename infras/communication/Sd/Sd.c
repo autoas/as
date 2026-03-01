@@ -776,14 +776,16 @@ static Std_ReturnType Sd_ResponseSubscribeEventGroup(const Sd_InstanceType *Inst
   TcpIp_SockAddrType RemoteAddr;
 #endif
   uint32_t lengthOfOptions = 0u;
-  Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0u, 0u, 1u, 0u,
-                     config->ServiceId, config->InstanceId, config->MajorVersion, 0u,
-                     EventHandler->EventGroupId, config->ServerTimer->TTL);
+  uint8_t numOf1stOpt = 0u;
   if (sub->TxPduId == EventHandler->MulticastTxPduId) {
     Sd_BuildOptionIPv4Multicast(&Instance->buffer[44], &EventHandler->MulticastEventAddr,
                                 TCPIP_IPPROTO_UDP);
     lengthOfOptions = 12u;
+    numOf1stOpt = 1u;
   }
+  Sd_BuildEntryType2(&Instance->buffer[24], SD_SUBSCRIBE_EVENT_GROUP_ACK, 0u, 0u, numOf1stOpt, 0u,
+                     config->ServiceId, config->InstanceId, config->MajorVersion, 0u,
+                     EventHandler->EventGroupId, config->ServerTimer->TTL);
   Sd_BuildHeader(Instance->buffer, Instance->context->flags, Instance->context->multicastSessionId,
                  16u, lengthOfOptions);
   Instance->context->multicastSessionId++;

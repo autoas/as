@@ -23,6 +23,7 @@ using namespace ara::core;
 using {{ struct['name'] }} = {{ struct['name'] }}_Type;
 {% endfor %}
 class {{ service_name }}Manager;
+class {{ service_name }}Proxy;
 /* ================================ [ CLASS     ] ============================================== */
 namespace events {
 {% for eg in service.get('event-groups', []) %}
@@ -86,7 +87,11 @@ public:
 
 private:
   void OnNotification(const std::shared_ptr<vsomeip::message> &msg);
-  bool OnSubscribeAck (vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
+  void OnSubscribeAck (const vsomeip::service_t _service,
+                       const vsomeip::instance_t _instance,
+                       const vsomeip::eventgroup_t _eventgroup,
+                       const vsomeip::event_t _event,
+                       const uint16_t _error);
   friend class {{ service_name }}::{{ service_name }}Manager;
 
 private:
@@ -160,21 +165,24 @@ public:
 
 private:
 {% if 'event' in field %}
-  bool OnSubscribeAck (vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
+  void OnSubscribeAck (const vsomeip::service_t _service,
+                       const vsomeip::instance_t _instance,
+                       const vsomeip::eventgroup_t _eventgroup,
+                       const vsomeip::event_t _event,
+                       const uint16_t _error);
   void OnNotification(const std::shared_ptr<vsomeip::message> &msg);
 {% endif %}
 
 {% if 'get' in field %}
-  int OnGetResponse(const std::shared_ptr<vsomeip::message> &msg);
-  int OnGetError(int ercd);
+  void OnGetResponse(const std::shared_ptr<vsomeip::message> &msg);
 {% endif %}
 
 {% if 'set' in field %}
-  int OnSetResponse(const std::shared_ptr<vsomeip::message> &msg);
-  int OnSetError(int ercd);
+  void OnSetResponse(const std::shared_ptr<vsomeip::message> &msg);
 {% endif %}
 
 friend class {{ service_name }}::{{ service_name }}Manager;
+friend class {{ service_name }}::{{ service_name }}Proxy;
 
 private:
 {% if 'event' in field %}
@@ -228,9 +236,9 @@ public:
   ~{{ method['name'] }}();
 
 private:
-  int OnError(int ercd);
-  int OnResponse(const std::shared_ptr<vsomeip::message> &msg);
+  void OnResponse(const std::shared_ptr<vsomeip::message> &msg);
   friend class {{ service_name }}::{{ service_name }}Manager;
+  friend class {{ service_name }}::{{ service_name }}Proxy;
 
 private:
   std::shared_ptr<ara::core::Promise<{{ ReturnType }}>> m_promise = nullptr;

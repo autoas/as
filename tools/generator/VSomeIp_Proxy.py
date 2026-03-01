@@ -57,6 +57,7 @@ def Gen_VSomeIpProxy(cfg, service, dir, source):
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.do"]
     )
+    env.filters['toMacro'] = toMacro
 
     # Render header
     header_template = env.get_template("vsomeip_proxy_hpp.j2")
