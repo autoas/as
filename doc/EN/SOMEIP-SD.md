@@ -85,6 +85,17 @@ NetAppT tests core SOMEIP/SD functionality without additional stacks:
 scons --app=NetAppT --os=OSAL
 ```
 
+### 2.4 Build RadarService Examples (ARA COM SOMEIP)  
+RadarService demonstrates ARA COM over SOMEIP with both server and client applications:  
+
+```sh
+# Build RadarServiceServer with LWIP and generate code
+scons --app=RadarServiceServer --net=LWIP --gen
+
+# Build RadarServiceClient and generate code
+scons --app=RadarServiceClient --gen
+```
+
 ---
 
 ## 3. Running the Example Applications

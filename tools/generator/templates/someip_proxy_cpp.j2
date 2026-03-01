@@ -813,7 +813,7 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
   int32_t offset = 0;
   int32_t serializedSize;
   if ((false == m_requestInUse) && (nullptr == m_promise)) {
-    m_promise = std::make_shared<ara::core::Promise<{{ method.get('return', 'void') }}>>();
+    m_promise = std::make_shared<ara::core::Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}>>();
     future = m_promise->get_future();
     uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
 {% if 'args' in method %}

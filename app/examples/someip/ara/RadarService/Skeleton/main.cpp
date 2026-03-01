@@ -3,6 +3,12 @@
  * Copyright (C) 2021-2024 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef USE_SOMEIP
+#include "RadarServiceSkeleton.hpp"
+#else
+#include "RadarServiceSkeletonV.hpp"
+#endif
+
 #include <string.h>
 #include "TcpIp.h"
 #include "SoAd.h"
@@ -19,7 +25,7 @@
 #include "Std_Debug.h"
 
 #include <thread>
-#include "RadarServiceSkeleton.hpp"
+#include <chrono>
 
 using namespace ara::com::RadarService;
 using namespace ara::com::RadarService::events;
@@ -41,7 +47,9 @@ public:
   Future<AdjustOutput> Adjust(const Position &position) {
     ara::core::Promise<AdjustOutput> promise;
     auto future = promise.get_future();
-
+#if 0
+    promise.set_value(doAdjustInternal(position));
+#else
     // asynchronous call to internal adjust function in a new Thread
     std::thread th(
       [this](const Position &pos, ara::core::Promise<AdjustOutput> prom) {
@@ -49,7 +57,7 @@ public:
       },
       std::cref(position), std::move(promise));
     th.detach();
-
+#endif
     // we return a future, which might be set or not at this point...
     return future;
   }
@@ -69,6 +77,7 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer10ms;
 static Std_TimerType timer1s;
+static std::thread radarServiceThread;
 /* ================================ [ LOCALS    ] ============================================== */
 static void BrakeEventHandler(RadarServiceImpl &myRadarService) {
   static uint8_t num = 1;
@@ -129,22 +138,26 @@ static void RadarServiceMain(void) {
 
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
+#ifdef USE_SOMEIP
   TcpIp_Init(NULL);
   SoAd_Init(NULL);
   Sd_Init(NULL);
   SomeIp_Init(NULL);
-
+#endif
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer1s);
 
-  std::thread th = std::thread(RadarServiceMain);
+  radarServiceThread = std::thread(RadarServiceMain);
+
   for (;;) {
     if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
       Std_TimerStart(&timer10ms);
+#ifdef USE_SOMEIP
       TcpIp_MainFunction();
       SoAd_MainFunction();
       Sd_MainFunction();
       SomeIp_MainFunction();
+#endif
     }
 
     if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {

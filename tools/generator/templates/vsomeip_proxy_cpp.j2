@@ -1,0 +1,496 @@
+/**
+ * SSAS - Simple Smart Automotive Software
+ * Copyright (C) 2021-{{ now.year }} Parai Wang <parai@foxmail.com>
+ *
+ * Generated at {{ now.strftime("%c") }}
+ */
+
+#include "{{ service_name }}ProxyV.hpp"
+#include <thread>
+
+namespace ara {
+namespace com {
+namespace {{ service_name }} {
+
+using namespace ara::core;
+using namespace ara::com;
+
+/* ================================ [ CLASS     ] ============================================== */
+class {{ service_name }}Manager {
+public:
+  static {{ service_name }}Manager& GetInstance() {
+    static {{ service_name }}Manager instance;
+    return instance;
+  }
+
+  std::shared_ptr<vsomeip::application> GetApplication() {
+    return m_app;
+  }
+
+  void Init() {
+    // Additional initialization if needed
+  }
+
+  template<typename FieldType>
+  void RegisterField(FieldType *field, uint32_t getMethodId, uint32_t setMethodId) {
+    // Implementation if needed
+  }
+
+  template<typename MethodType>
+  void RegisterMethod(MethodType *method, uint32_t methodId) {
+    // Implementation if needed
+  }
+
+  Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>
+  FindService(InstanceSpecifier instanceSpec) {
+    Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>> rslt({});
+    auto app = GetApplication();
+    if ((false == m_isAvailable) && (false == m_appStarted)) {
+      app->register_availability_handler({{ service['service'] }}, {{ service['instance'] }},
+          std::bind(&{{ service_name }}Manager::OnAvailability, this,
+          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+      app->request_service({{ service['service'] }}, {{ service['instance'] }});
+      m_thread = std::thread(&{{ service_name }}Manager::ThreadMain, this);
+      m_appStarted = true;
+    }
+
+    if (true == m_isAvailable) {
+      ServiceHandleContainer<{{ service_name }}Proxy::HandleType> shc;
+      shc.push_back({{ service_name }}Proxy::HandleType());
+      rslt = Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>(shc);
+    }
+    return rslt;
+  }
+
+  void OnAvailability(vsomeip::service_t service, vsomeip::instance_t instance, bool isAvailable) {
+    m_isAvailable = isAvailable;
+  }
+
+private:
+  {{ service_name }}Manager() {
+    m_app = vsomeip::runtime::get()->create_application("{{service_name}}Proxy");
+    m_app->init();
+    // m_app->set_client({{ service['clientId'] }});
+  }
+  
+  ~{{ service_name }}Manager() {
+    if (m_app) {
+      m_app->stop();
+    }
+    if (m_thread.joinable()) {
+      m_thread.join();
+    }
+  }
+  
+  void ThreadMain() {
+    m_app->start();
+  }
+  
+  std::shared_ptr<vsomeip::application> m_app;
+  bool m_isAvailable = false;
+  bool m_appStarted = false;
+  std::thread m_thread;
+};
+
+/* ================================ [ EVENTS    ] ============================================== */
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
+events::{{ event['name'] }}::{{ event['name'] }}() {
+}
+
+events::{{ event['name'] }}::~{{ event['name'] }}() {
+}
+
+Result<void> events::{{ event['name'] }}::Subscribe(size_t maxSampleCount) {
+  if (false == m_isSubscribed) {
+    m_maxSampleCount = maxSampleCount;
+    m_lastNSamples.clear();
+
+    auto app = {{ service_name }}Manager::GetInstance().GetApplication();
+
+    std::set<vsomeip::eventgroup_t> event_groups;
+    event_groups.insert({{ eg['groupId'] }});
+
+    app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ eg['groupId'] }},
+            std::bind(&{{ event['name'] }}::OnSubscribeAck, this,
+            std::placeholders::_1, std::placeholders::_2,
+            std::placeholders::_3, std::placeholders::_4));
+    app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }},
+            std::bind(&{{ event['name'] }}::OnNotification, this, std::placeholders::_1));
+    app->request_event({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }},
+                        event_groups, vsomeip::event_type_e::ET_EVENT);
+
+    app->subscribe({{ service['service'] }}, {{ service['instance'] }}, {{ eg['groupId'] }});
+  }
+  return Result<void>(0);
+}
+
+SubscriptionState events::{{ event['name'] }}::GetSubscriptionState() const {
+  return m_isSubscribed ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed;
+}
+
+void events::{{ event['name'] }}::Unsubscribe() {
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  auto app = manager.GetApplication();
+
+  app->unsubscribe({{ service['service'] }}, {{ service['instance'] }}, {{ eg['groupId'] }});
+  app->unregister_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }});
+
+  app->release_event({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }});
+
+  m_isSubscribed = false;
+}
+
+size_t events::{{ event['name'] }}::GetFreeSampleCount() const noexcept {
+  return m_maxSampleCount - m_lastNSamples.size();
+}
+
+void events::{{ event['name'] }}::OnNotification(const std::shared_ptr<vsomeip::message> &msg) {
+  SamplePtr<SampleType> samplePtr(new SampleType);
+  int32_t serializedSize = {{ SomeIpXfDecode(event, allStructs, 'msg->get_payload()->get_data()', 'msg->get_payload()->get_length()', '(*samplePtr)') }};
+  if (serializedSize > 0) {
+    m_lastNSamples.push_back(std::move(samplePtr));
+    if (m_lastNSamples.size() > m_maxSampleCount) {
+      m_lastNSamples.pop_front();
+    }
+    if (nullptr != m_evtRxHandler) {
+      m_evtRxHandler();
+    }
+  }
+}
+
+bool events::{{ event['name'] }}::OnSubscribeAck(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
+  m_isSubscribed = isSubscribe;
+
+  if (m_stateChgHandler) {
+    m_stateChgHandler(isSubscribe ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
+  }
+
+  return true;
+}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+/* ================================ [ FIELDS    ] ============================================== */
+{% for field in service.get('fields', []) %}
+fields::{{ field['name'] }}::{{ field['name'] }}() {
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  {% if 'get' in field %}
+  manager.RegisterField(this, {{ field['get']['methodId'] }}, 0);
+  {% endif %}
+  {% if 'set' in field %}
+  manager.RegisterField(this, 0, {{ field['set']['methodId'] }});
+  {% endif %}
+}
+
+fields::{{ field['name'] }}::~{{ field['name'] }}() {
+}
+
+{% if 'event' in field %}
+Result<void> fields::{{ field['name'] }}::Subscribe(size_t maxSampleCount) {
+  if (false == m_isSubscribed) {
+    m_maxSampleCount = maxSampleCount;
+    m_lastNSamples.clear();
+
+    auto app = {{ service_name }}Manager::GetInstance().GetApplication();
+
+    std::set<vsomeip::eventgroup_t> event_groups;
+    event_groups.insert({{ field['event']['groupId'] }});
+
+    app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }},
+            std::bind(&{{ field['name'] }}::OnSubscribeAck, this,
+            std::placeholders::_1, std::placeholders::_2,
+            std::placeholders::_3, std::placeholders::_4));
+    app->request_event({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }},
+                        event_groups, vsomeip::event_type_e::ET_EVENT);
+
+    app->subscribe({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }});
+  }
+  return Result<void>(0);
+}
+
+size_t fields::{{ field['name'] }}::GetFreeSampleCount() const noexcept {
+  return m_maxSampleCount - m_lastNSamples.size();
+}
+
+SubscriptionState fields::{{ field['name'] }}::GetSubscriptionState() const {
+  return m_isSubscribed ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed;
+}
+
+void fields::{{ field['name'] }}::Unsubscribe() {
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  auto app = manager.GetApplication();
+
+  app->unsubscribe({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }});
+
+  app->release_event({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }});
+
+  m_isSubscribed = false;
+}
+
+Result<void> fields::{{ field['name'] }}::SetReceiveHandler(EventReceiveHandler handler) {
+  m_evtRxHandler = handler;
+  return Result<void>(0);
+}
+
+Result<void> fields::{{ field['name'] }}::UnsetReceiveHandler() {
+  m_evtRxHandler = nullptr;
+  return Result<void>(0);
+}
+
+Result<void> fields::{{ field['name'] }}::SetSubscriptionStateChangeHandler(SubscriptionStateChangeHandler handler) {
+  m_stateChgHandler = handler;
+  return Result<void>(0);
+}
+
+void fields::{{ field['name'] }}::UnsetSubscriptionStateChangeHandler() {
+  m_stateChgHandler = nullptr;
+}
+
+bool fields::{{ field['name'] }}::OnSubscribeAck(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
+  m_isSubscribed = isSubscribe;
+
+  if (m_stateChgHandler) {
+    m_stateChgHandler(isSubscribe ? SubscriptionState::kSubscribed : SubscriptionState::kNotSubscribed);
+  }
+
+  return true;
+}
+
+void fields::{{ field['name'] }}::OnNotification(const std::shared_ptr<vsomeip::message> &evt) {
+  int32_t serializedSize;
+  SamplePtr<FieldType> samplePtr(new FieldType);
+  serializedSize = {{ SomeIpXfDecode(field, allStructs, 'evt->get_payload()->get_data()', 'evt->get_payload()->get_length()', '(*samplePtr)') }};
+  if (serializedSize > 0) {
+    m_lastNSamples.push_back(std::move(samplePtr));
+    if (m_lastNSamples.size() > m_maxSampleCount) {
+      m_lastNSamples.pop_front();
+    }
+    if (nullptr != m_evtRxHandler) {
+      m_evtRxHandler();
+    }
+  }
+}
+{% endif %}
+
+{% if 'get' in field %}
+Future<fields::{{ field['name'] }}::FieldType> fields::{{ field['name'] }}::Get() {
+  auto promise = std::make_shared<Promise<FieldType>>();
+  m_promiseGet = promise;
+
+  // Create request
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  auto app = manager.GetApplication();
+
+  auto rtm = vsomeip::runtime::get();
+  std::shared_ptr<vsomeip::message> request = rtm->create_request();
+  request->set_service({{ service['service'] }});
+  request->set_instance({{ service['instance'] }});
+  request->set_method({{ field['get']['methodId'] }});
+
+  app->send(request);
+
+  return promise->get_future();
+}
+
+int fields::{{ field['name'] }}::OnGetResponse(const std::shared_ptr<vsomeip::message> &res) {
+  if (nullptr != m_promiseGet) {
+    int32_t serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->get_payload()->get_data()', 'res->get_payload()->get_length()', 'm_fieldGet') }};
+    if (serializedSize > 0) {
+      m_promiseGet->set_value(m_fieldGet);
+    } else {
+      m_promiseGet->SetError(-EINVAL);
+    }
+    m_promiseGet = nullptr;
+  }
+  return 0;
+}
+
+int fields::{{ field['name'] }}::OnGetError(int ercd) {
+  if (nullptr != m_promiseGet) {
+    m_promiseGet->SetError(ercd);
+    m_promiseGet = nullptr;
+  }
+  return 0;
+}
+{% endif %}
+
+{% if 'set' in field %}
+Future<fields::{{ field['name'] }}::FieldType> fields::{{ field['name'] }}::Set(const FieldType& value) {
+  auto promise = std::make_shared<Promise<FieldType>>();
+  m_promiseSet = promise;
+  m_fieldSet = value;
+
+  // Create request
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  auto app = manager.GetApplication();
+
+  auto rtm = vsomeip::runtime::get();
+  std::shared_ptr<vsomeip::message> request = rtm->create_request();
+  request->set_service({{ service['service'] }});
+  request->set_instance({{ service['instance'] }});
+  request->set_method({{ field['set']['methodId'] }});
+
+  // Encode value into payload
+  int32_t serializedSize;
+  std::vector<uint8_t> payload_data({{ GetTypePayloadSize(field, allStructs) }});
+  serializedSize = {{ SomeIpXfEncode(field, allStructs, 'payload_data.data()', 'payload_data.size()', 'value') }};
+  
+  if (serializedSize > 0) {
+    auto payload = rtm->create_payload();
+    payload->set_data(payload_data.data(), serializedSize);
+    request->set_payload(payload);
+    app->send(request);
+  } else {
+    m_promiseSet->SetError(-EINVAL);
+    m_promiseSet = nullptr;
+  }
+
+  return promise->get_future();
+}
+
+int fields::{{ field['name'] }}::OnSetResponse(const std::shared_ptr<vsomeip::message> &res) {
+  if (m_promiseSet && res && res->get_payload()) {
+    int32_t serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->get_payload()->get_data()', 'res->get_payload()->get_length()', 'm_fieldSet') }};
+    if (serializedSize > 0) {
+      m_promiseSet->set_value(m_fieldSet);
+    } else {
+      m_promiseSet->SetError(-EINVAL);
+    }
+    m_promiseSet = nullptr;
+  }
+  return 0;
+}
+
+int fields::{{ field['name'] }}::OnSetError(int ercd) {
+  if (m_promiseSet) {
+    m_promiseSet->SetError(ercd);
+    m_promiseSet = nullptr;
+  }
+  return 0;
+}
+{% endif %}
+{% endfor %}
+/* ================================ [ METHODS   ] ============================================== */
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+methods::{{ method['name'] }}::{{ method['name'] }}() {
+  auto& manager = {{ service_name }}Manager::GetInstance();
+  manager.RegisterMethod(this, {{ method['methodId'] }});
+}
+
+methods::{{ method['name'] }}::~{{ method['name'] }}() {
+}
+
+Future<methods::{{ method['name'] }}::{{ toMethodTypeName(method.get('return', 'void'), method) }}>
+  methods::{{ method['name'] }}::operator()({{ GetArgsList(method, cfg) }}) {
+  ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> future;
+  if (nullptr == m_promise) {
+    m_promise = std::make_shared<ara::core::Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}>>();
+    future = m_promise->get_future();
+    auto& manager = {{ service_name }}Manager::GetInstance();
+    auto app = manager.GetApplication();
+
+    auto rtm = vsomeip::runtime::get();
+    std::shared_ptr<vsomeip::message> request = rtm->create_request();
+    request->set_service({{ service['service'] }});
+    request->set_instance({{ service['instance'] }});
+    request->set_method({{ method['methodId'] }});
+
+    // Encode arguments into payload
+    int32_t offset = 0;
+    int32_t serializedSize;
+    std::vector<uint8_t> payload_data({{ GetMethodPayloadSize(method, cfg, allStructs) }});
+    
+    {% if 'args' in method %}
+    {% set args = GetArgs(cfg, method['args']) %}
+    {% for arg in args %}
+    if (offset >= 0 && (size_t)(offset) < payload_data.size()) {
+      serializedSize = {{ SomeIpXfEncode(arg, allStructs, 'payload_data.data() + offset', 'payload_data.size() - offset', arg['name']) }};
+      if (serializedSize > 0) {
+        offset += serializedSize;
+      } else {
+        offset = -1;
+      }
+    }
+    {% endfor %}
+    {% endif %}
+    
+    if (offset >= 0) {
+      auto payload = rtm->create_payload();
+      payload->set_data(payload_data.data(), offset);
+      request->set_payload(payload);
+      app->send(request);
+    } else {
+      m_promise->SetError(-EINVAL);
+      m_promise = nullptr;
+    }
+  } else {
+    Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}> promise;
+    future = promise.get_future();
+    promise.SetError(-EBUSY);
+  }
+
+  return future;
+}
+
+int methods::{{ method['name'] }}::OnError(int ercd) {
+  if (m_promise) {
+    m_promise->SetError(ercd);
+    m_promise = nullptr;
+  }
+  return 0;
+}
+
+int methods::{{ method['name'] }}::OnResponse(const std::shared_ptr<vsomeip::message> &res) {
+  if (m_promise) {
+    {% if method.get('return', 'void') != 'void' %}
+    if (res && res->get_payload()) {
+      int32_t serializedSize = {{ SomeIpXfDecode(method.get('return', 'void'), allStructs, 'res->get_payload()->get_data()', 'res->get_payload()->get_length()', 'm_' ~ toMethodTypeName(method.get('return', 'void'), method)) }};
+      if (serializedSize > 0) {
+        m_promise->set_value(m_{{ toMethodTypeName(method.get('return', 'void'), method) }});
+      } else {
+        m_promise->SetError(-EINVAL);
+      }
+    } else {
+      m_promise->SetError(-EINVAL);
+    }
+    {% else %}
+    m_promise->set_value();
+    {% endif %}
+    m_promise = nullptr;
+  }
+  return 0;
+}
+
+{% endif %}
+{% endfor %}
+
+/* ================================ [ PROXY     ] ============================================== */
+{{ service_name }}Proxy::HandleType::HandleType()
+  : m_serviceId({{ service['service'] }}),
+    m_instanceId({{ service['instance'] }}) {
+}
+
+{{ service_name }}Proxy::HandleType::~HandleType() {
+}
+
+bool {{ service_name }}Proxy::HandleType::operator==(const HandleType &other) const {
+  return m_serviceId == other.m_serviceId && m_instanceId == other.m_instanceId;
+}
+
+Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>
+{{ service_name }}Proxy::FindService(InstanceSpecifier instanceSpec) {
+  return {{ service_name }}Manager::GetInstance().FindService(instanceSpec);
+}
+
+{{ service_name }}Proxy::{{ service_name }}Proxy(HandleType &handle)
+  : m_handle(handle) {
+  {{ service_name }}Manager::GetInstance().Init();
+}
+
+} // namespace {{ service_name }}
+} // namespace com
+} // namespace ara

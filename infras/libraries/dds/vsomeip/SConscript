@@ -63,7 +63,7 @@ class LibraryVSomeIP(Library):
         ]
         self.Append(CPPDEFINES=["WITHOUT_SYSTEMD", "VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS"])
         if IsBuildForWindows():
-            self.Append(CPPDEFINES=["VSOMEIP_DLL_COMPILATION=1", "VSOMEIP_DLL_COMPILATION_PLUGIN=1"])
+            self.CPPDEFINES=["VSOMEIP_DLL_COMPILATION=1", "VSOMEIP_DLL_COMPILATION_PLUGIN=1"]
             self.Append(CXXFLAGS=["-std=c++17"])
             self.LIBS += ["ws2_32", "mswsock", "iphlpapi", "stdc++", "boost_filesystem-mt", "boost_thread-mt"]
         else:
@@ -125,7 +125,7 @@ class LibraryVSomeIP_E2E(Library):
         self.LIBS += ["vsomeip3"]
 
     def config(self):
-        self.source = objs
+        self.source = []
         self.download()
         self.Install("../prebuilt")
         self.Install("../someip")

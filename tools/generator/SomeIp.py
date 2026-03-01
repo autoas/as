@@ -7,6 +7,8 @@ from .SomeIp_Proxy import *
 from .SomeIp_Skeleton import *
 from .SomeIp_ProxyC import *
 from .SomeIp_SkeletonC import *
+from .VSomeIp_Proxy import *
+from .VSomeIp_Skeleton import *
 from .SomeIpXf import *
 import json
 
@@ -995,9 +997,11 @@ def Gen_SomeIp(cfg, dir):
     Gen_SOMEIP(cfg, dir, source)
     for service in cfg.get("servers", []):
         Gen_SomeIpSkeleton(cfg, service, dir, source)
+        Gen_VSomeIpSkeleton(cfg, service, dir, source)
         Gen_SomeIpSkeletonC(cfg, service, dir, source)
     for service in cfg.get("clients", []):
         Gen_SomeIpProxy(cfg, service, dir, source)
+        Gen_VSomeIpProxy(cfg, service, dir, source)
         Gen_SomeIpProxyC(cfg, service, dir, source)
     with open("%s/SomeIp.json" % (dir), "w") as f:
         json.dump(cfg, f, indent=2)

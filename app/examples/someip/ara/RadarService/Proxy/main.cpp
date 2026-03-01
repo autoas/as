@@ -3,6 +3,12 @@
  * Copyright (C) 2021-2024 Parai Wang <parai@foxmail.com>
  */
 /* ================================ [ INCLUDES  ] ============================================== */
+#ifdef USE_SOMEIP
+#include "RadarServiceProxy.hpp"
+#else
+#include "RadarServiceProxyV.hpp"
+#endif
+
 #include <string.h>
 #include "TcpIp.h"
 #include "SoAd.h"
@@ -19,7 +25,7 @@
 #include "Std_Debug.h"
 
 #include <thread>
-#include "RadarServiceProxy.hpp"
+#include <chrono>
 
 #include "Std_Debug.h"
 
@@ -35,6 +41,8 @@ static Std_TimerType timer10ms;
 static Std_TimerType timer1s;
 
 static std::unique_ptr<RadarServiceProxy> myRadarProxy;
+static std::thread radarServiceThread;
+static std::thread radarServiceMethodThread;
 /* ================================ [ LOCALS    ] ============================================== */
 void handleBrakeEventReception() {
   myRadarProxy->BrakeEvent.GetNewSamples([&](SamplePtr<events::BrakeEvent::SampleType> samplePtr) {
@@ -132,8 +140,7 @@ static void RadarServiceMethodMain(void) {
       if (rslt.HasValue()) {
         methods::Adjust::Output output = rslt.Value();
         ASLOG(RADAR, ("Adjust with: %s (%u, %u, %u)\n", output.success ? "success" : "fail",
-                      output.effective_position.x, output.effective_position.y,
-                      output.effective_position.z));
+                      output.effective_position.x, output.effective_position.y, output.effective_position.z));
       } else {
         ASLOG(RADAR, ("Adjust with error: %d\n", rslt.Error().Value()));
       }
@@ -174,23 +181,27 @@ static void RadarServiceMethodMainLoop(void) {
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
+#ifdef USE_SOMEIP
   TcpIp_Init(NULL);
   SoAd_Init(NULL);
   Sd_Init(NULL);
   SomeIp_Init(NULL);
-
+#endif
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer1s);
 
-  std::thread th = std::thread(RadarServiceMainLoop);
-  std::thread thm = std::thread(RadarServiceMethodMainLoop);
+  radarServiceThread = std::thread(RadarServiceMainLoop);
+  radarServiceMethodThread = std::thread(RadarServiceMethodMainLoop);
+
   for (;;) {
     if (Std_GetTimerElapsedTime(&timer10ms) >= 10000) {
       Std_TimerStart(&timer10ms);
+#ifdef USE_SOMEIP
       TcpIp_MainFunction();
       SoAd_MainFunction();
       Sd_MainFunction();
       SomeIp_MainFunction();
+#endif
     }
 
     if (Std_GetTimerElapsedTime(&timer1s) >= 1000000) {

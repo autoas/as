@@ -2144,11 +2144,11 @@ class BuildBase:
             if type(x) is list:
                 for x1 in x:
                     if x1 not in newL:
-                        if x1 not in __libraries__:
+                        if x1 not in __libraries__ or getattr(__libraries__[x1], "shared", False):
                             newL.append(x1)
             else:
                 if x not in newL:
-                    if x not in __libraries__:
+                    if x not in __libraries__ or getattr(__libraries__[x], "shared", False):
                         newL.append(x)
         return newL
 
@@ -2203,7 +2203,7 @@ class Library(BuildBase):
     def objs(self):
         libName = self.name
         if getattr(self, "prebuilt_shared", False):
-            aslog("prebuilt shared of %s" % (libName))
+            aslog("prebuilt shared of %s: %s" % (libName, self.source))
             return self.source
         aslog("build objs of %s" % (libName))
         env = self.ensure_env()
@@ -2312,7 +2312,7 @@ class Library(BuildBase):
                     objs2.append(obj)
             LIBS += list(env.get("LIBS", [])) + self.__extra_libs__
             LIBS = self.sortL(LIBS)
-            aslog("build shared library %s" % (libName))
+            aslog("build shared library %s: LIBS=%s" % (libName, LIBS))
             target = env.SharedLibrary(libName, objs2, LIBPATH=LIBPATH, LIBS=LIBS, LINKFLAGS=LINKFLAGS)
         else:
             aslog("build static library %s" % (libName))
