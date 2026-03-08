@@ -10,6 +10,8 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <vsomeip/vsomeip.hpp>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "ara/com/skeleton/skeleton_base.h"
 #include "SomeIpXf_Cfg.h"
 namespace ara {
@@ -38,6 +40,10 @@ public:
   ara::core::Result<void> Send(ara::com::SampleAllocateePtr<SampleType> data);
 
   ara::com::SubscriptionState GetSubscriptionState () const noexcept;
+
+public:
+  /* stack internal use only public APIs */
+  bool OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
 
 private:
   uint8_t m_payload[20 + {{ event | getTypePayloadSize(allStructs) }}];
@@ -71,17 +77,20 @@ public:
   /* stack internal use only public APIs */
   ara::com::ComErrc Validate();
 {% if 'get' in field %}
-  int OnGetRequest(const std::shared_ptr<vsomeip::message> &req, const std::shared_ptr<vsomeip::message> &res);
+  void OnGetRequest(const std::shared_ptr<vsomeip::message> &msg);
 {% endif %}
 
 {% if 'set' in field %}
-  int OnSetRequest(const std::shared_ptr<vsomeip::message> &req, const std::shared_ptr<vsomeip::message> &res);
+  void OnSetRequest(const std::shared_ptr<vsomeip::message> &msg);
+{% endif %}
+
+{% if 'event' in field %}
+  bool OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
 {% endif %}
 
 private:
 {% if 'get' in field %}
   std::function<ara::core::Future<FieldType>()> m_getHandler = nullptr;
-  ara::core::Future<FieldType> m_futureGet;
   FieldType m_fieldGet;
   uint8_t m_responseGet[{{ field | getTypePayloadSize(allStructs) }}];
 {% endif %}
@@ -89,7 +98,6 @@ private:
 
 {% if 'set' in field %}
   std::function<ara::core::Future<FieldType>(const FieldType& data)> m_setHandler = nullptr;
-  ara::core::Future<FieldType> m_futureSet;
   FieldType m_fieldSet;
   uint8_t m_responseSet[{{ field | getTypePayloadSize(allStructs) }}];
 {% endif %}
@@ -197,16 +205,23 @@ public:
 {% endfor %}
 
 private:
-  void OnMessage(const std::shared_ptr<vsomeip::message> &msg);
-  bool OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
   void ThreadMain();
+  void OnState(vsomeip::state_type_e _state);
+
+  // Dedicated message handlers for each method
+  {% for method in service.get('methods', []) %}
+  {% if 'for' not in method %}
+  void On{{ method['name'] }}Request(const std::shared_ptr<vsomeip::message> &msg);
+  {% endif %}
+  {% endfor %}
+
 private:
   ara::com::MethodCallProcessingMode m_mode;
   std::shared_ptr<vsomeip::application> m_app;
-  uint32_t m_serviceId;
-  uint32_t m_instanceId;
   std::thread m_thread;
   bool m_serviceOffered;
+  std::mutex m_mutex;
+  std::condition_variable m_condition;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

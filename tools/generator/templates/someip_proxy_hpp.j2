@@ -13,6 +13,10 @@
 #include "ara/com/proxy/proxy_base.h"
 #include "SomeIpXf_Cfg.h"
 #include "SomeIp.h"
+#ifdef USE_E2E
+#include "E2E.h"
+#include "E2E_Cfg.h"
+#endif
 namespace ara {
 namespace com {
 namespace {{ service_name }} {
@@ -193,22 +197,22 @@ private:
   ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
   ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
   size_t m_maxSampleCount = 1;
-  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'event', 'RX') }}];
 {% endif %}
 
 {% if 'get' in field %}
   std::shared_ptr<ara::core::Promise<FieldType>> m_promiseGet = nullptr;
 {% if field.get('tp', False) %}
-  uint8_t m_responseGet[{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_responseGet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'get', 'RX') }}];
 {% endif %}
   FieldType m_fieldGet;
 {% endif %}
 
 {% if 'set' in field %}
   std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;
-  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'set', 'TX') }}];
 {% if field.get('tp', False) %}
-  uint8_t m_responseSet[{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_responseSet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'set', 'RX') }}];
   bool m_requestSetInUse = false;
 {% endif %}
   FieldType m_fieldSet;
@@ -255,13 +259,13 @@ private:
 
 private:
   std::shared_ptr<ara::core::Promise<{{ ReturnType }}>> m_promise = nullptr;
-  uint8_t m_request[20 + {{ GetMethodPayloadSize(method, cfg, allStructs) }}];
+  uint8_t m_request[20 + {{ GetMethodPayloadSize(method, cfg, allStructs) }} + {{ GetE2EOverhead(method, 'TX') }}];
 {% if ReturnType != 'void' %}
   {{ toMethodTypeName(ReturnType, method) }} m_{{ toMethodTypeName(ReturnType, method) }};
 {% endif %}
 {% if method.get('tp', False) %}
 {% if ReturnType != 'void' %}
-  uint8_t m_response[{{ GetTypePayloadSize(ReturnType, allStructs) }}];
+  uint8_t m_response[{{ GetTypePayloadSize(ReturnType, allStructs) }} + {{ GetE2EOverhead(method, 'RX') }}];
 {% endif %}
   bool m_requestInUse = false;
 {% endif %}

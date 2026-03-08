@@ -14,6 +14,10 @@
 #include "Sd.h"
 #include "SomeIp_Cfg.h"
 #include "Sd_Cfg.h"
+#ifdef USE_E2E
+#include "E2E.h"
+#include "E2E_Cfg.h"
+#endif
 namespace ara {
 namespace com {
 namespace {{ service_name }} {
@@ -524,8 +528,19 @@ ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Get() {
 Std_ReturnType {{ field['name'] }}::OnGetResponse(uint32_t requestId, SomeIp_MessageType* res) {
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
+  
+  {% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+  /* Check E2E protection */
+  ret = E2E_P{{ field['get']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['get']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_GET_RX, res->data, res->length);
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+  {% endif %}
   if (nullptr != m_promiseGet) {
+    {% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+    int32_t e2eOffset = {{ GetE2EOffset(field, 'get', 'RX') }};
+    serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_fieldGet') }};
+    {% else %}
     serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 'm_fieldGet') }};
+    {% endif %}
     if (serializedSize > 0) {
       m_promiseGet->set_value(m_fieldGet);
     } else {
@@ -536,6 +551,15 @@ Std_ReturnType {{ field['name'] }}::OnGetResponse(uint32_t requestId, SomeIp_Mes
   } else {
     ret = E_NOT_OK;
   }
+  {% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Get{{ field['name'] }}, ercd=0x%x\n", ret));
+    if (nullptr != m_promiseGet) {
+      m_promiseGet->SetError(ret);
+      m_promiseGet = nullptr;
+    }
+  }
+  {% endif %}
   return ret;
 }
 
@@ -582,10 +606,23 @@ ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Set(const
   if ((nullptr == m_promiseSet){% if field.get('tp', False) %} && (false == m_requestSetInUse){% endif %}) {
     m_promiseSet = std::make_shared<Promise<FieldType>>();
     future = m_promiseSet->get_future();
-    serializedSize = {{ SomeIpXfEncode(field, allStructs, '&m_requestSet[20]', 'sizeof(m_requestSet)-20', 'value') }};
+    int32_t encodeOffset = 20;
+    {% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] and field['set']['E2E-TX'].get('Offset', 0) == 0 %}
+    encodeOffset += {{ GetE2EOverhead(field, 'TX', 'set') }};
+    {% endif %}
+    serializedSize = {{ SomeIpXfEncode(field, allStructs, '&m_requestSet[encodeOffset]', 'sizeof(m_requestSet)-encodeOffset', 'value') }};
     if (serializedSize > 0) {
+      Std_ReturnType ret = E_OK;
+      {% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+      /* Apply E2E protection */
+      ret = E2E_P{{ field['set']['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ field['set']['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_SET_TX, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
+      if (E_OK == ret) {
+      {% endif %}
       uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_SET_{{ toMacro(field['name']) }} << 16) + 0;
-      Std_ReturnType ret = SomeIp_Request(requestId, &m_requestSet[20], serializedSize);
+      ret = SomeIp_Request(requestId, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
+      {% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+      }
+      {% endif %}
       if (E_OK != ret) {
         m_promiseSet->SetError(ret);
         m_promiseSet = nullptr;
@@ -611,8 +648,19 @@ ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Set(const
 Std_ReturnType {{ field['name'] }}::OnSetResponse(uint32_t requestId, SomeIp_MessageType* res) {
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
+  
+  {% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+  /* Check E2E protection */
+  ret = E2E_P{{ field['set']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['set']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_SET_RX, res->data, res->length);
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+  {% endif %}
   if (nullptr != m_promiseSet) {
+    {% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] and field['set']['E2E-RX'].get('Offset', 0) == 0 %}
+    int32_t e2eOffset = {{ GetE2EOffset(field, 'set', 'RX') }};
+    serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_fieldSet') }};
+    {% else %}
     serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data', 'res->length', 'm_fieldSet') }};
+    {% endif %}
     if (serializedSize > 0) {
       m_promiseSet->set_value(m_fieldSet);
     } else {
@@ -626,6 +674,15 @@ Std_ReturnType {{ field['name'] }}::OnSetResponse(uint32_t requestId, SomeIp_Mes
   } else {
     ret = E_NOT_OK;
   }
+  {% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Set{{ field['name'] }}, ercd=0x%x\n", ret));
+    if (nullptr != m_promiseSet) {
+      m_promiseSet->SetError(ret);
+      m_promiseSet = nullptr;
+    }
+  }
+  {% endif %}
   return ret;
 }
 
@@ -731,8 +788,20 @@ void {{ field['name'] }}::UnsetSubscriptionStateChangeHandler() {
 
 void {{ field['name'] }}::OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
   int32_t serializedSize;
+  Std_ReturnType ret = E_OK;
+  
+  {% if field.get('event', {}).get('useE2E', false) and 'E2E-RX' in field['event'] %}
+  /* Check E2E protection */
+  ret = E2E_P{{ field['event']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['event']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_EVENT_RX, evt->data, evt->length);
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+  {% endif %}
   SamplePtr<FieldType> samplePtr(new FieldType);
+  {% if field.get('event', {}).get('useE2E', false) and 'E2E-RX' in field['event'] and field['event']['E2E-RX'].get('Offset', 0) == 0 %}
+  int32_t e2eOffset = {{ GetE2EOverhead(field, 'RX', 'event') }};
+  serializedSize = {{ SomeIpXfDecode(field, allStructs, 'evt->data + e2eOffset', 'evt->length - e2eOffset', '(*samplePtr)') }};
+  {% else %}
   serializedSize = {{ SomeIpXfDecode(field, allStructs, 'evt->data', 'evt->length', '(*samplePtr)') }};
+  {% endif %}
   if (serializedSize > 0) {
     m_lastNSamples.push_back(std::move(samplePtr));
     if (m_lastNSamples.size() > m_maxSampleCount) {
@@ -742,6 +811,11 @@ void {{ field['name'] }}::OnNotification(uint32_t requestId, SomeIp_MessageType*
       m_evtRxHandler();
     }
   }
+  {% if field.get('event', {}).get('useE2E', false) and 'E2E-RX' in field['event'] %}
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ field['name'] }} event, ercd=0x%x\n", ret));
+  }
+  {% endif %}
 }
 
 {% if field.get('tp', False) %}
@@ -816,11 +890,15 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
     m_promise = std::make_shared<ara::core::Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}>>();
     future = m_promise->get_future();
     uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
+    int32_t encodeOffset = 20;
+    {% if method.get('useE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
+    encodeOffset += {{ GetE2EOverhead(method, 'TX') }};
+    {% endif %}
 {% if 'args' in method %}
 {% set args = GetArgs(cfg, method['args']) %}
 {% for arg in args %}
-    if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + 20))) {
-      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + 20]', 'sizeof(m_request) - offset - 20', arg['name']) }};
+    if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + encodeOffset))) {
+      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['name']) }};
       if (serializedSize > 0) {
         offset += serializedSize;
       } else {
@@ -830,7 +908,16 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
 {% endfor %}
 {% endif %}
     if (offset >= 0) {
-      Std_ReturnType ret = SomeIp_Request(requestId, &m_request[20], offset);
+      Std_ReturnType ret = E_OK;
+      {% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      /* Apply E2E protection */
+      ret = E2E_P{{ method['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      if (E_OK == ret) {
+      {% endif %}
+      ret = SomeIp_Request(requestId, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      {% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      }
+      {% endif %}
       if (E_OK != ret) {
         m_promise->SetError(ret);
         m_promise = nullptr;
@@ -860,11 +947,15 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
     m_promise = std::make_shared<ara::core::Promise<{{ method.get('return', 'void') }}>>();
     future = m_promise->get_future();
     uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
+    int32_t encodeOffset = 20;
+    {% if method.get('useE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
+    encodeOffset += {{ GetE2EOverhead(method, 'TX') }};
+    {% endif %}
 {% if 'args' in method %}
 {% set args = GetArgs(cfg, method['args']) %}
 {% for arg in args %}
-    if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + 20))) {
-      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + 20]', 'sizeof(m_request) - offset - 20', arg['name']) }};
+    if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + encodeOffset))) {
+      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['name']) }};
       if (serializedSize > 0) {
         offset += serializedSize;
       } else {
@@ -874,7 +965,16 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
 {% endfor %}
 {% endif %}
     if (offset >= 0) {
-      Std_ReturnType ret = SomeIp_Request(requestId, &m_request[20], offset);
+      Std_ReturnType ret = E_OK;
+      {% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      /* Apply E2E protection */
+      ret = E2E_P{{ method['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      if (E_OK == ret) {
+      {% endif %}
+      ret = SomeIp_Request(requestId, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      {% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      }
+      {% endif %}
       if (E_OK != ret) {
         m_promise->SetError(ret);
         m_promise = nullptr;
@@ -913,10 +1013,23 @@ Std_ReturnType {{ method['name'] }}::OnError(uint32_t requestId, Std_ReturnType 
 
 Std_ReturnType {{ method['name'] }}::OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
   Std_ReturnType ret = E_OK;
+  
+  {% if method.get('useE2E', false) and 'E2E-RX' in method %}
+  /* Check E2E protection */
+  ret = E2E_P{{ method['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ method['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_RX, res->data, res->length);
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+  {% endif %}
   if (nullptr != m_promise) {
     {% if method.get('return', 'void') != 'void' %}
-    int32_t serializedSize =
+    int32_t serializedSize;
+    {% if method.get('useE2E', false) and 'E2E-RX' in method and method['E2E-RX'].get('Offset', 0) == 0 %}
+    int32_t e2eOffset = {{ GetE2EOverhead(method, 'RX') }};
+    serializedSize =
+      {{ SomeIpXfDecode(method.get('return', 'void'), allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_' ~ toMethodTypeName(method.get('return', 'void'), method)) }};
+    {% else %}
+    serializedSize =
       {{ SomeIpXfDecode(method.get('return', 'void'), allStructs, 'res->data', 'res->length', 'm_' ~ toMethodTypeName(method.get('return', 'void'), method)) }};
+    {% endif %}
     if (serializedSize > 0) {
       m_promise->set_value(m_{{ toMethodTypeName(method.get('return', 'void'), method) }});
     } else {
@@ -932,6 +1045,15 @@ Std_ReturnType {{ method['name'] }}::OnResponse(uint32_t requestId, SomeIp_Messa
   } else {
     ASLOG({{ toMacro(service_name) }}_E, ("no promise for {{ method['name'] }} response\n"));
   }
+  {% if method.get('useE2E', false) and 'E2E-RX' in method %}
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ method['name'] }}, ercd=0x%x\n", ret));
+    if (nullptr != m_promise) {
+      m_promise->SetError(ret);
+      m_promise = nullptr;
+    }
+  }
+  {% endif %}
 
   return ret;
 }
@@ -1027,14 +1149,26 @@ Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_On
         ("{{ event['name'] }} OnNotification %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
          evt->length, evt->data[0], evt->data[1], evt->data[2], evt->data[3]));
 
+  int32_t e2eOffset = 0;
+  {% if event.get('useE2E', false) and 'E2E-RX' in event %}
+  /* Check E2E protection */
+  ret = E2E_P{{ event['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ event['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }}_{{ toMacro(event['name']) }}_RX, evt->data, evt->length);
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+    e2eOffset = {{ GetE2EOffset(event, 'RX') }};
+  {% endif %}
   serializedSize =
-    {{ SomeIpXfDecode(event, allStructs, 'evt->data', 'evt->length', 'sample') }};
+    {{ SomeIpXfDecode(event, allStructs, 'evt->data + e2eOffset', 'evt->length - e2eOffset', 'sample') }};
   if (serializedSize > 0) {
     {{ service_name }}Manager::GetInstance()->On{{ event['name'] }}(sample);
   } else {
       ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ event['name'] }}\n"));
       ret = E_NOT_OK;
     }
+  {% if event.get('useE2E', false) and 'E2E-RX' in event %}
+  } else {
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ event['name'] }}, ercd=0x%x\n", ret));
+  }
+  {% endif %}
 
   return ret;
 }

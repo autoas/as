@@ -713,6 +713,7 @@
   {
     "title": "Com", "type": "object",
     "properties": {
+      "E2E": { "type": "string", "description": "Path to E2E configuration file" },
       "nodes": { "type": "array", "items": { "type": "string", "title": "node" } },
       "group_signals": { "type": "array", "items": { "type": "string", "title": "group_signal" } },
       "networks": {
@@ -735,10 +736,20 @@
             "enable_message_rx_timeout_notificaiton": { "type": "bool", "default": false },
             "enable_signal_rx_timeout_notification": { "type": "bool", "default": false },
             "enable_message_tx_callout": { "type": "bool", "default": false },
+            "enable_message_rx_callout": { "type": "bool", "default": false },
             "trigger": {
               "type": "array", "items": {
                 "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU only to be trigger transmit"
               }, "enabled": "'${../use_dbc}' == 'True'"
+            },
+            "E2E": {
+              "type": "array", "items": {
+                "type": "object", "title": "E2E",
+                "properties": {
+                  "name": { "type": "string", "description": "Message name" },
+                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"], "description": "E2E profile type" }
+                }
+              }
             },
             "messages": {
               "type": "array", "items": {
@@ -754,6 +765,7 @@
                   "RxNotification": { "type": "string", "default": "NULL", "enabled": "'${node}' != '${../../me}'"},
                   "RxTOut": { "type": "string", "default": "NULL", "enabled": "'${node}' != '${../../me}'"},
                   "TxIpduCallout": { "type": "string", "default": "NULL", "enabled": "'${node}' == '${../../me}'"},
+                  "RxIpduCallout": { "type": "string", "default": "NULL", "enabled": "'${node}' != '${../../me}'"},
                   "signals": {
                     "type": "array", "items": {
                       "type": "object", "title": "signal",
@@ -763,10 +775,16 @@
                         "size": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
                         "endian": { "type": "string", "default": "big", "enum": ["big", "little"] },
                         "sign": { "type": "string", "default": "+", "enum": ["+", "-"] },
-                        "is_group": { "type": "bool", "default": false },
+                        "isGroup": { "type": "bool", "default": false },
                         "dyn": { "type": "bool", "default": false, "description": "is this a dynamic length signal, and dynamic signal must be the last signal of the message" },
-                        "group": { "type": "string", "enumref": "/Com/group_signals", "enabled": "'${is_group}' == 'True'"},
+                        "group": { "type": "string", "editable": true, "enumref": "/Com/group_signals", "enabled": "'${isGroup}' == 'False'"},
                         "InitialValue": { "type": "string", "default":"0", "description": "example: '0' for basic type, '[0, 1, 2]' for array" },
+                        "factor": { "type": "number", "default": 1 },
+                        "offset": { "type": "number", "default": 0 },
+                        "min": { "type": "number", "default": 0 },
+                        "max": { "type": "number", "default": 0 },
+                        "unit": { "type": "string", "default": "\"\"" },
+                        "node": { "type": "array", "items": { "type": "string", "title": "node" } },
                         "RxNotification": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}'"},
                         "RxTOut": { "type": "string", "default": "NULL", "enabled": "'${../../node}' != '${../../../../me}'"},
                         "FirstTimeout": { "type": "integer", "default": 0, "enabled": "'${../../node}' != '${../../../../me}'"},
@@ -853,6 +871,7 @@
               }
             },
             "SomeIp": {
+              "EnableZeroCopy": { "type": "bool", "default": false },
               "SD": {
                 "type": "object", "title": "SD",
                 "properties": {
@@ -874,7 +893,7 @@
                                 "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64",
                                 "uint8_n", "uint16_n", "uint32_n", "uint64_n","int8_n", "int16_n", "int32_n", "int64_n"], "default": "uint32"},
                           "variable_array": { "type": "bool", "default": false, "enabled": "'${type}' != 'string' or '${type}'[-2:] == '_n'"},
-                          "size":  { "type": "integer", "default": 1, "enabled": "'${type}'[-2:] == '_n' or '${type}' == 'string'" }
+                          "size":  { "type": "integer", "default": 1, "enabled": "'${type}'[-2:] == '_n' or '${type}' == 'string' or '${variable_array}' == 'True'" }
                         }
                       }
                     }
@@ -912,9 +931,42 @@
                         "properties": {
                           "name": { "type": "string" },
                           "args": { "type": "string", "enumref": "../../../../args:name" },
+                          "return": { "type": "string", "editable": true, "enumref": "../../../../structs:name" },
                           "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
                           "tp": { "type": "bool", "default": false },
-                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 },
+                          "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this method" },
+                          "E2E-RX": {
+                            "type": "object",
+                            "title": "E2E RX",
+                            "enabled": "'${../useE2E}' == 'True'",
+                            "properties": {
+                              "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                              "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                              "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                              "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                              "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                              "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                              "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                            }
+                          },
+                          "E2E-TX": {
+                            "type": "object",
+                            "title": "E2E TX",
+                            "enabled": "'${../useE2E}' == 'True'",
+                            "properties": {
+                              "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                              "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                              "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                              "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                              "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                              "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                            }
+                          }
                         }
                       }
                     },
@@ -936,14 +988,149 @@
                                 "type": "object", "title": "event",
                                 "properties": {
                                   "name": { "type": "string" },
-                                  "args": { "type": "string", "enumref": "../../../../../../args:name" },
+                                  "type": { "type": "string", "editable": true, "enumref": "../../../../../../structs:name" },
                                   "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
                                   "tp": { "type": "bool", "default": false },
-                                  "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                                  "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 },
+                                  "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this event" },
+                                  "E2E-TX": {
+                                    "type": "object",
+                                    "title": "E2E TX",
+                                    "enabled": "'${../useE2E}' == 'True'",
+                                    "properties": {
+                                      "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                      "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                      "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                      "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                      "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                      "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                      "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                      "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                                    }
+                                  }
                                 }
                               }
                             }
                           }
+                        }
+                      }
+                    },
+                    "fields": {
+                      "type": "array", "items": {
+                        "type": "object", "title": "field",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "type": { "type": "string", "editable": true, "enumref": "../../../../structs:name" },
+                          "get": {
+                            "type": "object", "title": "get",
+                            "properties": {
+                              "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this operation" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              },
+                              "E2E-TX": {
+                                "type": "object",
+                                "title": "E2E TX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                                }
+                              }
+                            }
+                          },
+                          "set": {
+                            "type": "object", "title": "set",
+                            "properties": {
+                              "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this operation" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              },
+                              "E2E-TX": {
+                                "type": "object",
+                                "title": "E2E TX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                                }
+                              }
+                            }
+                          },
+                          "event": {
+                            "type": "object", "title": "event",
+                            "properties": {
+                              "groupName": { "type": "string" },
+                              "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "group_enable_multicast": { "type": "bool", "default": false },
+                              "multicast": { "type": "object", "title": "multicast", "enabled": "'${../group_enable_multicast}' == 'True'",
+                                "properties": {
+                                  "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 },
+                                  "addr": { "type": "string", "default": "224.244.224.245:30561" }
+                                }
+                              },
+                              "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this event" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              }
+                            }
+                          },
+                          "tp": { "type": "bool", "default": false },
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
                         }
                       }
                     }
@@ -966,9 +1153,42 @@
                         "properties": {
                           "name": { "type": "string" },
                           "args": { "type": "string", "enumref": "../../../../args:name" },
+                          "return": { "type": "string", "editable": true, "enumref": "../../../../structs:name" },
                           "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
                           "tp": { "type": "bool", "default": false },
-                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 },
+                          "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this method" },
+                          "E2E-RX": {
+                            "type": "object",
+                            "title": "E2E RX",
+                            "enabled": "'${../useE2E}' == 'True'",
+                            "properties": {
+                              "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                              "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                              "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                              "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                              "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                              "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                              "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                            }
+                          },
+                          "E2E-TX": {
+                            "type": "object",
+                            "title": "E2E TX",
+                            "enabled": "'${../useE2E}' == 'True'",
+                            "properties": {
+                              "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                              "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                              "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                              "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                              "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                              "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                              "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                            }
+                          }
                         }
                       }
                     },
@@ -981,20 +1201,157 @@
                             "enable_multicast": { "type": "bool", "default": false },
                             "multicast": { "type": "object", "title": "multicast", "enabled": "'${../enable_multicast}' == 'True'",
                               "properties": {
-                                "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 }
+                                "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 },
+                                "addr": { "type": "string", "default": "224.244.224.245:30561" }
                               }
                             },
                             "events":  { "type": "array", "items": {
                               "type": "object", "title": "event",
                               "properties": {
                                 "name": { "type": "string" },
-                                "args": { "type": "string", "enumref": "../../../../../../args:name" },
+                                "type": { "type": "string", "editable": true, "enumref": "../../../../../../structs:name" },
                                 "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
                                 "tp": { "type": "bool", "default": true },
-                                "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
+                                "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 },
+                                "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this event" },
+                                "E2E-RX": {
+                                  "type": "object",
+                                  "title": "E2E RX",
+                                  "enabled": "'${../useE2E}' == 'True'",
+                                  "properties": {
+                                    "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                    "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                    "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                    "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                    "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                    "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                    "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                    "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                    "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                  }
+                                }
                               }
                             }
                           }
+                        }
+                      }
+                    },
+                    "fields": {
+                      "type": "array", "items": {
+                        "type": "object", "title": "field",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "type": { "type": "string", "editable": true, "enumref": "../../../../structs:name" },
+                          "get": {
+                            "type": "object", "title": "get",
+                            "properties": {
+                              "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this operation" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              },
+                              "E2E-TX": {
+                                "type": "object",
+                                "title": "E2E TX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                                }
+                              }
+                            }
+                          },
+                          "set": {
+                            "type": "object", "title": "set",
+                            "properties": {
+                              "methodId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this operation" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              },
+                              "E2E-TX": {
+                                "type": "object",
+                                "title": "E2E TX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" }
+                                }
+                              }
+                            }
+                          },
+                          "event": {
+                            "type": "object", "title": "event",
+                            "properties": {
+                              "groupName": { "type": "string" },
+                              "groupId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "group_enable_multicast": { "type": "bool", "default": false },
+                              "multicast": { "type": "object", "title": "multicast", "enabled": "'${../group_enable_multicast}' == 'True'",
+                                "properties": {
+                                  "threshold": { "type": "integer", "format": "dec", "default": 1, "minimum": 0, "maximum": 2 },
+                                  "addr": { "type": "string", "default": "224.244.224.245:30561" }
+                                }
+                              },
+                              "eventId": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 65535 },
+                              "useE2E": { "type": "bool", "default": false, "description": "Enable E2E protection for this event" },
+                              "E2E-RX": {
+                                "type": "object",
+                                "title": "E2E RX",
+                                "enabled": "'${../useE2E}' == 'True'",
+                                "properties": {
+                                  "profile": { "type": "string", "enum": ["P11", "P22", "P44", "P05"] },
+                                  "DataID": { "type": "integer", "format": "hex", "enabled": "'${profile}' == 'P11' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE", "enabled": "'${profile}' == 'P11'" },
+                                  "CRCOffset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P11'" },
+                                  "CounterOffset": { "type": "integer", "default": 8, "enabled": "'${profile}' == 'P11'" },
+                                  "DataIDNibbleOffset": { "type": "integer", "default": 12, "enabled": "'${profile}' == 'P11'" },
+                                  "Offset": { "type": "integer", "default": 0, "enabled": "'${profile}' == 'P22' or '${profile}' == 'P44' or '${profile}' == 'P05'" },
+                                  "DataIDList": { "type": "string", "enabled": "'${profile}' == 'P22'" },
+                                  "MaxDeltaCounter": { "type": "integer", "default": 1 }
+                                }
+                              }
+                            }
+                          },
+                          "tp": { "type": "bool", "default": false },
+                          "version": { "type": "integer", "format": "hex", "minimum": 0, "maximum": 255 }
                         }
                       }
                     }
@@ -1020,6 +1377,102 @@
                 }
               }
             }
+          }
+        }
+      }
+    }
+  },
+  {
+    "title" : "E2E", "type": "object",
+    "properties": {
+      "UsePostBuildConfig": { "type": "bool", "default": false },
+      "ProtectP11": {
+        "type": "array", "items": {
+          "type": "object", "title": "ProtectP11",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE" },
+            "CRCOffset": { "type": "integer", "default": 0 },
+            "CounterOffset": { "type": "integer", "default": 8 },
+            "DataIDNibbleOffset": { "type": "integer", "default": 12 }
+          }
+        }
+      },
+      "ProtectP22": {
+        "type": "array", "items": {
+          "type": "object", "title": "ProtectP22",
+          "properties": {
+            "name": { "type": "string" },
+            "DataIDList": { "type": "string" },
+            "Offset": { "type": "integer", "default": 0 }
+          }
+        }
+      },
+      "ProtectP44": {
+        "type": "array", "items": {
+          "type": "object", "title": "ProtectP44",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "Offset": { "type": "integer", "default": 0 }
+          }
+        }
+      },
+      "ProtectP05": {
+        "type": "array", "items": {
+          "type": "object", "title": "ProtectP05",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "Offset": { "type": "integer", "default": 0 }
+          }
+        }
+      },
+      "CheckP11": {
+        "type": "array", "items": {
+          "type": "object", "title": "CheckP11",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "DataIDMode": { "type": "string", "enum": ["BOTH", "NIBBLE", "ALT", "LOW"], "default": "NIBBLE" },
+            "CRCOffset": { "type": "integer", "default": 0 },
+            "CounterOffset": { "type": "integer", "default": 8 },
+            "DataIDNibbleOffset": { "type": "integer", "default": 12 },
+            "MaxDeltaCounter": { "type": "integer", "default": 1 }
+          }
+        }
+      },
+      "CheckP22": {
+        "type": "array", "items": {
+          "type": "object", "title": "CheckP22",
+          "properties": {
+            "name": { "type": "string" },
+            "DataIDList": { "type": "string" },
+            "Offset": { "type": "integer", "default": 0 },
+            "MaxDeltaCounter": { "type": "integer", "default": 1 }
+          }
+        }
+      },
+      "CheckP44": {
+        "type": "array", "items": {
+          "type": "object", "title": "CheckP44",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "Offset": { "type": "integer", "default": 0 },
+            "MaxDeltaCounter": { "type": "integer", "default": 1 }
+          }
+        }
+      },
+      "CheckP05": {
+        "type": "array", "items": {
+          "type": "object", "title": "CheckP05",
+          "properties": {
+            "name": { "type": "string" },
+            "DataID": { "type": "integer", "format": "hex" },
+            "Offset": { "type": "integer", "default": 0 },
+            "MaxDeltaCounter": { "type": "integer", "default": 1 }
           }
         }
       }

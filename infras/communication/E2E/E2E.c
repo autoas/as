@@ -239,6 +239,12 @@ Std_ReturnType E2E_P11Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   DET_VALIDATE((NULL != data) && (length > 2u), 0x12, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->CheckP11Configs[profileId];
 
+  ASHEXDUMP(E2E,
+            ("[%u]: P11 crc=0x%x DataId=0x%x Mode=%u Counter=%u", profileId,
+             data[config->P11.CRCOffset >> 3], config->P11.DataID, config->P11.DataIDMode,
+             config->context->Counter),
+            data, length);
+
   if (E2E_P11_DATAID_NIBBLE == config->P11.DataIDMode) { /* @PRS_E2E_00582 */
     ReceivedNibble =
       (data[config->P11.DataIDNibbleOffset >> 3] >> (config->P11.DataIDNibbleOffset & 0x07u)) &

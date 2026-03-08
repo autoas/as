@@ -28,6 +28,8 @@ def Gen_SomeIpSkeleton(cfg, service, dir, source):
     env.filters['getTypePayloadSize'] = lambda obj, structs: GetTypePayloadSize(obj, structs)
     env.filters['SomeIpXfEncode'] = lambda obj, structs, dest, size, src: SomeIpXfEncode(obj, structs, dest, size, src)
     env.filters['SomeIpXfDecode'] = lambda obj, structs, src, size, dest: SomeIpXfDecode(obj, structs, src, size, dest)
+    env.filters['GetE2EOverhead'] = lambda obj, direction, op=None: GetE2EOverhead(obj, direction, op)
+    env.filters['GetE2EOffset'] = lambda obj, op, direction: GetE2EOffset(obj, op, direction)
     
     # Prepare context data
     MaxPayloadSize = 32
@@ -41,7 +43,11 @@ def Gen_SomeIpSkeleton(cfg, service, dir, source):
         "listenNum": listenNum,
         "now": datetime.datetime.now(),
         "GetArgs": GetArgs,
-        "GetTypePayloadSize": GetTypePayloadSize
+        "GetTypePayloadSize": GetTypePayloadSize,
+        "GetE2EOverhead": GetE2EOverhead,
+        "GetE2EOffset": GetE2EOffset,
+        "GetMaxE2EOverhead": GetMaxE2EOverhead,
+        "GetE2EProfileId": GetE2EProfileId
     }
     
     # Render header template

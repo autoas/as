@@ -14,6 +14,7 @@ class ApplicationRadarServiceServer(Application):
             "Sd": source["Sd"],
             "SomeIp": source["SomeIp"],
             "SomeIpXf": source["SomeIpXf"],
+            "E2E": source["E2E"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/GEN" % (CWD)]
         backend = os.getenv("SOMEIP_BACKEND", "someip")

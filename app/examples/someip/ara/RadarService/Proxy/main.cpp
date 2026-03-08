@@ -15,6 +15,7 @@
 #include "Sd.h"
 #include "SomeIp.h"
 #include "SomeIpXf.h"
+#include "E2E.h"
 
 #include "Sd_Cfg.h"
 #include "SomeIp_Cfg.h"
@@ -188,6 +189,7 @@ int main(int argc, char *argv[]) {
   SoAd_Init(NULL);
   Sd_Init(NULL);
   SomeIp_Init(NULL);
+  E2E_Init(NULL);
 #endif
   Std_TimerStart(&timer10ms);
   Std_TimerStart(&timer1s);

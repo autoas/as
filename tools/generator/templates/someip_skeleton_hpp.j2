@@ -11,6 +11,10 @@
 #include "ara/com/skeleton/skeleton_base.h"
 #include "SomeIpXf_Cfg.h"
 #include "SomeIp.h"
+#ifdef USE_E2E
+#include "E2E.h"
+#include "E2E_Cfg.h"
+#endif
 namespace ara {
 namespace com {
 namespace {{ service_name }} {
@@ -45,7 +49,7 @@ public:
 {% endif %}
 
 private:
-  uint8_t m_payload[20 + {{ event | getTypePayloadSize(allStructs) }}];
+  uint8_t m_payload[20 + {{ event | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(event, 'TX') }}];
 {% if event.get('tp', false) %}
   bool m_payloadInUse = false;
 {% endif %}
@@ -103,7 +107,7 @@ private:
   ara::core::Future<FieldType> m_futureGet;
   FieldType m_fieldGet;
 {% if field.get('tp', false) %}
-  uint8_t m_responseGet[20 + {{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_responseGet[20 + {{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'get') }}];
 {% endif %}
   bool m_responseGetInUse = false;
 {% endif %}
@@ -114,14 +118,14 @@ private:
   ara::core::Future<FieldType> m_futureSet;
   FieldType m_fieldSet;
 {% if field.get('tp', false) %}
-  uint8_t m_requestSet[{{ field | getTypePayloadSize(allStructs) }}];
-  uint8_t m_responseSet[20 + {{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_requestSet[{{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'RX', 'set') }}];
+  uint8_t m_responseSet[20 + {{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'set') }}];
 {% endif %}
   bool m_responseSetInUse = false;
 {% endif %}
 
 {% if 'event' in field %}
-  uint8_t m_payload[20 + {{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_payload[20 + {{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'event') }}];
   bool m_payloadInUse = false;
 {% endif %}
 };

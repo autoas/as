@@ -2,55 +2,112 @@
   "class": "Net",
   "Modules": [
     {
+      "EnableZeroCopy": true,
       "name": "SomeIp",
       "class": "SomeIp",
-      "EnableZeroCopy": true,
       "SD": {
-        "hostname" : "ssas",
-        "multicast" : "224.244.224.245"
+        "hostname": "ssas",
+        "multicast": "224.244.224.245"
       },
       "structs": [
         {
           "name": "Position",
           "data": [
-            { "name": "x", "type": "uint32" },
-            { "name": "y", "type": "uint32" },
-            { "name": "z", "type": "uint32" }
+            {
+              "name": "x",
+              "type": "uint32",
+              "variable_array": false
+            },
+            {
+              "name": "y",
+              "type": "uint32",
+              "variable_array": false
+            },
+            {
+              "name": "z",
+              "type": "uint32",
+              "variable_array": false
+            }
           ]
         },
         {
           "name": "AdjustOutput",
           "data": [
-            { "name": "success", "type": "bool" },
-            { "name": "effective_position", "type": "Position" }
+            {
+              "name": "success",
+              "type": "bool",
+              "variable_array": false
+            },
+            {
+              "name": "effective_position",
+              "type": "Position",
+              "variable_array": false
+            }
           ]
         },
         {
           "name": "RadarObjects",
           "data": [
-            { "name": "active", "type": "bool" },
-            { "name": "objects", "type": "Position", "size": 128, "variable_array": true }
+            {
+              "name": "active",
+              "type": "bool",
+              "variable_array": false
+            },
+            {
+              "name": "objects",
+              "type": "Position",
+              "variable_array": true,
+              "size": 128
+            }
           ]
         }
       ],
       "args": [
-        { "name": "adjust-args", "args": [ { "name": "target_position", "type": "Position" } ] }
+        {
+          "name": "adjust-args",
+          "args": [
+            {
+              "name": "target_position",
+              "type": "Position"
+            }
+          ]
+        }
       ],
+      "clients": [],
       "servers": [
         {
           "name": "RadarService",
           "service": "0xadaa",
           "instance": "0x2001",
           "clientId": "0x2001",
+          "protocol": "UDP",
           "unreliable": "12345",
           "methods": [
             {
-              "name" : "Adjust",
-              "methodId" : "0x0001",
+              "name": "Adjust",
               "args": "adjust-args",
               "return": "AdjustOutput",
+              "methodId": 1,
               "tp": true,
-              "version" : "0"
+              "version": 0,
+              "useE2E": true,
+              "E2E-TX": {
+                "profile": "P11",
+                "DataID": 4097,
+                "DataIDMode": "NIBBLE",
+                "CRCOffset": 0,
+                "CounterOffset": 8,
+                "DataIDNibbleOffset": 12
+              },
+              "E2E-RX": {
+                "profile": "P11",
+                "DataID": 4098,
+                "DataIDMode": "NIBBLE",
+                "CRCOffset": 0,
+                "CounterOffset": 8,
+                "DataIDNibbleOffset": 12,
+                "MaxDeltaCounter": 1
+              }
             }
           ],
           "event-groups": [
@@ -64,7 +121,16 @@
                   "type": "RadarObjects",
                   "eventId": "0x8002",
                   "tp": true,
-                  "version": "0"
+                  "version": 0,
+                  "useE2E": true,
+                  "E2E-TX": {
+                    "profile": "P11",
+                    "DataID": 4099,
+                    "DataIDMode": "NIBBLE",
+                    "CRCOffset": 0,
+                    "CounterOffset": 8,
+                    "DataIDNibbleOffset": 12
+                  }
                 }
               ]
             }
@@ -73,20 +139,65 @@
             {
               "name": "UpdateRate",
               "type": "uint32",
+              "tp": true,
+              "version": 0,
               "get": {
-                "methodId": "0x0002"
+                "methodId": 2,
+                "useE2E": true,
+                "E2E-TX": {
+                  "profile": "P11",
+                  "DataID": 4100,
+                  "DataIDMode": "NIBBLE",
+                  "CRCOffset": 0,
+                  "CounterOffset": 8,
+                  "DataIDNibbleOffset": 12
+                },
+                "E2E-RX": {
+                  "profile": "P11",
+                  "DataID": 4101,
+                  "DataIDMode": "NIBBLE",
+                  "CRCOffset": 0,
+                  "CounterOffset": 8,
+                  "DataIDNibbleOffset": 12,
+                  "MaxDeltaCounter": 1
+                }
               },
               "set": {
-                "methodId": "0x0003"
+                "methodId": 3,
+                "useE2E": true,
+                "E2E-TX": {
+                  "profile": "P11",
+                  "DataID": 4102,
+                  "DataIDMode": "NIBBLE",
+                  "CRCOffset": 0,
+                  "CounterOffset": 8,
+                  "DataIDNibbleOffset": 12
+                },
+                "E2E-RX": {
+                  "profile": "P11",
+                  "DataID": 4103,
+                  "DataIDMode": "NIBBLE",
+                  "CRCOffset": 0,
+                  "CounterOffset": 8,
+                  "DataIDNibbleOffset": 12,
+                  "MaxDeltaCounter": 1
+                }
               },
               "event": {
                 "groupName": "Fields",
                 "groupId": "0x8003",
                 "group_enable_multicast": false,
-                "eventId": "0x8003"
-              },
-              "tp": true,
-              "version": "0"
+                "eventId": "0x8003",
+                "useE2E": true,
+                "E2E-TX": {
+                  "profile": "P11",
+                  "DataID": 4104,
+                  "DataIDMode": "NIBBLE",
+                  "CRCOffset": 0,
+                  "CounterOffset": 8,
+                  "DataIDNibbleOffset": 12
+                }
+              }
             }
           ]
         }

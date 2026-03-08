@@ -208,3 +208,114 @@ def SomeIpXfEncode(typ, structs, buffer, bufferSize, data, **kwargs):
     elif typCatlog in ["StructArray"]:
         return f"SomeIpXf_Encode{typCatlog}({buffer}, {bufferSize}, {ref}{data}, &SomeIpXf_Struct{typ_}Def), sizeof({data})/sizeof({data}[0])"
     raise Exception("unsupported type catlog: %s" % (typCatlog))
+
+
+def GetE2EOverhead(item, direction=None, op=None):
+    """Calculate E2E overhead based on profile"""
+    if op and isinstance(item, dict) and op in item:
+        item = item[op]
+    
+    if direction and isinstance(item, dict):
+        if direction == 'TX' and 'E2E-TX' in item:
+            e2e = item['E2E-TX']
+        elif direction == 'RX' and 'E2E-RX' in item:
+            e2e = item['E2E-RX']
+        else:
+            return 4  # Default to P11 overhead if E2E is enabled but profile not found
+    elif isinstance(item, dict) and 'E2E-RX' in item:
+        e2e = item['E2E-RX']
+    else:
+        return 0
+
+    profile = e2e.get('profile', '')
+    if profile == 'P11':
+        return 4  # CRC (2) + Counter (1) + DataID (1)
+    elif profile == 'P22':
+        return 8  # CRC (4) + Counter (2) + DataID (2)
+    elif profile == 'P44':
+        return 12  # CRC (4) + Counter (2) + DataID (6)
+    elif profile == 'P05':
+        return 4  # CRC (2) + Counter (1) + DataID (1)
+    else:
+        return 4  # Default to P11 overhead if profile is unknown
+
+
+def GetE2EOffset(item, op=None, direction=None):
+    """Calculate E2E offset for decoding: returns overhead if offset is 0, else 0"""
+    if op and isinstance(item, dict) and op in item:
+        item = item[op]
+    
+    if direction and isinstance(item, dict):
+        if direction == 'TX' and 'E2E-TX' in item:
+            e2e = item['E2E-TX']
+        elif direction == 'RX' and 'E2E-RX' in item:
+            e2e = item['E2E-RX']
+        else:
+            return 0
+    elif isinstance(item, dict) and 'E2E-RX' in item:
+        e2e = item['E2E-RX']
+    else:
+        return 0
+
+    profile = e2e.get('profile', '')
+    # Check offset based on profile type
+    if profile == 'P11':
+        # For P11, check CRCOffset, CounterOffset, DataIDNibbleOffset
+        crc_offset = e2e.get('CRCOffset', 0)
+        counter_offset = e2e.get('CounterOffset', 0)
+        dataid_offset = e2e.get('DataIDNibbleOffset', 0)
+        if crc_offset == 0 or counter_offset == 0 or dataid_offset == 0:
+            return GetE2EOverhead(item, op, direction)
+        else:
+            return 0
+    # P22, P44, P05 have offset attribute
+    elif profile in ['P22', 'P44', 'P05']:
+        if e2e.get('Offset', 0) == 0:
+            return GetE2EOverhead(item, op, direction)
+        else:
+            return 0
+    else:
+        return 0
+
+
+def GetMaxE2EOverhead(item):
+    """Calculate maximum E2E overhead for an item"""
+    max_overhead = 0
+    if isinstance(item, dict):
+        # Check TX overhead
+        if 'E2E-TX' in item:
+            overhead = GetE2EOverhead(item, 'TX')
+            if overhead > max_overhead:
+                max_overhead = overhead
+        # Check RX overhead
+        if 'E2E-RX' in item:
+            overhead = GetE2EOverhead(item, 'RX')
+            if overhead > max_overhead:
+                max_overhead = overhead
+        # Check field operations
+        for op in ['get', 'set', 'event']:
+            if op in item:
+                overhead = GetMaxE2EOverhead(item[op])
+                if overhead > max_overhead:
+                    max_overhead = overhead
+    return max_overhead
+
+
+def GetE2EProfileId(item, direction=None, op=None):
+    """Get E2E profile ID for an item"""
+    if op and isinstance(item, dict) and op in item:
+        item = item[op]
+    
+    if direction and isinstance(item, dict):
+        if direction == 'TX' and 'E2E-TX' in item:
+            e2e = item['E2E-TX']
+        elif direction == 'RX' and 'E2E-RX' in item:
+            e2e = item['E2E-RX']
+        else:
+            return 0
+    elif isinstance(item, dict) and 'E2E-RX' in item:
+        e2e = item['E2E-RX']
+    else:
+        return 0
+    
+    return e2e.get('profileId', 0)

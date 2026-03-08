@@ -28,6 +28,10 @@ def Gen_SomeIpSkeletonC(cfg, service, dir, source):
     env.globals['SomeIpXfEncode'] = SomeIpXfEncode
     env.globals['SomeIpXfDecode'] = SomeIpXfDecode
     env.globals['GetArgs'] = GetArgs
+    env.globals['GetE2EOverhead'] = GetE2EOverhead
+    env.globals['GetE2EOffset'] = GetE2EOffset
+    env.globals['GetMaxE2EOverhead'] = GetMaxE2EOverhead
+    env.globals['GetE2EProfileId'] = GetE2EProfileId
     
     # Prepare context data
     import datetime

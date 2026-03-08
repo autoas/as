@@ -10,15 +10,18 @@ from .SomeIp_SkeletonC import *
 from .VSomeIp_Proxy import *
 from .VSomeIp_Skeleton import *
 from .SomeIpXf import *
+from .E2E import Gen_E2E
 import json
 
 __all__ = ["Gen_SomeIp"]
+
 
 def GetArgs(cfg):
     args = {}
     for arg in cfg.get("args", []):
         args[arg["name"]] = arg["args"]
     return args
+
 
 def Gen_SD(cfg, dir):
     H = open("%s/Sd_Cfg.h" % (dir), "w")
@@ -952,9 +955,10 @@ def ProcFieldEvent(cfg, service, field):
             event_group = {
                 "name": groupName,
                 "groupId": field["event"]["groupId"],
-                "enable_multicast": field["event"].get("enable_multicast", False),
                 "events": [],
             }
+            if field["event"].get("enable_multicast", False):
+                event_group["multicast"] = field["event"].get("multicast", {})
             service["event-groups"].append(event_group)
         if "events" not in event_group:
             event_group["events"] = []
@@ -985,6 +989,119 @@ def ProcFields(cfg):
     return cfg
 
 
+def GenSomeIpE2E(cfg, dir, source):
+    e2e_cfg = {
+        "class": "E2E",
+        "ProtectP11": [],
+        "ProtectP22": [],
+        "ProtectP44": [],
+        "ProtectP05": [],
+        "CheckP11": [],
+        "CheckP22": [],
+        "CheckP44": [],
+        "CheckP05": [],
+    }
+    bHasE2E = False
+
+    def add_e2e_config(name, profile, e2e_data, is_protect):
+        nonlocal bHasE2E
+        bHasE2E = True
+        config = {"name": name}
+        if "DataID" in e2e_data:
+            config["DataID"] = "0x%x" % e2e_data["DataID"]
+        if "DataIDMode" in e2e_data:
+            config["DataIDMode"] = e2e_data["DataIDMode"]
+        if "CRCOffset" in e2e_data:
+            config["CRCOffset"] = e2e_data["CRCOffset"]
+        if "CounterOffset" in e2e_data:
+            config["CounterOffset"] = e2e_data["CounterOffset"]
+        if "DataIDNibbleOffset" in e2e_data:
+            config["DataIDNibbleOffset"] = e2e_data["DataIDNibbleOffset"]
+        if "Offset" in e2e_data:
+            config["Offset"] = e2e_data["Offset"]
+        if "DataIDList" in e2e_data:
+            config["DataIDList"] = e2e_data["DataIDList"]
+        if "MaxDeltaCounter" in e2e_data:
+            config["MaxDeltaCounter"] = e2e_data["MaxDeltaCounter"]
+
+        if is_protect:
+            e2e_cfg["Protect" + profile].append(config)
+        else:
+            e2e_cfg["Check" + profile].append(config)
+
+    def process_service(service, is_server):
+        service_name = service["name"]
+
+        # Process methods
+        for method in service.get("methods", []):
+            if method.get("useE2E", False):
+                # Both server and client methods have both E2E-RX and E2E-TX
+                if "E2E-RX" in method:
+                    name = f"{service_name}_{method['name']}_RX"
+                    add_e2e_config(name, method["E2E-RX"]["profile"], method["E2E-RX"], False)
+                if "E2E-TX" in method:
+                    name = f"{service_name}_{method['name']}_TX"
+                    add_e2e_config(name, method["E2E-TX"]["profile"], method["E2E-TX"], True)
+
+        # Process events
+        for egroup in service.get("event-groups", []):
+            for event in egroup.get("events", []):
+                if event.get("useE2E", False):
+                    if is_server:
+                        # Server events send notifications (TX)
+                        if "E2E-TX" in event:
+                            name = f"{service_name}_{egroup['name']}_{event['name']}_TX"
+                            add_e2e_config(name, event["E2E-TX"]["profile"], event["E2E-TX"], True)
+                    else:
+                        # Client events receive notifications (RX)
+                        if "E2E-RX" in event:
+                            name = f"{service_name}_{egroup['name']}_{event['name']}_RX"
+                            add_e2e_config(name, event["E2E-RX"]["profile"], event["E2E-RX"], False)
+
+        # Process fields
+        for field in service.get("fields", []):
+            # Process get operation
+            if "get" in field and field["get"].get("useE2E", False):
+                if "E2E-RX" in field["get"]:
+                    name = f"{service_name}_{field['name']}_GET_RX"
+                    add_e2e_config(name, field["get"]["E2E-RX"]["profile"], field["get"]["E2E-RX"], False)
+                if "E2E-TX" in field["get"]:
+                    name = f"{service_name}_{field['name']}_GET_TX"
+                    add_e2e_config(name, field["get"]["E2E-TX"]["profile"], field["get"]["E2E-TX"], True)
+            # Process set operation
+            if "set" in field and field["set"].get("useE2E", False):
+                if "E2E-RX" in field["set"]:
+                    name = f"{service_name}_{field['name']}_SET_RX"
+                    add_e2e_config(name, field["set"]["E2E-RX"]["profile"], field["set"]["E2E-RX"], False)
+                if "E2E-TX" in field["set"]:
+                    name = f"{service_name}_{field['name']}_SET_TX"
+                    add_e2e_config(name, field["set"]["E2E-TX"]["profile"], field["set"]["E2E-TX"], True)
+            # Process event
+            if "event" in field and field["event"].get("useE2E", False):
+                if is_server:
+                    # Server field events send notifications (TX)
+                    if "E2E-TX" in field["event"]:
+                        name = f"{service_name}_{field['name']}_EVENT_TX"
+                        add_e2e_config(name, field["event"]["E2E-TX"]["profile"], field["event"]["E2E-TX"], True)
+                else:
+                    # Client field events receive notifications (RX)
+                    if "E2E-RX" in field["event"]:
+                        name = f"{service_name}_{field['name']}_EVENT_RX"
+                        add_e2e_config(name, field["event"]["E2E-RX"]["profile"], field["event"]["E2E-RX"], False)
+
+    for service in cfg.get("servers", []):
+        process_service(service, True)
+
+    for service in cfg.get("clients", []):
+        process_service(service, False)
+
+    if bHasE2E:
+        with open("%s/E2E.json" % (dir), "w") as f:
+            json.dump(e2e_cfg, f, indent=2)
+        Gen_E2E(e2e_cfg, dir)
+        source["E2E"] = ["%s/E2E_Cfg.c" % (dir)]
+
+
 def Gen_SomeIp(cfg, dir):
     source = {
         "Sd": ["%s/Sd_Cfg.c" % (dir)],
@@ -1005,4 +1122,5 @@ def Gen_SomeIp(cfg, dir):
         Gen_SomeIpProxyC(cfg, service, dir, source)
     with open("%s/SomeIp.json" % (dir), "w") as f:
         json.dump(cfg, f, indent=2)
+    GenSomeIpE2E(cfg, dir, source)
     return source

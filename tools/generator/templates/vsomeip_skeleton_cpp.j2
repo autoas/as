@@ -8,6 +8,8 @@
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "{{ service_name }}SkeletonV.hpp"
 
+#include "Std_Debug.h"
+
 namespace ara {
 namespace com {
 namespace {{ service_name }} {
@@ -19,7 +21,6 @@ namespace {{ service_name }} {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static {{ service_name }}Skeleton *s_h{{ service_name }} = nullptr;
 /* ================================ [ FUNCTIONS ] ============================================== */
 namespace events {
 {% for eg in service.get('event-groups', []) %}
@@ -79,6 +80,12 @@ ara::com::SubscriptionState {{ event['name'] }}::GetSubscriptionState () const n
   return state;
 }
 
+bool {{ event['name'] }}::OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
+  // Handle subscription events for this event
+  // This method can be extended to track subscription states if needed
+  return true;
+}
+
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -92,27 +99,23 @@ ara::core::Result<void> {{ field['name'] }}::RegisterGetHandler(std::function<ar
   return ara::core::Result<void>(0);
 }
 
-int {{ field['name'] }}::OnGetRequest(const std::shared_ptr<vsomeip::message> &req, const std::shared_ptr<vsomeip::message> &res) {
-  int ret = 0;
+void {{ field['name'] }}::OnGetRequest(const std::shared_ptr<vsomeip::message> &msg) {
+  if (!msg) return;
+
+  auto res = vsomeip::runtime::get()->create_response(msg);
   bool bValid = false;
   int32_t serializedSize;
   if (nullptr != m_getHandler) {
-    m_futureGet = m_getHandler();
-    if (true == m_futureGet.is_ready()) {
-      ara::core::Result<FieldType> result = m_futureGet.GetResult();
-      if (result.HasValue()) {
-          m_fieldGet = result.Value();
-          bValid = true;
-      } else {
-        ret = -1;
-      }
-    } else {
-      ret = -2; // Pending
+    // Create local future variable
+    auto future = m_getHandler();
+    // Wait for the future to be ready
+    ara::core::Result<FieldType> result = future.GetResult();
+    if (result.HasValue()) {
+        m_fieldGet = result.Value();
+        bValid = true;
     }
   } else if (true == m_bValid) {
     bValid = true;
-  } else {
-    ret = -1;
   }
 
   if (true == bValid) {
@@ -124,12 +127,12 @@ int {{ field['name'] }}::OnGetRequest(const std::shared_ptr<vsomeip::message> &r
       res->set_payload(payload);
       res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
       res->set_return_code((vsomeip::return_code_e)E_OK);
-    } else {
-      ret = -1;
+      m_app->send(res);
     }
+  } else {
+    res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+    m_app->send(res);
   }
-
-  return ret;
 }
 
 {% endif %}
@@ -139,41 +142,37 @@ ara::core::Result<void> {{ field['name'] }}::RegisterSetHandler(std::function<ar
   return ara::core::Result<void>(0);
 }
 
-int {{ field['name'] }}::OnSetRequest(const std::shared_ptr<vsomeip::message> &req, const std::shared_ptr<vsomeip::message> &res) {
-  int ret = 0;
+void {{ field['name'] }}::OnSetRequest(const std::shared_ptr<vsomeip::message> &msg) {
+  if (!msg) return;
+
+  auto res = vsomeip::runtime::get()->create_response(msg);
   int32_t serializedSize;
-  if ((nullptr != m_setHandler) && req->get_payload()) {
-    auto payload = req->get_payload();
+  if ((nullptr != m_setHandler) && msg->get_payload()) {
+    auto payload = msg->get_payload();
     serializedSize = {{ field | SomeIpXfDecode(allStructs, 'payload->get_data()', 'payload->get_length()', 'm_fieldSet') }};
     if (serializedSize > 0) {
-      m_futureSet = m_setHandler(m_fieldSet);
-      if (true == m_futureSet.is_ready()) {
-        ara::core::Result<FieldType> result = m_futureSet.GetResult();
-        if (result.HasValue()) {
-          serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseSet', 'sizeof(m_responseSet)', 'result.Value()') }};
-          if (serializedSize > 0) {
-            auto rtm = vsomeip::runtime::get();
-            auto res_payload = rtm->create_payload();
-            res_payload->set_data(m_responseSet, serializedSize);
-            res->set_payload(res_payload);
-            res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
-            res->set_return_code((vsomeip::return_code_e)E_OK);
-          } else {
-            ret = -1;
-          }
-        } else {
-          ret = -1;
+      // Create local future variable
+      auto future = m_setHandler(m_fieldSet);
+      // Wait for the future to be ready
+      ara::core::Result<FieldType> result = future.GetResult();
+      if (result.HasValue()) {
+        serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseSet', 'sizeof(m_responseSet)', 'result.Value()') }};
+        if (serializedSize > 0) {
+          auto rtm = vsomeip::runtime::get();
+          auto res_payload = rtm->create_payload();
+          res_payload->set_data(m_responseSet, serializedSize);
+          res->set_payload(res_payload);
+          res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
+          res->set_return_code((vsomeip::return_code_e)E_OK);
+          m_app->send(res);
+          return;
         }
-      } else {
-        ret = -2; // Pending
       }
-    } else {
-      ret = -1;
     }
-  } else {
-    ret = -1;
   }
-  return ret;
+
+  res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+  m_app->send(res);
 }
 
 {% endif %}
@@ -216,27 +215,57 @@ ara::com::ComErrc {{ field['name'] }}::Validate() {
   return ercd;
 }
 
+{% if 'event' in field %}
+bool {{ field['name'] }}::OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
+  // Handle subscription events for this field event
+  // This method can be extended to track subscription states if needed
+  return true;
+}
+{% endif %}
+
 {% endfor %}
 } // namespace fields
 
 {{ service_name }}Skeleton::{{ service_name }}Skeleton(const InstanceIdentifier &instanceId,
                                            MethodCallProcessingMode mode) {
-  if (nullptr == s_h{{ service_name }}) {
-    s_h{{ service_name }} = this;
-  } else {
-    throw std::runtime_error("{{ service_name }} already created");
-  }
-
   m_mode = mode;
-  m_serviceId = {{ service['service'] }};
-  m_instanceId = {{ service['instance'] }};
   m_serviceOffered = false;
-  
+
   auto rtm = vsomeip::runtime::get();
   m_app = rtm->create_application("{{ service_name }}Skeleton");
   m_app->init();
-  m_app->register_message_handler(m_serviceId, m_instanceId, vsomeip::ANY_METHOD, 
-                                 std::bind(&{{ service_name }}Skeleton::OnMessage, this, std::placeholders::_1));
+
+  // Register state handler
+  m_app->register_state_handler(std::bind(&{{ service_name }}Skeleton::OnState, this, std::placeholders::_1));
+
+  // Register message handlers for each method
+  {% for method in service.get('methods', []) %}
+  {% if 'for' not in method %}
+  m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ method['methodId'] }}, 
+                                 std::bind(&{{ service_name }}Skeleton::On{{ method['name'] }}Request, this, std::placeholders::_1));
+  {% endif %}
+  {% endfor %}
+
+  // Register message handlers for each field get/set
+  {% for field in service.get('fields', []) %}
+  {% if 'get' in field %}
+  m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['get']['methodId'] }}, 
+                                 std::bind(&fields::{{ field['name'] }}::OnGetRequest, &{{ field['name'] }}, std::placeholders::_1));
+  {% endif %}
+  {% if 'set' in field %}
+  m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['set']['methodId'] }}, 
+                                 std::bind(&fields::{{ field['name'] }}::OnSetRequest, &{{ field['name'] }}, std::placeholders::_1));
+  {% endif %}
+  {% endfor %}
+}
+
+void {{ service_name }}Skeleton::OnState(vsomeip::state_type_e _state) {
+  ASLOG({{ service_name | toMacro }}, ( "Application is %s\n",
+            (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") ));
+
+  if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+    m_condition.notify_one();
+  }
 }
 
 void {{ service_name }}Skeleton::ThreadMain() {
@@ -244,12 +273,8 @@ void {{ service_name }}Skeleton::ThreadMain() {
 }
 
 {{ service_name }}Skeleton::~{{ service_name }}Skeleton() {
-  if (this == s_h{{ service_name }}) {
-    s_h{{ service_name }} = nullptr;
-  }
-  
   if (m_app) {
-    m_app->stop_offer_service(m_serviceId, m_instanceId);
+    m_app->stop_offer_service({{ service['service'] }}, {{ service['instance'] }});
     m_app->stop();
     if (m_thread.joinable()) {
       m_thread.join();
@@ -260,15 +285,22 @@ void {{ service_name }}Skeleton::ThreadMain() {
 Result<void> {{ service_name }}Skeleton::OfferService() {
   Result<void> rslt;
   ara::com::ComErrc ercd = ara::com::ComErrc::kOk;
-  
+
 {% for field in service.get('fields', []) %}
   if (ara::com::ComErrc::kOk == ercd) {
     ercd = {{ field['name'] }}.Validate();
   }
 {% endfor %}
   if ((ara::com::ComErrc::kOk == ercd) && (false == m_serviceOffered)) {
-    m_app->offer_service(m_serviceId, m_instanceId);
-    
+    // Start the thread to run the vsomeip application
+    m_thread = std::thread(&{{ service_name }}Skeleton::ThreadMain, this);
+
+    // Wait for the application to be registered
+    std::unique_lock<std::mutex> its_lock(m_mutex);
+    m_condition.wait(its_lock);
+
+    m_app->offer_service({{ service['service'] }}, {{ service['instance'] }});
+
     // Offer events and register subscription handlers
     {% for eg in service.get('event-groups', []) %}
     {% for event in eg['events'] %}
@@ -277,13 +309,13 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
     event_groups.insert({{ eg['groupId'] }});
     m_app->offer_event({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }}, event_groups);
     m_app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ eg['groupId'] }}, 
-                                        std::bind(&{{ service_name }}Skeleton::OnSubscribe, this, 
+                                        std::bind(&events::{{ event['name'] }}::OnSubscribe, &{{ event['name'] }}, 
                                         std::placeholders::_1, std::placeholders::_2, 
                                         std::placeholders::_3, std::placeholders::_4));
     {% endif %}
     {% endfor %}
     {% endfor %}
-    
+
     // Offer field events
     {% for field in service.get('fields', []) %}
     {% if 'event' in field %}
@@ -291,14 +323,12 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
     field_event_groups.insert({{ field['event']['groupId'] }});
     m_app->offer_event({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }}, field_event_groups);
     m_app->register_subscription_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['groupId'] }}, 
-                                        std::bind(&{{ service_name }}Skeleton::OnSubscribe, this, 
+                                        std::bind(&fields::{{ field['name'] }}::OnSubscribe, &{{ field['name'] }}, 
                                         std::placeholders::_1, std::placeholders::_2, 
                                         std::placeholders::_3, std::placeholders::_4));
     {% endif %}
     {% endfor %}
-    
-    // Start the thread to run the vsomeip application
-    m_thread = std::thread(&{{ service_name }}Skeleton::ThreadMain, this);
+
     m_serviceOffered = true;
     rslt = Result<void>(0);
   } else {
@@ -310,7 +340,7 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
 
 void {{ service_name }}Skeleton::StopOfferService() {
   if (m_app) {
-    m_app->stop_offer_service(m_serviceId, m_instanceId);
+    m_app->stop_offer_service({{ service['service'] }}, {{ service['instance'] }});
     m_serviceOffered = false;
   }
 }
@@ -321,102 +351,64 @@ bool {{ service_name }}Skeleton::ProcessNextMethodCall() {
   return false;
 }
 
-bool {{ service_name }}Skeleton::OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe) {
-  // Handle subscription events
-  // This method can be extended to track subscription states if needed
-  return true;
-}
-
-void {{ service_name }}Skeleton::OnMessage(const std::shared_ptr<vsomeip::message> &msg) {
+// Dedicated message handlers for each method
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
+void {{ service_name }}Skeleton::On{{ method['name'] }}Request(const std::shared_ptr<vsomeip::message> &msg) {
   if (!msg) return;
+
+  auto res = vsomeip::runtime::get()->create_response(msg);
   
-  uint32_t methodId = msg->get_method();
-  
-  // Handle method calls
-  {% for method in service.get('methods', []) %}
-  {% if 'for' not in method %}
-  if (methodId == {{ method['methodId'] }}) {
-    auto res = vsomeip::runtime::get()->create_response(msg);
-    
-    // Decode arguments
-    {% if 'args' in method %}
-    {% set method_args = GetArgs(cfg, method['args']) %}
+  // Decode arguments
+  {% if 'args' in method %}
+  {% set method_args = GetArgs(cfg, method['args']) %}
+  {% for arg in method_args %}
+  static {{ arg['type'] }} {{ arg['name'] }};
+  {% endfor %}
+
+  if (msg->get_payload()) {
+    int32_t offset = 0;
     {% for arg in method_args %}
-    static {{ arg['type'] }} {{ arg['name'] }};
-    {% endfor %}
-    
-    if (msg->get_payload()) {
-      int32_t offset = 0;
-      {% for arg in method_args %}
-      int32_t argSize = {{ arg | SomeIpXfDecode(allStructs, 'msg->get_payload()->get_data() + offset', 'msg->get_payload()->get_length() - offset', arg['name']) }};
-      if (argSize > 0) {
-        offset += argSize;
-      } else {
-        res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
-        m_app->send(res);
-        return;
-      }
-      {% endfor %}
-    }
-    {% endif %}
-    
-    // Call the method
-    auto future = {{ method['name'] }}({% for arg in method_args %}{{ arg['name'] }}{% if not loop.last %},{% endif %}{% endfor %});
-    
-    if (future.is_ready()) {
-      auto result = future.GetResult();
-      if (result.HasValue()) {
-        {% if method.get('return', 'void') != 'void' %}
-        // Encode response
-        uint8_t response[20 + {{ method.get('return', 'void') | getTypePayloadSize(allStructs) }}];
-        int32_t serializedSize = {{ method.get('return', 'void') | SomeIpXfEncode(allStructs, '&response[20]', 'sizeof(response) - 20', 'result.Value()') }};
-        if (serializedSize > 0) {
-          auto payload = vsomeip::runtime::get()->create_payload();
-          payload->set_data(&response[20], serializedSize);
-          res->set_payload(payload);
-          res->set_return_code((vsomeip::return_code_e)E_OK);
-        } else {
-          res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
-        }
-        {% else %}
-        res->set_return_code((vsomeip::return_code_e)E_OK);
-        {% endif %}
-      } else {
-        res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
-      }
-      m_app->send(res);
+    int32_t argSize = {{ arg | SomeIpXfDecode(allStructs, 'msg->get_payload()->get_data() + offset', 'msg->get_payload()->get_length() - offset', arg['name']) }};
+    if (argSize > 0) {
+      offset += argSize;
     } else {
-      // Handle async response
+      res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+      m_app->send(res);
+      return;
     }
-    return;
+    {% endfor %}
   }
   {% endif %}
-  {% endfor %}
   
-  // Handle field get/set requests
-  {% for field in service.get('fields', []) %}
-  {% if 'get' in field %}
-  if (methodId == {{ field['get']['methodId'] }}) {
-    auto res = vsomeip::runtime::get()->create_response(msg);
-    int ret = {{ field['name'] }}.OnGetRequest(msg, res);
-    if (ret == 0) {
-      m_app->send(res);
+  // Call the method
+  auto future = {{ method['name'] }}({% for arg in method_args %}{{ arg['name'] }}{% if not loop.last %},{% endif %}{% endfor %});
+  
+  // Wait for the future to be ready
+  auto result = future.GetResult();
+  if (result.HasValue()) {
+    {% if method.get('return', 'void') != 'void' %}
+    // Encode response
+    uint8_t response[20 + {{ method.get('return', 'void') | getTypePayloadSize(allStructs) }}];
+    int32_t serializedSize = {{ method.get('return', 'void') | SomeIpXfEncode(allStructs, '&response[20]', 'sizeof(response) - 20', 'result.Value()') }};
+    if (serializedSize > 0) {
+      auto payload = vsomeip::runtime::get()->create_payload();
+      payload->set_data(&response[20], serializedSize);
+      res->set_payload(payload);
+      res->set_return_code((vsomeip::return_code_e)E_OK);
+    } else {
+      res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
     }
-    return;
+    {% else %}
+    res->set_return_code((vsomeip::return_code_e)E_OK);
+    {% endif %}
+  } else {
+    res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
   }
-  {% endif %}
-  {% if 'set' in field %}
-  if (methodId == {{ field['set']['methodId'] }}) {
-    auto res = vsomeip::runtime::get()->create_response(msg);
-    int ret = {{ field['name'] }}.OnSetRequest(msg, res);
-    if (ret == 0) {
-      m_app->send(res);
-    }
-    return;
-  }
-  {% endif %}
-  {% endfor %}
+  m_app->send(res);
 }
+{% endif %}
+{% endfor %}
 
 } // namespace {{ service_name }}
 } // namespace com
