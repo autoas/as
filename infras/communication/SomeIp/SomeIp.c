@@ -11,7 +11,7 @@
 #include "Std_Debug.h"
 #include "Std_Critical.h"
 #include "Sd.h"
-#include "NetMem.h"
+#include "mempool.h"
 #include <string.h>
 #ifdef USE_PCAP
 #include "pcap.h"
@@ -455,52 +455,33 @@ static Std_ReturnType SomeIp_SendNextTxTpMsg(PduIdType TxPduId, uint16_t service
     tpMsg.moreSegmentsFlag = FALSE;
   }
 
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  data = (uint8_t *)Net_MemAlloc(len + 20u);
-  if (NULL != data) {
-    tpMsg.data = &data[20];
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-    tpMsg.data = NULL;
-#endif
-    tpMsg.length = len;
-    tpMsg.offset = var->offset;
-    requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
-    ret = onTpCopyTxData(requestId, &tpMsg);
-    if ((E_OK == ret) && (NULL != tpMsg.data)) {
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-      data = tpMsg.data - 20;
-#endif
-      data[16] = (offset >> 24) & 0xFFu;
-      data[17] = (offset >> 16) & 0xFFu;
-      data[18] = (offset >> 8u) & 0xFFu;
-      data[19] = offset & 0xFFu;
-      ret = SomeIp_Transmit(TxPduId, &var->RemoteAddr, data, serviceId, methodId, var->clientId,
-                            var->sessionId, interfaceVersion, messageType | SOMEIP_TP_FLAG, E_OK,
-                            len + 4u);
-      if (E_OK == ret) {
-        var->offset += len;
+  tpMsg.data = NULL;
+  tpMsg.length = len;
+  tpMsg.offset = var->offset;
+  requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
+  ret = onTpCopyTxData(requestId, &tpMsg);
+  if ((E_OK == ret) && (NULL != tpMsg.data)) {
+    data = tpMsg.data - 20;
+    data[16] = (offset >> 24) & 0xFFu;
+    data[17] = (offset >> 16) & 0xFFu;
+    data[18] = (offset >> 8u) & 0xFFu;
+    data[19] = offset & 0xFFu;
+    ret = SomeIp_Transmit(TxPduId, &var->RemoteAddr, data, serviceId, methodId, var->clientId,
+                          var->sessionId, interfaceVersion, messageType | SOMEIP_TP_FLAG, E_OK,
+                          len + 4u);
+    if (E_OK == ret) {
+      var->offset += len;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
-      } else if ((E_NOT_OK == ret) && (var->retryCounter < SOMEIP_TX_NOK_RETRY_MAX)) {
-        var->retryCounter++;
-        ASLOG(SOMEIPW, ("Tx TP NOK, try %d\n", var->retryCounter));
-        ret = E_OK;
+    } else if ((E_NOT_OK == ret) && (var->retryCounter < SOMEIP_TX_NOK_RETRY_MAX)) {
+      var->retryCounter++;
+      ASLOG(SOMEIPW, ("Tx TP NOK, try %d\n", var->retryCounter));
+      ret = E_OK;
 #endif
-      } else {
-        ASLOG(SOMEIPE, ("Tx TP NOK\n"));
-        onTpCopyTxData(requestId, NULL); /* indicate Tx error */
-      }
+    } else {
+      ASLOG(SOMEIPE, ("Tx TP NOK\n"));
+      onTpCopyTxData(requestId, NULL); /* indicate Tx error */
     }
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  } else {
-    ASLOG(SOMEIPW, ("OoM, schedule Tx TP msg next time\n"));
-    ret = E_OK;
   }
-
-  if (NULL != data) {
-    Net_MemFree(data);
-  }
-#endif
   return ret;
 }
 
@@ -526,6 +507,7 @@ static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *conf
       RemoteAddr = &sub->RemoteAddr;
       if (0u != (SD_FLG_EVENT_GROUP_MULTICAST & sub->flags)) {
         bMulticast = TRUE;
+        RemoteAddr = NULL;
       }
       ret2 = SomeIp_Transmit(sub->TxPduId, RemoteAddr, data, config->serviceId, event->eventId,
                              config->clientId, sessionId, event->interfaceVersion, messageType, 0u,
@@ -567,43 +549,25 @@ static Std_ReturnType SomeIp_SendNextTxTpEvtMsg(const SomeIp_ServerServiceType *
   } else {
     tpMsg.moreSegmentsFlag = FALSE;
   }
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  data = (uint8_t *)Net_MemAlloc(len + 20u);
-  if (NULL != data) {
-    tpMsg.data = &data[20];
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-    tpMsg.data = NULL;
-#endif
-    tpMsg.length = len;
-    tpMsg.offset = var->offset;
-    requestId = ((uint32_t)var->eventId << 16) + var->sessionId;
-    ret = event->onTpCopyTxData(requestId, &tpMsg);
-    if ((E_OK == ret) && (NULL != tpMsg.data)) {
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-      data = tpMsg.data - 20;
-#endif
-      data[16] = (offset >> 24) & 0xFFu;
-      data[17] = (offset >> 16) & 0xFFu;
-      data[18] = (offset >> 8u) & 0xFFu;
-      data[19] = offset & 0xFFu;
-      ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, list, var->sessionId);
-      if (E_OK == ret) {
-        var->offset += len;
-      } else {
-        ASLOG(SOMEIPE, ("Tx TP EVT NOK\n"));
-      }
-    }
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  } else {
-    ASLOG(SOMEIPW, ("OoM, schedule Tx TP EVT msg next time\n"));
-    ret = E_OK;
-  }
 
-  if (NULL != data) {
-    Net_MemFree(data);
+  tpMsg.data = NULL;
+  tpMsg.length = len;
+  tpMsg.offset = var->offset;
+  requestId = ((uint32_t)var->eventId << 16) + var->sessionId;
+  ret = event->onTpCopyTxData(requestId, &tpMsg);
+  if ((E_OK == ret) && (NULL != tpMsg.data)) {
+    data = tpMsg.data - 20;
+    data[16] = (offset >> 24) & 0xFFu;
+    data[17] = (offset >> 16) & 0xFFu;
+    data[18] = (offset >> 8u) & 0xFFu;
+    data[19] = offset & 0xFFu;
+    ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, list, var->sessionId);
+    if (E_OK == ret) {
+      var->offset += len;
+    } else {
+      ASLOG(SOMEIPE, ("Tx TP EVT NOK\n"));
+    }
   }
-#endif
   return ret;
 }
 
@@ -679,9 +643,7 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
   const SomeIp_ClientMethodType *method = &config->methods[methodId];
   SomeIp_TxTpMsgType *var;
   uint8_t *data;
-#ifdef SOMEIP_ENABLE_ZERO_COPY
   uint8_t localBuf[16];
-#endif
   if (IS_TP_ENABLED(method) && (req->length > SOMEIP_SF_MAX)) {
     SQP_ALLOC(TxTpMsg);
     if (NULL != var) {
@@ -709,31 +671,16 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
       ASLOG(SOMEIPE, ("OoM for cache request Tp Tx\n"));
     }
   } else {
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-    data = (uint8_t *)Net_MemAlloc(req->length + 16u);
-#else
     if ((NULL == req->data) || (0 == req->length)) {
       data = localBuf;
     } else {
       data = req->data - 16;
     }
-#endif
-    if (NULL != data) {
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      (void)memcpy(&data[16], req->data, req->length);
-#endif
-      ret = SomeIp_Transmit(config->TxPduId, RemoteAddr, data, config->serviceId, method->methodId,
-                            clientId, sessionId, method->interfaceVersion, messageType, E_OK,
-                            req->length);
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      Net_MemFree(data);
-#endif
-      if (E_OK == ret) {
-        ret = SomeIp_WaitResponse(config, methodId, sessionId);
-      }
-    } else {
-      ASLOG(SOMEIPE, ("OoM for request SF Tx\n"));
-      ret = E_NOT_OK;
+    ret = SomeIp_Transmit(config->TxPduId, RemoteAddr, data, config->serviceId, method->methodId,
+                          clientId, sessionId, method->interfaceVersion, messageType, E_OK,
+                          req->length);
+    if (E_OK == ret) {
+      ret = SomeIp_WaitResponse(config, methodId, sessionId);
     }
   }
 
@@ -796,9 +743,7 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
     &config->events[SOMEIP_CONFIG->TxEvent2PerServiceMap[eventId]];
   SomeIp_TxTpEvtMsgType *var;
   uint8_t *data;
-#ifdef SOMEIP_ENABLE_ZERO_COPY
   uint8_t localBuf[16];
-#endif
   if (IS_TP_ENABLED(event) && (req->length > SOMEIP_SF_MAX)) {
     SQP_ALLOC(TxTpEvtMsg);
     if (NULL != var) {
@@ -818,27 +763,12 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       ASLOG(SOMEIPE, ("OoM for cache notification Tp Tx\n"));
     }
   } else {
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-    data = (uint8_t *)Net_MemAlloc(req->length + 16u);
-#else
     if ((NULL == req->data) || (0 == req->length)) {
       data = localBuf;
     } else {
       data = req->data - 16;
     }
-#endif
-    if (NULL != data) {
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      (void)memcpy(&data[16], req->data, req->length);
-#endif
-      ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      Net_MemFree(data);
-#endif
-    } else {
-      ASLOG(SOMEIPE, ("OoM for notification SF Tx\n"));
-      ret = E_NOT_OK;
-    }
+    ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
   }
 
   return ret;
@@ -847,63 +777,32 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
 static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *config, uint16_t conId,
                                             uint16_t methodId, SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_OK;
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  uint8_t *resData = NULL;
-#endif
   const SomeIp_ServerConnectionType *connection = &config->connections[conId];
   SomeIp_ServerConnectionContextType *context = connection->context;
   const SomeIp_ServerMethodType *method = &config->methods[methodId];
   SomeIp_AsyncReqMsgType *var;
   SomeIp_MessageType res;
   uint32_t requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
-#ifdef SOMEIP_ENABLE_ZERO_COPY
   uint8_t localBuf[16];
-#endif
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  resData = (uint8_t *)Net_MemAlloc(method->resMaxLen + 16u);
-  if (NULL == resData) {
-    ASLOG(SOMEIPE, ("OoM for client request\n"));
-    ret = SOMEIP_E_NOMEM;
-  } else {
-    res.data = &resData[16];
-    res.length = method->resMaxLen;
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-    res.data = NULL;
-    res.length = 0;
-#endif
-    ASLOG(SOMEIP, ("%x:%x:%x:%d request length = %u\n", msg->header.serviceId, msg->header.methodId,
-                   msg->header.clientId, msg->header.sessionId, msg->req.length));
-    ret = method->onRequest(requestId, &msg->req, &res);
-    ASLOG(SOMEIP, ("%x:%x:%x:%d reply length = %u\n", msg->header.serviceId, msg->header.methodId,
-                   msg->header.clientId, msg->header.sessionId, res.length));
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-    if (res.data != &resData[16]) {
-      if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
-        /* OK for TP case */
-      } else {
-        res.data -= 16;
-      }
+
+  res.data = NULL;
+  res.length = 0;
+  ASLOG(SOMEIP, ("%x:%x:%x:%d request length = %u\n", msg->header.serviceId, msg->header.methodId,
+                 msg->header.clientId, msg->header.sessionId, msg->req.length));
+  ret = method->onRequest(requestId, &msg->req, &res);
+  ASLOG(SOMEIP, ("%x:%x:%x:%d reply length = %u\n", msg->header.serviceId, msg->header.methodId,
+                 msg->header.clientId, msg->header.sessionId, res.length));
+  if (E_OK == ret) {
+    if (0 == res.length) {
+      res.data = localBuf;
+    } else if (NULL != res.data) {
+      res.data -= 16;
     } else {
-      res.data = resData;
+      ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", msg->header.serviceId,
+                      msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+      ret = E_NOT_OK;
     }
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-    if (E_OK == ret) {
-      if (0 == res.length) {
-        res.data = localBuf;
-      } else if (NULL != res.data) {
-        res.data -= 16;
-      } else {
-        ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", msg->header.serviceId,
-                        msg->header.methodId, msg->header.clientId, msg->header.sessionId));
-        ret = E_NOT_OK;
-      }
-    }
-#endif
-#ifndef SOMEIP_ENABLE_ZERO_COPY
   }
-#endif
 
   if (E_OK == ret) {
     ret = SomeIp_ReplyRequest(config, conId, methodId, msg->header.clientId, msg->header.sessionId,
@@ -928,11 +827,6 @@ static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *conf
   } else {
     /* do nothing */
   }
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  if (NULL != resData) {
-    Net_MemFree(resData);
-  }
-#endif
   return ret;
 }
 
@@ -1184,83 +1078,51 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
   SomeIp_ServerConnectionContextType *context = connection->context;
   DEC_SQP(AsyncReqMsg);
   const SomeIp_ServerMethodType *method = NULL;
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-  uint8_t *resData;
-#endif
   SomeIp_MessageType res;
   Std_ReturnType ret;
-#ifdef SOMEIP_ENABLE_ZERO_COPY
   uint8_t localBuf[16];
-#endif
 
   SQP_WHILE(AsyncReqMsg) {
     method = &config->methods[var->methodId];
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-    resData = (uint8_t *)Net_MemAlloc(method->resMaxLen + 16u);
-    if (NULL != resData) {
-      res.data = &resData[16];
-      res.length = method->resMaxLen;
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-      res.data = NULL;
-      res.length = 0;
-#endif
 
-      ret = method->onAsyncRequest(conId, &res);
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      if (res.data != &resData[16]) {
-        if (IS_TP_ENABLED(method) && (res.length > SOMEIP_SF_MAX)) {
-          /* OK for TP case */
-        } else {
-          ASLOG(SOMEIPW, ("For async short message, better to fill in response in res.data\n"));
-          res.data -= 16;
-        }
-      } else {
-        res.data = resData;
-      }
-#endif
-#ifdef SOMEIP_ENABLE_ZERO_COPY
-      if (E_OK == ret) {
-        if (0 == res.length) {
-          res.data = localBuf;
-        } else if (NULL != res.data) {
-          res.data -= 16;
-        } else {
-          ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", config->serviceId, method->methodId,
-                          var->clientId, var->sessionId));
-          ret = E_NOT_OK;
-        }
-      }
-#endif
-      if (E_OK == ret) {
-        ret = SomeIp_ReplyRequest(config, conId, var->methodId, var->clientId, var->sessionId,
-                                  &var->RemoteAddr, &res);
-        if (E_OK != ret) {
-          (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
-                                  method->methodId, var->clientId, var->sessionId,
-                                  method->interfaceVersion, SOMEIP_MSG_ERROR, ret);
-          if (E_OK != ret) {
-            /* with NULL to tell app that failed to transmit response */
-            (void)method->onAsyncRequest(conId, NULL);
-          }
-        }
+    res.data = NULL;
+    res.length = 0;
 
-        SQP_CRM_AND_FREE(AsyncReqMsg);
-      } else if (SOMEIP_E_PENDING == ret) {
-        /* do nothing */
+    ret = method->onAsyncRequest(conId, &res);
+    if (E_OK == ret) {
+      if (0 == res.length) {
+        res.data = localBuf;
+      } else if (NULL != res.data) {
+        res.data -= 16;
       } else {
+        ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", config->serviceId, method->methodId,
+                        var->clientId, var->sessionId));
+        ret = E_NOT_OK;
+      }
+    }
+    if (E_OK == ret) {
+      ret = SomeIp_ReplyRequest(config, conId, var->methodId, var->clientId, var->sessionId,
+                                &var->RemoteAddr, &res);
+      if (E_OK != ret) {
         (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
                                 method->methodId, var->clientId, var->sessionId,
-                                method->interfaceVersion, SOMEIP_MSG_RESPONSE, ret);
-
-        SQP_CRM_AND_FREE(AsyncReqMsg);
+                                method->interfaceVersion, SOMEIP_MSG_ERROR, ret);
+        if (E_OK != ret) {
+          /* with NULL to tell app that failed to transmit response */
+          (void)method->onAsyncRequest(conId, NULL);
+        }
       }
-#ifndef SOMEIP_ENABLE_ZERO_COPY
-      Net_MemFree(resData);
+
+      SQP_CRM_AND_FREE(AsyncReqMsg);
+    } else if (SOMEIP_E_PENDING == ret) {
+      /* do nothing */
     } else {
-      ASLOG(SOMEIPE, ("OoM for async request\n"));
+      (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
+                              method->methodId, var->clientId, var->sessionId,
+                              method->interfaceVersion, SOMEIP_MSG_RESPONSE, ret);
+
+      SQP_CRM_AND_FREE(AsyncReqMsg);
     }
-#endif
   }
   SQP_WHILE_END()
 }

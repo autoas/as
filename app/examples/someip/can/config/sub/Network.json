@@ -2,23 +2,43 @@
   "class": "Net",
   "Modules": [
     {
+      "EnableZeroCopy": true,
       "name": "SomeIp",
       "class": "SomeIp",
       "SD": {
-        "hostname" : "ssas",
-        "multicast" : "224.244.224.245"
+        "hostname": "ssas",
+        "multicast": "224.244.224.245"
       },
       "structs": [
         {
           "name": "CanFrame",
           "data": [
-            { "name": "busid", "type": "uint32", "variable_array": false },
-            { "name": "canid", "type": "uint32", "variable_array": false },
-            { "name": "dlc", "type": "uint8", "variable_array": false },
-            { "name": "data", "type": "uint8_n", "variable_array": false, "size": 64 }
+            {
+              "name": "busid",
+              "type": "uint32",
+              "variable_array": false
+            },
+            {
+              "name": "canid",
+              "type": "uint32",
+              "variable_array": false
+            },
+            {
+              "name": "dlc",
+              "type": "uint8",
+              "variable_array": false
+            },
+            {
+              "name": "data",
+              "type": "uint8_n",
+              "variable_array": false,
+              "size": 64
+            }
           ]
         }
       ],
+      "args": [],
+      "servers": [],
       "clients": [
         {
           "name": "CANBus",
@@ -26,6 +46,7 @@
           "instance": "0x1000",
           "clientId": "0x1000",
           "protocol": "UDP",
+          "unreliable": 0,
           "methods": [],
           "event-groups": [
             {
@@ -33,7 +54,8 @@
               "groupId": "0x8100",
               "enable_multicast": true,
               "multicast": {
-                "threshold": 1
+                "threshold": 1,
+                "addr": "224.244.224.245:30561"
               },
               "events": [
                 {
@@ -41,11 +63,22 @@
                   "type": "CanFrame",
                   "eventId": "0x8100",
                   "tp": false,
-                  "version": 0
+                  "version": 0,
+                  "useE2E": true,
+                  "E2E-RX": {
+                    "profile": "P11",
+                    "DataID": 4660,
+                    "DataIDMode": "NIBBLE",
+                    "CRCOffset": 0,
+                    "CounterOffset": 8,
+                    "DataIDNibbleOffset": 12,
+                    "MaxDeltaCounter": 1
+                  }
                 }
               ]
             }
-          ]
+          ],
+          "fields": []
         }
       ]
     }

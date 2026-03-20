@@ -556,7 +556,8 @@ uint8_t BL_GetMemoryIdentifier(uint32_t MemoryAddress, uint32_t MemorySize) {
       ASLOG(BL, ("%02" PRIx8 ": low=0x%" PRIx32 " high=%" PRIx32 "\n", blMemoryList[i].identifier,
                  blMemoryList[i].addressLow, blMemoryList[i].addressHigh));
       if ((MemoryAddress >= blMemoryList[i].addressLow) &&
-          ((MemoryAddress + MemorySize) <= blMemoryList[i].addressHigh)) {
+          (MemoryAddress < blMemoryList[i].addressHigh) &&
+          (MemorySize <= (blMemoryList[i].addressHigh - MemoryAddress))) {
         MemoryIdentifier = blMemoryList[i].identifier;
         break;
       }

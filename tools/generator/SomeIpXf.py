@@ -240,7 +240,7 @@ def GetE2EOverhead(item, direction=None, op=None):
         return 4  # Default to P11 overhead if profile is unknown
 
 
-def GetE2EOffset(item, op=None, direction=None):
+def GetE2EOffset(item, direction=None, op=None):
     """Calculate E2E offset for decoding: returns overhead if offset is 0, else 0"""
     if op and isinstance(item, dict) and op in item:
         item = item[op]
@@ -265,13 +265,13 @@ def GetE2EOffset(item, op=None, direction=None):
         counter_offset = e2e.get('CounterOffset', 0)
         dataid_offset = e2e.get('DataIDNibbleOffset', 0)
         if crc_offset == 0 or counter_offset == 0 or dataid_offset == 0:
-            return GetE2EOverhead(item, op, direction)
+            return GetE2EOverhead(item, direction, op)
         else:
             return 0
     # P22, P44, P05 have offset attribute
     elif profile in ['P22', 'P44', 'P05']:
         if e2e.get('Offset', 0) == 0:
-            return GetE2EOverhead(item, op, direction)
+            return GetE2EOverhead(item, direction, op)
         else:
             return 0
     else:

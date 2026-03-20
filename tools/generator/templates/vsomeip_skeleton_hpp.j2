@@ -46,7 +46,7 @@ public:
   bool OnSubscribe(vsomeip::client_t client, vsomeip::uid_t uid, vsomeip::gid_t gid, bool isSubscribe);
 
 private:
-  uint8_t m_payload[20 + {{ event | getTypePayloadSize(allStructs) }}];
+  uint8_t m_payload[20 + {{ event | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(event, 'TX') }}];
   std::shared_ptr<vsomeip::application> m_app;
 };
 
@@ -92,18 +92,18 @@ private:
 {% if 'get' in field %}
   std::function<ara::core::Future<FieldType>()> m_getHandler = nullptr;
   FieldType m_fieldGet;
-  uint8_t m_responseGet[{{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_responseGet[{{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'get') }}];
 {% endif %}
   bool m_bValid = false;
 
 {% if 'set' in field %}
   std::function<ara::core::Future<FieldType>(const FieldType& data)> m_setHandler = nullptr;
   FieldType m_fieldSet;
-  uint8_t m_responseSet[{{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_responseSet[{{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'set') }}];
 {% endif %}
 
 {% if 'event' in field %}
-  uint8_t m_payload[{{ field | getTypePayloadSize(allStructs) }}];
+  uint8_t m_payload[{{ field | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(field, 'TX', 'event') }}];
 {% endif %}
   std::shared_ptr<vsomeip::application> m_app;
 };

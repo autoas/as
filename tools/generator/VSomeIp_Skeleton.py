@@ -41,6 +41,8 @@ def Gen_VSomeIpSkeleton(cfg, service, dir, source):
         "now": datetime.datetime.now(),
         "GetArgs": GetArgs,
         "GetTypePayloadSize": GetTypePayloadSize,
+        "GetE2EOverhead": GetE2EOverhead,
+        "GetE2EOffset": GetE2EOffset,
     }
 
     # Render header template

@@ -190,7 +190,7 @@ private:
   ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
   ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
   size_t m_maxSampleCount = 1;
-  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'event', 'RX') }}];
   bool m_isSubscribed = false;
 {% endif %}
 
@@ -201,7 +201,7 @@ private:
 
 {% if 'set' in field %}
   std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;
-  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }}];
+  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'set', 'TX') }}];
   FieldType m_fieldSet;
 {% endif %}
 };
@@ -242,7 +242,7 @@ private:
 
 private:
   std::shared_ptr<ara::core::Promise<{{ ReturnType }}>> m_promise = nullptr;
-  uint8_t m_request[20 + {{ GetMethodPayloadSize(method, cfg, allStructs) }}];
+  uint8_t m_request[20 + {{ GetMethodPayloadSize(method, cfg, allStructs) }} + {{ GetE2EOverhead(method, 'TX') }}];
 {% if ReturnType != 'void' %}
   {{ toMethodTypeName(ReturnType, method) }} m_{{ toMethodTypeName(ReturnType, method) }};
 {% endif %}

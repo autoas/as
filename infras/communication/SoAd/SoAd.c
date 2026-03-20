@@ -60,7 +60,16 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
 #else
       port = TCPIP_PORT_ANY;
 #endif
+      if (TRUE == conG->IsMulitcast) {
+        port = context->RemoteAddr.port;
+      }
       ret = TcpIp_Bind(sockId, conG->LocalAddrId, &port);
+      if ((E_OK == ret) && (TRUE == conG->IsMulitcast)) {
+        ret = TcpIp_AddToMulticast(sockId, &context->RemoteAddr);
+      }
+      if (E_OK != ret) {
+        TcpIp_Close(sockId, TRUE);
+      }
     } else {
       /* do nothing */
     }

@@ -49,6 +49,8 @@ def Gen_VSomeIpProxy(cfg, service, dir, source):
         "GetXfCType": GetXfCType,
         "SomeIpXfEncode": SomeIpXfEncode,
         "SomeIpXfDecode": SomeIpXfDecode,
+        "GetE2EOverhead": GetE2EOverhead,
+        "GetE2EOffset": GetE2EOffset,
         "toMacro": toMacro,
         "toMethodTypeName": toMethodTypeName,
     }

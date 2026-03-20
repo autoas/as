@@ -121,7 +121,7 @@ def ProcSomeIp(cfg, mod):
             if "multicast" in eg:
                 sock = {
                     "name": "_".join([name, eg["name"]]),
-                    "server": "%s" % (eg["multicast"].get("addr", "NULL:0")),
+                    "client": "%s" % (eg["multicast"].get("addr", "NULL:0")),
                     "multicast": True,
                     "protocol": "UDP",
                     "up": "SOMEIP",

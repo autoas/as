@@ -5,18 +5,12 @@
  * Generated at {{ now.strftime("%c") }}
  */
 
-
-
 #ifndef ARA_SOMEIP_{{ toMacro(service_name) }}_PROXY_HPP
 #define ARA_SOMEIP_{{ toMacro(service_name) }}_PROXY_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ara/com/proxy/proxy_base.h"
 #include "SomeIpXf_Cfg.h"
 #include "SomeIp.h"
-#ifdef USE_E2E
-#include "E2E.h"
-#include "E2E_Cfg.h"
-#endif
 namespace ara {
 namespace com {
 namespace {{ service_name }} {

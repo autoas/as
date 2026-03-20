@@ -14,6 +14,7 @@
           "SystemTime": ["year", "month", "day", "hour", "minute", "second"]
         }
       ],
+      "use_dbc": true,
       "dbc": "CAN0.dbc",
       "trigger": ["CanNmUserData"],
       "messages": [
@@ -51,6 +52,7 @@
           "SystemTime_": ["year", "month", "day", "hour", "minute", "second"]
         }
       ],
+      "use_dbc": true,
       "dbc": "CAN0.dbc",
       "trigger": ["CanNmUserData"]
     }

@@ -9,6 +9,10 @@
 #include "{{ service_name }}SkeletonV.hpp"
 
 #include "Std_Debug.h"
+#ifdef USE_E2E
+#include "E2E.h"
+#include "E2E_Cfg.h"
+#endif
 
 namespace ara {
 namespace com {
@@ -29,21 +33,34 @@ namespace events {
 Result<void> {{ event['name'] }}::Send(const {{ event['name'] }}::SampleType &data) {
   Result<void> rslt;
 
+  int32_t offset = 20;
+  offset += {{ GetE2EOffset(event, 'TX') }};
   int32_t serializedSize = 
-    {{ event | SomeIpXfEncode(allStructs, '&m_payload[20]', 'sizeof(m_payload) - 20', 'data') }};
+    {{ event | SomeIpXfEncode(allStructs, '&m_payload[offset]', 'sizeof(m_payload) - offset', 'data') }};
   if (serializedSize > 0) {
-    auto rtm = vsomeip::runtime::get();
-    auto request = rtm->create_request();
-    request->set_service({{ service['service'] }});
-    request->set_instance({{ service['instance'] }});
-    request->set_method({{ event['eventId'] }});
-    request->set_message_type(vsomeip::message_type_e::MT_NOTIFICATION);
-    
-    auto payload = rtm->create_payload();
-    payload->set_data(&m_payload[20], serializedSize);
-    request->set_payload(payload);
-    
-    m_app->notify({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }}, payload);
+    Std_ReturnType ret = E_OK;
+{% if event.get('useE2E', false) and 'E2E-TX' in event %}
+    /* Apply E2E protection */
+    ret = E2E_P{{ event['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ event['E2E-TX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ eg['name'] | toMacro }}_{{ event['name'] | toMacro }}_TX, &m_payload[20], serializedSize + {{ GetE2EOverhead(event, 'TX') }});
+    if (E_OK == ret) {
+{% endif %}
+      auto rtm = vsomeip::runtime::get();
+      auto request = rtm->create_request();
+      request->set_service({{ service['service'] }});
+      request->set_instance({{ service['instance'] }});
+      request->set_method({{ event['eventId'] }});
+      request->set_message_type(vsomeip::message_type_e::MT_NOTIFICATION);
+      
+      auto payload = rtm->create_payload();
+      payload->set_data(&m_payload[20], serializedSize + {{ GetE2EOverhead(event, 'TX') }});
+      request->set_payload(payload);
+      
+      m_app->notify({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }}, payload);
+{% if event.get('useE2E', false) and 'E2E-TX' in event %}
+    } else {
+      rslt = Result<void>(-EINVAL);
+    }
+{% endif %}
   } else {
     rslt = Result<void>(-EINVAL);
   }
@@ -105,6 +122,15 @@ void {{ field['name'] }}::OnGetRequest(const std::shared_ptr<vsomeip::message> &
   auto res = vsomeip::runtime::get()->create_response(msg);
   bool bValid = false;
   int32_t serializedSize;
+  Std_ReturnType ret = E_OK;
+  
+{% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+  /* Check E2E protection */
+  if (msg->get_payload()) {
+    ret = E2E_P{{ field['get']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['get']['E2E-RX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ field['name'] | toMacro }}_GET_RX, msg->get_payload()->get_data(), msg->get_payload()->get_length());
+  }
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+{% endif %}
   if (nullptr != m_getHandler) {
     // Create local future variable
     auto future = m_getHandler();
@@ -119,20 +145,40 @@ void {{ field['name'] }}::OnGetRequest(const std::shared_ptr<vsomeip::message> &
   }
 
   if (true == bValid) {
-    serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseGet', 'sizeof(m_responseGet)', 'm_fieldGet') }};
+    int32_t offset = 0;
+    offset += {{ GetE2EOffset(field, 'TX', 'get') }};
+    serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseGet + offset', 'sizeof(m_responseGet) - offset', 'm_fieldGet') }};
     if (serializedSize > 0) {
-      auto rtm = vsomeip::runtime::get();
-      auto payload = rtm->create_payload();
-      payload->set_data(m_responseGet, serializedSize);
-      res->set_payload(payload);
-      res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
-      res->set_return_code((vsomeip::return_code_e)E_OK);
-      m_app->send(res);
+{% if field.get('get', {}).get('useE2E', false) and 'E2E-TX' in field['get'] %}
+      /* Apply E2E protection */
+      ret = E2E_P{{ field['get']['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ field['get']['E2E-TX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ field['name'] | toMacro }}_GET_TX, m_responseGet, serializedSize + {{ GetE2EOverhead(field, 'TX', 'get') }});
+      if (E_OK == ret) {
+{% endif %}
+        auto rtm = vsomeip::runtime::get();
+        auto payload = rtm->create_payload();
+        payload->set_data(m_responseGet, serializedSize + {{ GetE2EOverhead(field, 'TX', 'get') }});
+        res->set_payload(payload);
+        res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
+        res->set_return_code((vsomeip::return_code_e)E_OK);
+        m_app->send(res);
+{% if field.get('get', {}).get('useE2E', false) and 'E2E-TX' in field['get'] %}
+      } else {
+        res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+        m_app->send(res);
+      }
+{% endif %}
     }
   } else {
     res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
     m_app->send(res);
   }
+  {% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+  } else {
+    ASLOG({{ service_name | toMacro }}_E, ("E2E check failed for Get{{ field['name'] }}, ercd=0x%x\n", ret));
+    res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+    m_app->send(res);
+  }
+  {% endif %}
 }
 
 {% endif %}
@@ -147,32 +193,57 @@ void {{ field['name'] }}::OnSetRequest(const std::shared_ptr<vsomeip::message> &
 
   auto res = vsomeip::runtime::get()->create_response(msg);
   int32_t serializedSize;
-  if ((nullptr != m_setHandler) && msg->get_payload()) {
-    auto payload = msg->get_payload();
-    serializedSize = {{ field | SomeIpXfDecode(allStructs, 'payload->get_data()', 'payload->get_length()', 'm_fieldSet') }};
-    if (serializedSize > 0) {
-      // Create local future variable
-      auto future = m_setHandler(m_fieldSet);
-      // Wait for the future to be ready
-      ara::core::Result<FieldType> result = future.GetResult();
-      if (result.HasValue()) {
-        serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseSet', 'sizeof(m_responseSet)', 'result.Value()') }};
-        if (serializedSize > 0) {
-          auto rtm = vsomeip::runtime::get();
-          auto res_payload = rtm->create_payload();
-          res_payload->set_data(m_responseSet, serializedSize);
-          res->set_payload(res_payload);
-          res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
-          res->set_return_code((vsomeip::return_code_e)E_OK);
-          m_app->send(res);
-          return;
+  Std_ReturnType ret = E_OK;
+  
+{% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+  /* Check E2E protection */
+  if (msg->get_payload()) {
+    ret = E2E_P{{ field['set']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['set']['E2E-RX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ field['name'] | toMacro }}_SET_RX, msg->get_payload()->get_data(), msg->get_payload()->get_length());
+  }
+  if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+{% endif %}
+    if ((nullptr != m_setHandler) && msg->get_payload()) {
+      auto payload = msg->get_payload();
+      int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'set') }};
+      serializedSize = {{ field | SomeIpXfDecode(allStructs, 'payload->get_data() + e2eOffset', 'payload->get_length() - e2eOffset', 'm_fieldSet') }};
+      if (serializedSize > 0) {
+        // Create local future variable
+        auto future = m_setHandler(m_fieldSet);
+        // Wait for the future to be ready
+        ara::core::Result<FieldType> result = future.GetResult();
+        if (result.HasValue()) {
+          int32_t offset = 0;
+          offset += {{ GetE2EOffset(field, 'TX', 'set') }};
+          serializedSize = {{ field | SomeIpXfEncode(allStructs, 'm_responseSet + offset', 'sizeof(m_responseSet) - offset', 'result.Value()') }};
+          if (serializedSize > 0) {
+{% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+            /* Apply E2E protection */
+            ret = E2E_P{{ field['set']['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ field['set']['E2E-TX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ field['name'] | toMacro }}_SET_TX, m_responseSet, serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
+            if (E_OK == ret) {
+{% endif %}
+              auto rtm = vsomeip::runtime::get();
+              auto res_payload = rtm->create_payload();
+              res_payload->set_data(m_responseSet, serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
+              res->set_payload(res_payload);
+              res->set_message_type(vsomeip::message_type_e::MT_RESPONSE);
+              res->set_return_code((vsomeip::return_code_e)E_OK);
+              m_app->send(res);
+{% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+            }
+{% endif %}
+          }
         }
       }
     }
+{% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+  } else {
+    ASLOG({{ service_name | toMacro }}_E, ("E2E check failed for Set{{ field['name'] }}, ercd=0x%x\n", ret));
   }
-
-  res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
-  m_app->send(res);
+{% endif %}
+  if (E_OK != ret) {
+    res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+    m_app->send(res);
+  }
 }
 
 {% endif %}
@@ -185,13 +256,24 @@ Result<void> {{ field['name'] }}::Update(const FieldType& data) {
   m_bValid = true;
 {% endif %}
 {% if 'event' in field %}
+  int32_t offset = 0;
+  offset += {{ GetE2EOffset(field, 'TX', 'event') }};
   int32_t serializedSize = 
-    {{ field | SomeIpXfEncode(allStructs, 'm_payload', 'sizeof(m_payload)', 'data') }};
+    {{ field | SomeIpXfEncode(allStructs, 'm_payload + offset', 'sizeof(m_payload) - offset', 'data') }};
   if (serializedSize > 0) {
+    Std_ReturnType ret = E_OK;
+{% if field.get('event', {}).get('useE2E', false) and 'E2E-TX' in field['event'] %}
+    /* Apply E2E protection */
+    ret = E2E_P{{ field['event']['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ field['event']['E2E-TX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ field['name'] | toMacro }}_EVENT_TX, m_payload, serializedSize + {{ GetE2EOverhead(field, 'TX', 'event') }});
+    if (E_OK == ret) {
+{% endif %}
     auto rtm = vsomeip::runtime::get();
     auto payload = rtm->create_payload();
-    payload->set_data(m_payload, serializedSize);
+    payload->set_data(m_payload, serializedSize + {{ GetE2EOverhead(field, 'TX', 'event') }});
     m_app->notify({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }}, payload);
+{% if field.get('event', {}).get('useE2E', false) and 'E2E-TX' in field['event'] %}
+    }
+{% endif %}
   } else {
     rslt = Result<void>(-EINVAL);
   }
@@ -239,24 +321,24 @@ bool {{ field['name'] }}::OnSubscribe(vsomeip::client_t client, vsomeip::uid_t u
   m_app->register_state_handler(std::bind(&{{ service_name }}Skeleton::OnState, this, std::placeholders::_1));
 
   // Register message handlers for each method
-  {% for method in service.get('methods', []) %}
-  {% if 'for' not in method %}
+{% for method in service.get('methods', []) %}
+{% if 'for' not in method %}
   m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ method['methodId'] }}, 
                                  std::bind(&{{ service_name }}Skeleton::On{{ method['name'] }}Request, this, std::placeholders::_1));
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 
   // Register message handlers for each field get/set
-  {% for field in service.get('fields', []) %}
-  {% if 'get' in field %}
+{% for field in service.get('fields', []) %}
+{% if 'get' in field %}
   m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['get']['methodId'] }}, 
                                  std::bind(&fields::{{ field['name'] }}::OnGetRequest, &{{ field['name'] }}, std::placeholders::_1));
-  {% endif %}
-  {% if 'set' in field %}
+{% endif %}
+{% if 'set' in field %}
   m_app->register_message_handler({{ service['service'] }}, {{ service['instance'] }}, {{ field['set']['methodId'] }}, 
                                  std::bind(&fields::{{ field['name'] }}::OnSetRequest, &{{ field['name'] }}, std::placeholders::_1));
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 }
 
 void {{ service_name }}Skeleton::OnState(vsomeip::state_type_e _state) {
@@ -302,9 +384,9 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
     m_app->offer_service({{ service['service'] }}, {{ service['instance'] }});
 
     // Offer events and register subscription handlers
-    {% for eg in service.get('event-groups', []) %}
-    {% for event in eg['events'] %}
-    {% if 'for' not in event %}
+{% for eg in service.get('event-groups', []) %}
+{% for event in eg['events'] %}
+{% if 'for' not in event %}
     std::set<vsomeip::eventgroup_t> event_groups;
     event_groups.insert({{ eg['groupId'] }});
     m_app->offer_event({{ service['service'] }}, {{ service['instance'] }}, {{ event['eventId'] }}, event_groups);
@@ -312,13 +394,13 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
                                         std::bind(&events::{{ event['name'] }}::OnSubscribe, &{{ event['name'] }}, 
                                         std::placeholders::_1, std::placeholders::_2, 
                                         std::placeholders::_3, std::placeholders::_4));
-    {% endif %}
-    {% endfor %}
-    {% endfor %}
+{% endif %}
+{% endfor %}
+{% endfor %}
 
     // Offer field events
-    {% for field in service.get('fields', []) %}
-    {% if 'event' in field %}
+{% for field in service.get('fields', []) %}
+{% if 'event' in field %}
     std::set<vsomeip::eventgroup_t> field_event_groups;
     field_event_groups.insert({{ field['event']['groupId'] }});
     m_app->offer_event({{ service['service'] }}, {{ service['instance'] }}, {{ field['event']['eventId'] }}, field_event_groups);
@@ -326,8 +408,8 @@ Result<void> {{ service_name }}Skeleton::OfferService() {
                                         std::bind(&fields::{{ field['name'] }}::OnSubscribe, &{{ field['name'] }}, 
                                         std::placeholders::_1, std::placeholders::_2, 
                                         std::placeholders::_3, std::placeholders::_4));
-    {% endif %}
-    {% endfor %}
+{% endif %}
+{% endfor %}
 
     m_serviceOffered = true;
     rslt = Result<void>(0);
@@ -358,17 +440,32 @@ void {{ service_name }}Skeleton::On{{ method['name'] }}Request(const std::shared
   if (!msg) return;
 
   auto res = vsomeip::runtime::get()->create_response(msg);
-  
+  Std_ReturnType ret = E_OK;
   // Decode arguments
-  {% if 'args' in method %}
-  {% set method_args = GetArgs(cfg, method['args']) %}
-  {% for arg in method_args %}
+{% if 'args' in method %}
+{% set method_args = GetArgs(cfg, method['args']) %}
+{% for arg in method_args %}
   static {{ arg['type'] }} {{ arg['name'] }};
-  {% endfor %}
+{% endfor %}
+{% endif %}
 
+{% if method.get('useE2E', false) and 'E2E-RX' in method %}
+  /* Check E2E protection */
   if (msg->get_payload()) {
-    int32_t offset = 0;
-    {% for arg in method_args %}
+    ret = E2E_P{{ method['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ method['E2E-RX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ method['name'] | toMacro }}_RX, msg->get_payload()->get_data(), msg->get_payload()->get_length());
+    if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
+      ret = E_OK;
+    } else {
+      ASLOG({{ service_name | toMacro }}_E, ("E2E check failed for {{ method['name'] }}, ercd=0x%x\n", ret));
+      res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+      return;
+    }
+  }
+{% endif %}
+
+  if (E_OK == ret) {
+    int32_t offset = {{ GetE2EOffset(method, 'RX') }};
+{% for arg in method_args %}
     int32_t argSize = {{ arg | SomeIpXfDecode(allStructs, 'msg->get_payload()->get_data() + offset', 'msg->get_payload()->get_length() - offset', arg['name']) }};
     if (argSize > 0) {
       offset += argSize;
@@ -377,9 +474,8 @@ void {{ service_name }}Skeleton::On{{ method['name'] }}Request(const std::shared
       m_app->send(res);
       return;
     }
-    {% endfor %}
+{% endfor %}
   }
-  {% endif %}
   
   // Call the method
   auto future = {{ method['name'] }}({% for arg in method_args %}{{ arg['name'] }}{% if not loop.last %},{% endif %}{% endfor %});
@@ -387,23 +483,33 @@ void {{ service_name }}Skeleton::On{{ method['name'] }}Request(const std::shared
   // Wait for the future to be ready
   auto result = future.GetResult();
   if (result.HasValue()) {
-    {% if method.get('return', 'void') != 'void' %}
+{% if method.get('return', 'void') != 'void' %}
     // Encode response
-    uint8_t response[20 + {{ method.get('return', 'void') | getTypePayloadSize(allStructs) }}];
-    int32_t serializedSize = {{ method.get('return', 'void') | SomeIpXfEncode(allStructs, '&response[20]', 'sizeof(response) - 20', 'result.Value()') }};
+    uint8_t response[20 + {{ method.get('return', 'void') | getTypePayloadSize(allStructs) }} + {{ GetE2EOverhead(method, 'TX') }}];
+    int32_t offset = 20;
+    offset += {{ GetE2EOffset(method, 'TX') }};
+    int32_t serializedSize = {{ method.get('return', 'void') | SomeIpXfEncode(allStructs, '&response[offset]', 'sizeof(response) - offset', 'result.Value()') }};
     if (serializedSize > 0) {
-      auto payload = vsomeip::runtime::get()->create_payload();
-      payload->set_data(&response[20], serializedSize);
-      res->set_payload(payload);
-      res->set_return_code((vsomeip::return_code_e)E_OK);
+{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      /* Apply E2E protection */
+      ret = E2E_P{{ method['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['profile'][1:] }}_{{ service_name | toMacro }}_{{ method['name'] | toMacro }}_TX, &response[20], serializedSize + {{ GetE2EOverhead(method, 'TX') }});
+      if (E_OK == ret) {
+{% endif %}
+        auto payload = vsomeip::runtime::get()->create_payload();
+        payload->set_data(&response[20], serializedSize + {{ GetE2EOverhead(method, 'TX') }});
+        res->set_payload(payload);
+        res->set_return_code((vsomeip::return_code_e)E_OK);
+{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+      } else {
+        res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+      }
+{% endif %}
     } else {
       res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
     }
-    {% else %}
+{% else %}
     res->set_return_code((vsomeip::return_code_e)E_OK);
-    {% endif %}
-  } else {
-    res->set_return_code((vsomeip::return_code_e)E_NOT_OK);
+{% endif %}
   }
   m_app->send(res);
 }

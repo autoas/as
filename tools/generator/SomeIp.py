@@ -498,7 +498,6 @@ def Gen_SOMEIP(cfg, dir, source):
     H.write("#define SOMEIP_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    H.write("%s#define SOMEIP_ENABLE_ZERO_COPY\n" % ("" if cfg.get("EnableZeroCopy", False) else "// "))
     WaitResposeTpMessagePoolSize = 8
     AsyncRequestMessagePoolSize = 8
     RxTpMessagePoolSize = 8

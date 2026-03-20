@@ -2,7 +2,6 @@
   "class": "Net",
   "Modules": [
     {
-      "EnableZeroCopy": true,
       "name": "SomeIp",
       "class": "SomeIp",
       "SD": {

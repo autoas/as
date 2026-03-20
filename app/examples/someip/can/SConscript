@@ -16,6 +16,7 @@ class ApplicationCanPubEx(Application):
             "Sd": source["Sd"],
             "SomeIp": source["SomeIp"] + source["CANBusSkeletonC"],
             "SomeIpXf": source["SomeIpXf"],
+            "E2E": source["E2E"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/pub/GEN" % (CWD)]
         self.source = objsCanPub
@@ -39,6 +40,7 @@ class ApplicationCanSubEx(Application):
             "Sd": source["Sd"],
             "SomeIp": source["SomeIp"] + source["CANBusProxyC"],
             "SomeIpXf": source["SomeIpXf"],
+            "E2E": source["E2E"],
         }
         self.CPPPATH = ["$INFRAS", "%s/config/sub/GEN" % (CWD)]
         self.source = objsCanSub

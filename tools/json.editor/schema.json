@@ -871,7 +871,6 @@
               }
             },
             "SomeIp": {
-              "EnableZeroCopy": { "type": "bool", "default": false },
               "SD": {
                 "type": "object", "title": "SD",
                 "properties": {
