@@ -7,7 +7,9 @@
 #include "Service1Proxy.h"
 #include "Sd_Cfg.h"
 #include "Sd.h"
+#ifdef USE_PLUGIN
 #include "plugin.h"
+#endif
 #include "Std_Timer.h"
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -17,7 +19,9 @@
 /* ================================ [ DATAS     ] ============================================== */
 static Std_TimerType timer1S;
 static Message_Type message0 = {
-  0,
+  {
+    0,
+  },
 };
 static boolean s_isAvailable = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
@@ -69,5 +73,6 @@ void CS_Service1_main(void) {
 
 void CS_Service1_deinit(void) {
 }
-
+#ifdef USE_PLUGIN
 REGISTER_PLUGIN(CS_Service1);
+#endif

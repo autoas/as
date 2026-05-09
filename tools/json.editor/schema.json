@@ -179,7 +179,8 @@
                   "properties": {
                     "name": { "type": "string" },
                     "id": { "type": "integer", "format": "hex", "default": "0xFFFF", "minimum": 0, "maximum": 65535 },
-                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535 },
+                    "size": { "type": "integer", "default": 8, "minimum": 1,"maximum": 65535, "description": "Maximum size when dynamicLength is true" },
+                    "dynamicLength": { "type": "bool", "default": false },
                     "API": { "type": "string", "default": "Xxx_ReadDID${name}" },
                     "sessions": { "type": "array", "items": { "type": "string", "title": "session", "enumref": "/Dcm/sessions:name"} },
                     "securities": { "type": "array", "items": { "type": "string", "title": "security", "enumref": "/Dcm/securities:name"} },

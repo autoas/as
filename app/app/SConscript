@@ -51,7 +51,7 @@ libsForCanApp = {
     "CanTp": Glob("config/CanTp/CanTp.json"),
     "PduR": Glob("config/Com/PduR.json"),
     "CanIf": Glob("config/Com/CanIf.json"),
-    "CanTSyn": Glob("config/CanTSyn/master/CanTSyn_Cfg.c"),
+    "CanTSyn": Glob("config/CanTSyn/slave/CanTSyn_Cfg.c"),
     "Xcp": Glob("config/Xcp/Xcp.json"),
     "StdTrace": Glob("config/Trace/Trace.json"),
     "Csm": Glob("config/Csm/Csm.json"),
@@ -100,8 +100,8 @@ class ApplicationCanApp(ApplicationApp):
         super().config()
         self.Append(CPPDEFINES=["USE_CAN"])
         self.platform_config()
-        self.Remove(CPPDEFINES="USE_OSEKNM")
-        self.Remove(CPPDEFINES="USE_CANTSYN")
+        # self.Remove(CPPDEFINES="USE_OSEKNM")
+        # self.Remove(CPPDEFINES="USE_CANTSYN")
 
 
 # generate(Glob("config/SWC/*/*.json"))

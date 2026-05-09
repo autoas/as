@@ -89,8 +89,27 @@ def gen_ecu_reset_config(C, service, cfg):
 
 def gen_read_did_api(C, service, cfg):
     for did in service["DIDs"]:
-        C.write("Std_ReturnType %s(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,\n" % (did["API"]))
-        C.write("                   Dcm_NegativeResponseCodeType *errorCode);\n\n")
+        if did.get("dynamicLength", False):
+            C.write(
+                "Std_ReturnType %sWithDynamicLength(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t *length,\n"
+                % (did["API"])
+            )
+            C.write("                   Dcm_NegativeResponseCodeType *errorCode);\n\n")
+        if did.get("dynamicLength", False):
+            C.write("Std_ReturnType %s(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,\n" % (did["API"]))
+            C.write("                   Dcm_NegativeResponseCodeType *errorCode) {\n")
+            C.write("  Std_ReturnType r;\n")
+            C.write("  uint16_t dynLen = length;\n")
+            C.write("  r = %sWithDynamicLength(opStatus, data, &dynLen, errorCode);\n" % (did["API"]))
+            C.write("  if (r == E_OK) {\n")
+            C.write("    data[length] = (dynLen >> 8) & 0xFF;\n")
+            C.write("    data[length + 1] = dynLen & 0xFF;\n")
+            C.write("  }\n")
+            C.write("  return r;\n")
+            C.write("}\n\n")
+        else:
+            C.write("Std_ReturnType %s(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,\n" % (did["API"]))
+            C.write("                   Dcm_NegativeResponseCodeType *errorCode);\n\n")
 
 
 def gen_read_scaling_did_api(C, service, cfg):
@@ -135,6 +154,9 @@ def gen_read_scaling_did_config(C, service, cfg):
         C.write("#endif\n")
         C.write("      %s,\n" % (get_misc(did, False)))
         C.write("    },\n")
+        C.write("    #ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH\n")
+        C.write("    %s, /* bDynamicLength */\n" % ("TRUE" if did.get("dynamicLength", False) else "FALSE"))
+        C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
     C.write("static CONSTANT(Dcm_ReadScalingDIDConfigType, DCM_CONST) Dcm_ReadScalingDataByIdentifierConfig = {\n")
@@ -241,13 +263,15 @@ def gen_routine_control_api(C, service, cfg):
 
 
 def gen_routine_control_config(C, service, cfg):
+    C.write("static Dcm_RoutineControlContextType Dcm_RoutineCtrlContexts[%s];\n" % (len(service["routines"])))
     C.write("static CONSTANT(Dcm_RoutineControlType, DCM_CONST) Dcm_RoutineControls[] = {\n")
-    for x in service["routines"]:
+    for i, x in enumerate(service["routines"]):
         C.write("  {\n")
-        C.write("    0x%X,\n" % (toNum(x["id"])))
+        C.write("    &Dcm_RoutineCtrlContexts[%s],\n" % (i))
         C.write("    %s,\n" % (x["API"]["start"]))
         C.write("    %s,\n" % (x["API"].get("stop", "NULL")))
         C.write("    %s,\n" % (x["API"].get("result", "NULL")))
+        C.write("    0x%X,\n" % (toNum(x["id"])))
         C.write("    {\n")
         C.write("      %s,\n" % (get_session(x)))
         C.write("#ifdef DCM_USE_SERVICE_SECURITY_ACCESS\n")
@@ -713,6 +737,14 @@ def Gen_Dcm(cfg, dir):
             maxSeedSize = s
     H.write("#define DCM_MAX_SEED_SIZE %s\n" % (maxSeedSize))
     H.write("%s#define DCM_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
+    bReadDIDDynamicLength = False
+    for service in cfg["services"]:
+        if service["id"] == 0x22:
+            for did in service["DIDs"]:
+                if did.get("dynamicLength", False):
+                    bReadDIDDynamicLength = True
+    if bReadDIDDynamicLength:
+        H.write("%s#define DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH\n" % ("" if bReadDIDDynamicLength else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -833,6 +865,9 @@ def Gen_Dcm(cfg, dir):
             C.write("#endif\n")
             C.write("      %s,\n" % (get_misc(did, False)))
             C.write("    },\n")
+            C.write("    #ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH\n")
+            C.write("    %s, /* bDynamicLength */\n" % ("TRUE" if did.get("dynamicLength", False) else "FALSE"))
+            C.write("    #endif\n")
             C.write("  },\n")
         C.write("};\n\n")
     for service in cfg["services"]:
@@ -928,6 +963,9 @@ def Gen_Dcm(cfg, dir):
     C.write("  #endif\n")
     C.write("  #ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER\n")
     C.write("  &Dcm_IOControlByIdentifierConfig,\n")
+    C.write("  #endif\n")
+    C.write("  #ifdef DCM_USE_SERVICE_ROUTINE_CONTROL\n")
+    C.write("  &Dcm_RoutineControlConfig,\n")
     C.write("  #endif\n")
     C.write(
         "  #if defined(DCM_USE_SERVICE_READ_MEMORY_BY_ADDRESS) || defined(DCM_USE_SERVICE_WRITE_MEMORY_BY_ADDRESS)\n"

@@ -38,13 +38,13 @@ typedef struct {
   uint8_t sizeOfDataLengthField;
 } SomeIpXf_DataElementType;
 
-typedef struct SomeIpXf_StructDefinition_s {
+struct SomeIpXf_StructDefinition_s {
   const char *name;
   const SomeIpXf_DataElementType *dataElements;
   uint32_t structSize;
   uint16_t numOfDataElements;
   uint8_t sizeOfStructLengthField;
-} SomeIpXf_StructDefinitionType;
+};
 
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

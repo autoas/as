@@ -394,6 +394,7 @@ def Package(url, **parameters):
     cwd = GetCurrentDir()
     bsw = os.path.basename(cwd)
     download = "%s/download" % (RootDir)
+    download = os.getenv("AS_DOWNLOAD_DIR", download)
     if "dir" in parameters:
         download = "%s/%s" % (download, parameters["dir"])
     MKDir(download)

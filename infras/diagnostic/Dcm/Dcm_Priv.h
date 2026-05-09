@@ -10,7 +10,7 @@
 /* ================================ [ MACROS    ] ============================================== */
 #define DET_THIS_MODULE_ID MODULE_ID_DCM
 
-#define DCM_INVALID_PDU_ID ((PduIdType)-1)
+#define DCM_INVALID_PDU_ID ((PduIdType) - 1)
 
 /* @SWS_Dcm_00978 */
 #define DCM_DFTS_MASK 0x01u
@@ -263,11 +263,24 @@ typedef Std_ReturnType (*Dcm_RequestResultRoutineFncType)(const uint8_t *dataIn,
                                                           uint8_t *dataOut,
                                                           uint16_t *currentDataLength /*InOut*/,
                                                           Dcm_NegativeResponseCodeType *ErrorCode);
+
+/* Routine Control States */
+typedef enum {
+  DCM_ROUTINE_STATE_IDLE = 0,
+  DCM_ROUTINE_STATE_STARTED = 1
+} Dcm_RoutineStateType;
+
+/* Routine Control Context */
 typedef struct {
-  uint16_t id;
+  uint8_t state;
+} Dcm_RoutineControlContextType;
+
+typedef struct {
+  Dcm_RoutineControlContextType *context;
   Dcm_StartRoutineFncType StartRoutineFnc;
   Dcm_StopRoutineFncType StopRoutineFnc;
   Dcm_RequestResultRoutineFncType RequestResultRoutineFnc;
+  uint16_t id;
   Dcm_SesSecAccessType SesSecAccess;
 } Dcm_RoutineControlType;
 
@@ -397,6 +410,7 @@ typedef struct {
 typedef Std_ReturnType (*Dcm_CallbackReadDidFncType)(Dcm_OpStatusType opStatus, uint8_t *data,
                                                      uint16_t length,
                                                      Dcm_NegativeResponseCodeType *errorCode);
+
 typedef Std_ReturnType (*Dcm_CallbackWriteDidFncType)(Dcm_OpStatusType opStatus, uint8_t *data,
                                                       uint16_t length,
                                                       Dcm_NegativeResponseCodeType *errorCode);
@@ -410,6 +424,9 @@ typedef struct {
   uint16_t length;
   Dcm_CallbackReadDidFncType readDIdFnc;
   Dcm_SesSecAccessType SesSecAccess;
+#ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH
+  uint8_t bDynamicLength;
+#endif
 } Dcm_rDIDConfigType;
 
 typedef struct {
@@ -561,6 +578,9 @@ struct Dcm_Config_s {
 #endif
 #ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
   P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST) IOCtlConfig;
+#endif
+#ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
+  P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST) rtCtrlConfig;
 #endif
 #if defined(DCM_USE_SERVICE_READ_MEMORY_BY_ADDRESS) ||                                             \
   defined(DCM_USE_SERVICE_WRITE_MEMORY_BY_ADDRESS)

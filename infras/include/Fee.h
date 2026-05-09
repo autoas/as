@@ -20,6 +20,16 @@ extern "C" {
 #define FEE_E_PARAM_POINTER 0x04
 #define FEE_E_INVALID_BLOCK_LEN 0x05
 #define FEE_E_INIT_FAILED 0x09
+
+
+#define FEE_FAULT_TOO_MANY_FULL_BANK 0
+#define FEE_FAULT_NO_BANK_IS_FULL 1
+#define FEE_FAULT_TOO_MANY_BANK_WITH_DATA 2
+#define FEE_FAULT_NO_SPACE_DURING_BACKUP 3
+#define FEE_FAULT_BANK_WITH_INVALID_INFO 4
+#define FEE_FAULT_BANK_WITH_INVALID_MAGIC 5
+#define FEE_FAULT_CONTEXT_CORRUPT 6
+#define FEE_FAULT_RETRY_MAX_REACHED 7
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct Fee_Config_s Fee_ConfigType;
 

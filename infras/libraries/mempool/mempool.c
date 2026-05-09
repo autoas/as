@@ -103,6 +103,7 @@ uint8_t *mc_get(const mem_cluster_t *mc, uint32_t *size) {
 
     if (mp != NULL) {
       buffer = mp_alloc(mp);
+      i++;
     }
   } while ((i < mc->numOfPools) && (NULL == buffer));
 
@@ -113,9 +114,9 @@ uint8_t *mc_get(const mem_cluster_t *mc, uint32_t *size) {
   }
 
   if (NULL == buffer) {
-    ASLOG(MCE, ("alloc %u fail\n", *size));
+    ASLOG(MCE, ("get %u fail\n", *size));
   } else {
-    ASLOG(MCI, ("alloc %u @%p from %p\n", *size, buffer, mc));
+    ASLOG(MCI, ("get %u @%p from %p\n", *size, buffer, mc));
   }
 
   return buffer;

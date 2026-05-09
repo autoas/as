@@ -19,6 +19,26 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
+static void Dcm_RoutineControl_Init(void) {
+  P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
+  P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST) rtCtrlConfig = config->rtCtrlConfig;
+  P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl;
+  uint16_t i;
+
+  for (i = 0; i < rtCtrlConfig->numOfRtCtrls; i++) {
+    rtCtrl = &rtCtrlConfig->rtCtrls[i];
+    if (DCM_ROUTINE_STATE_IDLE != rtCtrl->context->state) {
+      if (rtCtrl->StopRoutineFnc != NULL) {
+        Dcm_NegativeResponseCodeType nrc = 0x00;
+        uint16_t currentDataLength = 0;
+        ASLOG(DCM, ("Routine %X stop on session change\n", rtCtrl->id));
+        (void)rtCtrl->StopRoutineFnc(NULL, DCM_INITIAL, NULL, &currentDataLength, &nrc);
+      }
+      rtCtrl->context->state = DCM_ROUTINE_STATE_IDLE;
+    }
+  }
+}
+
 static Std_ReturnType
 Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpStatus,
                            P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrl,
@@ -26,14 +46,19 @@ Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpSt
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3u;
 
-  r = rtCtrl->StartRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
-                              &currentDataLength, nrc);
+  if (DCM_ROUTINE_STATE_IDLE == rtCtrl->context->state) {
+    r = rtCtrl->StartRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
+                                &currentDataLength, nrc);
+  } else {
+    *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
+  }
 
   if (E_OK == r) {
     msgContext->resData[0] = 0x01u;
     msgContext->resData[1] = (rtCtrl->id >> 8u) & 0xFFu;
     msgContext->resData[2] = rtCtrl->id & 0xFFu;
     msgContext->resDataLen = (Dcm_MsgLenType)(3u + currentDataLength);
+    rtCtrl->context->state = DCM_ROUTINE_STATE_STARTED;
   }
 
   return r;
@@ -47,8 +72,15 @@ Dcm_DspRoutineControlStop(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpSta
   uint16_t currentDataLength = msgContext->reqDataLen - 3u;
 
   if (rtCtrl->StopRoutineFnc != NULL) {
-    r = rtCtrl->StopRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
-                               &currentDataLength, nrc);
+    if (DCM_ROUTINE_STATE_IDLE != rtCtrl->context->state) {
+      r = rtCtrl->StopRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
+                                 &currentDataLength, nrc);
+      if (E_OK == r) {
+        rtCtrl->context->state = DCM_ROUTINE_STATE_IDLE;
+      }
+    } else {
+      *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
+    }
   } else {
     *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
   }
@@ -70,8 +102,12 @@ Dcm_DspRoutineControlResult(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpS
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3u;
   if (rtCtrl->RequestResultRoutineFnc != NULL) {
-    r = rtCtrl->RequestResultRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
-                                        &currentDataLength, nrc);
+    if (DCM_ROUTINE_STATE_IDLE != rtCtrl->context->state) {
+      r = rtCtrl->RequestResultRoutineFnc(&msgContext->reqData[3], OpStatus,
+                                          &msgContext->resData[3], &currentDataLength, nrc);
+    } else {
+      *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
+    }
   } else {
     *nrc = DCM_E_SUB_FUNCTION_NOT_SUPPORTED;
   }
@@ -838,6 +874,7 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
   boolean forceRCRRP = FALSE;
   uint16_t i;
   uint16_t j;
+  uint16_t didLength;
 
   if ((msgContext->reqDataLen >= 2u) && ((msgContext->reqDataLen & 0x01u) == 0u)) {
     numOfDids = msgContext->reqDataLen >> 1;
@@ -850,12 +887,25 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
           break;
         }
       }
-      if (NULL != rDid) {
-        totalResLength += rDid->rDID->length + 2u;
-        r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->rDID->SesSecAccess, nrc);
-      } else {
+      if (NULL == rDid) {
         *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
         r = E_NOT_OK;
+      }
+#ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH
+      else if ((TRUE == rDid->rDID->bDynamicLength) && (i != (numOfDids - 1u))) {
+        /* read DID with dynamic length, it must be the last one */
+        *nrc = DCM_E_GENERAL_REJECT;
+        r = E_NOT_OK;
+      }
+#endif
+      else {
+        totalResLength += rDid->rDID->length + 2u;
+#ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH
+        if (TRUE == rDid->rDID->bDynamicLength) {
+          totalResLength += 2; /* 2 more bytes to store the internal dynamic length */
+        }
+#endif
+        r = Dcm_DslServiceDIDSesSecPhyFuncCheck(context, &rDid->rDID->SesSecAccess, nrc);
       }
     }
   } else {
@@ -881,14 +931,29 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
           break;
         }
       }
-      if (NULL != rDid) {
+      if (NULL == rDid) {
+        *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+        r = E_NOT_OK;
+      } else {
+        didLength = rDid->rDID->length;
+      }
+      if (E_OK == r) {
         msgContext->resData[totalResLength] = (id >> 8) & 0xFFu;
         msgContext->resData[totalResLength + 1u] = id & 0xFFu;
         if ((DCM_INITIAL == context->opStatus) || (DCM_CANCEL == context->opStatus) ||
             (DCM_PENDING == rDid->context->opStatus)) {
           rDid->context->opStatus = DCM_CANCEL; /* set to invalid */
           r = rDid->rDID->readDIdFnc(context->opStatus, &msgContext->resData[totalResLength + 2u],
-                                     rDid->rDID->length, nrc);
+                                     didLength, nrc);
+#ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH
+          if (E_OK == r) {
+            if (TRUE == rDid->rDID->bDynamicLength) {
+              didLength =
+                ((uint16_t)msgContext->resData[totalResLength + 2u + rDid->rDID->length] << 8u) +
+                msgContext->resData[totalResLength + 2u + rDid->rDID->length + 1];
+            }
+          }
+#endif
           if (DCM_E_PENDING == r) {
             r = E_OK;
             *nrc = DCM_E_RESPONSE_PENDING;
@@ -906,10 +971,7 @@ Std_ReturnType Dcm_DspReadDataByIdentifier(Dcm_MsgContextType *msgContext,
             }
           }
         }
-        totalResLength += rDid->rDID->length + 2u;
-      } else {
-        *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
-        r = E_NOT_OK;
+        totalResLength += didLength + 2u;
       }
     }
     msgContext->resDataLen = totalResLength;
@@ -2259,5 +2321,8 @@ void Dcm_DspInit(void) {
 #endif
 #ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
   Dcm_IOCtlByID_Init();
+#endif
+#ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
+  Dcm_RoutineControl_Init();
 #endif
 }

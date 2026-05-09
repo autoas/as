@@ -99,6 +99,10 @@ static void soAdCreateSocket(SoAd_SoConIdType SoConId) {
     } else {
       context->state = SOAD_SOCKET_READY;
       context->length = 0;
+      if (NULL != context->data) {
+        ASLOG(SOADE, ("[%u] context cache data not NULL when create\n", SoConId));
+        Net_MemFree(context->data);
+      }
       context->data = NULL;
     }
     context->sock = sockId;
@@ -167,6 +171,10 @@ static Std_ReturnType soAdSocketRecvStart(SoAd_SoConIdType SoConId) {
             if (length > 0) { /* the length of left bytes need to be recived */
               context->length = length;
               context->offset = conG->headerLen;
+              if (NULL != context->data) {
+                ASLOG(SOADE, ("[%u] context cache data not NULL when recv start\n", SoConId));
+                Net_MemFree(context->data);
+              }
               context->data = Net_MemAlloc((uint32_t)conG->headerLen + length);
               /* allow allocation failed thus the further rx logic to drop data */
               if (NULL == context->data) {
@@ -619,6 +627,11 @@ Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort) {
         TcpIp_SetupAddrFrom(&context->RemoteAddr, conG->Remote, conG->Port);
       } else {
         ASLOG(SOADE, ("[%u] close fail: %d\n", SoConId, ret));
+      }
+      if (NULL != context->data) {
+        ASLOG(SOADE, ("[%u] context cache data not NULL when close\n", SoConId));
+        Net_MemFree(context->data);
+        context->data = NULL;
       }
       if (conG->SoConModeChgNotification) {
         conG->SoConModeChgNotification(SoConId, SOAD_SOCON_OFFLINE);

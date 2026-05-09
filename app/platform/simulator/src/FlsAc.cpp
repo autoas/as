@@ -62,7 +62,7 @@ static int lStoped = FALSE;
 static FlsAc_JobType lJobType = FLS_AC_JOB_NONE;
 uint8_t g_FlsAcMirror[FLS_TOTAL_SIZE];
 /* ================================ [ LOCALS    ] ============================================== */
-static void _fls_stop(void) {
+extern "C" void FlsAc_Stop(void) {
 #ifndef FLS_AC_RAM_ONLY
   if (NULL != lFls) {
 #endif
@@ -160,7 +160,7 @@ INITIALIZER(_fls_start) {
   memset(g_FlsAcMirror, FLS_ERASED_VALUE, sizeof(g_FlsAcMirror));
   lThread = std::thread(_fls_engine, nullptr);
 #endif
-  atexit(_fls_stop);
+  atexit(FlsAc_Stop);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Fls_AcInit(void) {

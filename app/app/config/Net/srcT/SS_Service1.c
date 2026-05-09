@@ -7,7 +7,9 @@
 #include "Service1Skeleton.h"
 #include "Sd_Cfg.h"
 #include "Sd.h"
+#ifdef USE_PLUGIN
 #include "plugin.h"
+#endif
 #include "Std_Timer.h"
 #include "Std_Debug.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -18,7 +20,9 @@
 static Std_TimerType timer1S;
 static boolean s_isConnected = FALSE;
 static Message_Type message0 = {
-  0,
+  {
+    0,
+  },
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -37,7 +41,6 @@ Sd_ServerServiceService1_CRMC(PduIdType pduID, uint8_t type, uint16_t serviceID,
 }
 
 void Service1_OnEvent1Subscribed(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr) {
-
 }
 
 void SomeIp_Service1_OnConnect(uint16_t conId, boolean isConnected) {
@@ -78,5 +81,6 @@ void SS_Service1_main(void) {
 
 void SS_Service1_deinit(void) {
 }
-
+#ifdef USE_PLUGIN
 REGISTER_PLUGIN(SS_Service1);
+#endif

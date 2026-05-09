@@ -12,6 +12,7 @@
 #include "Std_Debug.h"
 #include <string.h>
 #if defined(_WIN32)
+#include <stdlib.h>
 #include <time.h>
 #endif
 #ifdef USE_NVM
@@ -303,12 +304,21 @@ Std_ReturnType App_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uin
   return E_OK;
 }
 
-Std_ReturnType App_ReadAB01(Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
-                            Dcm_NegativeResponseCodeType *errorCode) {
+Std_ReturnType App_ReadAB01WithDynamicLength(Dcm_OpStatusType opStatus, uint8_t *data,
+                                             uint16_t *length,
+                                             Dcm_NegativeResponseCodeType *errorCode) {
   int i;
-  for (i = 0; i < length; i++) {
-    data[i] = 0x10 + i;
+  uint16_t dynLen = *length;
+#if defined(_WIN32)
+  dynLen = rand() % dynLen + 1;
+  if (dynLen > *length) {
+    dynLen = *length;
   }
+#endif
+  for (i = 0; i < dynLen; i++) {
+    data[i] = dynLen + i;
+  }
+  *length = dynLen;
   return E_OK;
 }
 

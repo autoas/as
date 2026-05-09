@@ -400,8 +400,10 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
     } else {
       offset += r;
     }
+#if AS_LOG_SOMEIPXF > 0 || defined(linux) || defined(_WIN32)
     ASLOG(SOMEIPXF,
           ("encode data %s type=%s\n", dataElement->name, getDataTypeName(dataElement->dataType)));
+#endif
     switch (dataElement->dataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE:
       r = SomeIpXf_EncodeByte(buffer + offset, bufferSize - (uint32_t)offset,
@@ -452,8 +454,8 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
     }
 
     if (r < 0) {
-      ASLOG(SOMEIPXFE,
-            ("struct %s field %s encode error %d, offset=%d\n", structDef->name, dataElement->name, r, offset));
+      ASLOG(SOMEIPXFE, ("struct %s field %s encode error %d, offset=%d\n", structDef->name,
+                        dataElement->name, r, offset));
       continue;
     }
 
@@ -590,9 +592,10 @@ int32_t SomeIpXf_DecodeStruct(const uint8_t *buffer, uint32_t bufferSize, void *
       r = -E_SER_WRONG_INTERFACE_VERSION;
       continue;
     }
-
+#if AS_LOG_SOMEIPXF > 0 || defined(linux) || defined(_WIN32)
     ASLOG(SOMEIPXF, ("decode data %s type=%s len=%u tag=%X\n", dataElement->name,
                      getDataTypeName(dataElement->dataType), dataSize, tag));
+#endif
     switch (dataElement->dataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE:
       r = SomeIpXf_DecodeByte(buffer + offset, bufferSize - (uint32_t)offset,

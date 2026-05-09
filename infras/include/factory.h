@@ -15,6 +15,7 @@
 /* Stop this factory */
 #define FACTORY_E_STOP 11u
 
+
 #define FACTORY_MAX_MACHINES 80u
 /* from 20 to 99, map machine 0 to 79, switch to that machine */
 #define FACTORY_E_SWITCH_TO 20u

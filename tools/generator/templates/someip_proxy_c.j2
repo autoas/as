@@ -28,6 +28,7 @@
 {% for eg in service.get('event-groups', []) %}
 {% for event in eg['events'] %}
 {% if 'for' not in event %}
+static uint8_t s_{{ event['name'] }}_Payload[{{ GetTypePayloadSize(event, allStructs) }}];
 static {{ GetXfCType(event, allStructs) }} s_{{ event['name'] }}_Sample;
 {% endif %}
 {% endfor %}

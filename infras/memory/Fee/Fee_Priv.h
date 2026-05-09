@@ -41,6 +41,15 @@ extern "C" {
 #define ALIGNED(sz, alignsz) ((sz + alignsz - 1u) & (~(alignsz - 1u)))
 #define FEE_ALIGNED(sz) ALIGNED(sz, FEE_PAGE_SIZE)
 
+/* additional 4 for u16Crc and u16InvCrc */
+#define FEE_DATA_ALIGNED(sz) FEE_ALIGNED(ALIGNED(sz, 2u) + 4u)
+
+#define FEE_MIN_FREE_SPACE                                                                         \
+  (FEE_DATA_ALIGNED(FEE_CONFIG->maxDataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
+
+#define FEE_BLOCK_ADMIN_AND_DATA_SIZE(dataSize)                                                    \
+  (FEE_DATA_ALIGNED(dataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
+
 #define FEE_FAULTS_SIZE FEE_ALIGNED(sizeof(Fee_BlockType))
 
 #ifndef FEE_CONST

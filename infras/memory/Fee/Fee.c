@@ -33,20 +33,12 @@
 
 #define FEE_CONFIG (&Fee_Config)
 
-#define FEE_E_EXIST 0x10u
+#define FEE_E_EXIST 0x2u
+#define FEE_E_FAIL 0x3u
 
 #ifndef FEE_MAX_ADMIN_READ_PER_CYCLE
 #define FEE_MAX_ADMIN_READ_PER_CYCLE 100u
 #endif
-
-/* additional 4 for u16Crc and u16InvCrc */
-#define FEE_DATA_ALIGNED(sz) FEE_ALIGNED(ALIGNED(sz, 2u) + 4u)
-
-#define FEE_MIN_FREE_SPACE                                                                         \
-  (FEE_DATA_ALIGNED(FEE_CONFIG->maxDataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
-
-#define FEE_BLOCK_ADMIN_AND_DATA_SIZE(dataSize)                                                    \
-  (FEE_DATA_ALIGNED(dataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
 
 #if defined(_WIN32) || defined(linux)
 #define PTR_TO_U32(ptr) ((uint32_t)(uint64_t)(ptr))
@@ -55,14 +47,6 @@
 #define PTR_TO_U32(ptr) ((uint32_t)(ptr))
 #define U32_TO_U8PTR(u32) ((uint8_t *)(u32))
 #endif
-
-#define FEE_FAULT_TOO_MANY_FULL_BANK 0
-#define FEE_FAULT_NO_BANK_IS_FULL 1
-#define FEE_FAULT_TOO_MANY_BANK_WITH_DATA 2
-#define FEE_FAULT_NO_SPACE_DURING_BACKUP 3
-#define FEE_FAULT_BANK_WITH_INVALID_INFO 4
-#define FEE_FAULT_BANK_WITH_INVALID_MAGIC 5
-#define FEE_FAULT_CONTEXT_CORRUPT 6
 
 #ifdef FEE_USE_CONTEXT_CRC
 #define Fee_RefreshContextCrc() Fee_RefreshOrCheckContextCrc(TRUE)
@@ -114,11 +98,7 @@ static void Fee_Panic(uint8_t fault) {
     FEEE,
     ("panic %u during %s:%s\n", fault, Fee_Factory.machines[Fee_Factory.context->machineId].name,
      Fee_Factory.machines[Fee_Factory.context->machineId].nodes[Fee_Factory.context->nodeId].name));
-#if defined(_WIN32) || defined(linux)
-  assert(0);
-#else
-  /* Note: panic doesn't yield */
-#endif
+
 #ifdef FEE_USE_FAULTS
   if (curBank > config->numOfBanks) {
     curBank = 0;
@@ -209,7 +189,7 @@ static Std_ReturnType Fee_DoWrite_Admin(boolean fromBackup) {
       NumberOfWriteCycles = block->NumberOfWriteCycles + 1u;
       if (NumberOfWriteCycles > config->Blocks[context->jobBlockId].NumberOfWriteCycles) {
         ASLOG(FEEE, ("trigger dead block %d write\n", context->jobBlockId));
-        r = E_NOT_OK;
+        r = FEE_E_FAIL;
       }
     }
   }
@@ -221,7 +201,7 @@ static Std_ReturnType Fee_DoWrite_Admin(boolean fromBackup) {
       NumberOfWriteCycles = config->blockContexts[context->jobBlockId].NumberOfWriteCycles + 1u;
       if (NumberOfWriteCycles > config->Blocks[context->jobBlockId].NumberOfWriteCycles) {
         ASLOG(FEEE, ("trigger dead block %d write\n", context->jobBlockId));
-        r = E_NOT_OK;
+        r = FEE_E_FAIL;
       }
     }
   }
@@ -240,6 +220,9 @@ static Std_ReturnType Fee_DoWrite_Admin(boolean fromBackup) {
     r = Fee_FlsWrite(context->adminFreeAddr, (uint8_t *)admin, sizeof(Fee_BlockType));
     if (E_OK == r) {
       context->adminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
+#ifndef FLS_DIRECT_ACCESS
+      config->blockContexts[context->jobBlockId].NumberOfWriteCycles = NumberOfWriteCycles;
+#endif
     }
   }
 
@@ -318,10 +301,16 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
     if (block->Crc == ((uint16_t)~block->InvCrc)) {
       Crc = Crc_CalculateCRC16((uint8_t *)block, offsetof(Fee_BlockType, Crc), 0, TRUE);
       if (Crc == block->Crc) {
-        context->dataFreeAddr -= FEE_DATA_ALIGNED(block->BlockSize);
+        if (context->dataFreeAddr > FEE_DATA_ALIGNED(block->BlockSize)) {
+          context->dataFreeAddr -= FEE_DATA_ALIGNED(block->BlockSize);
+        } else { /* generally impossible case */
+          ASLOG(FEEE, ("dataFreeAddr underflow, data corruption\n"));
+          context->dataFreeAddr = 0;
+        }
         if ((block->BlockNumber <= config->numOfBlocks) && (block->BlockNumber > 0u)) {
           if (block->BlockSize == config->Blocks[block->BlockNumber - 1u].BlockSize) {
-            if (block->Address <= context->dataFreeAddr) {
+            if ((block->Address <= context->dataFreeAddr) &&
+                (block->Address >= context->adminFreeAddr)) {
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
               Std_ReturnType r = Fee_IsDataCrcOK(block->Address, block->BlockSize);
               if (E_OK == r) {
@@ -381,7 +370,11 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
       context->adminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
     }
 
-    if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_MIN_FREE_SPACE) {
+    if (context->dataFreeAddr < context->adminFreeAddr) {
+      context->dataFreeAddr = context->adminFreeAddr;
+    }
+
+    if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_BLOCK_ADMIN_AND_DATA_SIZE(1)) {
       ending = TRUE;
     }
 
@@ -465,7 +458,11 @@ static Std_ReturnType Fee_DoSearchNextValidDataEnd(uint8_t bankId) {
         (block->Crc == ((uint16_t)~block->InvCrc))) {
       Crc = Crc_CalculateCRC16((uint8_t *)block, offsetof(Fee_BlockType, Crc), 0, TRUE);
       if (Crc == block->Crc) { /* bing go, valid block */
-        if (block->BlockSize == config->Blocks[block->BlockNumber - 1u].BlockSize) {
+        if ((block->Address <= blockAdminLow) ||
+            (block->Address >= config->Banks[bankId].HighAddress)) {
+          ASLOG(FEEE, ("block %d has invalid address: %x, config updated\n", context->jobBlockId,
+                       block->Address));
+        } else if (block->BlockSize == config->Blocks[block->BlockNumber - 1u].BlockSize) {
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
           r = Fee_IsDataCrcOK(block->Address, block->BlockSize);
           if (E_OK == r) {
@@ -583,7 +580,10 @@ Std_ReturnType Fee_Init_ReadBankAdmin_Main(void) {
     (void)memcpy(bankAdmin, FEE_ADDRESS(bank->LowAddress), sizeof(*bankAdmin));
     if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
         (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
-      ASLOG(FEEE, ("FEE Bank %d is invalid, erase it\n", context->curWrokingBank));
+      ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->curWrokingBank));
+      ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
+    } else if (bankAdmin->Info.Number != ((uint32_t)~bankAdmin->Info.InvNumber)) {
+      ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->curWrokingBank));
       ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
     } else {
 #ifdef FEE_USE_BLANK_CHECK
@@ -610,7 +610,10 @@ Std_ReturnType Fee_Init_ReadBankAdmin_End(void) {
     &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
   if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
       (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
-    ASLOG(FEEE, ("FEE Bank %d is invalid, erase it\n", context->curWrokingBank));
+    ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->curWrokingBank));
+    ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
+  } else if (bankAdmin->Info.Number != ((uint32_t)~bankAdmin->Info.InvNumber)) {
+    ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->curWrokingBank));
     ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
   } else {
 #ifdef FEE_USE_BLANK_CHECK
@@ -779,18 +782,25 @@ Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
   }
 
   if (-1 != invalidBank) {
-    ASLOG(FEE, ("Found bank %d without info record, set Number=%d\n", invalidBank, maxNumber));
-    bankAdmin = &bankAdmin[invalidBank];
-    *workAdmin = *bankAdmin;
-    workAdmin->Info.Number = maxNumber;
-    workAdmin->Info.InvNumber = ~maxNumber;
-    bank = &config->Banks[invalidBank];
-    ret = Fee_FlsWrite(bank->LowAddress + offsetof(Fee_BankAdminType, Info),
-                       (uint8_t *)&workAdmin->Info, sizeof(workAdmin->Info));
-    if (E_OK == ret) {
-      ret = FACTORY_E_EVENT;
+    if (context->retryCounter > config->maxJobRetry) {
+      /* This is an impossible case here, but let it go without info record */
+      ASLOG(FEE, ("Found bank %d without info record, but reach max retry count\n", invalidBank));
+      context->erasedNumber = maxNumber;
+      ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_MAGIC);
     } else {
-      ret = FACTORY_E_RETRY;
+      ASLOG(FEE, ("Found bank %d without info record, set Number=%d\n", invalidBank, maxNumber));
+      bankAdmin = &bankAdmin[invalidBank];
+      *workAdmin = *bankAdmin;
+      workAdmin->Info.Number = maxNumber;
+      workAdmin->Info.InvNumber = ~maxNumber;
+      bank = &config->Banks[invalidBank];
+      ret = Fee_FlsWrite(bank->LowAddress + offsetof(Fee_BankAdminType, Info),
+                         (uint8_t *)&workAdmin->Info, sizeof(workAdmin->Info));
+      if (E_OK == ret) {
+        ret = FACTORY_E_EVENT;
+      } else {
+        ret = FACTORY_E_RETRY;
+      }
     }
   } else {
     context->erasedNumber = maxNumber;
@@ -1126,7 +1136,7 @@ Std_ReturnType Fee_Read_ReadData_End(void) {
   pCrc = (uint16_t *)&pData[FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize) - 4u];
   pInvCrc = &pCrc[1];
 
-  if (((uint16_t) ~(*pCrc)) == (*pInvCrc)) {
+  if (((uint16_t)~(*pCrc)) == (*pInvCrc)) {
 
     Crc = Crc_CalculateCRC16(
       pData, FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize) - 4u, 0, TRUE);
@@ -1268,7 +1278,7 @@ Std_ReturnType Fee_Write_WriteCheckDataChanged_End(void) {
 #if !defined(FLS_DIRECT_ACCESS) && !defined(FLS_DATA_DIRECT_ACCESS)
   pCrc = (uint16_t *)&pData[FEE_DATA_ALIGNED(size) - 4u];
   pInvCrc = &pCrc[1];
-  if (((uint16_t) ~(*pCrc)) == (*pInvCrc)) {
+  if (((uint16_t)~(*pCrc)) == (*pInvCrc)) {
     Crc = Crc_CalculateCRC16(pData, FEE_DATA_ALIGNED(size) - 4u, 0, TRUE);
     if (Crc != *pCrc) { /* CRC invalid */
       ret = factory_goto(FEE_NODE_WRITE_WRITE_ADMIN);
@@ -1303,6 +1313,8 @@ Std_ReturnType Fee_Write_WriteAdmin_Main(void) {
     ret = Fee_DoWrite_Admin(FALSE);
     if (E_OK == ret) {
       ret = FACTORY_E_EVENT;
+    } else if (FEE_E_FAIL == ret) {
+      ret = E_NOT_OK;
     } else {
       ret = FACTORY_E_RETRY;
     }
@@ -1800,7 +1812,7 @@ Std_ReturnType Fee_Backup_CopyReadData_End(void) {
 
   pCrc = (uint16_t *)&(config->workingArea)[alignedSize - 4u];
   pInvCrc = &pCrc[1];
-  if (((uint16_t) ~(*pCrc)) == (*pInvCrc)) {
+  if (((uint16_t)~(*pCrc)) == (*pInvCrc)) {
     Crc = Crc_CalculateCRC16(config->workingArea, alignedSize - 4u, 0, TRUE);
     if (Crc == *pCrc) {
       ret = E_OK;
@@ -2049,8 +2061,7 @@ void Fee_JobErrorNotification(void) {
                    .name));
   }
 
-  if (context->retryCounter < config->maxJobRetry) {
-    context->retryCounter++;
+  if (context->retryCounter <= config->maxJobRetry) {
     (void)factory_on_event(&Fee_Factory, FEE_EVENT_ERROR);
   } else {
     ASLOG(FEEE, ("reach max attempts during error:%s:%s\n",
@@ -2059,6 +2070,7 @@ void Fee_JobErrorNotification(void) {
                    .nodes[Fee_Factory.context->nodeId]
                    .name));
     factory_cancel(&Fee_Factory);
+    Fee_Panic(FEE_FAULT_RETRY_MAX_REACHED);
   }
   Fee_RefreshContextCrc();
 }
@@ -2189,7 +2201,7 @@ void Fee_MainFunction(void) {
 
   if (FACTORY_RUNNING == state) {
     Fee_CheckContextCrc();
-    if (context->retryCounter < config->maxJobRetry) {
+    if (context->retryCounter <= config->maxJobRetry) {
       context->retryCounter++;
       ret = factory_main(&Fee_Factory);
       if ((FACTORY_E_SWITCH_TO == ret) || (FACTORY_E_GOTO == ret)) {
@@ -2203,6 +2215,7 @@ void Fee_MainFunction(void) {
                      .nodes[Fee_Factory.context->nodeId]
                      .name));
       factory_cancel(&Fee_Factory);
+      Fee_Panic(FEE_FAULT_RETRY_MAX_REACHED);
     }
     Fee_RefreshContextCrc();
   }
@@ -2223,5 +2236,9 @@ void Fee_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   versionInfo->moduleID = MODULE_ID_FEE;
   versionInfo->sw_major_version = 4;
   versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 1;
+  versionInfo->sw_patch_version = 2;
 }
+
+/** @brief release notes
+ * - 4.0.2: Fix several issues found during code coverage test
+ */

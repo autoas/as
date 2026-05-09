@@ -301,7 +301,7 @@ void Dcm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   versionInfo->moduleID = MODULE_ID_DCM;
   versionInfo->sw_major_version = 4;
   versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 5;
+  versionInfo->sw_patch_version = 7;
 }
 /** @brief release notes
  * - 4.0.1: Typo Fix: responcePending -> responsePending
@@ -310,4 +310,6 @@ void Dcm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
  * - 4.0.3: Fixed: Dcm_SessionChangeIndication() with wrong current session issue.
  * - 4.0.4: Fixed: TransferData force response pending issue.
  * - 4.0.5: OPT: Ensure the same length format response for request download/upload.
+ * - 4.0.6: Add read DID with Dynamic length support.
+ * - 4.0.7: Add routine control state tracking with automatic stop when session change.
  */

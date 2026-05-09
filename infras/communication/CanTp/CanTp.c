@@ -227,8 +227,8 @@ static void CanTp_SendFC(PduIdType RxPduId, uint8_t FlowStatus) {
     data[pos] = config->padding;
     pos++;
   }
-  ASLOG(CANTPI, ("[%d]TX data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", RxPduId, data[0],
-                 data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+  ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", RxPduId, 8,
+                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
   context->PduInfo.SduDataPtr = data;
   context->PduInfo.SduLength = 8;
 
@@ -538,8 +538,8 @@ static void CanTp_SendSF(PduIdType TxPduId) {
       data[pos] = config->padding;
       pos++;
     }
-    ASLOG(CANTPI, ("[%d]TX data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, data[0],
-                   data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, ll_dl,
+                   data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
     context->PduInfo.SduDataPtr = data;
     context->PduInfo.SduLength = ll_dl;
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
@@ -621,8 +621,9 @@ static void CanTp_SendFF(PduIdType TxPduId) {
     context->PduInfo.SduDataPtr = data;
     context->PduInfo.SduLength = config->LL_DL;
     context->SN = 1;
-    ASLOG(CANTPI, ("[%d]TX data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, data[0],
-                   data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI,
+          ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, config->LL_DL,
+           data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
     context->state = CANTP_RESEND_FF;
     CanTpSetAlarm(config->N_As);
@@ -698,8 +699,8 @@ static void CanTp_SendCF(PduIdType TxPduId) {
       data[pos] = config->padding;
       pos++;
     }
-    ASLOG(CANTPI, ("[%d]TX data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, data[0],
-                   data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, ll_dl,
+                   data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
     context->PduInfo.SduDataPtr = data;
     context->PduInfo.SduLength = ll_dl;
 #ifdef CANTP_USE_TRIGGER_TRANSMIT

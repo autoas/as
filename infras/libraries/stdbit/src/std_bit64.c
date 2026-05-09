@@ -20,7 +20,7 @@ static int _bebm[STD_BIT_MAX_BYTES * 8];
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
-INITIALIZER(_init_bebm) {
+INITIALIZER(_init_bebm_64) {
   uint16_t i;
   uint16_t j;
   for (i = 0u; i < STD_BIT_MAX_BYTES; i++) {

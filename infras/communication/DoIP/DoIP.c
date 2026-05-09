@@ -48,6 +48,8 @@ typedef struct {
 } DoIP_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern const DoIP_ConfigType DoIP_Config;
+
+static void doipForgetDiagMsg(const DoIP_TesterConnectionType *connection);
 /* ================================ [ DATAS     ] ============================================== */
 static DoIP_ContextType DoIP_Context;
 /* ================================ [ LOCALS    ] ============================================== */
@@ -338,6 +340,7 @@ static Std_ReturnType doipSocketHandler(const DoIP_TesterConnectionType *tstcon,
         /* this connection is closed by Tester, close it */
         ASLOG(DOIP, ("Tester SoCon %d not alive, close it\n", i));
         SoAd_CloseSoCon(connection->SoConId, TRUE);
+        doipForgetDiagMsg(connection);
         memset(connection->context, 0, sizeof(DoIP_TesterConnectionContextType));
         ret = E_OK;
       }
@@ -602,6 +605,23 @@ doipFindTargetAddress(const DoIP_TesterType *tester, const DoIP_TesterConnection
   return TargetAddressRef;
 }
 
+static Std_ReturnType doipIsTaConfigured(const DoIP_TesterType *tester, uint16_t ta) {
+  Std_ReturnType ret = E_NOT_OK;
+  const DoIP_RoutingActivationType *ra;
+  int i, j;
+
+  for (i = 0; (i < tester->numOfRoutingActivations) && (E_NOT_OK == ret); i++) {
+    ra = tester->RoutingActivationRefs[i];
+    for (j = 0; (j < ra->numOfTargetAddressRefs) && (E_NOT_OK == ret); j++) {
+      if (ta == ra->TargetAddressRefs[j]->TargetAddress) {
+        ret = E_OK;
+      }
+    }
+  }
+
+  return ret;
+}
+
 static void doipRememberDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_MsgType *msg) {
   PduLengthType bufferSize;
   PduLengthType copySize;
@@ -649,7 +669,7 @@ static void doipForgetDiagMsg(const DoIP_TesterConnectionType *connection) {
 }
 
 static void doipReplyDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_MsgType *msg,
-                             uint8_t resCode) {
+                             uint8_t resCode, uint16_t sa, uint16_t ta) {
   PduLengthType resLen = 5;
   uint16_t payloadType = DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK;
   if (NULL != connection->context->msg.req) {
@@ -666,6 +686,10 @@ static void doipReplyDiagMsg(const DoIP_TesterConnectionType *connection, DoIP_M
     payloadType = DOIP_DIAGNOSTIC_MESSAGE_NEGATIVE_ACK;
   }
   doipFillHeader(msg->res, payloadType, resLen);
+  msg->res[DOIP_HEADER_LENGTH + 0u] = (ta >> 8) & 0xFF;
+  msg->res[DOIP_HEADER_LENGTH + 1u] = ta & 0xFF;
+  msg->res[DOIP_HEADER_LENGTH + 2u] = (sa >> 8) & 0xFF;
+  msg->res[DOIP_HEADER_LENGTH + 3u] = sa & 0xFF;
   msg->res[DOIP_HEADER_LENGTH + 4u] = resCode;
   msg->resLen = DOIP_HEADER_LENGTH + resLen;
 }
@@ -717,7 +741,12 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, DoIP_MsgTyp
       } else {
         TargetAddressRef = doipFindTargetAddress(connection->context->TesterRef, connection, ta);
         if (NULL == TargetAddressRef) {
-          resCode = DOIP_DIAG_UNKNOWN_TA; /* @SWS_DoIP_00124 */
+          ret = doipIsTaConfigured(connection->context->TesterRef, ta);
+          if (E_OK == ret) {
+            resCode = DOIP_DIAG_TARGET_UNREACHABLE; /* @SWS_DoIP_00127 */
+          } else {
+            resCode = DOIP_DIAG_UNKNOWN_TA; /* @SWS_DoIP_00124 */
+          }
           ret = DOIP_E_NOT_OK;
         }
       }
@@ -771,7 +800,7 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, DoIP_MsgTyp
       doipFillHeader(msg->res, DOIP_DIAGNOSTIC_MESSAGE_POSITIVE_ACK, 5);
       msg->res[DOIP_HEADER_LENGTH + 4u] = 0x0u; /* ack code */
       msg->resLen = DOIP_HEADER_LENGTH + 5u;
-      doipReplyDiagMsg(connection, msg, 0x0u);
+      doipReplyDiagMsg(connection, msg, 0x0u, sa, ta);
     } else {
       connection->context->msg.state = DOIP_MSG_RX;
       ret = DOIP_E_PENDING;
@@ -779,7 +808,7 @@ static Std_ReturnType doipHandleDiagnosticMessage(PduIdType RxPduId, DoIP_MsgTyp
   }
 
   if (ret == DOIP_E_NOT_OK) {
-    doipReplyDiagMsg(connection, msg, resCode);
+    doipReplyDiagMsg(connection, msg, resCode, sa, ta);
   }
 
   ASLOG(DOIP, ("[%d] handle Diagnostic Message\n", RxPduId));
@@ -921,6 +950,7 @@ static void doipHandleAliveCheckResponseTimer(void) {
         if (0u == connection->context->AliveCheckResponseTimer) {
           ASLOG(DOIP, ("Tester SoCon %d AliveCheckResponseTimer timeout\n", i));
           SoAd_CloseSoCon(connection->SoConId, TRUE);
+          doipForgetDiagMsg(connection);
           memset(connection->context, 0, sizeof(DoIP_TesterConnectionContextType));
         }
       }
@@ -1187,6 +1217,7 @@ void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
     if (SoConId == config->testerConnections[i].SoConId) {
       if (SOAD_SOCON_ONLINE == Mode) { /* @SWS_DoIP_00143 */
         asAssert(DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState);
+        doipForgetDiagMsg(&config->testerConnections[i]);
         memset(config->testerConnections[i].context, 0, sizeof(DoIP_TesterConnectionContextType));
         config->testerConnections[i].context->InactivityTimer = config->InitialInactivityTime;
         config->testerConnections[i].context->state = DOIP_CON_OPEN;
@@ -1503,10 +1534,12 @@ void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   versionInfo->moduleID = MODULE_ID_DOIP;
   versionInfo->sw_major_version = 4;
   versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 2;
+  versionInfo->sw_patch_version = 4;
 }
 
 /** @brief release notes
  * - 4.0.1: Fix assignment instead of comparison in protocol check issue.
  * - 4.0.2: Support optional OEM for routing activation response.
+ * - 4.0.3: Fix memory leak issue during socket close.
+ * - 4.0.4: Add target address config check and diag message error handling.
  */

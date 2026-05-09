@@ -20,7 +20,7 @@ objsDoIPSend = Glob("utils/doip_send.c")
 @register_application
 class ApplicationDoIPSend(Application):
     def config(self):
-        self.LIBS = ["DoIPClient"]
+        self.LIBS = ["AsOne"]
         self.Append(CPPDEFINES=["USE_STD_DEBUG"])
         self.CPPPATH = ["$INFRAS"]
         self.source = objsDoIPSend

@@ -16,6 +16,9 @@
 #if defined(USE_CANNM)
 #include "CanNm_Cfg.h"
 #endif
+#if defined(_WIN32) || defined(linux)
+#include <assert.h>
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_APP 0
 /* ================================ [ TYPES     ] ============================================== */
@@ -96,9 +99,6 @@ void App_MainFunction(void) {
     appUpdateComTxMsg();
     appCheckComRxMsg();
 #endif
-#ifdef USE_SOMEIP
-    SomeIp_MainAppTask();
-#endif
   }
 }
 
@@ -156,7 +156,10 @@ void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle) {
 }
 #endif
 
-
 void Fee_PanicUserAction(uint8_t fault) {
   /* user must handle this, this means Fee fault error and can't recover */
+#if defined(_WIN32) || defined(linux)
+  assert(0);
+#else
+#endif
 }

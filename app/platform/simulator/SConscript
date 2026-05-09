@@ -12,11 +12,9 @@ libsForSimulator = {
 
 @register_library
 class LibrarySimulator(Library):
+    object = True
     def config(self):
-        if IsBuildForMSVC():
-            self.LIBS = ["CanLib", "RS232", "Utils"]
-        else:
-            self.LIBS = ["CanLib", "DevLib", "Utils"]
+        self.LIBS = ["CanLib", "DevLib", "Utils"]
         self.Append(CPPDEFINES=["LIN_USE_EXT_ID"])
         self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer", "$LinIf_Cfg"]
         self.source = objs
@@ -36,8 +34,19 @@ objsFlsAc = Glob("src/FlsAc.cpp") + Glob("src/critical.cpp")
 class LibraryFlsAc(Library):
     def config(self):
         self.CPPPATH = ["$INFRAS"]
+        self.CPPDEFINES = ["USE_FLS"]
         self.LIBS = ["Utils"]
         self.source = objsFlsAc
+
+@register_library
+class LibraryFlsAcRam(Library):
+    shared = True
+    def config(self):
+        self.CPPPATH = ["$INFRAS"]
+        self.CPPDEFINES = ["USE_FLS", "FLS_AC_RAM_ONLY", "USE_STD_PRINTF"]
+        self.LIBS = ["Utils"]
+        self.source = objsFlsAc
+        self.Install("../one")
 
 
 objsCritical = Glob("src/critical.cpp")

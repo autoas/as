@@ -44,7 +44,7 @@ using namespace as;
 using namespace std::literals::chrono_literals;
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DOIP 0
-#define AS_LOG_DOIPI 2
+#define AS_LOG_DOIPI 0
 #define AS_LOG_DOIPE 3
 
 #define AS_LOG_MBEDTLS 0
@@ -776,8 +776,8 @@ doip_client_t *doip_create_client(const char *ip, int port, const char *casPem) 
           TcpIp_Close(discovery, TRUE);
           ret = E_NOT_OK;
         } else {
-          TcpIp_Bind(test_equipment_request, TCPIP_LOCALADDRID_ANY, &u16PortAny);
-          TcpIp_SetMulticastIF(test_equipment_request, TCPIP_LOCALADDRID_ANY);
+          TcpIp_Bind(test_equipment_request, 0, &u16PortAny);
+          TcpIp_SetMulticastIF(test_equipment_request, 0);
         }
       }
     }

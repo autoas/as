@@ -146,7 +146,7 @@
       "id": "0x22",
       "DIDs": [
         { "name": "FingerPrint", "id":"0xF15B", "size": 10, "API": "App_ReadFingerPrint" },
-        { "name": "TestDID1", "id":"0xAB01", "size": 10, "API": "App_ReadAB01" },
+        { "name": "TestDID1", "id":"0xAB01", "size": 10, "API": "App_ReadAB01", "dynamicLength": true },
         { "name": "TestDID2", "id":"0xAB02", "size": 10, "API": "App_ReadAB02" } ]
     },
     {
