@@ -13,6 +13,7 @@
 #include "NvM.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_DCM 0
+#define AS_LOG_DCMI 0
 #define AS_LOG_DCME 3
 
 #ifndef Dcm_DslCustomerSession2Mask
@@ -300,7 +301,7 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
 #ifdef USE_NVM
       (void)NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
 #endif
-      ASLOG(DCM, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
+      ASLOG(DCMI, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
     }
     if (Dcm_NvmSecurityAccess_Ram.AttemptCounter > (config->SecurityNumAttDelay + 1u)) {
       context->securityDelayTimer = config->SecurityDelayTime;
@@ -348,6 +349,7 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
       Dcm_NvmSecurityAccess_Ram.AttemptCounter = 0u;
 #ifdef USE_NVM
       (void)NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
+      ASLOG(DCMI, ("Seurity Att Cnt=0\n"));
 #endif
     }
   } else {
@@ -362,6 +364,7 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
 #ifdef USE_NVM
         NvM_WriteBlock(config->SecurityNvMBlkId, NULL);
 #endif
+        ASLOG(DCMI, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
       }
       if (Dcm_NvmSecurityAccess_Ram.AttemptCounter >= config->SecurityNumAttDelay) {
         context->securityDelayTimer = config->SecurityDelayTime;

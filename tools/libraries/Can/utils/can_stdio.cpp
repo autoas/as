@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include "Std_Types.h"
 #ifdef _WIN32
 #include <direct.h>
@@ -27,6 +28,10 @@ uint32_t txid = 0x7FE;
 uint32_t trid = 0;
 bool lStop = false;
 /* ================================ [ LOCALS    ] ============================================== */
+static void sigint_handler(int sig) {
+  (void)sig;
+  lStop = true;
+}
 static void usage(char *prog) {
   printf("usage: %s -d device -p port -b baudrate -r rxid -t txid -T trid\n", prog);
 }
@@ -110,6 +115,9 @@ int main(int argc, char *argv[]) {
   int baudrate = 500000;
   std::thread lThIn;
   std::thread lThTrace;
+
+  signal(SIGINT, sigint_handler);
+  signal(SIGTERM, sigint_handler);
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:p:r:t:T:")) != -1) {

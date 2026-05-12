@@ -97,6 +97,7 @@ static void _fls_engine(void *arg) {
 #endif
         g_FlsAcMirror[lAddress + i] = EraseMask;
       }
+      fflush(lFls);
       lJobStatus = FLS_AC_JOB_DONE;
       break;
     case FLS_AC_JOB_WRITE:
@@ -123,6 +124,7 @@ static void _fls_engine(void *arg) {
 #ifndef FLS_AC_RAM_ONLY
         fseek(lFls, lAddress, SEEK_SET);
         fwrite(lData, lLength, 1, lFls);
+        fflush(lFls);
 #endif
         memcpy(&g_FlsAcMirror[lAddress], lData, lLength);
         lJobStatus = FLS_AC_JOB_DONE;

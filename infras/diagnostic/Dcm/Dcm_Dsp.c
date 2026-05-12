@@ -46,12 +46,9 @@ Dcm_DspRoutineControlStart(Dcm_MsgContextType *msgContext, Dcm_OpStatusType OpSt
   Std_ReturnType r = E_NOT_OK;
   uint16_t currentDataLength = msgContext->reqDataLen - 3u;
 
-  if (DCM_ROUTINE_STATE_IDLE == rtCtrl->context->state) {
-    r = rtCtrl->StartRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
-                                &currentDataLength, nrc);
-  } else {
-    *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
-  }
+  /* let the user application to decide whether a routine can be restarted without stop */
+  r = rtCtrl->StartRoutineFnc(&msgContext->reqData[3], OpStatus, &msgContext->resData[3],
+                              &currentDataLength, nrc);
 
   if (E_OK == r) {
     msgContext->resData[0] = 0x01u;

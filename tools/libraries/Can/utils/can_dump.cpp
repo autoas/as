@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include "Std_Types.h"
 #include "Std_Timer.h"
 #include <sys/queue.h>
@@ -16,6 +17,7 @@
 
 #include <map>
 #include <chrono>
+#include <thread>
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
 /* ================================ [ TYPES     ] ============================================== */
@@ -41,9 +43,15 @@ struct Can_FilterList_s {
 static struct Can_FilterList_s *canFilterH = NULL;
 static std::map<uint32_t, can_msg_info> canMsgInfoMap;
 static uint32_t canLastMsgNum = 0;
+static bool lStop = false;
 std::chrono::high_resolution_clock::time_point canLastShowTime =
   std::chrono::high_resolution_clock::now();
 /* ================================ [ LOCALS    ] ============================================== */
+static void sigint_handler(int sig) {
+  (void)sig;
+  lStop = true;
+}
+
 static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
   int bOut = FALSE;
   static float lastTime = -1;
@@ -194,6 +202,9 @@ int main(int argc, char *argv[]) {
   bool rv;
   bool bPeriodMode = false;
 
+  signal(SIGINT, sigint_handler);
+  signal(SIGTERM, sigint_handler);
+
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:f:hp:P")) != -1) {
     switch (ch) {
@@ -233,7 +244,7 @@ int main(int argc, char *argv[]) {
 
   uint64_t begin = PAL_Timestamp();
 
-  while (true) {
+  while (false == lStop) {
     do {
       frame.canid = -1;
       rv = can_read_v2(busid, &frame);
@@ -245,9 +256,11 @@ int main(int argc, char *argv[]) {
           log_msg(&frame, rtim);
         }
       }
-    } while (true == rv);
-    Std_Sleep(1000);
+    } while ((true == rv) && (false == lStop));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
+
+  (void)can_close(busid);
 
   return 0;
 }

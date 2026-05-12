@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <string>
+#include <signal.h>
 #include "isotp.h"
 #include "srec.h"
 #include "loader.h"
@@ -19,7 +20,13 @@ void std_set_log_name(const char *path);
 void std_set_log_level(int level);
 }
 /* ================================ [ DATAS     ] ============================================== */
+static volatile int g_bExit = 0;
 /* ================================ [ LOCALS    ] ============================================== */
+static void sigint_handler(int sig) {
+  (void)sig;
+  g_bExit = 1;
+}
+
 static void usage(char *prog) {
   printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
          "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA] [-s delayUs]\n"
@@ -62,6 +69,9 @@ int main(int argc, char *argv[]) {
   const char *choice = "FBL";
   isotp_can_version_t version = ISOTP_CAN_V2;
   loader_args_t args;
+
+  signal(SIGINT, sigint_handler);
+  signal(SIGTERM, sigint_handler);
 
   int progress = 0;
   int lastProgress = 0;
@@ -285,7 +295,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  while ((0 == r) && (progress < 10000)) {
+  while ((0 == r) && (progress < 10000) && (0 == g_bExit)) {
     r = loader_poll(loader, &progress, &log);
     if (NULL != log) {
       printf(log);

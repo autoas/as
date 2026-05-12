@@ -46,6 +46,7 @@ void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) ConfigPtr) {
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
   if (Dcm_NvmSecurityAccess_Ram.AttemptCounter >= config->SecurityNumAttDelay) {
     context->securityDelayTimer = config->SecurityDelayTime;
+    ASLOG(DCME, ("Security Delay Timer: %d\n", config->SecurityDelayTime));
   }
 #endif
 }

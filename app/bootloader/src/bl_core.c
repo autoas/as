@@ -45,8 +45,12 @@
 #endif
 
 #if defined(_WIN32) || defined(__linux__)
+extern boolean BL_IsValidFlashAddr(uint32_t MemoryAddress);
 #define BL_SIM_ADDRESS_RE_MAPPING(MemoryAddress)                                                   \
   do {                                                                                             \
+    if (TRUE == BL_IsValidFlashAddr(MemoryAddress)) {                                              \
+      break;                                                                                       \
+    }                                                                                              \
     /* address mapping to simulate memory */                                                       \
     if ((uint32_t)-1 == blBaseAddress) {                                                           \
       blBaseAddress = MemoryAddress;                                                               \
@@ -146,6 +150,8 @@ static boolean bl_flashDriverReady = FALSE;
 #ifndef BL_DISABLE_SEGMENT_INTEGRITY_CHECK
 static BL_SegmentInfoType blSegmentInfos[BL_MAX_SEGMENT];
 static uint8_t blSegmentNum = 0;
+static uint8_t blCacheSegmentNum = 0;
+static boolean blIsV2ForV1Copied = FALSE;
 #endif
 
 #ifdef FL_USE_WRITE_WINDOW_BUFFER
@@ -403,7 +409,7 @@ static bl_crc_t getAppNSampledCrc(void) {
   uint32_t address;
   uint32_t secLow = 0;
   uint32_t secHigh = 0;
-  int i;
+  uint32_t i;
 
 #ifdef BL_USE_FLS_READ
   readRet = readFlash(DCM_INITIAL, blAppInfoAddr, 4, data);
@@ -487,16 +493,24 @@ static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
   uint32_t numOfBlks;
   uint8_t signature[16];
   uint32_t addr;
+  uint8_t segNum = blSegmentNum;
 
-  if (blSegmentNum > 0) {
-    addr = blSegmentInfos[blSegmentNum - 1].address + blSegmentInfos[blSegmentNum - 1].length;
+  if (0 == segNum) {
+    /* the BL_CheckProgrammingIntegrity will set blSegmentNum to 0 */
+    segNum = blCacheSegmentNum;
+  }
+
+  if (segNum > 0) {
+    addr = blSegmentInfos[segNum - 1].address + blSegmentInfos[segNum - 1].length;
     ASLOG(BLI, ("V2 sinature at %" PRIx32 " app info at %" PRIx32 "\n", addr, blAppInfoAddr));
     readRet = readFlash(DCM_INITIAL, addr - 16, 16, (uint8_t *)signature);
   } else {
     readRet = DCM_READ_FAILED;
   }
 
-  if (DCM_READ_OK == readRet) {
+  if (TRUE == blIsV2ForV1Copied) {
+    ret = E_OK;
+  } else if (DCM_READ_OK == readRet) {
     if (0 == memcmp(&signature[8], "$BYASV3#", 8)) {
       numOfBlks = ((uint32_t)signature[0] << 24) + ((uint32_t)signature[1] << 16) +
                   ((uint32_t)signature[2] << 8) + signature[3];
@@ -509,6 +523,8 @@ static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
         writeRet = flushFlash();
         if (DCM_WRITE_OK != writeRet) {
           ret = E_NOT_OK;
+        } else {
+          blIsV2ForV1Copied = TRUE;
         }
       } else {
         ret = E_NOT_OK;
@@ -533,6 +549,8 @@ void BL_SessionReset(void) {
 
 #ifndef BL_DISABLE_SEGMENT_INTEGRITY_CHECK
   blSegmentNum = 0;
+  blCacheSegmentNum = 0;
+  blIsV2ForV1Copied = FALSE;
 #endif
 #ifndef BL_USE_BUILTIN_FLSDRV
   memset(FlashDriverRam, 0xFF, blFlsDriverMemoryHigh - blFlsDriverMemoryLow);
@@ -1001,7 +1019,7 @@ Dcm_ReturnWriteMemoryType BL_ProcessTransferDataWrite(Dcm_OpStatusType OpStatus,
         ret = DCM_WRITE_FORCE_RCRRP;
       } else {
         blRcrrpCounter++;
-        if (blRcrrpCounter >= FL_ERASE_RCRRP_CYCLE) {
+        if (blRcrrpCounter >= FL_WRITE_RCRRP_CYCLE) {
           blRcrrpCounter = 0;
           ret = DCM_WRITE_FORCE_RCRRP;
         }
@@ -1101,7 +1119,7 @@ void BL_CheckAndJump(void) {
       BL_JumpToApp();
     } else {
 #ifdef BL_USE_AB
-      BL_ABSwitch(); /* as corrupted, witch to check if possible to boot from backup */
+      BL_ABSwitch(); /* as corrupted, switch to check if possible to boot from backup */
       if (E_OK == BL_CheckAppIntegrity()) {
         ASLOG(INFO, ("application integrity is OK\n"));
         BL_JumpToApp();
@@ -1148,7 +1166,7 @@ Std_ReturnType BL_ReadFingerPrint(Dcm_OpStatusType opStatus, uint8_t *data, uint
   ret = readFlash(DCM_INITIAL, blFingerPrintAddr, FLASH_ALIGNED_READ_SIZE(length - 1), &data[1]);
   if (DCM_READ_OK != ret) {
     *errorCode = DCM_E_CONDITIONS_NOT_CORRECT;
-    ret = DCM_WRITE_FAILED;
+    ret = E_NOT_OK;
   }
 
   return ret;
@@ -1212,6 +1230,13 @@ Std_ReturnType BL_CheckProgrammingDependencies(uint8_t *dataIn, Dcm_OpStatusType
     ret = E_NOT_OK;
   }
 #endif
+
+#if defined(BL_USE_APP_INFO_V2)
+  if (E_OK == ret) {
+    ret = BL_CopyAppInfoV2ForV1();
+  }
+#endif
+
 #ifdef BL_USE_META
   if (E_OK == ret) {
     ret = BL_MetaUpdate();
@@ -1237,11 +1262,12 @@ Std_ReturnType BL_CheckProgrammingDependencies(uint8_t *dataIn, Dcm_OpStatusType
 #endif
     if (DCM_WRITE_OK != ret) {
       *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
+      ret = E_NOT_OK;
     } else {
       *currentDataLength = 1;
       dataOut[0] = 0x00;
+      ret = E_OK;
     }
-    ret = E_OK;
   }
   return ret;
 }
@@ -1309,6 +1335,7 @@ Std_ReturnType BL_CheckProgrammingIntegrity(const uint8_t *dataIn, Dcm_OpStatusT
             dataOut[0] = 0; /* correct result */
             *currentDataLength = 1;
           }
+          blCacheSegmentNum = blSegmentNum;
           blSegmentNum = 0; /* drop segment infos */
         } else {
           *ErrorCode = DCM_E_RESPONSE_PENDING;

@@ -55,6 +55,13 @@
 #ifdef USE_SHELL
 #include "shell.h"
 #endif
+
+#if defined(_WIN32) || defined(linux)
+boolean __weak Mcu_IsResetRequested(void) {
+  return FALSE;
+}
+#endif
+
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_CANIF 0
 
@@ -251,7 +258,11 @@ void Task_MainLoop(void) {
   Init();
   Std_TimerSet(&timer10ms, 10000);
   Std_TimerSet(&timer500ms, 500000);
-  for (;;) {
+  for (;
+#if defined(_WIN32) || defined(linux)
+       FALSE == Mcu_IsResetRequested()
+#endif
+         ;) {
     if (TRUE == Std_IsTimerTimeout(&timer10ms)) {
       Std_TimerSet(&timer10ms, 10000);
       MainTask_10ms();
@@ -338,18 +349,26 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
+#if defined(_WIN32) || defined(linux)
+  while (TRUE) {
+#endif
 #ifndef USE_LATE_MCU_INIT
-  Mcu_Init(NULL);
+    Mcu_Init(NULL);
 #endif
 
-  Memory_Init();
+    Memory_Init();
 
-  BL_CheckAndJump();
+    BL_CheckAndJump();
 
 #ifdef USE_OSAL
-  OSAL_Start();
+    OSAL_Start();
 #else
   Task_MainLoop();
+#endif
+#if defined(_WIN32) || defined(linux)
+    usleep(1000000);
+    ASLOG(INFO, ("reset...\n"));
+  }
 #endif
   return 0;
 }

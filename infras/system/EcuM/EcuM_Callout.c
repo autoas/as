@@ -8,7 +8,7 @@
 #include "EcuM_Priv.h"
 #include "EcuM_Externals.h"
 #include "EcuM_Cfg.h"
-
+#include "NvM.h"
 #ifdef ENABLE_NVM_TEST
 #undef USE_DEM
 #endif
@@ -34,6 +34,16 @@ void EcuM_MemoryService(void) {
     pDriverMainFnc();
   }
 }
+
+#ifdef USE_NVM
+void EcuM_EnsureMemoryIdle(void) {
+  MemIf_StatusType status;
+  do {
+    EcuM_MemoryService();
+    status = NvM_GetStatus();
+  } while (MEMIF_IDLE != status);
+}
+#endif
 
 void EcuM_AL_SetProgrammableInterrupts(void) {
 }
@@ -70,9 +80,7 @@ void EcuM_AL_DriverInitTwo(void) {
 #endif
   STD_TRACE_APP(MEMORY_TASK_B);
 #ifdef USE_NVM
-  while (MEMIF_IDLE != NvM_GetStatus()) {
-    EcuM_MemoryService();
-  }
+  EcuM_EnsureMemoryIdle();
   NvM_ReadAll();
   while (MEMIF_IDLE != NvM_GetStatus()) {
     EcuM_MemoryService();

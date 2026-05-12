@@ -176,7 +176,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
         ret = TcpIp_SetTimeout(sockRd, 10);
       }
       if (E_OK == ret) {
-        ret = TcpIp_Bind(sockRd, TCPIP_LOCALADDRID_ANY, &Port);
+        ret = TcpIp_Bind(sockRd, 0, &Port);
       }
       if (E_OK == ret) {
         TcpIp_SetupAddrFrom(&ipv4Addr, CAN_CAST_IP, Port);
@@ -187,7 +187,7 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
         rv = FALSE;
         ASLOG(ERROR, ("CAN socket bind to %x:%d failed\n", CAN_CAST_IP, CAN_PORT_MIN + port));
       } else {
-        (void)TcpIp_SetMulticastIF(sockRd, TCPIP_LOCALADDRID_ANY);
+        (void)TcpIp_SetMulticastIF(sockRd, 0);
       }
     } else {
       rv = FALSE;
@@ -201,7 +201,9 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
         rv = FALSE;
         ASLOG(ERROR, ("CAN socket create write sock failed\n"));
       } else {
-        (void)TcpIp_SetMulticastIF(sockWt, TCPIP_LOCALADDRID_ANY);
+        uint16_t u16PortAny = TCPIP_PORT_ANY;
+        TcpIp_Bind(sockWt, 0, &u16PortAny);
+        (void)TcpIp_SetMulticastIF(sockWt, 0);
       }
     }
     if (rv) { /* open port OK */

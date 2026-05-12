@@ -35,7 +35,7 @@ objsIsoTpSend = Glob("utils/isotp_send.c")
 @register_application
 class ApplicationIsoTpSend(Application):
     def config(self):
-        self.LIBS = ["IsoTp"]
+        self.LIBS = ["AsOne"]
         self.Append(CPPDEFINES=["USE_STD_DEBUG"])
         self.CPPPATH = ["$INFRAS"]
         self.source = objsIsoTpSend

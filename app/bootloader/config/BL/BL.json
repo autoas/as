@@ -5,7 +5,9 @@
     "BL_USE_APP_INFO": true,
     "BL_USE_APP_INFO_V2": true,
     "BL_USE_META": true,
-    "BL_USE_AB": true
+    "BL_USE_AB": true,
+    "BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER": true,
+    "BL_USE_AB_UPDATE_ACTIVE": true
   },
   "memory": {
     "FlashDriver": { "address": "0", "size": "2048" },

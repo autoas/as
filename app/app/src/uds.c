@@ -132,6 +132,10 @@ Std_ReturnType App_ComCtrlDisableRxAndTx(uint8_t comType, Dcm_NegativeResponseCo
 void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlType sesCtrlTypeNew,
                                  boolean timeout) {
   if (DCM_PROGRAMMING_SESSION == sesCtrlTypeNew) {
+#ifdef USE_NVM
+    void EcuM_EnsureMemoryIdle(void);
+    EcuM_EnsureMemoryIdle();
+#endif
     App_EnterProgramSession();
   }
 

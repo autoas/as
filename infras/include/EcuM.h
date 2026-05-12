@@ -109,4 +109,6 @@ void EcuM_BswServiceFast(void);
 
 /* @SWS_EcuM_02813 */
 void EcuM_GetVersionInfo(Std_VersionInfoType *versionInfo);
+
+void EcuM_EnsureMemoryIdle(void);
 #endif /* ECUM_H */
