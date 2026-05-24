@@ -319,6 +319,9 @@ static Std_ReturnType Dcm_DspClearDID(Dcm_MsgContextType *msgContext,
         }
       }
     }
+    if (E_OK != r) {
+      *nrc = DCM_E_REQUEST_OUT_OF_RANGE;
+    }
   } else {
     *nrc = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
   }

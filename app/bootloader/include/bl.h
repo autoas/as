@@ -24,7 +24,7 @@
 #define BL_FLSDRV_IDENTIFIER 0xFD
 
 #define BL_VERSION_MAJOR 4
-#define BL_VERSION_MINOR 0
+#define BL_VERSION_MINOR 1
 #define BL_VERSION_PATCH 0
 
 #if defined(_WIN32) || defined(__linux__)

@@ -43,6 +43,12 @@ def Gen_BL(cfg, dir):
     app_b_info_size = toNum(general.get("APP_SECTION_INFO_SIZE", app_b_sector_size // 4))
     app_b_valid_flag_size = toNum(general.get("APP_VALID_FLAG_SIZE", app_b_sector_size // 4))
     app_b_meta_backup_size = app_b_finger_print_size + app_b_meta_size + app_b_info_size + app_b_valid_flag_size
+    if False == general.get("BL_USE_META", False):
+        app_a_meta_backup_size = 0
+        app_b_meta_backup_size = 0
+    if False == general.get("BL_USE_APP_INFO", False) and False == general.get("BL_USE_APP_INFO_V2", False):
+        app_a_info_size = 0
+        app_b_info_size = 0
     # ===== Generate BL_Cfg.h =====
     H = open(os.path.join(dir, "BL_Cfg.h"), "w")
     GenHeader(H)
@@ -61,7 +67,7 @@ def Gen_BL(cfg, dir):
         % ("" if general.get("BL_USE_AB_ACTIVE_BASED_ON_META_ROLLING_COUNTER", False) else "//")
     )
     H.write(
-        "%s #define FL_USE_WRITE_WINDOW_BUFFER\n" % ("" if general.get("FL_USE_WRITE_WINDOW_BUFFER", False) else "//")
+        "%s #define FL_USE_WRITE_WINDOW_BUFFER\n" % ("" if general.get("FL_USE_WRITE_WINDOW_BUFFER", True) else "//")
     )
     H.write("%s #define BL_USE_APP_INFO\n" % ("" if general.get("BL_USE_APP_INFO", False) else "//"))
     H.write("%s #define BL_USE_APP_INFO_V2\n" % ("" if general.get("BL_USE_APP_INFO_V2", False) else "//"))

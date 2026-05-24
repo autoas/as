@@ -167,8 +167,8 @@ uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType LocalAddrId) {
         ip = lIPStr;
       } else {
 #endif
-        ip = "172.18.0.1";
-        ASLOG(WARN, ("env AS_LOCAL_IP not set, default %s\n", ip));
+        ip = "0.0.0.0";
+        ASLOG(WARN, ("env AS_LOCAL_IP not set, default %s, using any adapter\n", ip));
 #ifdef _WIN32
       }
 #endif

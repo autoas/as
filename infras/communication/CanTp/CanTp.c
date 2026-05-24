@@ -189,7 +189,8 @@ static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
     }
 
     if (BUFREQ_OK != bufReq) {
-      ASLOG(CANTPE, ("[%d]SF received with buffer status %d!\n", RxPduId, bufReq));
+      ASLOG(CANTPE, ("[%d]SF received with buffer status %d!: SID=%x\n", RxPduId, bufReq,
+                     PduInfo.SduDataPtr[1]));
     }
   } else {
     ASLOG(CANTPE, ("[%d]SF received with invalid len: %d %d %d!\n", RxPduId, (int)PduInfo.SduLength,

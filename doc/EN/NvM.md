@@ -208,7 +208,7 @@ Too simple, too lazy to describe.
 6. **EraseNextBank**: Erase the next Flash bank.  
 7. **SetNextBankAdmin**: Configure valid Admin for the next bank.  
 
-   > **Note**: Steps 6¨C7 account for sudden power loss during backup. Without traversing the next bank's data, you can't resume where you left off. Since power loss is rare, we simplify by erasing and restarting.  
+   > **Note**: Steps 6-7 account for sudden power loss during backup. Without traversing the next bank's data, you can't resume where you left off. Since power loss is rare, we simplify by erasing and restarting.  
 
 8. **CopyAdmin**: Loop through data blocks with valid data at legal addresses and write to the next bank's Admin.  
 9. **CopyReadData**: Read data from the legal address. If CRC is valid, proceed to Step 11.  

@@ -257,23 +257,37 @@ const tFlashHeader FlashHeader = {.Info.W.MCU = 1,
 
 好吧，其实很多非常细节性的多西这篇文章是远远没有讲到的！但如果你认真看完本文，并且动手完成了QEMU的实验，对bootloader你也会有一个基本的认识。
 
-## Host CanBL demo
+## Host CanBL 演示
 
-本例子只作为备选，如果上述QEMU为例的bootloader始终因为CANTP超时而升级失败。
-那么我们可以转而运行可以在Wondows Host上直接运行的CanBL，但改仿真模拟不了bootloader到APP的跳转，也模拟不了进入编程会话从APP到bootloader的跳转。
+如果 QEMU 环境下的 bootloader 测试遇到问题，可以使用 Windows Host 上直接运行的 CanBL 进行测试。详细的构建和测试步骤请参考英文文档：[doc/EN/BL.md](../EN/BL.md)
+
+## QEMU GDB 调试
+
+本章节介绍如何使用 arm-none-eabi-gdb 连接 QEMU 进行调试。
+
+### 1. 启动 QEMU 并开启 GDB 服务器
+
+首先在一个终端中启动 QEMU，同时开启 GDB 服务器：
 
 ```sh
-# build the CanBL
-set LL_DL=64
-scons --app=CanBL
+scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBLRun gdb
+```
 
-# Run the CanBL
-build\nt\GCC\CanBL\CanBL.exe
-# Run the Loader
-build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -d CAN.simulator_v2 -l 64
+### 2. 使用 arm-none-eabi-gdb 连接 QEMU
 
-# 本实例使用了基于UDP广播特性的CAN simulator_v2,所以完整的bootloader UDS服务很快就可以完成
-# 但因为是模拟，内存映射和QEMU是有区别的，对于该问题，目前我也懒得修复。
-download application            progress 97.16%   negative response 31
-loader failed
+打开一个新的终端，运行：
+
+```bash
+arm-none-eabi-gdb.exe build/nt/QemuVersatilepbGCC/VersatilepbCanBL/VersatilepbCanBL.exe
+```
+
+在 GDB 中连接 QEMU：
+
+```gdb
+(gdb) target remote localhost:1234
+
+while $pc != 4
+  stepi
+  print/x $pc
+end
 ```

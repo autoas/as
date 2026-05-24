@@ -124,7 +124,7 @@ A LIN slave responds to master requests (e.g., read/write DTCs, sensor data). Ex
 ## 6. Key Considerations
 
 - **LDF File Consistency**: Ensure the `.ldf` file (LIN Description File) is identical in `LinIf` and `Com` configurations to avoid signal mismatches.  
-- **Timeout Tuning**: Adjust `timeout` in LinIf based on LIN bus speed and slave response times (typical values: 50¨C200 ms).  
+- **Timeout Tuning**: Adjust `timeout` in LinIf based on LIN bus speed and slave response times (typical values: 50-200 ms).  
 - **LinTp Routing**: For master nodes, configure `PduR` to route LIN segments to/from `CanTp` (e.g., for UDS over CAN-LIN gateways).  
 
 ---

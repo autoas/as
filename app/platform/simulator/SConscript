@@ -18,6 +18,8 @@ class LibrarySimulator(Library):
         self.Append(CPPDEFINES=["LIN_USE_EXT_ID"])
         self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer", "$LinIf_Cfg"]
         self.source = objs
+        if GetOption("library") in ["AsOne", "AsPy"]:
+            SrcRemove(self.source, ["Key.cpp"])
         for libName, cfg in libsForSimulator.items():
             self.LIBS += [libName]
             self.RegisterConfig(libName, cfg)

@@ -112,6 +112,7 @@ class LibraryVSomeIP_E2E(Library):
             "implementation/e2e_protection/src/e2e/profile/profile04/*.cpp",
             "implementation/e2e_protection/src/e2e/profile/profile05/*.cpp",
             "implementation/e2e_protection/src/e2e/profile/profile07/*.cpp",
+            "implementation/e2e_protection/src/e2e/profile/profile_custom/*.cpp",
             "implementation/e2e_protection/src/e2e/profile/*.cpp",
             "implementation/e2e_protection/src/e2exf/*.cpp",
         ]

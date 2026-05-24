@@ -59,7 +59,7 @@ This project now provide below tools & libraries:
 
 - **Virtuan LIN environment**: TBD
 
-- **CAN Bootloader**: [CN](doc/CN/can-bootloader.md)
+- **CAN Bootloader**: [CN: boot over qemu](doc/CN/can-bootloader.md), [EN: boot sim on host](doc/EN/BL.md)
 
 - **CAN OSEKNM**: [CN](doc/CN/can-oseknm.md)
 

@@ -6,7 +6,10 @@
 #include "bl.h"
 /* ================================ [ MACROS    ] ============================================== */
 #if defined(_WIN32) || defined(__linux__)
+#if defined(FL_ERASE_PER_CYCLE) && (FL_ERASE_PER_CYCLE < 32)
+#undef FL_ERASE_PER_CYCLE
 #define FL_ERASE_PER_CYCLE 32
+#endif
 #ifndef FL_USE_WRITE_WINDOW_BUFFER
 #define FL_USE_WRITE_WINDOW_BUFFER
 #endif
@@ -489,10 +492,12 @@ static bl_crc_t getAppNSampledCrc(void) {
 static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
   Std_ReturnType ret = E_OK;
   Dcm_ReturnReadMemoryType readRet;
-  Dcm_ReturnWriteMemoryType writeRet;
   uint32_t numOfBlks;
-  uint8_t signature[16];
+  uint8_t buffer[FLASH_ALIGNED_WRITE_SIZE(32)];
+  uint32_t offset;
+  uint32_t i;
   uint32_t addr;
+  uint32_t addrW;
   uint8_t segNum = blSegmentNum;
 
   if (0 == segNum) {
@@ -503,7 +508,7 @@ static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
   if (segNum > 0) {
     addr = blSegmentInfos[segNum - 1].address + blSegmentInfos[segNum - 1].length;
     ASLOG(BLI, ("V2 sinature at %" PRIx32 " app info at %" PRIx32 "\n", addr, blAppInfoAddr));
-    readRet = readFlash(DCM_INITIAL, addr - 16, 16, (uint8_t *)signature);
+    readRet = readFlash(DCM_INITIAL, addr - 16, 16, (uint8_t *)buffer);
   } else {
     readRet = DCM_READ_FAILED;
   }
@@ -511,25 +516,45 @@ static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
   if (TRUE == blIsV2ForV1Copied) {
     ret = E_OK;
   } else if (DCM_READ_OK == readRet) {
-    if (0 == memcmp(&signature[8], "$BYASV3#", 8)) {
-      numOfBlks = ((uint32_t)signature[0] << 24) + ((uint32_t)signature[1] << 16) +
-                  ((uint32_t)signature[2] << 8) + signature[3];
-      memcpy(blWriteWindowBuffer, signature, 8);
-      readRet = readFlash(DCM_INITIAL, addr - 16 - 8 * numOfBlks, 8 * numOfBlks,
-                          (uint8_t *)&blWriteWindowBuffer[8]);
-      if (DCM_READ_OK == readRet) {
-        blWWBAddr = blAppInfoAddr;
-        blWWBOffset = 8 + 8 * numOfBlks;
-        writeRet = flushFlash();
-        if (DCM_WRITE_OK != writeRet) {
-          ret = E_NOT_OK;
-        } else {
-          blIsV2ForV1Copied = TRUE;
+    if (0 == memcmp(&buffer[8], "$BYASV3#", 8)) {
+      numOfBlks = ((uint32_t)buffer[0] << 24) + ((uint32_t)buffer[1] << 16) +
+                  ((uint32_t)buffer[2] << 8) + buffer[3];
+      offset = 8u;
+      addrW = blAppInfoAddr; /* where to write to */
+      for (i = 0; (i < numOfBlks) && (E_OK == ret); i++) {
+        if (offset > (sizeof(buffer) - 8u)) {
+          BL_FLS_WRITE(addrW, buffer, offset);
+          if (kFlashOk != blFlashParam.errorcode) {
+            ASLOG(BLE, ("Write app info V2 to V1 failed at %" PRIx32 ", length %" PRIu32 "\n",
+                        addrW, offset));
+            ret = E_NOT_OK;
+          } else {
+            addrW += offset;
+            offset = 0;
+          }
         }
-      } else {
-        ret = E_NOT_OK;
+        readRet =
+          readFlash(DCM_INITIAL, addr - 16u - 8 * (numOfBlks - i), 8u, (uint8_t *)&buffer[offset]);
+        if (DCM_READ_OK == readRet) {
+          offset += 8u;
+        } else {
+          ret = E_NOT_OK;
+        }
+      }
+      if ((E_OK == ret) && (offset > 0u)) {
+        memset(&buffer[offset], 0xFF, FLASH_ALIGNED_WRITE_SIZE(offset) - offset);
+        BL_FLS_WRITE(addrW, buffer, FLASH_ALIGNED_WRITE_SIZE(offset));
+        if (kFlashOk != blFlashParam.errorcode) {
+          ASLOG(BLE, ("Write left app info V2 to V1 failed at %" PRIx32 ", length %" PRIu32 "\n",
+                      addrW, offset));
+          ret = E_NOT_OK;
+        }
+      }
+      if (E_OK == ret) {
+        blIsV2ForV1Copied = TRUE;
       }
     } else {
+      ASLOG(BLE, ("V2 app info sinature not found at %" PRIx32 "\n", addr - 16));
       ret = E_NOT_OK;
     }
   } else {

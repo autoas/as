@@ -11,7 +11,10 @@ if hasattr(os, "add_dll_directory"):
     for p in PATH.split(";"):
         p = p.strip()
         if p != "" and " " not in p:
-            os.add_dll_directory(p)
+            try:
+                os.add_dll_directory(p)
+            except Exception as e:
+                pass
 
 import PyFee
 

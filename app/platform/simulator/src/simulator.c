@@ -11,6 +11,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 /* ================================ [ MACROS    ] ============================================== */
+#if defined(_WIN32)
+#define AS_BUILD_DIR "build/nt/GCC"
+#define AS_APP_SUFFIX ".exe"
+#else
+#define AS_BUILD_DIR "build/posix/GCC"
+#define AS_APP_SUFFIX ""
+#endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 #ifdef USE_FLS
@@ -50,7 +57,7 @@ boolean BL_IsUpdateRequested(void) {
 
 void BL_JumpToApp(void) {
   char *appPath;
-  char defaultPath[] = "build/nt/CanApp/CanApp.exe";
+  char defaultPath[] = AS_BUILD_DIR "/CanApp/CanApp" AS_APP_SUFFIX;
   char *args[2] = {NULL};
 
   appPath = getenv("BL_APP_PATH");
@@ -75,7 +82,7 @@ void BL_AliveIndicate(void) {
 
 void App_EnterProgramSession(void) {
   char *blPath;
-  char defaultPath[] = "build/nt/GCC/CanBL/CanBL.exe";
+  char defaultPath[] = AS_BUILD_DIR "/CanBL/CanBL" AS_APP_SUFFIX;
   char *args[2] = {NULL};
   FILE *flagFile;
 
