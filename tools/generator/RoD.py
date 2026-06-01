@@ -21,20 +21,78 @@ def GetName(node):
 
 
 def GenTypes(H, cfg):
+    def CollectFunctions(data, functions):
+        for sd in data:
+            if sd["type"] == "struct":
+                CollectFunctions(sd["data"], functions)
+            elif sd["type"] == "function" and "value" in sd:
+                func_name = sd["value"]
+                if func_name and func_name != "NULL" and func_name not in functions:
+                    functions[func_name] = sd
+
+    all_functions = {}
     for block in cfg["blocks"]:
-        H.write("typedef struct {\n")
-        for data in block["data"]:
-            dinfo = TypeInfoMap[data["type"]]
-            cstr = "  %s %s" % (dinfo["ctype"], GetName(data))
-            if dinfo["IsArray"]:
-                cstr += "[%s]" % (data["size"])
-            cstr += ";\n"
-            H.write(cstr)
-        H.write("} RoD_%sType;\n\n" % (GetName(block)))
+        CollectFunctions(block["data"], all_functions)
+
+    for func_name, func_info in all_functions.items():
+        ret_type = func_info.get("return", "void")
+        args = ", ".join(func_info.get("args", []))
+        H.write("extern %s %s(%s);\n" % (ret_type, func_name, args))
+    if all_functions:
+        H.write("\n")
+
+    def GenStructDef(name, data, all_structs, fnc_types):
+        struct_def = ""
+        for sd in data:
+            if sd["type"] == "struct":
+                nested_name = GetName(sd)
+                if nested_name not in all_structs:
+                    all_structs[nested_name] = sd["data"]
+                    struct_def += GenStructDef(nested_name, sd["data"], all_structs, fnc_types)
+
+        struct_def += "typedef struct {\n"
+        for sd in data:
+            if sd["type"] == "struct":
+                cstr = "  RoD_%sType %s;\n" % (GetName(sd), GetName(sd))
+                struct_def += cstr
+            elif sd["type"] == "function":
+                ret_type = sd.get("return", "void")
+                func_name = sd.get("value", "")
+                if func_name:
+                    fnc_type_name = "%sFncType" % func_name
+                    if fnc_type_name not in fnc_types:
+                        fnc_types[fnc_type_name] = True
+                        H.write("typedef %s (*%s)(%s);\n\n" % (ret_type, fnc_type_name, ", ".join(sd.get("args", []))))
+                    struct_def += "  %s %s;\n" % (fnc_type_name, GetName(sd))
+                else:
+                    func_type = "%s (*%s)(%s);\n" % (ret_type, GetName(sd), ", ".join(sd.get("args", [])))
+                    struct_def += "  " + func_type
+            else:
+                dinfo = TypeInfoMap[sd["type"]]
+                cstr = "  %s %s" % (dinfo["ctype"], GetName(sd))
+                if dinfo["IsArray"]:
+                    cstr += "[%s]" % (sd.get("size", 1))
+                cstr += ";\n"
+                struct_def += cstr
+        struct_def += "} RoD_%sType;\n\n" % (name)
+        return struct_def
+
+    for block in cfg["blocks"]:
+        all_structs = {}
+        fnc_types = {}
+        struct_def = GenStructDef(GetName(block), block["data"], all_structs, fnc_types)
+        H.write(struct_def)
 
 
-def PlaceToRaw(raw, value, type, endian):
-    if type in ["uint8", "uint8_n"]:
+def PlaceToRaw(raw, value, type, data_node, endian):
+    if type == "struct":
+        for sd in data_node["data"]:
+            sv = sd.get("value", 0)
+            PlaceToRaw(raw, sv, sd["type"], sd, endian)
+    elif type == "function":
+        if not value or value == "NULL":
+            raw.extend([0, 0, 0, 0])
+    elif type in ["uint8", "uint8_n"]:
         raw.append(value)
     elif type in ["uint16", "uint16_n"]:
         if endian == "little":
@@ -48,38 +106,77 @@ def PlaceToRaw(raw, value, type, endian):
             raw.extend([(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, (value >> 0) & 0xFF])
 
 
+def GenStructInit(data_node):
+    cstr = "{ "
+    for i, sd in enumerate(data_node["data"]):
+        if sd["type"] == "struct":
+            cstr += GenStructInit(sd)
+        elif sd["type"] == "function":
+            func_name = sd.get("value", "NULL")
+            cstr += func_name
+        else:
+            value = sd.get("value", 0)
+            if type(value) == str:
+                value = eval(value)
+            if type(value) in [list, tuple]:
+                cstr += "{" + ", ".join(str(v) for v in value) + "}"
+            else:
+                cstr += str(value)
+        if i < len(data_node["data"]) - 1:
+            cstr += ", "
+    cstr += " }"
+    return cstr
+
+
 def GenConstants(C, cfg):
     endian = cfg.get("enidan", "little")
     for block in cfg["blocks"]:
         name = block["name"]
         cstr = "static CONSTANT(RoD_%sType, ROD_CONST) RoD_%s = { " % (name, name)
         raw = []
-        for data in block["data"]:
-            value = data["value"]
-            if data["type"] == "string":
-                cstr += '"%s", ' % (value)
+
+        for i, data in enumerate(block["data"]):
+            if data["type"] == "struct":
+                struct_init = GenStructInit(data)
+                cstr += struct_init
+                PlaceToRaw(raw, None, "struct", data, endian)
+            elif data["type"] == "function":
+                func_name = data.get("value", "NULL")
+                cstr += func_name
+                if not func_name or func_name == "NULL":
+                    raw.extend([0, 0, 0, 0])
+            elif data["type"] == "string":
+                value = data["value"]
+                cstr += '"%s"' % (value)
                 for c in value:
                     raw.append(ord(c))
                 i = len(value)
-                while i < data["size"]:
+                while i < data.get("size", 1):
                     raw.append(0)
                     i = i + 1
-            elif type(value) == str:
-                value = eval(value)
-                cstr += "%s, " % (str(value).replace("[", "{").replace("]", "}"))
+            else:
+                value = data.get("value", 0)
+                if type(value) == str:
+                    value = eval(value)
+                cstr += str(value).replace("[", "{").replace("]", "}")
+
                 if type(value) in [list, tuple]:
                     for v in value:
-                        PlaceToRaw(raw, v, data["type"], endian)
+                        PlaceToRaw(raw, v, data["type"], data, endian)
                     i = len(value)
-                    while i < data["size"]:
-                        PlaceToRaw(raw, 0, data["type"], endian)
+                    while i < data.get("size", 1):
+                        PlaceToRaw(raw, 0, data["type"], data, endian)
                         i = i + 1
                 else:
-                    PlaceToRaw(raw, value, data["type"], endian)
-            else:
-                cstr += "%s, " % (value)
-                PlaceToRaw(raw, value, data["type"], endian)
-        block["crc"] = Calcaulte_Crc16(raw)
+                    PlaceToRaw(raw, value, data["type"], data, endian)
+
+            if i < len(block["data"]) - 1:
+                cstr += ", "
+
+        if "crc" not in block:
+            block["crc"] = Calcaulte_Crc16(raw)
+        else:
+            block["crc"] = toNum(block["crc"])
         cstr += "};\n\n"
         C.write(cstr)
 

@@ -8,7 +8,6 @@
 
 #ifdef BL_USE_AB
 /* ================================ [ MACROS    ] ============================================== */
-#define ROD_NUMBER_AppVersion 0
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint16_t year;
@@ -160,10 +159,10 @@ static void BL_ABCheckActive(void) {
   const RoD_AppVersionType *pVersionA = NULL;
   const RoD_AppVersionType *pVersionB = NULL;
 
-  ret = Rod_ReadData(RoD_AppConfigB, ROD_NUMBER_AppVersion, (const void **)&pVersionB, &size);
+  ret = Rod_ReadData(RoD_AppConfigB, ROD_NUMBER_APP_VERSION, (const void **)&pVersionB, &size);
   if ((E_OK == ret) && (NULL != pVersionB) && (sizeof(RoD_AppVersionType) == size)) {
     /* current version B is valid */
-    ret = Rod_ReadData(RoD_AppConfigA, ROD_NUMBER_AppVersion, (const void **)&pVersionA, &size);
+    ret = Rod_ReadData(RoD_AppConfigA, ROD_NUMBER_APP_VERSION, (const void **)&pVersionA, &size);
     if ((E_OK == ret) && (NULL != pVersionA) && (sizeof(RoD_AppVersionType) == size)) {
       /* current version A valid */
       if ((pVersionA->year < pVersionB->year)) {

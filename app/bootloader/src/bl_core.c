@@ -564,6 +564,48 @@ static Std_ReturnType BL_CopyAppInfoV2ForV1(void) {
   return ret;
 }
 #endif
+
+static Std_ReturnType BL_SetApplicationValidFlag(void) {
+  Std_ReturnType ret = E_OK;
+  bl_crc_t Crc;
+#ifndef FL_USE_WRITE_WINDOW_BUFFER
+  uint8_t buffer[FLASH_ALIGNED_WRITE_SIZE(4)];
+  uint16_t alignedLen;
+  int i;
+#endif
+
+#if defined(BL_USE_APP_INFO_V2)
+  if (E_OK == ret) {
+    ret = BL_CopyAppInfoV2ForV1();
+  }
+#endif
+
+#ifdef BL_USE_META
+  if (E_OK == ret) {
+    ret = BL_MetaUpdate();
+  }
+#endif
+
+  if (E_OK == ret) {
+    Crc = getAppNSampledCrc();
+    ASLOG(BLI, ("app sampled CRC %" PRIx32 "\n", Crc));
+#ifndef FL_USE_WRITE_WINDOW_BUFFER
+    alignedLen = FLASH_ALIGNED_WRITE_SIZE(4);
+    BL_SetCRC(buffer, Crc);
+    for (i = BL_CRC_LENGTH; i < alignedLen; i++) {
+      buffer[i] = 0xFF;
+    }
+    ret = writeFlash(DCM_INITIAL, blAppValidFlagAddr, alignedLen, buffer);
+#else
+    BL_SetCRC(blWriteWindowBuffer, Crc);
+    blWWBAddr = blAppValidFlagAddr;
+    blWWBOffset = BL_CRC_LENGTH;
+    ret = flushFlash();
+#endif
+  }
+
+  return ret;
+}
 /* ================================ [ FUNCTIONS ] ============================================== */
 void BL_SessionReset(void) {
   blMemoryIdentifier = 0;
@@ -1242,13 +1284,8 @@ Std_ReturnType BL_CheckProgrammingDependencies(uint8_t *dataIn, Dcm_OpStatusType
                                                uint8_t *dataOut, uint16_t *currentDataLength,
                                                Dcm_NegativeResponseCodeType *ErrorCode) {
   Std_ReturnType ret = E_OK;
-  bl_crc_t Crc;
-#ifndef FL_USE_WRITE_WINDOW_BUFFER
-  uint16_t alignedLen;
-  int i;
-#endif
+  (void)OpStatus;
 
-/* TODO: */
 #ifndef BL_USE_BUILTIN_FLSDRV
   if (FALSE == bl_flashDriverReady) {
     *ErrorCode = DCM_E_REQUEST_SEQUENCE_ERROR;
@@ -1256,44 +1293,25 @@ Std_ReturnType BL_CheckProgrammingDependencies(uint8_t *dataIn, Dcm_OpStatusType
   }
 #endif
 
-#if defined(BL_USE_APP_INFO_V2)
   if (E_OK == ret) {
-    ret = BL_CopyAppInfoV2ForV1();
-  }
-#endif
-
-#ifdef BL_USE_META
-  if (E_OK == ret) {
-    ret = BL_MetaUpdate();
-  }
-#endif
-
-  if (E_OK == ret) {
-    /* This is the last step, set the app valid flag which is a sampled CRC */
-    Crc = getAppNSampledCrc();
-    ASLOG(BLI, ("app sampled CRC %" PRIx32 "\n", Crc));
-#ifndef FL_USE_WRITE_WINDOW_BUFFER
-    alignedLen = FLASH_ALIGNED_WRITE_SIZE(4);
-    BL_SetCRC(dataIn, Crc);
-    for (i = BL_CRC_LENGTH; i < alignedLen; i++) {
-      dataIn[i] = 0xFF;
-    }
-    ret = writeFlash(DCM_INITIAL, blAppValidFlagAddr, alignedLen, dataIn);
-#else
-    BL_SetCRC(blWriteWindowBuffer, Crc);
-    blWWBAddr = blAppValidFlagAddr;
-    blWWBOffset = BL_CRC_LENGTH;
-    ret = flushFlash();
-#endif
-    if (DCM_WRITE_OK != ret) {
-      *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
-      ret = E_NOT_OK;
-    } else {
+    ret = BL_UserCheckProgrammingDependencies();
+    if (E_OK != ret) {
       *currentDataLength = 1;
-      dataOut[0] = 0x00;
+      dataOut[0] = 0x01; /* incorrect result */
       ret = E_OK;
+    } else {
+      ret = BL_SetApplicationValidFlag();
+      if (E_OK != ret) {
+        *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
+        ret = E_NOT_OK;
+      } else {
+        *currentDataLength = 1;
+        dataOut[0] = 0x00; /* correct result */
+        ret = E_OK;
+      }
     }
   }
+
   return ret;
 }
 

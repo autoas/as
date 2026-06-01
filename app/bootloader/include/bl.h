@@ -218,6 +218,8 @@ Std_ReturnType BL_CheckProgrammingDependencies(uint8_t *dataIn, Dcm_OpStatusType
                                                uint8_t *dataOut, uint16_t *currentDataLength,
                                                Dcm_NegativeResponseCodeType *ErrorCode);
 
+Std_ReturnType  BL_UserCheckProgrammingDependencies(void);
+
 void BL_RequestReset(void);
 void BL_MainFunction(void);
 #endif /* BL_H */

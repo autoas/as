@@ -1,0 +1,38 @@
+{
+    "class": "RoD",
+    "name": "AppSim",
+    "comments": "Read Only Data In Rom",
+    "enidan": "little",
+    "blocks": [
+        {
+            "name": "AppVersion",
+            "data": [
+                { "name": "year", "type": "uint16", "value": 0 },
+                { "name": "month", "type": "uint8", "value": 0 },
+                { "name": "day",   "type": "uint8", "value": 0 },
+                { "name": "hour",  "type": "uint8", "value": 0 },
+                { "name": "minute", "type": "uint8", "value": 0 },
+                { "name": "second", "type": "uint8", "value": 0 },
+                { "name": "major", "type": "uint8", "value": 1 },
+                { "name": "minor", "type": "uint8", "value": 0 },
+                { "name": "patch", "type": "uint8", "value": 0 }
+            ]
+        },
+        {
+            "name": "ProgramDependency",
+            "crc": "0x6567",
+            "data": [
+                { "name": "callout", "type": "function",
+                    "value": "NULL",
+                    "args": ["uint8_t", "uint8_t", "uint8_t"],
+                    "return": "Std_ReturnType"  },
+                { "name": "BLVersionMin", "type": "struct", "data": [
+                        { "name": "major", "type": "uint8", "value": 4 },
+                        { "name": "minor", "type": "uint8", "value": 0 },
+                        { "name": "patch", "type": "uint8", "value": 0 }
+                    ] }
+            ]
+        }
+    ]
+  }
+  

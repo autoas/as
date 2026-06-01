@@ -107,6 +107,11 @@ def Gen_BL(cfg, dir):
     if FL_WRITE_RCRRP_CYCLE > 0:
         H.write(f"#define FL_WRITE_RCRRP_CYCLE {FL_WRITE_RCRRP_CYCLE}\n")
     H.write("\n")
+    if "ROD_NUMBER_APP_VERSION" in general:
+        H.write(f"#define ROD_NUMBER_APP_VERSION {general['ROD_NUMBER_APP_VERSION']}\n")
+    if "ROD_NUMBER_PROGRAM_DEPENDENCY" in general:
+        H.write(f"#define ROD_NUMBER_PROGRAM_DEPENDENCY {general['ROD_NUMBER_PROGRAM_DEPENDENCY']}\n")
+    H.write("\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
@@ -197,6 +202,7 @@ def Gen_BL(cfg, dir):
     C.write("#define blAppValidFlagAddrA blAppValidFlagAddr\n")
     C.write("#define blMemoryListA blMemoryList\n")
     C.write("#define blMemoryListASize blMemoryListSize\n")
+    C.write("#define RoD_AppConfigA RoD_AppConfig\n")
     C.write("#ifdef BL_USE_META\n")
     C.write("#define blAppMetaAddrA blAppMetaAddr\n")
     C.write("#define blAppMetaBackupAddrA blAppMetaBackupAddr\n")
@@ -212,10 +218,8 @@ def Gen_BL(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("#ifdef _WIN32\n")
-    C.write("static const RoD_ConfigType RoD_ConfigDummy = {\n")
-    C.write("  NULL, 0, 0, 0, 0,\n")
-    C.write("};\n")
-    C.write("#endif\n")
+    C.write("extern const RoD_ConfigType RoD_AppSimConfig;\n")
+    C.write("#endif\n\n")
     C.write("const BL_MemoryInfoType blMemoryListA[] = {\n")
     C.write(f" /* FLASH DRIVER */ {{0x{fls_low:08X}, 0x{fls_high:08X}, BL_FLSDRV_IDENTIFIER}},\n")
     for idx, bank in enumerate(flash_a):
@@ -256,7 +260,7 @@ def Gen_BL(cfg, dir):
     C.write(f"const uint32_t blAppMemoryLowA = 0x{app_a_base:08X};\n")
     C.write(f"const uint32_t blAppMemoryHighA = 0x{blAppMemoryHighA:08X};\n")
     C.write("#ifdef _WIN32\n")
-    C.write(f"const RoD_ConfigType *const RoD_AppConfigA = &RoD_ConfigDummy;\n")
+    C.write(f"const RoD_ConfigType *const RoD_AppConfigA = &RoD_AppSimConfig;\n")
     C.write("#else\n")
     C.write(f"const RoD_ConfigType *const RoD_AppConfigA = (const RoD_ConfigType *)(0x{app_a_base+ROD_OFFSET:08x});\n")
     C.write("#endif\n")
@@ -271,7 +275,7 @@ def Gen_BL(cfg, dir):
         C.write(f"const uint32_t blAppMemoryLowB = 0x{app_b_base:08X};\n")
         C.write(f"const uint32_t blAppMemoryHighB = 0x{blAppMemoryHighB:08X};\n")
         C.write("#ifdef _WIN32\n")
-        C.write(f"const RoD_ConfigType *const RoD_AppConfigB = &RoD_ConfigDummy;\n")
+        C.write(f"const RoD_ConfigType *const RoD_AppConfigB = &RoD_AppSimConfig;\n")
         C.write("#else\n")
         C.write(
             f"const RoD_ConfigType *const RoD_AppConfigB = (const RoD_ConfigType *)(0x{app_b_base+ROD_OFFSET:08x});\n"
@@ -299,7 +303,9 @@ def Gen_BL(cfg, dir):
     C.write("  boolean isValid = FALSE;\n")
     C.write("  uint32_t i;\n")
     C.write("  for (i = 0; i < blMemoryListASize; i++) {\n")
-    C.write("    if ((MemoryAddress >= blMemoryListA[i].addressLow) && (MemoryAddress < blMemoryListA[i].addressHigh)) {\n")
+    C.write(
+        "    if ((MemoryAddress >= blMemoryListA[i].addressLow) && (MemoryAddress < blMemoryListA[i].addressHigh)) {\n"
+    )
     C.write("      isValid = TRUE;\n")
     C.write("      break;\n")
     C.write("    }\n")
@@ -307,7 +313,9 @@ def Gen_BL(cfg, dir):
     if general.get("BL_USE_AB", False):
         C.write("  if (FALSE == isValid) {\n")
         C.write("    for (i = 0; i < blMemoryListBSize; i++) {\n")
-        C.write("      if ((MemoryAddress >= blMemoryListB[i].addressLow) && (MemoryAddress < blMemoryListB[i].addressHigh)) {\n")
+        C.write(
+            "      if ((MemoryAddress >= blMemoryListB[i].addressLow) && (MemoryAddress < blMemoryListB[i].addressHigh)) {\n"
+        )
         C.write("        isValid = TRUE;\n")
         C.write("        break;\n")
         C.write("      }\n")

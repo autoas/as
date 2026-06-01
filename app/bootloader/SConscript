@@ -36,10 +36,11 @@ class ApplicationBL(Application):
         self.source = objsAppBL
 
 
-libsForCanBL = {}
-for libName in ["BL", "Dcm", "CanTp", "PduR"]:
+libsForCanBL = { "BL": Glob("config/BL/BL.json") }
+for libName in ["Dcm", "CanTp", "PduR"]:
     libsForCanBL[libName] = Glob("config/%s/%s.json" % (libName, libName))
 
+BLRodApp = Glob("config/BL/RoD.json")
 
 @register_application
 class ApplicationCanBL(ApplicationBL):
@@ -48,6 +49,8 @@ class ApplicationCanBL(ApplicationBL):
         self.LIBS.append("Simulator")
         self.LIBS += ["LibC"]
         self.Append(CPPDEFINES=["USE_STDIO_CAN", "USE_STD_PRINTF"])
+        self.LIBS += ["RoD"]
+        self.RegisterConfig("RoD", BLRodApp)
 
     def config(self):
         if LL_DL != None:
