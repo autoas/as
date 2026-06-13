@@ -167,8 +167,17 @@ void stdio_main_function(void) {
 }
 
 #if defined(USE_STDIO_CAN) && defined(USE_SHELL)
+static boolean UserStdin_enabled = FALSE;
+
+void UserStdin_Enable(boolean enable) {
+  UserStdin_enabled = enable;
+}
+
 void UserStdin_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   int i;
+  if (!UserStdin_enabled) {
+    return;
+  }
   for (i = 0; i < PduInfoPtr->SduLength; i++) {
     Shell_Input((char)PduInfoPtr->SduDataPtr[i]);
   }
