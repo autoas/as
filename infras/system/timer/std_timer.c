@@ -69,6 +69,7 @@ INITIALIZER(__std_timer_init) {
 }
 #endif
 /* ================================ [ FUNCTIONS ] ============================================== */
+#if !defined(STD_TIMER_UNIT_TEST)
 #if defined(linux) || defined(_WIN32)
 #if defined(_MSC_VER)
 std_time_t Std_GetTime(void) {
@@ -87,6 +88,7 @@ std_time_t Std_GetTime(void) {
 
   return tm;
 }
+#endif
 #endif
 #endif
 
@@ -256,16 +258,19 @@ bool Std_IsTimerTimeout(Std_TimerType *timer) {
   case STD_TIMER_SET_NO_OVERFLOW:
     if (curTime >= timer->time) {
       r = true;
-    } else if ((timer->time > STD_TIMER_SET_MAX) && (curTime < STD_TIMER_SET_MAX)) {
+    } else if ((timer->time - curTime) > STD_TIMER_SET_MAX) {
       r = true;
+    } else {
+      /* not expired */
     }
     break;
   case STD_TIMER_SET_OVERFLOW:
-    if ((curTime <= STD_TIMER_SET_MAX) && (curTime >= timer->time)) {
-      r = true;
-    } else if ((timer->time > (STD_TIME_MAX / 4)) && (curTime > STD_TIMER_SET_MAX) &&
-               (curTime < ((STD_TIME_MAX / 4 * 3)))) {
-      r = true;
+    if (curTime >= timer->time) {
+      if ((curTime - timer->time) <= STD_TIMER_SET_MAX) {
+        r = true;
+      }
+    } else {
+      /* not expired */
     }
     break;
   }

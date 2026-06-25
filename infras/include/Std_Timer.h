@@ -12,7 +12,14 @@
 extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
+#if !defined(USE_STD_TIME_64) && !defined(USE_STD_TIME_32)
 #if defined(linux) || defined(_WIN32)
+#define USE_STD_TIME_64
+#else
+#define USE_STD_TIME_32
+#endif
+#endif
+#if defined(USE_STD_TIME_64)
 #define STD_TIME_MAX ((std_time_t)0xFFFFFFFFFFFFFFFF)
 #else
 #define STD_TIME_MAX ((std_time_t)0xFFFFFFFFUL)
@@ -31,7 +38,7 @@ extern "C" {
 #define STD_TIMER_ONE_SECOND ((std_time_t)1000000)
 #define STD_TIMER_ONE_MILISECOND ((std_time_t)1000)
 /* ================================ [ TYPES     ] ============================================== */
-#if defined(linux) || defined(_WIN32) || defined(USE_STD_TIME_64)
+#if defined(USE_STD_TIME_64)
 typedef uint64_t std_time_t;
 #else
 typedef uint32_t std_time_t;
