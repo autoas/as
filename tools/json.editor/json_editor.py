@@ -1,26 +1,27 @@
 # SSAS - Simple Smart Automotive Software
 # Copyright (C) 2015 ~ 2023 Parai Wang <parai@foxmail.com>
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
 import logging
 import re
 import sys
 
-__all__ = ["JsonModule", "JsonAction", "logging"]
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+
+__all__ = ["JsonModule", "JsonAction", "JsonBase", "logging"]
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s",
 )
 
-cCharWidth = 14
-cActionNumber = 8
+C_CHAR_WIDTH = 14
+C_ACTION_NUMBER = 8
 
 BASIC_TYPES = ["string", "integer", "bool", "number"]
 
-reSField = re.compile(r"\$\{([^\s\{\}]+)\}")
+RE_S_FIELD = re.compile(r"\$\{([^\s\{\}]+)\}")
 
 
 def prompt(msg):
@@ -35,7 +36,7 @@ class JsonString(QLineEdit):
         self.root = root
         super(QLineEdit, self).__init__(str(self.obj.get(self.title)))
         self.textChanged.connect(self.onTextChanged)
-        desc = obj.get_desc(title)
+        desc = obj.getDesc(title)
         if desc != None:
             self.setToolTip(desc)
 
@@ -50,7 +51,7 @@ class JsonString(QLineEdit):
 class JsonNumber(JsonString):
     def __init__(self, title, obj, root):
         JsonString.__init__(self, title, obj, root)
-        prop = obj.get_prop(title)
+        prop = obj.getProp(title)
         self.min = prop.get("minimum", -sys.maxsize - 1)
         self.max = prop.get("maximum", sys.maxsize)
         self.format = prop.get("format", "dec")
@@ -69,7 +70,7 @@ class JsonNumber(JsonString):
         else:
             self.setText(str(vs))
 
-    def is_valid(self, value):
+    def isValid(self, value):
         if (value < self.min) or (value > self.max):
             logging.error("invalid range: %s < %s < %s" % (self.min, value, self.max))
             if value < self.min:
@@ -97,7 +98,7 @@ class JsonNumber(JsonString):
             ).exec_()
             self.startTimer(3000)
             return
-        ret = self.is_valid(value)
+        ret = self.isValid(value)
         if True != ret:
             logging.error("invalid value: %s" % (value))
             self.startTimer(2000)
@@ -111,8 +112,8 @@ class JsonInteger(JsonNumber):
     def __init__(self, title, obj, root):
         JsonNumber.__init__(self, title, obj, root)
 
-    def is_valid(self, value):
-        valid = JsonNumber.is_valid(self, value)
+    def isValid(self, value):
+        valid = JsonNumber.isValid(self, value)
         if True != valid:
             return valid
         if type(value) != int:
@@ -124,7 +125,7 @@ class JsonInteger(JsonNumber):
 class JsonEnumRefString(QComboBox):
     def __init__(self, title, obj, root):
         assert isinstance(root, JsonModule)
-        prop = obj.get_prop(title)
+        prop = obj.getProp(title)
         self.enumref = prop["enumref"]
         self.enumitems = prop.get("enum", [])
         self.editable = prop.get("editable", False)
@@ -135,7 +136,7 @@ class JsonEnumRefString(QComboBox):
         self.setEditable(self.editable)
         self.initItems()
         self.currentTextChanged.connect(self.onTextChanged)
-        desc = obj.get_desc(title)
+        desc = obj.getDesc(title)
         if desc != None:
             self.setToolTip(desc)
         self.timerEvent(None)
@@ -183,7 +184,7 @@ class JsonEnumRefInteger(JsonEnumRefString):
 class JsonEnumString(QComboBox):
     def __init__(self, title, obj, root):
         assert isinstance(root, JsonModule)
-        prop = obj.get_prop(title)
+        prop = obj.getProp(title)
         self.items = prop["enum"]
         self.editable = prop.get("editable", False)
         self.title = title
@@ -193,7 +194,7 @@ class JsonEnumString(QComboBox):
         self.setEditable(self.editable)
         self.initItems()
         self.currentTextChanged.connect(self.onTextChanged)
-        desc = obj.get_desc(title)
+        desc = obj.getDesc(title)
         if desc != None:
             self.setToolTip(desc)
 
@@ -232,7 +233,7 @@ class JsonBool(QComboBox):
         super(QComboBox, self).__init__()
         self.initItems()
         self.currentTextChanged.connect(self.onTextChanged)
-        desc = obj.get_desc(title)
+        desc = obj.getDesc(title)
         if desc != None:
             self.setToolTip(desc)
 
@@ -254,7 +255,7 @@ class JsonMapString(QComboBox):
     def __init__(self, title, obj, root):
         assert isinstance(root, JsonModule)
         assert isinstance(obj, JsonObject)
-        prop = obj.get_prop(title)
+        prop = obj.getProp(title)
         self.map = prop["map"]
         self.friends = prop.get("friends", [])
         self.title = title
@@ -280,34 +281,73 @@ class JsonMapString(QComboBox):
         if mp.get("extend", False):
             self.obj.extend(text)
         else:
-            self.obj.rm_extend()
+            self.obj.rmExtend()
+
+
+def _applyAnnotation(widget, severity, description):
+    styleMap = {
+        "ERROR": "border: 2px solid #dc2626; background-color: #fef2f2;",
+        "WARNING": "border: 2px solid #d97706; background-color: #fffbeb;",
+        "INFO": "border: 2px solid #2563eb; background-color: #eff6ff;",
+    }
+    widget.setStyleSheet(widget.styleSheet() + styleMap.get(severity, ""))
+    tooltip = widget.toolTip()
+    if tooltip:
+        widget.setToolTip(f"{tooltip}\n\n? Issue: {description}")
+    else:
+        widget.setToolTip(f"? Issue: {description}")
 
 
 def JsonValue(title, obj, root):
-    prop = obj.get_prop(title)
+    prop = obj.getProp(title)
     logging.debug("create widget with property: %s", prop)
     if "enumref" in prop:
         if prop["type"] == "string":
-            return JsonEnumRefString(title, obj, root)
+            widget = JsonEnumRefString(title, obj, root)
         elif prop["type"] == "integer":
-            return JsonEnumRefInteger(title, obj, root)
+            widget = JsonEnumRefInteger(title, obj, root)
     elif "enum" in prop:
         if prop["type"] == "string":
-            return JsonEnumString(title, obj, root)
+            widget = JsonEnumString(title, obj, root)
         elif prop["type"] == "integer":
-            return JsonEnumInteger(title, obj, root)
+            widget = JsonEnumInteger(title, obj, root)
     elif "map" in prop:
         if prop["type"] == "string":
-            return JsonMapString(title, obj, root)
+            widget = JsonMapString(title, obj, root)
     elif prop["type"] == "string":
-        return JsonString(title, obj, root)
+        widget = JsonString(title, obj, root)
     elif prop["type"] == "integer":
-        return JsonInteger(title, obj, root)
+        widget = JsonInteger(title, obj, root)
     elif prop["type"] == "number":
-        return JsonNumber(title, obj, root)
+        widget = JsonNumber(title, obj, root)
     elif prop["type"] == "bool":
-        return JsonBool(title, obj, root)
-    return QLineEdit("Type %s not supported for %s" % (prop["type"], title))
+        widget = JsonBool(title, obj, root)
+    else:
+        return QLineEdit("Type %s not supported for %s" % (prop["type"], title))
+
+    # Apply field-level annotation if available (more specific), else node-level
+    fieldAnnotation = None
+    if hasattr(obj, 'getFieldAnnotation'):
+        fieldAnnotation = obj.getFieldAnnotation(title)
+
+    if fieldAnnotation:
+        severity, description = fieldAnnotation
+        _applyAnnotation(widget, severity, description)
+    elif hasattr(obj, '_hasIssue') and obj._hasIssue:
+        _applyAnnotation(widget, obj._issueSeverity, obj._issueDescription)
+
+    def clearAnnotation():
+        if hasattr(obj, 'clearFieldAnnotation'):
+            obj.clearFieldAnnotation(title)
+        elif hasattr(obj, 'clearAnnotations'):
+            obj.clearAnnotations()
+
+    if hasattr(widget, 'textChanged'):
+        widget.textChanged.connect(clearAnnotation)
+    elif hasattr(widget, 'currentTextChanged'):
+        widget.currentTextChanged.connect(clearAnnotation)
+
+    return widget
 
 
 class JsonAction(QAction):
@@ -336,7 +376,7 @@ class UIGroup(QScrollArea):
                 continue
             K = ko.widget()
             V = grid.itemAtPosition(row, 1).widget()
-            enabled = V.obj.is_enabled() and V.obj.is_enabled(V.title)
+            enabled = V.obj.isEnabled() and V.obj.isEnabled(V.title)
             K.setVisible(enabled)
             V.setVisible(enabled)
             V.setEnabled(enabled)
@@ -349,12 +389,16 @@ class JsonBase(QTreeWidgetItem):
         self.root = root
         self.title = title
         self.schema = dict(schema)
+        self._hasIssue = False
+        self._issueSeverity = None
+        self._issueDescription = None
+        self._fieldAnnotations = {}
         logging.debug("%s schema: %s", schema["type"], schema)
         self.reload()
         self.setText(0, self.name())
 
     def preproc(self, url):
-        rsts = reSField.findall(url)
+        rsts = RE_S_FIELD.findall(url)
         if rsts:
             for field in rsts:
                 v = self.find(field)
@@ -362,8 +406,8 @@ class JsonBase(QTreeWidgetItem):
                 url = url.replace("${%s}" % (field), str(v))
         return url
 
-    def is_enabled(self, attr=None):
-        prop = self.get_prop(attr)
+    def isEnabled(self, attr=None):
+        prop = self.getProp(attr)
         es = prop.get("enabled", "True")
         es = self.preproc(es)
         logging.debug("attr %s of prop %s condition: %s", attr, prop, es)
@@ -410,11 +454,11 @@ class JsonBase(QTreeWidgetItem):
         for i in range(self.childCount()):
             self.takeChild(0)
 
-    def get_desc(self, attr):
-        prop = self.get_prop(attr)
+    def getDesc(self, attr):
+        prop = self.getProp(attr)
         return prop.get("description", None)
 
-    def get_prop(self, attr):
+    def getProp(self, attr):
         if None == attr:
             return self.schema
         logging.debug("get attr %s prop from schema %s", attr, self.schema)
@@ -424,11 +468,11 @@ class JsonBase(QTreeWidgetItem):
             prop = self.schema
         return prop
 
-    def auto_field(self, attr):
+    def autoField(self, attr):
         updated = False
         value = self.get(attr)
         if type(value) == str:
-            rsts = reSField.findall(value)
+            rsts = RE_S_FIELD.findall(value)
             if rsts:
                 for field in rsts:
                     v = self.find(field)
@@ -442,7 +486,7 @@ class JsonBase(QTreeWidgetItem):
         logging.debug("get %s of schema: %s", attr, self.schema)
         if attr not in self.schema:
             try:
-                prop = self.get_prop(attr)
+                prop = self.getProp(attr)
             except KeyError:
                 if attr == "name":
                     prop = {"default": self.title}
@@ -460,7 +504,7 @@ class JsonBase(QTreeWidgetItem):
 
     def set(self, attr, value):
         """return True if has some automatical updates"""
-        updated = self.auto_field(attr)
+        updated = self.autoField(attr)
         if updated:
             return True
         self.schema[attr] = value
@@ -482,30 +526,31 @@ class JsonBase(QTreeWidgetItem):
 
     def onItemSelectionChanged(self):
         logging.debug(
-            "object %s ononItemSelectionChanged: isList=%s, schema: %s" % (self.title, self.isList(), self.schema)
+            "object %s ononItemSelectionChanged: isList=%s, schema: %s"
+            % (self.title, self.isList(), self.schema)
         )
-        Index = 0
+        index = 0
         if self.isList():
             items = self.schema["items"]
             if self.listMaxAllowed() > self.childCount():
-                if self.is_enabled(self.title):
-                    self.root.actions[Index].setText("Add %s" % (items["title"]))
-                    self.root.actions[Index].setDisabled(False)
-                    Index += 1
+                if self.isEnabled(self.title):
+                    self.root.actions[index].setText("Add %s" % (items["title"]))
+                    self.root.actions[index].setDisabled(False)
+                    index += 1
                 else:
                     self.clear()
-        if self.parent() != None and self.parent().isList():  # if parent is None, then it is top obj, cann't be deleted
-            self.root.actions[Index].setText("Delete %s" % (self.title))
-            self.root.actions[Index].setDisabled(False)
-            Index += 1
-        for i in range(Index, cActionNumber):
+        if self.parent() != None and self.parent().isList():  # if parent is None, then it is top obj, cannot be deleted
+            self.root.actions[index].setText("Delete %s" % (self.title))
+            self.root.actions[index].setDisabled(False)
+            index += 1
+        for i in range(index, C_ACTION_NUMBER):
             self.root.actions[i].setDisabled(True)
             self.root.actions[i].setText("")
 
         expand = True
         for i in range(self.childCount()):
             obj = self.child(i)
-            if not obj.is_enabled():
+            if not obj.isEnabled():
                 expand = False
         self.setExpanded(expand)
         self.root.showConfig(self)
@@ -513,6 +558,137 @@ class JsonBase(QTreeWidgetItem):
     def addChildObj(self, obj):
         self.addChild(obj)
         self.onItemSelectionChanged()  # trigger refresh
+
+    def annotateIssue(self, issue: dict) -> None:
+        self._hasIssue = True
+        self._issueSeverity = issue.get("severity", "INFO")
+        self._issueDescription = issue.get("description", "")
+        self._updateTreeIcon()
+
+    def annotateField(self, fieldName: str, issue: dict) -> None:
+        self._fieldAnnotations[fieldName] = (
+            issue.get("severity", "INFO"),
+            issue.get("description", ""),
+        )
+        self._hasIssue = True
+        self._updateTreeIcon()
+
+    def getFieldAnnotation(self, fieldName: str):
+        return self._fieldAnnotations.get(fieldName, None)
+
+    def clearFieldAnnotation(self, fieldName: str):
+        if fieldName in self._fieldAnnotations:
+            del self._fieldAnnotations[fieldName]
+        if not self._fieldAnnotations:
+            self._hasIssue = False
+            self._issueSeverity = None
+            self._issueDescription = None
+        self._updateTreeIcon()
+
+    def clearAnnotations(self) -> None:
+        self._hasIssue = False
+        self._issueSeverity = None
+        self._issueDescription = None
+        self._fieldAnnotations.clear()
+        self._updateTreeIcon()
+        for i in range(self.childCount()):
+            child = self.child(i)
+            if isinstance(child, JsonBase):
+                child.clearAnnotations()
+
+    def _updateTreeIcon(self):
+        if self._hasIssue:
+            iconMap = {
+                "ERROR": QStyle.SP_MessageBoxCritical,
+                "WARNING": QStyle.SP_MessageBoxWarning,
+                "INFO": QStyle.SP_MessageBoxInformation,
+            }
+            icon = self.root.style().standardIcon(iconMap.get(self._issueSeverity, QStyle.SP_MessageBoxCritical))
+            self.setIcon(0, icon)
+        else:
+            self.setIcon(0, QIcon())
+
+    def getTreePath(self) -> str:
+        parts = []
+        node = self
+        while node.parent() and isinstance(node.parent(), JsonBase):
+            if node.parent().isList():
+                idx = node.parent().indexOfChild(node)
+                parts.append(str(idx))
+            parts.append(node.title)
+            node = node.parent()
+        parts.reverse()
+        return "/".join(parts)
+
+    @staticmethod
+    def resolvePath(rootObj, path: list, partial_ok: bool = False):
+        """Resolve path to a tree node. Returns (node, fieldName) tuple.
+        fieldName is None if path resolves to a tree item.
+        fieldName is set if the leaf is a basic-typed field (not in tree).
+        When partial_ok=True, returns the deepest successfully resolved node
+        even if the full path cannot be resolved."""
+        if not path or len(path) < 2:
+            return None, None
+        current = rootObj
+        for segment in path[1:]:
+            if isinstance(segment, int):
+                if isinstance(current, JsonArray) and segment < current.childCount():
+                    current = current.child(segment)
+                else:
+                    if partial_ok:
+                        return current, None
+                    return None, None
+            else:
+                found = None
+                if isinstance(current, JsonBase):
+                    for i in range(current.childCount()):
+                        child = current.child(i)
+                        if child.title == segment:
+                            found = child
+                            break
+                    if found is None and hasattr(current, 'objMap'):
+                        found = current.objMap.get(segment)
+                    # Check if segment is a basic property (leaf field, not tree item)
+                    if found is None and hasattr(current, 'schema') and 'properties' in current.schema:
+                        prop = current.schema['properties'].get(segment)
+                        if prop and prop.get('type') in BASIC_TYPES:
+                            return current, segment
+                elif isinstance(current, JsonObjectTree):
+                    found = current.objMap.get(segment)
+                if found is None:
+                    if partial_ok:
+                        return current, None
+                    return None, None
+                current = found
+        return current, None
+
+    def applySetFix(self, path: list, value) -> bool:
+        if len(path) >= 2 and path[-1] == self.title:
+            self.schema[self.title] = value
+            if hasattr(self, 'display'):
+                self.display(value)
+            self.clearAnnotations()
+            return True
+        return False
+
+    def applyFieldFix(self, fieldName: str, value) -> bool:
+        """Apply a fix to a basic-typed field on this node in-place."""
+        prop = self.getProp(fieldName)
+        if prop and prop.get('type') in BASIC_TYPES:
+            self.schema[fieldName] = value
+            hadAnnotation = fieldName in self._fieldAnnotations
+            self.clearFieldAnnotation(fieldName)
+            if hadAnnotation:
+                self.root.showConfig(self)
+            return True
+        return False
+
+    def applyDeletionFix(self) -> bool:
+        parent = self.parent()
+        if parent and isinstance(parent, JsonBase):
+            parent.takeChild(parent.indexOfChild(self))
+            return True
+        return False
 
     def reloadUI(self):
         raise
@@ -590,7 +766,7 @@ class JsonObject(JsonBase):
         else:
             logging.error("extend %s properties not found for %s" % (ext, self.schema))
 
-    def rm_extend(self):
+    def rmExtend(self):
         if "__properties__" in self.schema:
             self.schema["__init__"] = self.toJSON()
             self.schema["properties"] = self.schema["__properties__"]
@@ -616,15 +792,15 @@ class JsonObject(JsonBase):
         return True
 
     def toJSON(self, bFind=False):
-        # for find mode, always do toJSON without is_enable checks
+        # for find mode, always do toJSON without isEnabled checks
         cfg = {}
         for title, prop in self.schema["properties"].items():
             if prop["type"] not in ["object", "array"]:
-                if self.is_enabled(title):
+                if self.isEnabled(title):
                     cfg[title] = self.get(title)
         for i in range(self.childCount()):
             obj = self.child(i)
-            if bFind or obj.is_enabled():
+            if bFind or obj.isEnabled():
                 cfg[obj.name()] = obj.toJSON(bFind=bFind)
         return cfg
 
@@ -701,14 +877,14 @@ class JsonArray(JsonBase):
             cfg.append(obj.toJSON(bFind=bFind))
         return cfg
 
-    def onAction_Add(self, what):
+    def onActionAdd(self, what):
         items = self.schema["items"]
         if items["title"] == what:
             if self.isList():
                 if self.listMaxAllowed() > self.childCount():
                     self.addChildObj(JsonItem(items["title"], items, self.root, self))
                 else:
-                    logging.error("Error:Maximum %s for %s is %s!" % (what, items["title"], mx))
+                    logging.error("Error:Maximum %s for %s is %s!" % (what, items["title"], self.listMaxAllowed()))
             self.setExpanded(True)
         else:
             logging.error("add with what=%s != %s" % (what, items["title"]))
@@ -732,13 +908,13 @@ class JsonArray(JsonBase):
                 uis = obj1.createUI()
                 uis_ = []
                 for pos, (K, V) in enumerate(uis):
-                    if not V.obj.is_enabled(V.title):
+                    if not V.obj.isEnabled(V.title):
                         continue
                     uis_.append([K, V])
                     title = str(K.text())
                     if title not in headers:
                         headers.insert(pos, title)
-                        widths.insert(pos, len(title) * cCharWidth)
+                        widths.insert(pos, len(title) * C_CHAR_WIDTH)
                 UIs.append(uis_)
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
@@ -749,8 +925,8 @@ class JsonArray(JsonBase):
                 title = str(K.text())
                 column = headers.index(title)
                 table.setCellWidget(index, column, V)
-                if (len(str(V.obj.get(title))) + 1) * cCharWidth > widths[column]:
-                    widths[column] = (len(str(V.obj.get(title))) + 1) * cCharWidth
+                if (len(str(V.obj.get(title))) + 1) * C_CHAR_WIDTH > widths[column]:
+                    widths[column] = (len(str(V.obj.get(title))) + 1) * C_CHAR_WIDTH
         for column in range(len(widths)):
             table.setColumnWidth(column, widths[column])
         table.setMinimumWidth(self.root.width() * 3 // 4)
@@ -801,7 +977,7 @@ class JsonObjectTree(QTreeWidget):
         if isinstance(obj, JsonBase):
             obj.onItemSelectionChanged()
 
-    def onAction_Delete(self, what):
+    def onActionDelete(self, what):
         obj = self.currentItem()
         assert isinstance(obj, JsonBase)
         assert obj.title == what
@@ -817,9 +993,9 @@ class JsonObjectTree(QTreeWidget):
         if action[0] == "Add":
             obj = self.currentItem()
             assert isinstance(obj, JsonArray)
-            obj.onAction_Add(action[1])
+            obj.onActionAdd(action[1])
         elif action[0] == "Delete":
-            self.onAction_Delete(action[1])
+            self.onActionDelete(action[1])
 
 
 class JsonModule(QMainWindow):
@@ -839,10 +1015,10 @@ class JsonModule(QMainWindow):
         self.creActions()
 
     def creActions(self):
-        #  create cActionNumber action
+        # create C_ACTION_NUMBER action
         self.actionBar = QToolBar()
         self.addToolBar(Qt.TopToolBarArea, self.actionBar)
-        for i in range(0, cActionNumber):
+        for i in range(0, C_ACTION_NUMBER):
             qAction = JsonAction(self.tr(""), self)
             self.actionBar.addAction(qAction)
             qAction.setDisabled(True)

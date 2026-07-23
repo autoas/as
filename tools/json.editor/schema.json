@@ -347,7 +347,7 @@
           "type": "object", "title": "Task",
           "properties": {
             "name": { "type": "string" },
-            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 },
+            "Priority": { "type": "integer", "default": 8, "minimum": 0,"maximum": 255 },
             "StackSize": { "type": "integer", "default": 512, "minimum": 128,"maximum": 65535 },
             "AutoStart": { "type": "bool", "default": true },
             "Cpu": { "type": "integer", "default": 0, "minimum": 0,"maximum": 31 },
@@ -368,7 +368,7 @@
           "type": "object", "title": "InternalResource",
           "properties": {
             "name": { "type": "string" },
-            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 }
+            "Priority": { "type": "integer", "default": 8, "minimum": 0,"maximum": 255 }
           }
         }
       },
@@ -377,7 +377,7 @@
           "type": "object", "title": "Resource",
           "properties": {
             "name": { "type": "string" },
-            "Priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 }
+            "Priority": { "type": "integer", "default": 8, "minimum": 0,"maximum": 255 }
           }
         }
       },
@@ -410,6 +410,25 @@
   {
     "title" : "Dem", "type": "object",
     "properties": {
+      "MaxFreezeFrameNum": { "type": "integer", "default": 2, "minimum": 1, "maximum": 255, "description": "max number of freeze frame records per DTC" },
+      "general": {
+        "type": "object", "title": "general",
+        "properties": {
+          "AgingCycleCounterThreshold": { "type": "integer", "default": 2, "minimum": 0, "maximum": 65535 },
+          "ConfirmationThreshold": { "type": "integer", "default": 1, "minimum": 0, "maximum": 65535 },
+          "OccurrenceCounterProcessing": { "type": "string", "default": "TF", "enum": ["TF", "FTF"] },
+          "FreezeFrameRecordTrigger": { "type": "string", "default": "TEST_FAILED", "enum": ["TEST_FAILED", "CONFIRMED"] },
+          "ExtendedDataRecordTrigger": { "type": "string", "default": "TEST_FAILED", "enum": ["TEST_FAILED", "CONFIRMED"] },
+          "DebounceCounterDecrementStepSize": { "type": "integer", "default": 2, "minimum": 0, "maximum": 255 },
+          "DebounceCounterFailedThreshold": { "type": "integer", "default": 10, "minimum": 0, "maximum": 255 },
+          "DebounceCounterIncrementStepSize": { "type": "integer", "default": 1, "minimum": 0, "maximum": 255 },
+          "DebounceCounterJumpDown": { "type": "bool", "default": false },
+          "DebounceCounterJumpDownValue": { "type": "integer", "default": 0, "minimum": 0, "maximum": 255 },
+          "DebounceCounterJumpUp": { "type": "bool", "default": true },
+          "DebounceCounterJumpUpValue": { "type": "integer", "default": 0, "minimum": 0, "maximum": 255 },
+          "DebounceCounterPassedThreshold": { "type": "integer", "default": -10, "minimum": -255, "maximum": 255 }
+        }
+      },
       "conditions": {
         "type": "array", "items": {
           "type": "object", "title": "condition",
@@ -433,7 +452,9 @@
           "properties": {
             "name": { "type": "string" },
             "number": { "type": "string" },
-            "priority": { "type": "integer", "default": 8, "minimum": 1,"maximum": 255 },
+            "priority": { "type": "integer", "default": 8, "minimum": 0,"maximum": 255 },
+            "OperationCycleRef": { "type": "string", "default": "IGNITION", "enum": ["IGNITION", "POWER"] },
+            "FreezeFrameRecNums": { "type": "array", "items": { "type": "string", "title": "recordNum" }, "description": "freeze frame record numbers for this DTC" },
             "destination": {
               "type": "array", "items": { "title": "destination", "type": "string", "enumref": "/Dem/Memorys:name" }
             },
@@ -461,7 +482,7 @@
           "properties": {
             "name": { "type": "string" },
             "id": {  "type": "integer", "format": "hex", "default": "0x1001", "minimum": 1,"maximum": 65535 },
-            "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32", "struct"] },
+            "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32", "int8", "int16", "int32", "struct"] },
             "unit": { "type": "string" },
             "data": {
               "type": "array", "enabled": "'${../type}' == 'struct'",
@@ -484,13 +505,16 @@
             "type": { "type": "string", "default": "uint16", "enum": ["uint8", "uint16", "uint32"] }
           }
         }
-      }
+      },
+      "StatusAvailabilityMask": { "type": "integer", "format": "hex", "default": "0x7F", "minimum": 0, "maximum": 255 }
     }
   },
   {
     "title" : "NvM", "type": "object",
     "properties": {
       "target": { "type": "string", "default": "Fee", "enum": ["Fee", "Ea"] },
+      "UseContextCrc": { "type": "bool", "default": true, "description": "enable context CRC for Fee" },
+      "UseFaults": { "type": "bool", "default": false, "description": "enable faults for Fee" },
       "banks": {
         "type": "array", "enabled": "'${/NvM/target}' == 'Fee'", "items": {
           "type": "object", "title": "bank",
@@ -542,7 +566,15 @@
   },
   {
     "title": "CanIf", "type": "object",
-    "properties": {
+    "properties": {  
+      "MainFunctionPeriod": { "type": "integer", "default": 10, "minimum": 1, "maximum": 1000 },
+      "UsePostBuildConfig": { "type": "bool", "default": false },
+      "UseTxCallout": { "type": "bool", "default": false },
+      "UseRxCallout": { "type": "bool", "default": false },
+      "RxPacketPoolSize": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+      "TxPacketPoolSize": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
+      "RxPacketDataSize": { "type": "integer", "default": 64, "minimum": 1, "maximum": 65535 },
+      "TxPacketDataSize": { "type": "integer", "default": 64, "minimum": 1, "maximum": 65535 },
       "networks": {
         "type": "array", "items": {
           "type": "object", "title": "network", "display_with_list": false,
@@ -559,6 +591,11 @@
                 "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU ignored in the DBC file"
               }, "enabled": "'${../use_dbc}' == 'True'"
             },
+            "E2E": {
+              "type": "array", "items": {
+                "title": "msg", "type": "string", "default": "", "description": "message name with E2E protection"
+              }
+            },
             "RxPdus": {
               "type": "array", "items": {
                 "type": "object", "title": "RxPdu",
@@ -568,7 +605,7 @@
                   "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
                   "use_mask": { "type": "bool", "default": false },
                   "mask": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295, "enabled": "'${use_mask}' == 'True'" },
-                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Xcp", "J1939Tp"] }
+                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "CanTSyn", "PduR", "Xcp", "J1939Tp", "SecOC"] }
                 }
               }
             },
@@ -580,7 +617,8 @@
                   "id": { "type": "integer", "format": "hex", "default": 0, "minimum": 0, "maximum": 4294967295 },
                   "hoh": { "type": "integer", "default": 0, "minimum": 0, "maximum": 65535 },
                   "dynamic": { "type": "bool", "default": false },
-                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "PduR", "Com", "Xcp", "J1939Tp"] }
+                  "UseTxPool": { "type": "bool", "default": false },
+                  "up": { "type": "string", "editable": true, "enum": ["CanTp", "OsekNm", "CanNm", "CanTSyn", "PduR", "Com", "Xcp", "J1939Tp", "SecOC"] }
                 }
               }
             }
@@ -613,8 +651,27 @@
           "type": "object", "title": "routine",
           "properties": {
             "name": { "type": "string", "editable": true, "enumref": "/EcuC/Pdus:name" },
-            "from": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp"] },
-            "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp"] }
+            "from": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp", "SecOC", "Mirror"] },
+            "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp", "SecOC", "Mirror"] },
+            "useDest": { "type": "bool", "default": false, "description": "enable/disable alternative destination name" },
+            "dest": { "type": "string", "description": "optional alternative destination name", "enabled": "'${useDest}' == 'True'" },
+            "useDestBuffer": { "type": "bool", "default": false, "description": "enable/disable gateway buffer configuration" },
+            "DestBufferType": { "type": "string", "enum": ["private", "shared"], "default": "private", "description": "select private or shared gateway buffer", "enabled": "'${useDestBuffer}' == 'True'" },
+            "DestBuffer": { "type": "string", "description": "name of the shared gateway buffer to use", "enabled": "'${useDestBuffer}' == 'True' and '${DestBufferType}' == 'shared'" },
+            "DestBufferSize": { "type": "integer", "default": 0, "description": "size of the private gateway buffer", "enabled": "'${useDestBuffer}' == 'True' and '${DestBufferType}' == 'private'" },
+            "useFake": { "type": "bool", "default": false, "description": "enable/disable fake pdu name for mirrored routing" },
+            "fake": { "type": "string", "description": "fake pdu name for mirrored routing", "enabled": "'${useFake}' == 'True'" },
+            "destinations": {
+              "type": "array", "items": {
+                "type": "object", "title": "destination",
+                "properties": {
+                  "name": { "type": "string" },
+                  "to": { "type": "string", "enum": ["CanIf", "CanTp", "OsekNm", "CanNm", "PduR", "Dcm", "Com", "LinTp", "DoIP", "J1939Tp", "SecOC", "Mirror"] },
+                  "useFake": { "type": "bool", "default": false, "description": "enable/disable fake pdu name for mirrored routing" },
+                  "fake": { "type": "string", "description": "fake pdu name for mirrored routing", "enabled": "'${useFake}' == 'True'" }
+                }
+              }
+            }
           }
         }
       },
@@ -644,6 +701,15 @@
             "number": { "type": "integer", "format": "dec", "default": 2, "minimum": 0, "maximum": 4294967295 }
           }
         }
+      },
+      "buffers": {
+        "type": "array", "items": {
+          "type": "object", "title": "buffer",
+          "properties": {
+            "name": { "type": "string" },
+            "size": { "type": "integer", "format": "dec", "default": 4096, "minimum": 0, "maximum": 4294967295 }
+          }
+        }
       }
     }
   },
@@ -651,6 +717,8 @@
     "title": "CanTp", "type": "object",
     "properties": {
       "UseTxConfirmation": { "type": "bool", "default": false, "description": "enable to use Tx comfirmation or not" },
+      "STMinAdjust": { "type": "integer", "default": 0, "minimum": 0, "maximum": 255, "description": "STmin adjustment value" },
+      "MainFunctionPeriod": { "type": "integer", "default": 10, "minimum": 1, "maximum": 1000 },
       "channels": {
         "type": "array", "items": {
           "type": "object", "title": "channel",
@@ -712,7 +780,7 @@
     }
   },
   {
-    "title": "Com", "type": "object",
+    "title" : "Com", "type": "object",
     "properties": {
       "E2E": { "type": "string", "description": "Path to E2E configuration file" },
       "nodes": { "type": "array", "items": { "type": "string", "title": "node" } },
@@ -732,9 +800,9 @@
             "use_ldf": { "type": "bool", "default": false, "enabled": "'${network}' == 'LIN'" },
             "ldf": { "type": "string", "default": "", "description": "the path to a LDF file", "enabled": "'${network}' == 'LIN' and '${use_ldf}' == 'True'" },
             "timeout_factor": { "type": "integer", "default": 10, "minimum": 0, "maximum": 65535 },
-            "enable_message_rx_notificaiton": { "type": "bool", "default": false },
+            "enable_message_rx_notification": { "type": "bool", "default": false },
             "enable_signal_rx_notification": { "type": "bool", "default": false },
-            "enable_message_rx_timeout_notificaiton": { "type": "bool", "default": false },
+            "enable_message_rx_timeout_notification": { "type": "bool", "default": false },
             "enable_signal_rx_timeout_notification": { "type": "bool", "default": false },
             "enable_message_tx_callout": { "type": "bool", "default": false },
             "enable_message_rx_callout": { "type": "bool", "default": false },
@@ -742,6 +810,16 @@
               "type": "array", "items": {
                 "title": "Pdu", "type": "string", "default": "Xyz", "description": "the PDU only to be trigger transmit"
               }, "enabled": "'${../use_dbc}' == 'True'"
+            },
+            "groups": {
+              "type": "array", "items": {
+                "type": "object", "title": "group",
+                "properties": {
+                  "name": { "type": "string" },
+                  "signals": { "type": "array", "items": { "type": "string", "title": "signal" } }
+                },
+                "additionalProperties": true
+              }
             },
             "E2E": {
               "type": "array", "items": {
