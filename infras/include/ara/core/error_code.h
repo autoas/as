@@ -17,11 +17,14 @@ namespace core {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ CLASS    ] ============================================== */
-/** @brief Encapsulation of an error code.
+/** @SWS_CORE_00501 @brief Encapsulation of an error code.
  *An ErrorCode contains a raw error code value and an error domain. The raw error code value is
  *specific to this error domain. */
-class ErrorCode final { /* @SWS_CORE_00501 */
+class ErrorCode final {
 public:
+  /** @SWS_CORE_00511 @brief Default constructor. */
+  constexpr ErrorCode() noexcept : m_code(0), m_domain(&m_domainDummy), m_supportData(0) {}
+
   /** @SWS_CORE_00512 @brief Construct a new ErrorCode instance with parameters.
    * This constructor does not participate in overload resolution unless EnumT is an enum type. */
   template <typename EnumT>
@@ -36,13 +39,36 @@ public:
     : m_code(value), m_domain(&domain), m_supportData(data) {
   }
 
+  /** @SWS_CORE_00513 @brief Construct a new ErrorCode instance with enum and domain. */
+  template <typename EnumT>
+  constexpr ErrorCode(EnumT e, const ErrorDomain &domain,
+                      ErrorDomain::SupportDataType data = ErrorDomain::SupportDataType()) noexcept
+    : m_code(static_cast<ErrorDomain::CodeType>(e)), m_domain(&domain), m_supportData(data) {
+  }
+
+  /** @SWS_CORE_00514 @brief Copy constructor. */
+  constexpr ErrorCode(const ErrorCode &other) noexcept
+    : m_code(other.m_code), m_domain(other.m_domain), m_supportData(other.m_supportData) {}
+
+  /** @SWS_CORE_00514 @brief Copy assignment. */
+  ErrorCode &operator=(const ErrorCode &other) noexcept {
+    if (this != &other) {
+      m_code = other.m_code;
+      m_domain = other.m_domain;
+      m_supportData = other.m_supportData;
+    }
+    return *this;
+  }
+
   /** @SWS_CORE_00515 @brief Return the domain with which this ErrorCode is associated. */
   constexpr const ErrorDomain &Domain() const noexcept {
     return *m_domain;
   }
 
   /** @SWS_CORE_00518 @brief Return a textual representation of this ErrorCode. */
-  StringView Message() const noexcept;
+  StringView Message() const noexcept {
+    return StringView(m_domain->Message(m_code));
+  }
 
   /** @SWS_CORE_00516 @brief Return the supplementary error context data.
    * The underlying type and the meaning of the returned value are implementation-defined.
@@ -58,7 +84,9 @@ public:
    * This function shall not participate in overload resolution when C++ exceptions are disabled in
    * the compiler toolchain.
    */
-  void ThrowAsException() const noexcept(false);
+  void ThrowAsException() const noexcept(false) {
+    m_domain->ThrowAsException(*this);
+  }
 
   /** @SWS_CORE_00514 @brief Return the raw error code value. */
   constexpr ErrorDomain::CodeType Value() const noexcept {
@@ -93,11 +121,15 @@ private:
   ErrorDomain::SupportDataType m_supportData;
 };
 
-/* @SWS_CORE_00572 */
-constexpr bool operator!=(const ErrorCode &lhs, const ErrorCode &rhs) noexcept;
+/* @SWS_CORE_00571 @brief Compare for equality. */
+constexpr bool operator==(const ErrorCode &lhs, const ErrorCode &rhs) noexcept {
+  return lhs.Value() == rhs.Value() && &lhs.Domain() == &rhs.Domain();
+}
 
-/* @SWS_CORE_00571 */
-constexpr bool operator==(const ErrorCode &lhs, const ErrorCode &rhs) noexcept;
+/* @SWS_CORE_00572 @brief Compare for non-equality. */
+constexpr bool operator!=(const ErrorCode &lhs, const ErrorCode &rhs) noexcept {
+  return !(lhs == rhs);
+}
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */

@@ -40,7 +40,7 @@ public:
 
   Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>>
   FindService(InstanceSpecifier instanceSpec) {
-    Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>> rslt({});
+    Result<ServiceHandleContainer<{{ service_name }}Proxy::HandleType>> rslt;
     auto app = GetApplication();
     if ((false == m_isAvailable) && (false == m_appStarted)) {
       app->register_availability_handler({{ service['service'] }}, {{ service['instance'] }},

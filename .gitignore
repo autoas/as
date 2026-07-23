@@ -35,3 +35,7 @@ example
 target
 *.lock
 CDD_SWC
+tools/json.editor/.ai.config*.json
+.claude/settings.local.json
+.test.resp*.json
+.spark

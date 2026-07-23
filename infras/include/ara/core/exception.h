@@ -13,8 +13,8 @@ namespace core {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ CLASS    ] ============================================== */
-/** @brief Base type for all exception types defined by the Adaptive Platform. */
-class Exception : public std::exception { /* @SWS_CORE_00601 */
+/** @SWS_CORE_00601 @brief Base type for all exception types defined by the Adaptive Platform. */
+class Exception : public std::exception {
 public:
   /** @SWS_CORE_00615 @brief Move constructor from another instance. */
   Exception(Exception &&other) noexcept = default;
@@ -26,16 +26,20 @@ public:
   virtual ~Exception() noexcept override = default;
 
   /** @SWS_CORE_00611 @brief Construct a new Exception object with a specific ErrorCode. */
-  explicit Exception(ErrorCode err) noexcept;
+  explicit Exception(ErrorCode err) noexcept : m_errorCode(err) {}
 
   /** @SWS_CORE_00613 @brief Return the embedded ErrorCode that was given to the constructor. */
-  const ErrorCode &Error() const noexcept;
+  const ErrorCode &Error() const noexcept {
+    return m_errorCode;
+  }
 
   /** @SWS_CORE_00612 @brief Return the explanatory string.
    * This function overrides the virtual function std::exception::what. All guarantees about the
    * lifetime of the returned pointer that are given for std::exception::what are preserved.
    */
-  const char *what() const noexcept override;
+  const char *what() const noexcept override {
+    return m_errorCode.Message().data();
+  }
 
 protected:
   /** @SWS_CORE_00618 @brief Copy constructor from another instance. */

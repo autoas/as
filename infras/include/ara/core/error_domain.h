@@ -16,35 +16,35 @@ namespace core {
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ CLASS    ] ============================================== */
 /** @brief Encapsulation of an error domain.
- * An error domain is the controlling entity for ErrorCode¡¯s error code values, and defines the
+ * An error domain is the controlling entity for ErrorCode's error code values, and defines the
  * mapping of such error code values to textual representations.
  * This type constitutes a base class for error domain implementations.
  * This class is a literal type, and subclasses are strongly advised to be literal types as well.
  */
 class ErrorDomain { /* @SWS_CORE_00110 */
 public:
-  /* @SWS_CORE_00122 */
+  /* @SWS_CORE_00122 @brief Error code type. */
   using CodeType = std::int32_t;
 
-  /* @SWS_CORE_00121 */
+  /* @SWS_CORE_00121 @brief Domain identifier type. */
   using IdType = std::uint64_t;
 
-  /* @SWS_CORE_0012 */
+  /* @SWS_CORE_00123 @brief Support data type. */
   using SupportDataType = std::uint64_t;
 
-  /* @SWS_CORE_00131, Copy construction shall be disabled. */
+  /* @SWS_CORE_00131 @brief Copy construction shall be disabled. */
   ErrorDomain(const ErrorDomain &) = delete;
 
-  /* @SWS_CORE_00132, Move construction shall be disabled */
+  /* @SWS_CORE_00132 @brief Move construction shall be disabled */
   ErrorDomain(ErrorDomain &&) = delete;
 
-  /* @SWS_CORE_00134, Move assignment shall be disabled. */
+  /* @SWS_CORE_00134 @brief Move assignment shall be disabled. */
   ErrorDomain &operator=(ErrorDomain &&other) = delete;
 
-  /* @SWS_CORE_00133, Copy assignment shall be disabled. */
+  /* @SWS_CORE_00133 @brief Copy assignment shall be disabled. */
   ErrorDomain &operator=(const ErrorDomain &other) = delete;
 
-  /* @SWS_CORE_00151, Return the unique domain identifier. */
+  /* @SWS_CORE_00151 @brief Return the unique domain identifier. */
   constexpr IdType Id() const noexcept {
     return m_id;
   }
@@ -68,21 +68,21 @@ public:
    */
   virtual void ThrowAsException(const ErrorCode &errorCode) const noexcept(false) = 0;
 
-  /* @SWS_CORE_00138, Compare for non-equality with another ErrorDomain instance */
+  /* @SWS_CORE_00138 @brief Compare for non-equality with another ErrorDomain instance */
   constexpr bool operator!=(const ErrorDomain &other) const noexcept {
     return m_id != other.m_id;
   }
 
-  /** @SWS_CORE_00137, @brief Compare for equality with another ErrorDomain instance.
+  /** @SWS_CORE_00137 @brief @brief Compare for equality with another ErrorDomain instance.
    * Two ErrorDomain instances compare equal when their identifiers (returned by Id()) are equal */
   constexpr bool operator==(const ErrorDomain &other) const noexcept {
     return m_id == other.m_id;
   }
 
 protected:
-  /* @SWS_CORE_00136 */
+  /* @SWS_CORE_00136 @brief Destructor shall be protected default. */
   ~ErrorDomain() noexcept = default;
-  /* @SWS_CORE_00135 */
+  /* @SWS_CORE_00135 @brief Constructor shall be explicit with domain identifier. */
   explicit constexpr ErrorDomain(IdType id) noexcept : m_id(id){};
 
 protected:

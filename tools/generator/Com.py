@@ -772,8 +772,8 @@ def post(cfg, e2eCfg={}):
                     msg["Timeout"] = network["timeout_factor"] * msg["CycleTime"]
     # auto add message/signal rx and timeout notification
     for network in cfg["networks"]:
-        enabledTOut = network.get("enable_message_rx_timeout_notificaiton", False)
-        enabledRx = network.get("enable_message_rx_notificaiton", False)
+        enabledTOut = network.get("enable_message_rx_timeout_notification", False)
+        enabledRx = network.get("enable_message_rx_notification", False)
         enabledSigTOut = network.get("enable_signal_rx_timeout_notification", False)
         enabledSigRx = network.get("enable_signal_rx_notification", False)
         for msg in network["messages"]:

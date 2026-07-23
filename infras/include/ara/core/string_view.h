@@ -19,11 +19,11 @@ namespace core {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ CLASS    ] ============================================== */
-/** @brief Implements std::string_view in [11] Unless explicitly overriden in the member
+/** @SWS_CORE_02001 @brief Implements std::string_view in [11] Unless explicitly overriden in the member
  * documentation, members always adhere in behavior to the ISO specification in [11]. */
-class StringView final { /* @SWS_CORE_02001 */
+class StringView final {
 public:
-  /* @SWS_CORE_02100 */
+  /* @SWS_CORE_02100 @brief Value type. */
   using value_type = char;
 
   /** @SWS_CORE_02105 @brief The value_type of the iterator is const char */
@@ -53,7 +53,7 @@ public:
   /** @SWS_CORE_02108 */
   using reverse_iterator = const_reverse_iterator;
 
-  /* @SWS_CORE_02109 */
+  /* @SWS_CORE_02109 @brief Size type. */
   using size_type = std::size_t;
 
   /** @SWS_CORE_02117 */
@@ -107,7 +107,7 @@ public:
 
   /** @SWS_CORE_02123 */
   constexpr const_iterator cend() const noexcept {
-    return &at(size() - 1);
+    return &at(0) + size();
   }
 
   /** @SWS_CORE_02147 */
@@ -217,7 +217,7 @@ public:
 
   /** @SWS_CORE_02121 */
   constexpr const_iterator end() const noexcept {
-    return &at(size() - 1);
+    return &at(0) + size();
   }
 
   /** @SWS_CORE_02151 */
@@ -464,28 +464,64 @@ public:
   }
 
   /** @SWS_CORE_02124 */
-  constexpr const_reverse_iterator rbegin() const noexcept;
+  constexpr const_reverse_iterator rbegin() const noexcept {
+    return const_reverse_iterator(end());
+  }
 
   /** @SWS_CORE_02137 */
-  constexpr void remove_prefix(size_type n) noexcept;
+  constexpr void remove_prefix(size_type n) noexcept {
+    if (n > m_validSize) {
+      n = m_validSize;
+    }
+    m_offset += n;
+    m_validSize -= n;
+  }
 
   /** @SWS_CORE_02138 */
-  constexpr void remove_suffix(size_type n) noexcept;
+  constexpr void remove_suffix(size_type n) noexcept {
+    if (n > m_validSize) {
+      n = m_validSize;
+    }
+    m_validSize -= n;
+  }
 
   /** @SWS_CORE_02125 */
-  constexpr const_reverse_iterator rend() const noexcept;
+  constexpr const_reverse_iterator rend() const noexcept {
+    return const_reverse_iterator(begin());
+  }
 
   /** @SWS_CORE_02164 */
-  constexpr size_type rfind(const char *s, size_type pos = npos) const noexcept;
+  constexpr size_type rfind(const char *s, size_type pos = npos) const noexcept {
+    return rfind(s, pos, len(s));
+  }
 
   /** @SWS_CORE_02163 */
-  constexpr size_type rfind(const char *s, size_type pos, size_type n) const noexcept;
+  constexpr size_type rfind(const char *s, size_type pos, size_type n) const noexcept {
+    size_type rslt = npos;
+    if ((data() != nullptr) && (nullptr != s) && (n <= size())) {
+      rslt = (n == 0) ? ((pos >= size()) ? size() : pos) : npos;
+      if (n > 0) {
+        size_type max_start = (pos >= size()) ? size() - n : ((pos >= n) ? pos - n + 1 : 0);
+        for (size_type i = max_start; i != npos; --i) {
+          if (std::memcmp(&at(i), s, n) == 0) {
+            rslt = i;
+            break;
+          }
+        }
+      }
+    }
+    return rslt;
+  }
 
   /** @SWS_CORE_02162 */
-  constexpr size_type rfind(char c, size_type pos = npos) const noexcept;
+  constexpr size_type rfind(char c, size_type pos = npos) const noexcept {
+    return rfind(&c, pos, 1);
+  }
 
   /** @SWS_CORE_02161 */
-  constexpr size_type rfind(StringView s, size_type pos = npos) const noexcept;
+  constexpr size_type rfind(StringView s, size_type pos = npos) const noexcept {
+    return rfind(s.data(), pos, s.size());
+  }
 
   /** @SWS_CORE_02128 */
   constexpr size_type size() const noexcept {
@@ -538,10 +574,11 @@ public:
   }
 
 public:
-  /** @SWS_CORE_02111 */
+  /** @SWS_CORE_02111 @brief Special value for invalid position. */
   static constexpr size_type npos = size_type(-1);
 
 private:
+  /* @SWS_CORE_02129 @brief Calculate string length. */
   constexpr size_type len(const char *s) const noexcept {
     size_type rslt = 0;
     if (nullptr != s) {
@@ -565,9 +602,9 @@ private:
 } // namespace ara
 
 namespace std {
-template <> struct hash<ara::core::StringView> final { /* @SWS_CORE_02189 */
+template <> struct hash<ara::core::StringView> final { /* @SWS_CORE_02189 @brief Hash specialization for StringView. */
 public:
-  /** @SWS_CORE_02190 */
+  /** @SWS_CORE_02190 @brief Compute hash value. */
   size_t operator()(ara::core::StringView const &v) const noexcept;
 };
 };     // namespace std
