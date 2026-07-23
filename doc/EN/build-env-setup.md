@@ -9,7 +9,7 @@ comments: true
 
 ## Build System Overview
 
-The repository uses Python SCons as its build system, providing flexibility and simplicity for AUTOSAR development. This guide covers Windows environment setup for evaluating [autoas/ssas-public](https://github.com/autoas/ssas-public).
+The repository uses Python SCons as its build system, providing flexibility and simplicity for AUTOSAR development. This guide covers Windows environment setup for evaluating [autoas/as](https://github.com/autoas/as).
 
 ## Required Software Installation
 
@@ -46,7 +46,7 @@ pip install scons pyserial pybind11 pillow ply pyqt5 bitarray
 2. First run will automatically install [ConEmu](https://conemu.github.io/)
    - **Manual Installation Option**:
      - Download [ConEmu Portable](https://www.fosshub.com/ConEmu.html)
-     - Install to `ssas-public/download/ConEmu`
+     - Install to `as/download/ConEmu`
      - ![ConEmu Installation](../images/conemu-install.png)
 
 Successful setup will show:  
@@ -79,8 +79,8 @@ pip install scons pyserial pybind11 pillow ply pyqt5 bitarray
 ```sh
 # app panel
 # better activate the python env before run scons, the same for other panels
-D:\repository\ssas-public>c:\anaconda3\Scripts\activate
-D:\repository\ssas-public>scons --app=IsoTpSend
+D:\repository\as>c:\anaconda3\Scripts\activate
+D:\repository\as>scons --app=IsoTpSend
 scons: Reading SConscript files ...
 scons: done reading SConscript files.
 scons: Building targets ...
@@ -91,7 +91,7 @@ CC tools\libraries\isotp\utils\isotp_send.c
 LINK build\nt\GCC\IsoTpSend\IsoTpSend.exe
 scons: done building targets.
 
-D:\repository\ssas-public>scons --app=CanApp
+D:\repository\as>scons --app=CanApp
 scons: Reading SConscript files ...
 scons: done reading SConscript files.
 scons: Building targets ...
@@ -107,7 +107,7 @@ scons: done building targets.
 
 ```sh
 # app panel
-D:\repository\ssas-public> build\nt\GCC\CanApp\CanApp.exe
+D:\repository\as> build\nt\GCC\CanApp\CanApp.exe
 INFO    :application build @ Dec  3 2021 21:57:05
 ......
 DCM     :physical service 10, len=2
@@ -116,7 +116,7 @@ INFO    :DCM s3server timeout!
 ```
 ```sh
 # boot panel
-D:\repository\ssas-public>build\nt\GCC\IsoTpSend\IsoTpSend.exe -v 1001
+D:\repository\as>build\nt\GCC\IsoTpSend\IsoTpSend.exe -v 1001
 TX: 10 01
 RX: 50 01 13 88 00 32
 ```

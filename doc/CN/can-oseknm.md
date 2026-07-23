@@ -17,94 +17,148 @@ OSEK NM其自身又分为2种机制，直接网络管理和间接网络管理，
 
 关于OSEK NM的原理，可以参考文档OSEK NM 253的文档，并且网上也有很多介绍行的文档，所以本文主要介绍我实现的OSEK NM如何使用的问题。
 
+## 目录
+
+- [如何配置](#第一-如何配置)
+- [如何集成使用](#第二-如何集成使用)
+  - [状态控制API](#状态控制api)
+  - [错误处理](#错误处理)
+  - [状态机](#状态机)
+
 ## 第一， 如何配置
 
-关于OSEK配置信息的描述都位于[OsekNm_Priv.h](../../infras/communication/OsekNm/OsekNm_Priv.h)头文件中，一个CAN通道的配置可以参考文件[OsekNm_Cfg.c](../../app/app/config/OsekNm_Cfg.c)，该配置信息还是比较简单直白的，无非配置些节点的各OSEK NM的参数：
+关于OSEK配置信息的描述都位于[OsekNm_Priv.h](../../infras/communication/OsekNm/OsekNm_Priv.h)头文件中，一个CAN通道的配置可以参考文件[OsekNm.json](../../app/app/config/Com/OsekNm.json)，该配置信息还是比较简单直白的，无非配置些节点的各OSEK NM的参数：
 
-| NM Parameter  | Definition                                                   | Valid Area                   |
-| :------------ | ------------------------------------------------------------ | ---------------------------- |
-| NodeId        | Relative identification of the node-specific NM messages     | local for each node specific |
-| TTyp          | Typical time interval between two ring messages              | global for all nodes         |
-| TMax          | Maximum time interval between two ring messages              | global for all nodes         |
-| TError        | Time interval between two ring messages with NMLimpHome identification | global all nodes             |
-| TWaitBusSleep | Time the NM waits before transmission in NMBusSleep          | global all nodes             |
-| TTx           | Delay to repeat the transmission request of a NM message if the request was rejected by the DLL | local for each node specific |
+| NM Parameter  | Definition                                                   |
+| :------------ | ------------------------------------------------------------ |
+| name          | Network name, used to generate txPduId                       |
+| NodeId        | Relative identification of the node-specific NM messages     |
+| tTyp          | Typical time interval between two ring messages (ms)          |
+| tMax          | Maximum time interval between two ring messages (ms)          |
+| tError        | Time interval between two ring messages with NMLimpHome identification (ms) |
+| tWbs          | Time the NM waits before entering NMBusSleep state (ms)       |
+| tTx           | Delay to repeat the transmission request of a NM message if the request was rejected by the DLL (ms) |
+| tx_limit      | Maximum number of consecutive transmissions before entering Limphome |
+| rx_limit      | Maximum number of consecutive receptions before entering Limphome |
+| NodeMask      | Mask to extract NodeId from CAN ID                          |
+
 ## 第二，如何集成使用
 
-本OSEK NM实现可与任何系统集成，可单独使用。在集成时，须实现如下几个API：
+本OSEK NM实现基于AUTOSAR架构，已内置了与CanIf的集成。在集成时，须实现如下几个回调API：
 
 ```c
 void OsekNm_D_Init(NetworkHandleType NetId, OsekNm_RoutineRefType Routine);
-// disable application communication by OsekNm_D_Offline
 void OsekNm_D_Offline(NetworkHandleType NetId);
-// enable application communication by OsekNm_D_Online
 void OsekNm_D_Online(NetworkHandleType NetId);
-// request to transmit NM frame
-Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *NMPDU, uint8_t DataLengthTx);
 ```
 
-在ssas-public项目中，你可以注意到实际上前三个API为空实现，其实这是不对的，需要按照OSEK NM文档的要求去实现。
+`OsekNm_D_Init` 用于执行总线初始化/唤醒/睡眠/重启等操作，`OsekNm_D_Online` 和 `OsekNm_D_Offline` 分别用于启用和禁用应用层通信。
 
-如下为OsekNm_D_WindowDataReq使用AUTOSAR CAN驱动的一个简单的实现，该实现以CAN ID从0x500到0x5FF为NM网段。
-
-```c
-Std_ReturnType OsekNm_D_WindowDataReq(NetworkHandleType NetId, OsekNm_PduType *NMPDU, uint8_t DataLengthTx) {
-  Std_ReturnType ercd;
-  Can_PduType canPdu;
-
-  canPdu.swPduHandle = 2;
-  canPdu.id = 0x500 + NMPDU->Source;
-  canPdu.length = DataLengthTx;
-  canPdu.sdu = &NMPDU->Destination;
-
-  ercd = Can_Write(NetId, &canPdu);
-  // 注意，NM报文发送成功时，在发送成功中断里，需要调用OsekNm_TxConformation
-
-  return ercd;
-}
-```
-
-OSEK NM其他节点报文接受处理，如下代码所示：
+OSEK NM内部已实现 `OsekNm_D_WindowDataReq`，通过 `CanIf_Transmit` 发送NM报文。接收报文处理如下：
 
 ```c
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   ...
   if ((Mailbox->CanId >= 0x500) && ((Mailbox->CanId <= 0x5FF))) {
-    OsekNm_PduType NMPDU;
-    NMPDU.Source = Mailbox->CanId - 0x500;
-    memcpy(&NMPDU.Destination, PduInfoPtr->SduDataPtr, 8);
-    OsekNm_RxIndication(Mailbox->ControllerId, &NMPDU);
+    PduInfoType pduInfo;
+    pduInfo.SduDataPtr = PduInfoPtr->SduDataPtr;
+    pduInfo.SduLength = PduInfoPtr->SduLength;
+    pduInfo.MetaDataPtr = (void *)Mailbox;
+    OsekNm_RxIndication(NetId, &pduInfo);
   }
   ...
 }
 ```
 
-如上，实现如上所有，OSEK NM就可以开始工作了，只需要调用其初始化函数即可！
+发送确认回调需调用 `OsekNm_TxConfirmation`：
 
 ```c
-  OsekNm_Init(NULL);
-  OsekNm_Talk(0);
-  OsekNm_Start(0);
+void CanIf_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
+  ...
+  OsekNm_TxConfirmation(NetId, result);
+  ...
+}
 ```
 
-另外，需要周期性调用函数OsekNm_MainFunction来驱动OSEK NM工作。
-
-API GotoMode可用来控制网络的状态：
+初始化并启动OSEK NM：
 
 ```c
-OsekNm_GotoMode(0, OSEKNM_BUS_SLEEP); // 请求睡眠，释放网络
-OsekNm_GotoMode(0, OSEKNM_AWAKE);    // 请求唤醒，激活网络
+OsekNm_Init(NULL);
+OsekNm_Talk(0);
+OsekNm_Start(0);
 ```
 
-另外，还有如下两个API来控制是否真正参与网络管理，可用来实现UDS的网络管理通讯控制服务。
+需要周期性调用 `OsekNm_MainFunction` 来驱动状态机工作：
 
 ```c
-Std_ReturnType OsekNm_Silent(NetworkHandleType);
-Std_ReturnType OsekNm_Talk(NetworkHandleType);
+void MainFunction(void) {
+  OsekNm_MainFunction();
+}
 ```
-另外，需要特别强调一点， OSEK NM具有CAN总线 bus off错误的管理机制，即在发生bus off 时，调用OsekNm_BusErrorIndication即可。
-另，CAN总线由睡眠到唤醒时，调用OsekNm_WakeupIndication 即可。
 
-## 第三，一个例子
+### 状态控制API
 
-参考 [OsekNm](../../examples/OsekNm.md)。
+`OsekNm_GotoMode` 用于控制网络状态：
+
+```c
+OsekNm_GotoMode(0, OSEKNM_BUS_SLEEP); // 请求睡眠
+OsekNm_GotoMode(0, OSEKNM_AWAKE);    // 请求唤醒
+```
+
+`OsekNm_Silent` 和 `OsekNm_Talk` 控制是否参与网络管理：
+
+```c
+Std_ReturnType OsekNm_Silent(NetworkHandleType);  // 静默模式，不发送NM报文
+Std_ReturnType OsekNm_Talk(NetworkHandleType);   // 正常参与网络管理
+```
+
+`OsekNm_NetworkRequest` 和 `OsekNm_NetworkRelease` 用于请求和释放网络：
+
+```c
+Std_ReturnType OsekNm_NetworkRequest(NetworkHandleType);   // 请求网络唤醒
+Std_ReturnType OsekNm_NetworkRelease(NetworkHandleType);   // 请求网络睡眠
+```
+
+`OsekNm_Stop` 用于停止网络管理：
+
+```c
+Std_ReturnType OsekNm_Stop(NetworkHandleType);
+```
+
+`OsekNm_GetState` 用于获取当前网络状态：
+
+```c
+Nm_ModeType mode;
+OsekNm_GetState(NetId, &mode);
+```
+
+### 错误处理
+
+CAN总线bus off时调用 `OsekNm_BusErrorIndication`：
+
+```c
+void CanIf_BusErrorIndication(NetworkHandleType NetId) {
+  OsekNm_BusErrorIndication(NetId);
+}
+```
+
+CAN总线唤醒时调用 `OsekNm_WakeupIndication`：
+
+```c
+void CanIf_WakeupIndication(NetworkHandleType NetId) {
+  OsekNm_WakeupIndication(NetId);
+}
+```
+
+### 状态机
+
+OSEK NM实现了完整的状态机，包括：
+- `OSEKNM_STATE_OFF` - 关闭状态
+- `OSEKNM_STATE_BUS_SLEEP` - 总线睡眠状态
+- `OSEKNM_STATE_NORMAL` - 正常工作状态
+- `OSEKNM_STATE_NORMAL_PREPARE_SLEEP` - 正常模式准备睡眠
+- `OSEKNM_STATE_WAIT_BUS_SLEEP_NORMAL` - 正常模式等待总线睡眠
+- `OSEKNM_STATE_LIMPHOME` - Limphome状态
+- `OSEKNM_STATE_LIMPHOME_PREPARE_SLEEP` - Limphome准备睡眠
+- `OSEKNM_STATE_WAIT_BUS_SLEEP_LIMPHOME` - Limphome等待总线睡眠
+

@@ -19,7 +19,7 @@ The Diagnostic Communication Manager (DCM) handles diagnostic requests, session 
 ## 1. Example Configurations
 
 For practical implementations, see:
-- [Bootloader Dcm.json](../../app/bootloader/config/Dcm.json) (Bootloader-specific DCM setup)
+- [Bootloader Dcm.json](../../app/bootloader/config/Dcm/Dcm.json) (Bootloader-specific DCM setup)
 - [Application Dcm.json](../../app/app/config/Dcm/Dcm.json) (Application-layer DCM configuration)
 
 ---

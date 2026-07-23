@@ -7,11 +7,11 @@ comments: true
 
 # 我在做什么
 
-从毕业至今，受Linux开源精神的影响，一直坚持着每天写点代码并开源，其绝大多数为AUTOSAR及其工具链相关，但由于个人能力和精力的双重有限，所以开发都是基于ArcCore 的AUTOSAR开源版本进行，其库开源于[autoas/as](https://github.com/autoas/as)， 对的，这个库现在被我丢弃了，原因有如下几点：
+从毕业至今，受Linux开源精神的影响，一直坚持着每天写点代码并开源，其绝大多数为AUTOSAR及其工具链相关，但由于个人能力和精力的双重有限，所以开发都是基于ArcCore 的AUTOSAR开源版本进行，其库开源于[autoas/as-deprecated](https://github.com/autoas/as-deprecated)， 对的，这个库现在被我丢弃了，原因有如下几点：
 
 * ArcCore 自从开源了AUTOSAR 3.1 版本后，后续未有更新
 * ArcCore是GPLv2协议，商业应用不可能
-* [autoas/as](https://github.com/autoas/as) 这个库更像是我个人的一个学习库，在这个库我堆放了很多与AUTOSAR无关的东西
+* [autoas/as-deprecated](https://github.com/autoas/as-deprecated) 这个库更像是我个人的一个学习库，在这个库我堆放了很多与AUTOSAR无关的东西
 * 这个库越来越复杂，初学者玩不转
 * 鲜有人愿意参与AUTOSAR开源
 
@@ -21,7 +21,7 @@ comments: true
 
 同时，我也想开发出一个可仿真平台，利用软件仿真技术去开发验证这些我开发的小模块，另外也方便他人在没有硬件开发板的情况下，只要他/她有一台电脑，就可以学习或者评估我开发的这些小模块。
 
-在本文写作之时，其实这个时候，我的另一个库[autoas/ssas-public ](https://github.com/autoas/ssas-public)已经初具雏形，已经具有基于CAN、LIN的通讯诊断协议栈，基于以太网socket套接字的DoIP、SOMEIP/SD的以太网协议栈，基于EEP/FLS的NVM协议栈， 还有完整的基于CAN、LIN的bootloader上下位机完整解决方案。虽然目前，或许说这些个模块并不是十分的完美，比如100%符合MISRAC规范，符合功能安全要求等等，但这些模块完全可以胜任一些简单的应用需求。
+在本文写作之时，其实这个时候，我的另一个库[autoas/as ](https://github.com/autoas/as)已经初具雏形，已经具有基于CAN、LIN的通讯诊断协议栈，基于以太网socket套接字的DoIP、SOMEIP/SD的以太网协议栈，基于EEP/FLS的NVM协议栈， 还有完整的基于CAN、LIN的bootloader上下位机完整解决方案。虽然目前，或许说这些个模块并不是十分的完美，比如100%符合MISRAC规范，符合功能安全要求等等，但这些模块完全可以胜任一些简单的应用需求。
 
 至此，我想先对我的这个新库做一个简单介绍，比如如何搭建仿真开发环境，每个模块有哪些API，每个模块如何使用和集成等等。
 

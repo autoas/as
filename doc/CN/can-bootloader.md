@@ -44,39 +44,39 @@ comments: true
 
 好吧，让我们先编译运行一把该例子吧。
 
-首先，请参考 [开发环境搭建](https://autoas.github.io/ssas-public/autosar/2021/12/03/setup.html)，构建基础编译环境及其工具链， 之后双击ssas-public工程目录下的Console.bat启动ConEmu终端。
+首先，请参考 [开发环境搭建](./build-env-setup.md)，构建基础编译环境及其工具链， 之后双击as工程目录下的Console.bat启动ConEmu终端。
 
 ```sh
 # app 页， 执行如下命令
-D:\repository\ssas-public>cd app\platform
-D:\repository\ssas-public\app\platform>git clone https://github.com/autoas/qemu.git
-D:\repository\ssas-public\app\platform>cd ../..
+D:\repository\as>cd app\platform
+D:\repository\as\app\platform>git clone https://github.com/autoas/qemu.git
+D:\repository\as\app\platform>cd ../..
 # 开始编译
-D:\repository\ssas-public>scons --app=Loader
-D:\repository\ssas-public>scons --app=CanBridge
-D:\repository\ssas-public>scons --app=CanDump
+D:\repository\as>scons --app=Loader
+D:\repository\as>scons --app=CanBridge
+D:\repository\as>scons --app=CanDump
 
 # 设置CANFD模式，数据最大长度为64字节
-D:\repository\ssas-public>set LL_DL=64
-D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbFlashDriver
+D:\repository\as>set LL_DL=64
+D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbFlashDriver
 # 第一次编译需要比较久，因为需要下载编译器gcc-arm-none-eabi
-D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp
-D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBL
+D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp
+D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBL
 
 # 这个时候修改app/app/main.c, main函数里的打印输出如下：
 # int main(int argc, char *argv[]) {
 #   ASLOG(INFO, ("application v2 build @ %s %s\n", __DATE__, __TIME__));
 # 然后重新编译CanAPP
-D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp
+D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp
 
 # 切换回 app 页，启动qemu虚拟机
-D:\repository\ssas-public>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBLRun
+D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanBLRun
 scons: Reading SConscript files ...
 qemu-system-arm.exe: -serial tcp:127.0.0.1:9000,server: info: QEMU waiting for connection on: disconnected:tcp:127.0.0.1:9000,server=on
 # 在sim页启动 CanBridge
-D:\repository\ssas-public>build\nt\GCC\CanBridge\CanBridge.exe -d qemu -d simulator_v2
+D:\repository\as>build\nt\GCC\CanBridge\CanBridge.exe -d qemu -d simulator_v2
 # 在tool页启动 CanDump
-D:\repository\ssas-public>build\nt\GCC\CanDump\CanDump.exe
+D:\repository\as>build\nt\GCC\CanDump\CanDump.exe
 # 切回app页
 INFO    :bootloader build @ Dec 15 2021 19:26:46
 INFO    :application is valid
@@ -85,7 +85,7 @@ INFO    :application build @ Dec 14 2021 22:55:11
 
 # 等虚拟机启动完成，切换到 boot 页，如下命令开始升级
 # 加入参数 "-v"可以看到更详细的日志
-D:\repository\ssas-public>build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -l 64
+D:\repository\as>build\nt\GCC\Loader\Loader.exe -a build\nt\QemuVersatilepbGCC\VersatilepbCanApp\VersatilepbCanApp.s19.sign -f build\nt\QemuVersatilepbGCC\VersatilepbFlashDriver\VersatilepbFlashDriver.s19.sign -l 64
 
 # 因为是模拟，升级过程可能比较漫长，可能我的笔记本性能太差了，一帧CAN报文需要100ms左右的通信时间（bug待查）！
 # 你可以在app和boot页来回切换，观察输出日志。
@@ -192,7 +192,7 @@ download flash driver
 
 本例子使用QEMU Versatilepb来模拟，地址空间0x00008000到0x00140000，模拟为Flash，大小1248Kb；地址空间0x00140000到0x00180000，模拟为RAM，大小256Kb。但其实，对这款QEMU虚拟机，其只有RAM，这里只是将部分RAM抽象认为其是Flash而已。
 
-OK，这个时候在回过头来看，bootloader项目需要的三个工程，第一个是bootloader自己，这个毋庸置疑，从上图1我们也知道其在Flash空间的开始地址处。这里涉及到一点小知识，如何编译链接bootloader，将其放在图1所示boot空间呢？这个就要讲到链接脚本， 我们先看看QEMU Versatilepb的bootloader工程的链接脚本[linker-boot.lds](https://github.com/autoas/qemu/versatilepb/linker-boot.lds)，这里要说明下，不同的编译器，其控制链接的脚本的格式可能不一样。
+OK，这个时候在回过头来看，bootloader项目需要的三个工程，第一个是bootloader自己，这个毋庸置疑，从上图1我们也知道其在Flash空间的开始地址处。这里涉及到一点小知识，如何编译链接bootloader，将其放在图1所示boot空间呢？这个就要讲到链接脚本， 我们先看看QEMU Versatilepb的bootloader工程的链接脚本[linker-boot.lds](https://github.com/autoas/qemu/blob/master/versatilepb/linker-boot.lds)，这里要说明下，不同的编译器，其控制链接的脚本的格式可能不一样。
 
 ```txt
 MEMORY
@@ -204,7 +204,7 @@ MEMORY
 }
 ```
 
-如上为其片段，可以看到，我们将从地址0x00008000到0x00040000区间划分用作boot区间，将0x00040000开始剩下的空间划分用作app区间。app工程的链接脚本[linker-app.lds](https://github.com/autoas/qemu/versatilepb/linker-app.lds)的部分内容如下：
+如上为其片段，可以看到，我们将从地址0x00008000到0x00040000区间划分用作boot区间，将0x00040000开始剩下的空间划分用作app区间。app工程的链接脚本[linker-app.lds](https://github.com/autoas/qemu/blob/master/versatilepb/linker-app.lds)的部分内容如下：
 
 ```txt
 MEMORY
@@ -214,7 +214,7 @@ MEMORY
 }
 ```
 
-再来看看Flash Driver工程的链接脚本[linker-flsdrv.lds](https://github.com/autoas/qemu/versatilepb/linker-flsdrv.lds)的全部内容如下：
+再来看看Flash Driver工程的链接脚本[linker-flsdrv.lds](https://github.com/autoas/qemu/blob/master/versatilepb/linker-flsdrv.lds)的全部内容如下：
 
 ```txt
 MEMORY
@@ -242,7 +242,7 @@ SECTIONS
 
 * 另一种，加密存储Flash驱动，例如对Flash驱动二进制指令取反，从而将有效指令变为无效指令
 
-对于做bootloader的同学而言，分区的划分实现算是一个难点。创建bootloader和app工程，因为有IDE的帮助，也不算什么难事，链接到指定分区通过IDE也可以很容易做到。但最难的还是如何创建编译一份只有FlashDriver的工程。不懂编译链接原理的同学，可能会在这里有种挫败感而止步不前，但我能告诉你的是，这个时候你需要查看你所使用的编译器的文档，去搞清楚如何去控制链接，如何设置程序入口地址等（搞MCU嵌入式同学，一定不要认为程序的入口是main函数），如上FlashDriver的链接脚本，其通过语句“ENTRY(FlashHeader)”，将程序的入口地址改写为“FlashHeader”，并且阅读SECTIONS描述，“rodata”段放Flash区间的开始处，结合FlashDriver代码[Flash.c](https://github.com/autoas/qemu/flash/Flash.c)， 如下片段，可知，FlashHeader为const常量，放rodata段，而该工程只有这一个const常量，所以FlashHeader的地址即为0x00140000，所以通过该地址，按tFlashHeader访问该内存，即可获取Flash驱动的各函数地址，也可以拿到动态下载的Flash驱动的版本信息等，bootloader也可根据该内容做些相关检查等！
+对于做bootloader的同学而言，分区的划分实现算是一个难点。创建bootloader和app工程，因为有IDE的帮助，也不算什么难事，链接到指定分区通过IDE也可以很容易做到。但最难的还是如何创建编译一份只有FlashDriver的工程。不懂编译链接原理的同学，可能会在这里有种挫败感而止步不前，但我能告诉你的是，这个时候你需要查看你所使用的编译器的文档，去搞清楚如何去控制链接，如何设置程序入口地址等（搞MCU嵌入式同学，一定不要认为程序的入口是main函数），如上FlashDriver的链接脚本，其通过语句“ENTRY(FlashHeader)”，将程序的入口地址改写为“FlashHeader”，并且阅读SECTIONS描述，“rodata”段放Flash区间的开始处，结合FlashDriver代码[Flash.c](https://github.com/autoas/qemu/blob/master/flash/Flash.c)， 如下片段，可知，FlashHeader为const常量，放rodata段，而该工程只有这一个const常量，所以FlashHeader的地址即为0x00140000，所以通过该地址，按tFlashHeader访问该内存，即可获取Flash驱动的各函数地址，也可以拿到动态下载的Flash驱动的版本信息等，bootloader也可根据该内容做些相关检查等！
 
 ```c
 const tFlashHeader FlashHeader = {.Info.W.MCU = 1,

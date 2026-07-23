@@ -13,7 +13,7 @@ comments: true
 
 但是对于FLASH就不那么简单了，最小可擦除单元太大，一个数据一个坑的话，呵呵，基本就不用玩了，因为有些MCU控制器，其内部可能就那么几个FLASH块，并且每个块要被擦的话是整个块被全部擦出，所以像EERPOM那样的那种使用方式已经变得不切实际的了。所以这个时候就要换一种玩法，一般被称作用FLASH来模拟EEPROM，所以在AUTOSAR里就有一个模块叫做Fee（Flash Emulation Eeprom）。这里提一下，有些MCU控制器会告诉你其片内带有EEPROM，同时会注明是用FLASH模拟的，个人觉得可能是MCU控制器实现了一个简单的算法来实现该功能，这里不研究了。
 
-本文将介绍[ssas-public/infras/memory/Fee](../../infras/memory/Fee)的具体实现，首先介绍下FEE的基本原理，如下图所示：
+本文将介绍[as/infras/memory/Fee](../../infras/memory/Fee)的具体实现，首先介绍下FEE的基本原理，如下图所示：
 
 
 ![autosar-fee-mapping.png](../images/autosar-fee-mapping.png)

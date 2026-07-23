@@ -89,12 +89,156 @@ Each data element within a block defines a specific piece of stored data (e.g., 
 
 ---
 
+### 3.4 Block-Level Attribute: NumberOfWriteCycles
+The `NumberOfWriteCycles` attribute specifies the maximum number of times a block can be written during its lifetime. This is critical for Flash-based storage (Fee target) where each block has a limited number of write/erase cycles.
+
+| Attribute | Type       | Description                                                                 |
+|-----------|------------|-----------------------------------------------------------------------------|
+| `NumberOfWriteCycles` | Integer | Optional. Maximum write cycles per block. **Default: 10,000,000** (10 million). |
+
+#### Key Considerations:
+- **Flash Wear Leveling**: Flash memory has a finite number of erase cycles (typically 100,000 to 1,000,000 cycles per sector). FEE manages this by distributing writes across multiple banks.
+- **Application-Specific Values**: Set realistic values based on your application requirements:
+  - **Odometer**: If max value is 100,000 km with 0.1 km resolution ¡ú 1,000,000 write cycles.
+  - **DTC Status**: Written when a fault occurs ¡ú depends on fault rate (e.g., 100,000 cycles).
+  - **Configuration Data**: Rarely changed ¡ú 10,000 cycles may suffice.
+- **Default Value**: If not specified, the generator uses `10,000,000` as a conservative default.
+
+#### Example with NumberOfWriteCycles:
+```json
+{
+  "blocks": [
+    {
+      "name": "Dem_NvmEventStatusRecord{}",
+      "repeat": 8,
+      "NumberOfWriteCycles": 100000,
+      "data": [
+        { "name": "status", "type": "uint8", "default": "0x50" },
+        { "name": "testFailedCounter", "type": "uint8", "default": 0 }
+      ]
+    },
+    {
+      "name": "Dem_NvmPrimaryFreezeFrameRecord{}",
+      "repeat": 3,
+      "NumberOfWriteCycles": 1000000,
+      "data": [
+        { "name": "timestamp", "type": "uint32", "default": 0 },
+        { "name": "value", "type": "uint32", "default": 0 }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 5. Flash Life Cycle Calculation
+
+### 5.1 Overview
+For vehicle applications requiring 10-year persistence, it is critical to validate that the FEE configuration can sustain the expected number of write cycles without exceeding the Flash memory's maximum erase cycles.
+
+### 5.2 Life Cycle Calculator Tool
+The [FeeLifeCycle.py](../../tools/utils/memory/FeeLifeCycle.py) script calculates the worst-case backup rounds for a given FEE configuration. This helps ensure the Flash memory will last for the required lifetime.
+
+#### Usage:
+```bash
+# Basic usage
+python FeeLifeCycle.py app/app/config/NvM/NvM.json
+
+# With verbose output
+python FeeLifeCycle.py app/app/config/NvM/NvM.json -v
+
+# Custom bank configuration
+python FeeLifeCycle.py app/app/config/NvM/NvM.json --block_size "32*1024" --num_of_banks 4 -v
+```
+
+#### Parameters:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `config` | Path to NvM.json configuration file | (required) |
+| `-v` / `--verbose` | Enable detailed output | False |
+| `--block_size` | Bank size in bytes (supports expressions like "32*1024") | 32768 (32KB) |
+| `--page_size` | Flash page size in bytes | 8 |
+| `--num_of_banks` | Number of banks (2 or 4) | 2 |
+
+### 5.3 Calculation Algorithm
+The tool considers two scenarios to determine the worst-case backup rounds:
+
+#### Scenario A - Per-Block Sum:
+Each block can be written independently. For each block:
+- **First Phase**: When the bank is empty, it can fit `N` copies of the block.
+- **Subsequent Phases**: After each backup, the new bank contains one copy of all blocks. The remaining space determines how many additional writes can fit before another backup is needed.
+- **Total Rounds**: Sum of rounds for all blocks, divided by the number of banks.
+
+#### Scenario B - Accumulated Total:
+All blocks contribute to filling the bank simultaneously. The total data written across all blocks determines the backup rounds.
+
+#### Final Result:
+The maximum of both scenarios gives the worst-case per-bank backup rounds. This value must be **less than the Flash's maximum erase cycles** (typically 100,000 to 1,000,000).
+
+### 5.4 Example Analysis
+
+**Test Configuration:**
+- Bank Size: 32KB, 2 banks
+- Block A: 2KB data, NumberOfWriteCycles=100
+- Block B: 4KB data, NumberOfWriteCycles=200
+
+**Calculation:**
+```
+Effective Bank Size: 28648 bytes
+Total Space per all blocks: 6192 bytes
+Remaining Space After Backup: 22456 bytes
+
+Block A:
+  firstPhaseWrites = 28648 // 2072 = 13
+  subsequentWrites = 22456 // 2072 = 10
+  rounds_A = ceil((100 - 13) / 10) = 9
+
+Block B:
+  firstPhaseWrites = 28648 // 4120 = 6
+  subsequentWrites = 22456 // 4120 = 5
+  rounds_B = ceil((200 - 6) / 5) = 39
+
+Scenario A (Per-Block Sum): (9 + 39) // 2 = 24
+Scenario B (Accumulated): 45 // 2 = 22
+
+MAXIMUM BACKUP ROUNDS (Worst Case): 24
+```
+
+**Interpretation:** With 2 banks, each bank will be erased approximately 24 times. If the Flash supports 100,000 erase cycles, the configuration is safe.
+
+### 5.5 Best Practices
+
+1. **Set Realistic Write Cycles**:
+   - Avoid using the default 10,000,000 for blocks that don't need it.
+   - Calculate based on expected usage: `Write Cycles = Expected Writes per Day ¡Á 365 ¡Á Lifetime (years) ¡Á Safety Factor (2-10)`
+
+2. **Distribute Writes**:
+   - Avoid having one block with significantly more writes than others.
+   - If possible, split high-write data across multiple blocks.
+
+3. **Choose Appropriate Bank Size**:
+   - **Larger banks are generally preferred**: Reduce backup frequency, which minimizes Flash erase cycles and extends Flash lifetime.
+   - **Trade-off**: Larger banks increase erase time (longer backup operations).
+   - **Smaller banks**: Increase backup frequency (more erase cycles), which reduces Flash lifetime but allows finer granularity and faster erase operations.
+
+4. **Validate Regularly**:
+   - Re-run the life cycle calculator whenever the NvM configuration changes.
+   - Include in CI/CD pipeline to catch potential issues early.
+
+5. **Consider 10-Year Vehicle Lifespan**:
+   - Most automotive applications require 10-year persistence.
+   - Ensure calculated backup rounds are well below Flash erase limits.
+
+---
+
 ## 4. Generator Tool
 
 The [NvM Generator](../../tools/generator/NvM.py) converts the JSON configuration into C code that initializes NvM blocks and data elements. Key features:  
 - Validates JSON syntax and attribute compliance (e.g., ensures `repeat` is used correctly).  
 - Generates type-safe C structures (e.g., `Dem_NvmEventStatusRecord0` for repeated blocks).  
 - Auto-populates default values (using Python `eval` to resolve expressions like `"0xFF * 2"`).  
+- Supports `NumberOfWriteCycles` attribute with default value of 10,000,000.  
 
 ---
 
@@ -112,7 +256,7 @@ For example, consider automotive data that needs to be stored, such as mileage i
 However, FLASH is not so simple. Its minimum erasable unit is too large, if you tried a "one slot per data point" approach, well, it's basically unworkable. Some MCU controllers may only have a few internal FLASH blocks, and erasing a block requires erasing the entire block. Thus, the EEPROM-like usage method becomes impractical. This is where a different approach comes in, commonly called **emulating EEPROM with FLASH**. Hence, in AUTOSAR, there is a module called `Fee` (Flash Emulation Eeprom). By the way, some MCU controllers claim to have on-chip EEPROM but note that it is emulated with FLASH. Personally, I think this means the MCU implements a simple algorithm to achieve this function, we won't delve into that here.
 
 
-This article will introduce the specific implementation of [ssas-public/infras/memory/Fee](../../infras/memory/Fee). First, let's cover the basic principle of FEE, as shown in the figure below:
+This article will introduce the specific implementation of [as/infras/memory/Fee](../../infras/memory/Fee). First, let's cover the basic principle of FEE, as shown in the figure below:
 
 
 ![autosar-fee-mapping.png](../images/autosar-fee-mapping.png)
