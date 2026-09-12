@@ -355,6 +355,33 @@ static SomeIp_RxTpMsgType *SomeIp_RxTpMsgFind(SomeIp_RxTpMsgList *pendingRxTpMsg
   return rxTpMsg;
 }
 
+/* Start a new Rx TP session upon a First Frame: allocate a pending entry and
+ * append it to the pending list. Return E_OK if the FF is accepted, the new
+ * pending entry is passed out via pVar. */
+static Std_ReturnType SomeIp_RxTpMsgStartFF(SomeIp_RxTpMsgList *pendingRxTpMsgs, uint16_t methodId,
+                                            SomeIp_MsgType *msg, SomeIp_RxTpMsgType **pVar) {
+  Std_ReturnType ret = E_OK;
+  SomeIp_RxTpMsgType *var;
+  ASLOG(SOMEIP, ("%x:%x:%x:%d FF length = %u\n", msg->header.serviceId, msg->header.methodId,
+                 msg->header.clientId, msg->header.sessionId, msg->req.length));
+  SQP_ALLOC(RxTpMsg);
+  if (NULL == var) {
+    ret = SOMEIP_E_NOMEM;
+    ASLOG(SOMEIPE, ("%x:%x:%x:%d OoM for Tp Rx\n", msg->header.serviceId, msg->header.methodId,
+                    msg->header.clientId, msg->header.sessionId));
+  } else {
+    var->offset = 0u;
+    var->clientId = msg->header.clientId;
+    var->sessionId = msg->header.sessionId;
+    var->RemoteAddr = msg->RemoteAddr;
+    var->methodId = methodId;
+    var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
+    SQP_LAPPEND(RxTpMsg);
+  }
+  *pVar = var;
+  return ret;
+}
+
 static Std_ReturnType
 SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint16_t methodId,
                       SomeIp_OnTpCopyRxDataFncType onTpCopyRxData, SomeIp_MsgType *msg)
@@ -370,22 +397,7 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
     var = SomeIp_RxTpMsgFind(pendingRxTpMsgs, methodId, msg);
     if (NULL == var) {
       if ((0u == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
-        ASLOG(SOMEIP, ("%x:%x:%x:%d FF length = %u\n", msg->header.serviceId, msg->header.methodId,
-                       msg->header.clientId, msg->header.sessionId, msg->req.length));
-        SQP_ALLOC(RxTpMsg);
-        if (NULL == var) {
-          ret = SOMEIP_E_NOMEM;
-          ASLOG(SOMEIPE, ("%x:%x:%x:%d OoM for Tp Rx\n", msg->header.serviceId,
-                          msg->header.methodId, msg->header.clientId, msg->header.sessionId));
-        } else {
-          var->offset = 0u;
-          var->clientId = msg->header.clientId;
-          var->sessionId = msg->header.sessionId;
-          var->RemoteAddr = msg->RemoteAddr;
-          var->methodId = methodId;
-          var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
-          SQP_LAPPEND(RxTpMsg);
-        }
+        ret = SomeIp_RxTpMsgStartFF(pendingRxTpMsgs, methodId, msg, &var);
       } else {
         ret = SOMEIP_E_MALFORMED_MESSAGE;
         ASLOG(SOMEIPE, ("%x:%x:%x:%d Tp message malformed or loss\n", msg->header.serviceId,
@@ -400,13 +412,23 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
                        msg->header.methodId, msg->header.clientId, msg->header.sessionId,
                        msg->tpHeader.moreSegmentsFlag ? "CF" : "LF", msg->req.length, var->offset));
       } else {
+        /* Pending TP msg does not match the incoming one. Typically the tail of
+         * the previous message (var->sessionId) was lost on the wire and the
+         * peer has moved on to a new message (msg->header.sessionId). Abort the
+         * old pending message first. */
         requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
         (void)onTpCopyRxData(requestId, NULL);
         SQP_LRM_AND_FREE(RxTpMsg);
-        ret = SOMEIP_E_MALFORMED_MESSAGE;
-        ASLOG(SOMEIPE,
-              ("%x:%x:%x:%d Tp message not as expected, loss maybe\n", msg->header.serviceId,
-               msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+        var = NULL;
+        if ((0u == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
+          /* New First Frame of a fresh session: start receiving it instead. */
+          ret = SomeIp_RxTpMsgStartFF(pendingRxTpMsgs, methodId, msg, &var);
+        } else {
+          ret = SOMEIP_E_MALFORMED_MESSAGE;
+          ASLOG(SOMEIPE,
+                ("%x:%x:%x:%d Tp message not as expected, loss maybe\n", msg->header.serviceId,
+                 msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+        }
       }
     }
   } else {
@@ -687,6 +709,35 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
   return ret;
 }
 
+/* Check if a long TP message can be transmitted for the given method.
+ * @SWS_SomeIpTp_00016 @PRS_SOMEIP_00750: interleaving of long TP messages
+ * of the same method is not supported, only one ongoing TP TX per method
+ * is allowed, otherwise reject the new one with SOMEIP_E_BUSY */
+static Std_ReturnType SomeIp_CheckTxTpBusy(const SomeIp_ClientServiceType *config,
+                                           const SomeIp_ClientServiceContextType *context,
+                                           uint16_t methodIndex, uint32_t length) {
+  Std_ReturnType ret = E_OK;
+  const SomeIp_ClientMethodType *method = &config->methods[methodIndex];
+  const SomeIp_TxTpMsgList *pendingTxTpMsgs = &context->pendingTxTpMsgs;
+  SomeIp_TxTpMsgType *txTpMsg;
+
+  if (IS_TP_ENABLED(method) && (length > SOMEIP_SF_MAX)) {
+    EnterCritical();
+    STAILQ_FOREACH(txTpMsg, pendingTxTpMsgs, entry) {
+      if (txTpMsg->methodId == methodIndex) {
+        ret = SOMEIP_E_BUSY;
+        break;
+      }
+    }
+    ExitCritical();
+    if (SOMEIP_E_BUSY == ret) {
+      ASLOG(SOMEIPE, ("%x:%x busy for long TP TX\n", config->serviceId, method->methodId));
+    }
+  }
+
+  return ret;
+}
+
 static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, uint32_t length,
                                            uint8_t messageType) {
   Std_ReturnType ret = E_OK;
@@ -719,12 +770,18 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
   }
 
   if (E_OK == ret) {
+    ret = SomeIp_CheckTxTpBusy(config, context, index, length);
+  }
+
+  if (E_OK == ret) {
     if (0 == sessionId) {
+      EnterCritical();
       sessionId = context->sessionId;
       context->sessionId++;
       if (0 == context->sessionId) {
         context->sessionId = 1;
       }
+      ExitCritical();
     }
     ret = SomeIp_SendRequest(config, index, config->clientId, sessionId, &RemoteAddr, &msg,
                              messageType);
@@ -769,6 +826,36 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       data = req->data - 16;
     }
     ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
+  }
+
+  return ret;
+}
+
+/* Check if a long TP event message can be transmitted for the given event.
+ * @SWS_SomeIpTp_00016 @PRS_SOMEIP_00750: interleaving of long TP messages
+ * of the same event is not supported, only one ongoing TP TX per event
+ * is allowed, otherwise reject the new one with SOMEIP_E_BUSY */
+static Std_ReturnType SomeIp_CheckTxTpEvtBusy(const SomeIp_ServerServiceType *config,
+                                              uint16_t eventIndex, uint16_t eventId,
+                                              uint32_t length) {
+  Std_ReturnType ret = E_OK;
+  const SomeIp_ServerContextType *context = config->context;
+  const SomeIp_ServerEventType *event = &config->events[eventIndex];
+  const SomeIp_TxTpEvtMsgList *pendingTxTpEvtMsgs = &context->pendingTxTpEvtMsgs;
+  SomeIp_TxTpEvtMsgType *txTpEvtMsg;
+
+  if (IS_TP_ENABLED(event) && (length > SOMEIP_SF_MAX)) {
+    EnterCritical();
+    STAILQ_FOREACH(txTpEvtMsg, pendingTxTpEvtMsgs, entry) {
+      if (txTpEvtMsg->eventId == eventId) {
+        ret = SOMEIP_E_BUSY;
+        break;
+      }
+    }
+    ExitCritical();
+    if (SOMEIP_E_BUSY == ret) {
+      ASLOG(SOMEIPE, ("%x:%x busy for long TP EVT TX\n", config->serviceId, event->eventId));
+    }
   }
 
   return ret;
@@ -1638,12 +1725,18 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   }
 
   if (E_OK == ret) {
+    ret = SomeIp_CheckTxTpEvtBusy(config, index, TxEventId, length);
+  }
+
+  if (E_OK == ret) {
     if (0 == sessionId) {
+      EnterCritical();
       sessionId = config->context->sessionId;
       config->context->sessionId++;
       if (0 == config->context->sessionId) {
         config->context->sessionId = 1u;
       }
+      ExitCritical();
     }
     ret = SomeIp_SendNotification(config, TxEventId, sessionId, &msg, list);
   }
