@@ -1,61 +1,51 @@
 ---
 layout: post
-title: AUTOSAR DCM
+title: AUTOSAR Dcm Configuration
 category: AUTOSAR
 comments: true
 ---
 
-# Configuration Notes for AUTOSAR DCM Module
+# Configuration Notes for the AUTOSAR Dcm Module
 
-The Diagnostic Communication Manager (DCM) handles diagnostic requests, session management, security access, and data exchange in AUTOSAR systems. This document outlines key configuration parameters, including session definitions, security levels, service mappings, and memory access rules.
+The Diagnostic Communication Manager (Dcm) handles diagnostic requests, session management, security access and data exchange in AUTOSAR systems. This document describes the key configuration items: sessions, security levels, the service map, DIDs, memory access rules, routines, I/O control, timing and buffers.
 
-> ?? **Note**: The configurations described here can be authored in either:
-> - A **JSON file** (e.g., `Dcm.json`) processed by a generator like [`Dcm.py`](../../tools/generator/Dcm.py), or  
-> - An **Excel sheet** (e.g., `Dcm.xlsx`) for specification review.  
-> Both are transformed into C code (`Dcm_Cfg.h`, `Dcm_Cfg.c`) that implements the runtime DCM behavior.
+> **Note**: A configuration can be authored as either:
+>
+> * a JSON file (for example `Dcm.json`) processed by [Dcm.py](../../tools/generator/Dcm.py), or
+> * an Excel sheet (for example `Dcm.xlsx`) for specification review.
+>
+> Both are transformed into C code (`Dcm_Cfg.h`, `Dcm_Cfg.c`) that implements the runtime behavior.
 
----
+Practical configurations:
 
-## 1. Example Configurations
+* [Bootloader Dcm.json](../../app/bootloader/config/Dcm/Dcm.json)
+* [Application Dcm.json](../../app/app/config/Dcm/Dcm.json)
 
-For practical implementations, see:
-- [Bootloader Dcm.json](../../app/bootloader/config/Dcm/Dcm.json) (Bootloader-specific DCM setup)
-- [Application Dcm.json](../../app/app/config/Dcm/Dcm.json) (Application-layer DCM configuration)
+## 1. Session configuration
 
----
+Sessions have unique IDs and control which services and security levels are reachable:
 
-## 2. Session Configuration
-
-Define supported diagnostic sessions with unique IDs. Sessions control access to services and security levels.
-
-### Example Session Definitions (from JSON):
 ```json
 "sessions": [
-  { "name": "Default", "id": "0x01" },
-  { "name": "Program", "id": "0x02" },
+  { "name": "Default",  "id": "0x01" },
+  { "name": "Program",  "id": "0x02" },
   { "name": "Extended", "id": "0x03" },
-  { "name": "Factory", "id": "0x50" }
+  { "name": "Factory",  "id": "0x50" }
 ]
 ```
 
-In generated code:
-- Mapped to `Dcm_SesCtrls[] = { DCM_DEFAULT_SESSION, ... }`
-- Masks: `DCM_DEFAULT_MASK = 0x1`, `DCM_PROGRAM_MASK = 0x2`, etc.
+In generated code the sessions map to `Dcm_SesCtrls[]` (`DCM_DEFAULT_SESSION`, ...) with bit masks `DCM_DEFAULT_MASK = 0x1`, `DCM_PROGRAM_MASK = 0x2` and so on. Whether a session switch is allowed is delegated to the application callback:
 
-Session change permission is delegated to:
 ```c
 Std_ReturnType App_GetSessionChangePermission(
     Dcm_SesCtrlType active, Dcm_SesCtrlType target,
     Dcm_NegativeResponseCodeType *nrc);
 ```
 
----
+## 2. Security level configuration
 
-## 3. Security Level Configuration
+Seed/key authentication is configured per session:
 
-Configure seed/key authentication per session.
-
-### Example Security Definitions (from JSON):
 ```json
 "securities": [
   {
@@ -81,56 +71,52 @@ Configure seed/key authentication per session.
 ]
 ```
 
-Generated as `Dcm_SecLevelConfigs[]` with:
-- Security level constants: `DCM_SEC_LEVEL1`, `DCM_SEC_LEVEL2`, ...
-- Session masks restrict usage scope
-- Lockout after 3 failed attempts (`DelayTime = 3000 ms`)
+This generates `Dcm_SecLevelConfigs[]` with constants `DCM_SEC_LEVEL1`, `DCM_SEC_LEVEL2`, ..., session masks scoping each level, and lockout protection: after 3 failed attempts (`NumAtt = 3`) the level is locked for `DelayTime = 3000` ms.
 
----
+## 3. Service configuration
 
-## 4. Service Configuration
+A `ServiceMap` maps UDS service IDs to their implementation:
 
-The DCM generator uses a `ServiceMap` to map service IDs to implementation logic.
+| Attribute | Required? | Description |
+| --- | --- | --- |
+| `name` | No | Documentation name, for example `"ReadDID"` |
+| `id` | Yes | UDS SID, for example `0x22` |
+| `sessions` | No | Allowed sessions (default: all) |
+| `securities` | No | Required security levels (empty means none) |
+| `access` | No | `"physical"`, `"functional"` or both |
+| `API` | Conditional | Service callbacks, for example DID read/write handlers |
 
-| Attribute   | Required? | Description |
-|-------------|-----------|-------------|
-| `name`      | No        | For documentation (e.g., `"ReadDID"`) |
-| `id`        | Yes       | UDS SID (e.g., `0x22`) |
-| `sessions`  | No        | List of allowed sessions (default: all) |
-| `securities`| No        | Required security levels (empty = none) |
-| `access`    | No        | `"physical"`, `"functional"`, or both |
-| `API`       | Conditional | Callbacks (e.g., for DID read/write) |
+> Services such as `Authentication (0x29)` are disabled by default and are only generated when `USE_CRYPTO` is defined.
 
-> ?? Services like `Authentication (0x29)` are **disabled by default** unless `USE_CRYPTO` is defined.
+## 4. Data identifiers (DIDs)
 
----
+### Static DIDs (0x22 / 0x2E)
 
-## 5. Data Identifiers (DIDs)
+Static DIDs live in the `"DIDs"` section. Each entry specifies:
 
-### Static DIDs (`0x22` / `0x2E`)
-Defined in `"DIDs"` section of JSON. Each must specify:
-- `ID` (hex),
-- `length`,
-- `attribute`: `"r"`, `"w"`, or `"rw"`,
-- optional `sessions`, `securities`, and `access`.
+* `ID` in hex;
+* `length`;
+* `attribute`: `"r"`, `"w"` or `"rw"`;
+* optional `sessions`, `securities` and `access`.
 
-### Periodic DIDs (`0x2A`)
+### Periodic DIDs (0x2A)
 
 ```json
 "DIDs": [
   { "name": "P01", "ID": "0x01", "sourceDID": "0xF201" }
 ]
 ```
-? Client requests periodic transmission of DID `0xF201` using identifier `0x01`.
 
-### Dynamic DIDs (`0x2C`)
-Supported automatically if service `0x2C` is configured. Uses TX buffer tail for storage.
+The client requests periodic transmission of source DID `0xF201` using the periodic identifier `0x01`.
 
----
+### Dynamic DIDs (0x2C)
 
-## 6. Memory Access Rules
+Supported automatically once service `0x2C` is configured. Dynamic DID definitions are stored at the tail of the TX buffer.
 
-Configured under `"memories"`:
+## 5. Memory access rules
+
+The `"memories"` section restricts the address ranges reachable by the upload/download services (0x34/0x36/0x37):
+
 ```json
 "memories": [
   {
@@ -142,28 +128,28 @@ Configured under `"memories"`:
 ]
 ```
 
-- Address/length format: fixed to `0x44` (4-byte address + 4-byte length)
-- Validated at runtime in `Dcm_DspIsMemoryValid()`
+* AddressAndLengthFormatIdentifier is fixed to `0x44` (4-byte address plus 4-byte length);
+* every request is validated at runtime by `Dcm_DspIsMemoryValid()`.
 
----
+## 6. Routines and I/O control
 
-## 7. Routines & I/O Control
+### Routines (0x31)
 
-### Routines (`0x31`)
 ```json
 "Routines": [
   {
     "ID": "0xFEEF",
     "actions": ["Start", "Result"],
     "API": {
-      "start": "App_NvmTest_FEEF_Start",
+      "start":  "App_NvmTest_FEEF_Start",
       "result": "App_NvmTest_FEEF_Result"
     }
   }
 ]
 ```
 
-### I/O Control (`0x2F`)
+### I/O control (0x2F)
+
 ```json
 "IOCTLs": [
   {
@@ -171,27 +157,26 @@ Configured under `"memories"`:
     "actions": [
       { "id": 0, "API": "App_IOCtl_IOCTL1_FC01_ReturnControlToEcu" },
       { "id": 3, "API": "App_IOCtl_IOCTL1_FC01_ShortTermAdjustment" }
-    ],
+    ]
   }
 ]
 ```
 
-Both respect session/security constraints defined in JSON.
+Both obey the session and security constraints of the JSON configuration.
 
----
+## 7. Timing and buffering
 
-## 8. Timing & Buffering
-
-Timing parameters define critical UDS server behavior, including session timeout (`S3`), and response deadlines for normal (`P2`) and long-running (`P2*`) operations. These values are configured in milliseconds but **converted to main function cycles** at compile time using the macro:
+The timing parameters define the UDS server behavior: session timeout `S3` and the response deadlines `P2` and `P2*`. Values are given in milliseconds and converted to `Dcm_MainFunction()` cycles at compile time:
 
 ```c
 #define DCM_CONVERT_MS_TO_MAIN_CYCLES(x) \
   ((x + DCM_MAIN_FUNCTION_PERIOD - 1u) / DCM_MAIN_FUNCTION_PERIOD)
 ```
 
-This ensures all internal timers operate in sync with the DCM’s periodic `Dcm_MainFunction()` call (typically every 10 ms).
+All internal timers therefore tick in sync with the periodic `Dcm_MainFunction()` call (typically every 10 ms).
 
-### JSON Configuration Example
+### JSON example
+
 ```json
 "timings": {
   "S3Server": 5000,
@@ -202,38 +187,40 @@ This ensures all internal timers operate in sync with the DCM’s periodic `Dcm_Ma
 }
 ```
 
-### Generated C Code Mapping
+### Generated C code
 
-The generator script (`Dcm.py`) emits the following structure initialization:
+[Dcm.py](../../tools/generator/Dcm.py) emits the row initializer in this order:
 
 ```c
 const Dcm_DslProtocolTimingRowType Dcm_DslProtocolTimingRow = {
   DCM_CONVERT_MS_TO_MAIN_CYCLES(5000u),   /* S3Server */
   DCM_CONVERT_MS_TO_MAIN_CYCLES(20u),     /* P2ServerAdjust */
-  DCM_CONVERT_MS_TO_MAIN_CYCLES(100u),    /* P2StarServerAdjust */
-  DCM_CONVERT_MS_TO_MAIN_CYCLES(20u),     /* P2ServerMax */
-  DCM_CONVERT_MS_TO_MAIN_CYCLES(150u)    /* P2StarServerMax */
+  DCM_CONVERT_MS_TO_MAIN_CYCLES(20u),     /* P2StarServerAdjust */
+  DCM_CONVERT_MS_TO_MAIN_CYCLES(50u),     /* P2ServerMax */
+  DCM_CONVERT_MS_TO_MAIN_CYCLES(150u)     /* P2StarServerMax */
 };
 ```
 
-### Parameter Roles
+### Parameter roles
 
 | Parameter | Default (ms) | Purpose |
-|---------|--------------|--------|
-| `S3Server` | `5000` | Time the ECU remains in a non-default session after the last diagnostic request. After this, it reverts to `DefaultSession`. |
-| `P2ServerMax` | `50` | Maximum time (excluding NRC 0x78) the server may take to respond to a standard diagnostic request. |
-| `P2StarServerMax` | `150` | Maximum time allowed for services that return **NRC 0x78 (ResponsePending)** before final response. |
-| `P2ServerAdjust` | `20` | Safety margin added to computed P2 timer to account for scheduling jitter. Rarely used in practice; often set to small value. |
-| `P2StarServerAdjust` | `20` | Similar safety margin for P2* timer. Helps avoid premature timeout during flash programming or complex routines. |
+| --- | --- | --- |
+| `S3Server` | 5000 | Time the ECU stays in a non-default session after the last request, then falls back to the default session |
+| `P2ServerMax` | 50 | Maximum response time for a standard request (time spent answering NRC 0x78 is excluded) |
+| `P2StarServerMax` | 150 | Maximum response time once the server has sent NRC 0x78 (ResponsePending) |
+| `P2ServerAdjust` | 20 | Safety margin added to the P2 timer for scheduling jitter |
+| `P2StarServerAdjust` | 20 | Safety margin for the P2* timer, used during flash programming and long routines |
 
-> ?? **Important**:  
-> - `P2StarServerMax` **must be ? actual longest handler execution time** (e.g., flash erase/write).  
-> - If a service exceeds `P2ServerMax`, it **must** first send `NRC 0x78` and then complete within `P2StarServerMax`.  
-> - All values are **statically resolved at build time**—no runtime configuration.
+> **Important**:
+>
+> * `P2StarServerMax` must be greater than or equal to the longest handler execution time (for example flash erase/write);
+> * if a service cannot finish within `P2ServerMax`, it must first send NRC 0x78 and then complete within `P2StarServerMax`;
+> * all values are resolved statically at build time; there is no runtime configuration.
 
-### Buffer Sizes
+### Buffer sizes
 
-Also defined in JSON under `"buffer"`:
+The `"buffer"` section sets the receive/transmit buffer sizes:
+
 ```json
 "buffer": {
   "rx": 576,
@@ -241,22 +228,17 @@ Also defined in JSON under `"buffer"`:
 }
 ```
 
-These sizes must accommodate:
-- Largest expected UDS request (including DID lists, memory addresses, etc.)
-- Largest possible positive/negative response
-- Dynamic DID definitions (which use TX buffer tail as temporary storage)
+The buffers must hold:
 
-Typical sizing:
-- `512–1024 bytes` for complex ECUs
-- Minimum recommended: `256 bytes`
+* the largest expected UDS request (DID lists, memory addresses and so on);
+* the largest possible positive or negative response;
+* dynamic DID definitions, which temporarily use the tail of the TX buffer.
 
-Buffers are declared as:
+Typical sizing ranges from 512 to 1024 bytes for complex ECUs; 256 bytes is the recommended minimum. The buffers are declared as:
+
 ```c
 static uint8_t rxBuffer[576];
 static uint8_t txBuffer[576];
 ```
 
-and referenced in `Dcm_Config`.
-
----
-
+and referenced from `Dcm_Config`.

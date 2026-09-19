@@ -1,112 +1,36 @@
 ---
 layout: post
-title: AUTOSAR NvM
+title: AUTOSAR Non-Volatile Memory (NvM / FEE)
 category: AUTOSAR
 comments: true
 ---
 
+# AUTOSAR Non-Volatile Memory (NvM / FEE)
 
-# AUTOSAR NvM Configuration Overview
+Virtually every embedded system needs storage for critical non-volatile data. There are many devices to choose from (TF/SD cards, NAND/NOR flash, ...); automotive electronics most commonly use EEPROM and flash.
 
-The **Non-Volatile Memory (NvM)** module in AUTOSAR manages persistent storage of critical data (e.g., DTCs, calibration parameters) across power cycles or ECU resets. This document provides configuration guidelines, JSON schema details, and best practices for defining NvM blocks and data elements, with a focus on DTC storage use cases.
+This article first covers the upper-layer NvM service (configuration and API), then the implementation of its flash backend Fee (Flash EEPROM Emulation).
 
----
+## 1. EEPROM vs. Flash
 
-## 1. Key Configuration Concepts
+Using an EEPROM is straightforward. In general both flash and EEPROM require an erase before writing (some modern EEPROMs allow byte-wise writes without erase). The smallest erasable unit of an EEPROM is typically 8-32 bytes, while a flash sector is much larger (512 bytes or more) and is always erased as a whole, which makes EEPROM-based software considerably simpler.
 
-### 1.1 Core Purpose of NvM
-- **Persistent Storage**: Ensures data (e.g., DTC statuses, fault counters) survives ECU resets or power loss.  
-- **Block-Based Management**: Organizes data into logical "blocks" with configurable repetition (for scalability).  
-- **Target Selection**: Supports two underlying storage targets:  
-  - `Fee`: Flash EEPROM Emulation (software-based non-volatile storage).  
-  - `Ea`: EEPROM Abstraction.  
+Take the common automotive mileage example: the total odometer takes 4 bytes, the trip meter 2 bytes, plus a 2-byte checksum - 8 bytes in total. On an EEPROM you might statically allocate 8 minimum erasable units starting at address 0 and rotate writes over them: on every cold start the software picks the maximum odometer value as the current one and therefore knows where the next write goes. In other words, EEPROM usage is typically "one or more fixed-address slots per data item".
 
----
+Flash is different. Its erase granularity is too large; some MCUs have only a handful of flash blocks and erasing a block wipes the whole block, so the EEPROM-style slot scheme is impractical. Instead, flash is used to emulate EEPROM, which in AUTOSAR is the job of the **Fee (Flash EEPROM Emulation)** module. (Some MCUs advertise an on-chip EEPROM and note that it is flash-emulated - usually the vendor simply implemented an algorithm like the one described here.)
 
-## 2. JSON Configuration Structure
+## 2. The NvM Service Layer
 
-### Example NvM Configuration (DTC Storage)
+NvM (NVRAM Manager) sits between the application and Fee/Ea and manages non-volatile data in units of "blocks": it maps logical blocks onto the underlying Fee (flash emulation) or Ea (real EEPROM abstraction) target and takes care of defaults, CRC and read/write job scheduling.
+
+### 2.1 JSON Configuration
+
+An NvM configuration example for DTC storage (complete file: [NvM.json](../../app/app/config/NvM/NvM.json)):
+
 ```json
 {
-  "class": "NvM",          // Fixed class identifier for NvM configurations
-  "target": "Fee",         // Underlying storage target ("Fee" or "Ea")
-  "blocks": [              // List of logical NvM blocks to manage
-    {
-      "name": "Dem_NvmEventStatusRecord{}",  // Block name (ends with "{}" if repeated)
-      "repeat": 8,         // Repeat this block 8 times (creates 8 instances)
-      "data": [            // Data elements within the block
-        { 
-          "name": "status", 
-          "type": "uint8", 
-          "default": "0x50"  // Default value (C initializer: 0x50)
-        },
-        { 
-          "name": "testFailedCounter", 
-          "type": "uint8", 
-          "default": 0       // Default value (C initializer: 0)
-        }
-      ]
-    },
-    // Additional blocks (e.g., for other DTC-related data)
-  ]
-}
-```
-
----
-
-## 3. Detailed Attribute Breakdown
-
-### 3.1 Top-Level Attributes
-| Attribute | Type       | Description                                                                 |
-|-----------|------------|-----------------------------------------------------------------------------|
-| `class`   | String     | Fixed value `"NvM"` (identifies the configuration type).                    |
-| `target`  | String     | Storage target: `"Fee"` (Flash EEPROM Emulation) or `"Ea"` (EEPROM Abstraction). |
-| `blocks`  | Array      | List of NvM blocks to manage (each block defines a logical data group).      |
-
----
-
-### 3.2 Block-Level Attributes
-Each block in `blocks` defines a group of related data elements (e.g., DTC status and counters).  
-
-| Attribute | Type       | Description                                                                 |
-|-----------|------------|-----------------------------------------------------------------------------|
-| `name`    | String     | Logical name of the block. If `repeat` is used, the name **must end with `{}`** (e.g., `Dem_NvmEventStatusRecord{}`). |
-| `repeat`  | Integer    | Optional. Number of times to repeat the block (creates `repeat` instances, e.g., `repeat: 8` generates `Dem_NvmEventStatusRecord0` to `Dem_NvmEventStatusRecord7`). |
-| `data`    | Array      | List of data elements within the block (defines the structure of the block). |
-
----
-
-### 3.3 Data Element Attributes
-Each data element within a block defines a specific piece of stored data (e.g., `status` or `testFailedCounter`).  
-
-| Attribute | Type       | Description                                                                 |
-|-----------|------------|-----------------------------------------------------------------------------|
-| `name`    | String     | Name of the data element. If `repeat` is used, the name **must end with `{}`** (e.g., `status{}`). |
-| `repeat`  | Integer    | Optional. Number of times to repeat the data element within the block (creates `repeat` copies, e.g., `repeat: 2` generates `status[2]`). |
-| `type`    | String     | Data type. Supported types: <br>- Scalar: `int8`, `int16`, `int32`, `uint8`, `uint16`, `uint32` <br>- Array: `int8_n`, `int16_n`, `int32_n`, `uint8_n`, `uint16_n`, `uint32_n` (requires `size` attribute). |
-| `size`    | Integer    | Required for array types (e.g., `uint8_5` defines an array of 5 `uint8` elements). |
-| `default` | String     | Default value (evaluated as a Python expression; used to initialize the C variable). |
-
----
-
-### 3.4 Block-Level Attribute: NumberOfWriteCycles
-The `NumberOfWriteCycles` attribute specifies the maximum number of times a block can be written during its lifetime. This is critical for Flash-based storage (Fee target) where each block has a limited number of write/erase cycles.
-
-| Attribute | Type       | Description                                                                 |
-|-----------|------------|-----------------------------------------------------------------------------|
-| `NumberOfWriteCycles` | Integer | Optional. Maximum write cycles per block. **Default: 10,000,000** (10 million). |
-
-#### Key Considerations:
-- **Flash Wear Leveling**: Flash memory has a finite number of erase cycles (typically 100,000 to 1,000,000 cycles per sector). FEE manages this by distributing writes across multiple banks.
-- **Application-Specific Values**: Set realistic values based on your application requirements:
-  - **Odometer**: If max value is 100,000 km with 0.1 km resolution ¡ú 1,000,000 write cycles.
-  - **DTC Status**: Written when a fault occurs ¡ú depends on fault rate (e.g., 100,000 cycles).
-  - **Configuration Data**: Rarely changed ¡ú 10,000 cycles may suffice.
-- **Default Value**: If not specified, the generator uses `10,000,000` as a conservative default.
-
-#### Example with NumberOfWriteCycles:
-```json
-{
+  "class": "NvM",
+  "target": "Fee",
   "blocks": [
     {
       "name": "Dem_NvmEventStatusRecord{}",
@@ -116,247 +40,197 @@ The `NumberOfWriteCycles` attribute specifies the maximum number of times a bloc
         { "name": "status", "type": "uint8", "default": "0x50" },
         { "name": "testFailedCounter", "type": "uint8", "default": 0 }
       ]
-    },
-    {
-      "name": "Dem_NvmPrimaryFreezeFrameRecord{}",
-      "repeat": 3,
-      "NumberOfWriteCycles": 1000000,
-      "data": [
-        { "name": "timestamp", "type": "uint32", "default": 0 },
-        { "name": "value", "type": "uint32", "default": 0 }
-      ]
     }
   ]
 }
 ```
 
----
+Top-level attributes:
 
-## 5. Flash Life Cycle Calculation
+| Attribute | Description |
+| --- | --- |
+| `class` | Fixed value `"NvM"` |
+| `target` | Storage target: `"Fee"` (flash emulation) or `"Ea"` (EEPROM abstraction) |
+| `blocks` | List of logical blocks |
 
-### 5.1 Overview
-For vehicle applications requiring 10-year persistence, it is critical to validate that the FEE configuration can sustain the expected number of write cycles without exceeding the Flash memory's maximum erase cycles.
+Block-level attributes:
 
-### 5.2 Life Cycle Calculator Tool
-The [FeeLifeCycle.py](../../tools/utils/memory/FeeLifeCycle.py) script calculates the worst-case backup rounds for a given FEE configuration. This helps ensure the Flash memory will last for the required lifetime.
+| Attribute | Description |
+| --- | --- |
+| `name` | Block name; when used with `repeat` it must end with `{}` (generates `Record0` ... `Record7`) |
+| `repeat` | Optional, number of block instances |
+| `NumberOfWriteCycles` | Optional, maximum writes over the block's lifetime, **default 10,000,000**; used for the life-cycle calculation |
+| `data` | List of data elements inside the block |
 
-#### Usage:
-```bash
-# Basic usage
-python FeeLifeCycle.py app/app/config/NvM/NvM.json
+Data element attributes:
 
-# With verbose output
-python FeeLifeCycle.py app/app/config/NvM/NvM.json -v
+| Attribute | Description |
+| --- | --- |
+| `name` | Element name; arrays end with `{}` |
+| `repeat` | Optional, number of copies of the element |
+| `type` | Scalars: `int8/int16/int32/uint8/uint16/uint32/uint64`; arrays: `<type>_n` together with `size`, e.g. `uint8_n` |
+| `size` | Number of array elements |
+| `default` | Default value, evaluated as a Python expression (`"0x50"`, `"[0xFF]*13"`, ...); used to initialize the ROM defaults |
 
-# Custom bank configuration
-python FeeLifeCycle.py app/app/config/NvM/NvM.json --block_size "32*1024" --num_of_banks 4 -v
+The [NvM.py](../../tools/generator/NvM.py) generator reads the JSON and emits the block configuration C code (per-block size, write-cycle limit, ROM defaults), expanding `repeat` into concrete instance names.
+
+### 2.2 Main APIs
+
+NvM jobs are asynchronous: an API call only queues the request, `NvM_MainFunction` drives the processing, and the outcome is polled with `NvM_GetErrorStatus` (see [NvM.h](../../infras/include/NvM.h)):
+
+```c
+void NvM_Init(const NvM_ConfigType *ConfigPtr);
+
+Std_ReturnType NvM_ReadBlock(NvM_BlockIdType BlockId, void *NvM_DstPtr);   /* returns ROM default if invalid */
+Std_ReturnType NvM_WriteBlock(NvM_BlockIdType BlockId, const void *NvM_SrcPtr);
+Std_ReturnType NvM_RestoreBlockDefaults(NvM_BlockIdType BlockId, void *NvM_DstPtr);
+Std_ReturnType NvM_EraseNvBlock(NvM_BlockIdType BlockId);
+Std_ReturnType NvM_InvalidateNvBlock(NvM_BlockIdType BlockId);
+Std_ReturnType NvM_SetRamBlockStatus(NvM_BlockIdType BlockId, boolean BlockChanged);
+Std_ReturnType NvM_GetErrorStatus(NvM_BlockIdType BlockId, NvM_RequestResultType *RequestResultPtr);
+
+void NvM_ReadAll(void);    /* bulk read of all blocks at startup */
+void NvM_WriteAll(void);   /* bulk write-back of all blocks before shutdown */
+void NvM_FirstInitAll(void);
+void NvM_MainFunction(void);   /* must be called periodically */
 ```
 
-#### Parameters:
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `config` | Path to NvM.json configuration file | (required) |
-| `-v` / `--verbose` | Enable detailed output | False |
-| `--block_size` | Bank size in bytes (supports expressions like "32*1024") | 32768 (32KB) |
-| `--page_size` | Flash page size in bytes | 8 |
-| `--num_of_banks` | Number of banks (2 or 4) | 2 |
+## 3. FEE Fundamentals
 
-### 5.3 Calculation Algorithm
-The tool considers two scenarios to determine the worst-case backup rounds:
-
-#### Scenario A - Per-Block Sum:
-Each block can be written independently. For each block:
-- **First Phase**: When the bank is empty, it can fit `N` copies of the block.
-- **Subsequent Phases**: After each backup, the new bank contains one copy of all blocks. The remaining space determines how many additional writes can fit before another backup is needed.
-- **Total Rounds**: Sum of rounds for all blocks, divided by the number of banks.
-
-#### Scenario B - Accumulated Total:
-All blocks contribute to filling the bank simultaneously. The total data written across all blocks determines the backup rounds.
-
-#### Final Result:
-The maximum of both scenarios gives the worst-case per-bank backup rounds. This value must be **less than the Flash's maximum erase cycles** (typically 100,000 to 1,000,000).
-
-### 5.4 Example Analysis
-
-**Test Configuration:**
-- Bank Size: 32KB, 2 banks
-- Block A: 2KB data, NumberOfWriteCycles=100
-- Block B: 4KB data, NumberOfWriteCycles=200
-
-**Calculation:**
-```
-Effective Bank Size: 28648 bytes
-Total Space per all blocks: 6192 bytes
-Remaining Space After Backup: 22456 bytes
-
-Block A:
-  firstPhaseWrites = 28648 // 2072 = 13
-  subsequentWrites = 22456 // 2072 = 10
-  rounds_A = ceil((100 - 13) / 10) = 9
-
-Block B:
-  firstPhaseWrites = 28648 // 4120 = 6
-  subsequentWrites = 22456 // 4120 = 5
-  rounds_B = ceil((200 - 6) / 5) = 39
-
-Scenario A (Per-Block Sum): (9 + 39) // 2 = 24
-Scenario B (Accumulated): 45 // 2 = 22
-
-MAXIMUM BACKUP ROUNDS (Worst Case): 24
-```
-
-**Interpretation:** With 2 banks, each bank will be erased approximately 24 times. If the Flash supports 100,000 erase cycles, the configuration is safe.
-
-### 5.5 Best Practices
-
-1. **Set Realistic Write Cycles**:
-   - Avoid using the default 10,000,000 for blocks that don't need it.
-   - Calculate based on expected usage: `Write Cycles = Expected Writes per Day ¡Á 365 ¡Á Lifetime (years) ¡Á Safety Factor (2-10)`
-
-2. **Distribute Writes**:
-   - Avoid having one block with significantly more writes than others.
-   - If possible, split high-write data across multiple blocks.
-
-3. **Choose Appropriate Bank Size**:
-   - **Larger banks are generally preferred**: Reduce backup frequency, which minimizes Flash erase cycles and extends Flash lifetime.
-   - **Trade-off**: Larger banks increase erase time (longer backup operations).
-   - **Smaller banks**: Increase backup frequency (more erase cycles), which reduces Flash lifetime but allows finer granularity and faster erase operations.
-
-4. **Validate Regularly**:
-   - Re-run the life cycle calculator whenever the NvM configuration changes.
-   - Include in CI/CD pipeline to catch potential issues early.
-
-5. **Consider 10-Year Vehicle Lifespan**:
-   - Most automotive applications require 10-year persistence.
-   - Ensure calculated backup rounds are well below Flash erase limits.
-
----
-
-## 4. Generator Tool
-
-The [NvM Generator](../../tools/generator/NvM.py) converts the JSON configuration into C code that initializes NvM blocks and data elements. Key features:  
-- Validates JSON syntax and attribute compliance (e.g., ensures `repeat` is used correctly).  
-- Generates type-safe C structures (e.g., `Dem_NvmEventStatusRecord0` for repeated blocks).  
-- Auto-populates default values (using Python `eval` to resolve expressions like `"0xFF * 2"`).  
-- Supports `NumberOfWriteCycles` attribute with default value of 10,000,000.  
-
----
-
-# 2 NvM backend FEE
-
-I believe the vast majority of embedded systems require storage space for critical non-volatile data, and there are quite a few storage devices to choose from, such as TF/SD cards, NAND/NOR FLASH, etc. Automotive electronics commonly use EEPROM and FLASH.
-
-
-Using EEPROM is a common approach. Generally, both FLASH and EEPROM require an erase operation before writing data, but some EEPROMs now do not require erasure, data can be written directly with a command. However, more often than not, an erase-write operation is performed before writing to ensure safety. Typically, the minimum erasable unit for EEPROM is 8 to 32 bytes, while for FLASH it is much larger (possibly over 512 bytes). This is why using EEPROM is simpler, and the software is less complex.
-
-
-For example, consider automotive data that needs to be stored, such as mileage information (total odometer and trip meter). The total odometer requires 4 bytes, the trip meter requires 2 bytes, and 2 bytes for a checksum, totaling 8 bytes. Fully accounting for the service life of EEPROM, 8 minimum erasable units starting from address 0 in EEPROM might be allocated fixedly for its storage. This way, the software can find the maximum total odometer value as the current value upon each cold start and know the next data update address, thus cyclically using these 8 units to store mileage information. The software is incredibly simple, meaning EEPROM usage is often a data point or multiple fixed-address "slots."
-
-
-However, FLASH is not so simple. Its minimum erasable unit is too large, if you tried a "one slot per data point" approach, well, it's basically unworkable. Some MCU controllers may only have a few internal FLASH blocks, and erasing a block requires erasing the entire block. Thus, the EEPROM-like usage method becomes impractical. This is where a different approach comes in, commonly called **emulating EEPROM with FLASH**. Hence, in AUTOSAR, there is a module called `Fee` (Flash Emulation Eeprom). By the way, some MCU controllers claim to have on-chip EEPROM but note that it is emulated with FLASH. Personally, I think this means the MCU implements a simple algorithm to achieve this function, we won't delve into that here.
-
-
-This article will introduce the specific implementation of [as/infras/memory/Fee](../../infras/memory/Fee). First, let's cover the basic principle of FEE, as shown in the figure below:
-
+The implementation lives in [infras/memory/Fee](../../infras/memory/Fee). The basic principle is shown below:
 
 ![autosar-fee-mapping.png](../images/autosar-fee-mapping.png)
-<center> Fig. 1 AUTOSAR FEE Principle Diagram </center>
+<center> Fig. 1 AUTOSAR FEE principle </center>
 
+The figure shows EEPROM emulation with 2 flash blocks; at any time one block is idle (the scheme works the same with 3 or more blocks). When the system is fresh, both blocks are empty and the software starts with BANK0. Because the block is empty, it is trivial to locate the bottom of the next ID field and the top of the next DATA field:
 
-The figure above shows the process of emulating EEPROM using 2 FLASH blocks. During use, there will always be one FLASH block idle. Of course, the process of emulating EEPROM with 3 or more FLASH blocks is similar. When the system is just ready, both FLASH blocks are definitely empty with no data. At this time, the software will use `BANK0` to store data. Since it's empty, the software can easily know the bottom address of the **ID field** and the top address of the **DATA field** of the next data block to be written. Typically:  
-- The **ID field** of a data block contains at least the data code number and data address information (fixed size/structure).  
-- The **DATA field** varies in size and structure.  
+* **ID field**: holds at least the block number and data address information; fixed size and layout;
+* **DATA field**: variable size and layout; a CRC/checksum can be appended for integrity.
 
-Figure 1 Group1 shows the state after sequentially updating/writing Data Block 0 -> Data Block 1 -> Data Block 2 -> and re-writing Data 0. You can see storage space is dynamically allocated for each data block to be updated in order. Upon a cold start, the system can find the latest valid data via the data block ID field, quite a clever method. It converges from both ends to the middle; although the DATA field size may vary per block, dynamic allocation ensures no space is wasted.  
+Group 1 in Fig. 1 shows the state after writing block 0, 1, 2 and then block 0 again: storage is allocated dynamically in write order, and on a cold start the latest valid copy of every block is found through its ID field. The ID area grows upward and the DATA area grows downward toward the middle; since allocation is dynamic, no space is wasted even though the data sizes differ.
 
-Figure 1 Group2 shows that when the ID and DATA fields converge and there's no extra space left in `BANK0`, the software will back up all the latest data blocks to `BANK1`. Then, as shown in Figure 1 Group3, `BANK0` will be erased for reuse when `BANK1` runs out of memory next time. Of course, checksum codes (CRC or checksum) can be stored in the DATA field to ensure data integrity.
+Group 2: when the two areas meet and BANK0 runs out of space, the software compacts (backs up) the newest copy of every block into BANK1; as shown in Group 3, BANK0 is then erased and becomes the spare for the next swap when BANK1 fills up.
 
+This FEE implementation uses the in-house [factory library](../../infras/libraries/factory) to split the complex flow into explicit state machines; the steps of each state are defined in [factory.json](../../infras/memory/Fee/factory.json). FEE has 4 working states (4 state machines):
 
-Okay, the above is just the basic principle. In reality, implementing such a module is by no means simple. After completing the development of this module, I even felt it was the most complex module among all AUTOSAR CP modules. If you can implement such a module and withstand stress tests (sudden power loss), you'll have a sense of accomplishment. But regardless, complex functions can be less daunting if broken down into simple steps.
+* Initialization (Init)
+* Read (Fee_Read)
+* Write (Fee_Write)
+* Backup
 
+### 3.1 Initialization (Fee_Init)
 
-First, FEE has roughly 4 working states:  
-- Initialization (`Fee_Init`)  
-- Read Data (`Fee_Read`)  
-- Write Data (`Fee_Write`)  
-- Data Backup (`Backup`)  
-
-
-This FEE implementation uses a self-developed [factory](../../infras/libraries/factory) to better manage these working states. [factory.json](../../infras/memory/Fee/factory.json) defines the steps for each working state in detail.
-
-
-## 1. Initialization (`Fee_Init`)  
-Typically, initialization involves traversing the **Admin** (administration metadata) of all FEE Banks to determine the **active bank** (the bank currently usable for writing/reading data). Considering sudden power loss, initialization also checks if the current bank has enough remaining space for new data. If not, it enters the data backup state. Below is the migration diagram of steps in the initialization working state:  
-
+Initialization traverses the admin area of every FEE bank to determine the active bank (the bank currently used for reading and writing). With sudden power loss in mind, it must also check whether the active bank has enough free space for new data; if not, it enters the backup flow.
 
 ![fee-init.png](../images/fee-init.png)
-<center> Fig. 1 FEE Initialization </center>  
+<center> Fig. 2 FEE initialization </center>
 
-
-Referencing [Fee_Priv.h](../../infras/memory/NvM/NvM_Priv.h), the definition of `Fee_BankAdminType` is as follows. It mainly includes three parts:  
+The `Fee_BankAdminType` layout in [Fee_Priv.h](../../infras/memory/Fee/Fee_Priv.h) consists of three parts:
 
 ```c
  High: | Full Magic | ~ Full Magic | <- Status -\
        | Number     | ~ Number     | <- Info     + <- Bank Admin
  Low:  | FEE Magic  | ~ FEE Magic  | <- Header -/
-```  
+```
 
-- **Header - FEE Magic Number**: Identifies that this is a Flash Bank correctly managed by FEE.  
-- **Info - Number**: Records how many times this Flash Bank has been erased/written. When it reaches a threshold, the bank is end-of-life (no more erasures/writes).  
-- **Status - Full Magic**: Defaults to a blank state. When the bank has no available space, `Full Magic` is written during backup initiation.  
+* **Header - FEE Magic**: identifies a flash bank correctly managed by FEE (ASCII `"FEEF"` in code);
+* **Info - Number**: records how many times this bank has been erased; when it reaches the threshold (`FEE_MAX_ERASED_NUMBER`, default 1,000,000) the bank is end-of-life;
+* **Status - Full Magic**: blank by default (`0xFFFFFFFF`); when the bank runs out of space and a backup starts, the full marker (ASCII `"DEAD"`, see `FEE_BANK_FULL_MAGIC`) is written.
 
+The three parts live in three different pages so each can be written independently without corrupting the others on power loss.
 
-Note: The three parts of Bank Admin (Header, Info, Status) are stored in **three separate pages** to ensure they can be written independently.
+Initialization steps (the Init machine in [factory.json](../../infras/memory/Fee/factory.json)):
 
+1. Start with BankID = 0;
+2. **ReadBankAdmin**: read the admin of the bank pointed to by BankID and the first block (page) right after the admin;
+3. Verify the Header FEE Magic; if correct go to step 5;
+4. **EraseInvalidBank**: erase the bank, go to step 7;
+5. **BlankCheckInfo**: run `Fls_BlankCheck` on the admin Info to determine its state; if blank, treat it as `FLS_ERASED_VALUE`;
+6. **BlankCheckBlock**: run `Fls_BlankCheck` on the first block (page) to determine whether the bank is empty; if blank, treat the block as `FLS_ERASED_VALUE`.
 
-### Initialization Steps  
-1. **Initialize**: Start with `BankID = 0`.  
-2. **ReadBankAdmin**: Read the Admin of the bank pointed to by `BankID` and the data of the first Block (page) immediately after the Admin.  
-3. **Check Header Magic**: Verify if the `FEE Magic Number` in the Admin is correct. If yes, jump to Step 5.  
-4. **Erase Bank**: Erase the bank pointed to by `BankID`, then jump to Step 7.  
-5. **BlankCheckInfo**: Perform `Fls_BlankCheck` on the `Info` field of the Admin to confirm its state. If empty, fill the read `Info` with `FLS_ERASED_VALUE`.  
-6. **BlankCheckBlock**: Perform `Fls_BlankCheck` on the first Block (page) to confirm if the bank is empty. If yes, fill the read Block with `FLS_ERASED_VALUE`.  
+   > `Fls_BlankCheck` is optional. It exists for flashes whose erased state is not reliably `FLS_ERASED_VALUE` (0xFF), e.g. TC387, so that valid data can be distinguished from a freshly erased state.
 
-   > **Note**: `Fls_BlankCheck` is optional, used for those ECUs where Flash does not retain a constant `FLS_ERASED_VALUE` after erasure (e.g., TC387). It ensures whether the read `Info`/Block is valid data or just erased space.  
+7. Increment BankID; once all bank admins are read go to the next step, otherwise back to step 2;
+8. **CheckBankInfo**: validate the Number in every admin; if invalid, write the known maximum Number (covers power loss while rewriting the admin);
+9. **CheckBankMagic**: look for an illegal magic (a just-erased bank) and write a valid one if needed;
+10. **GetWorkingBank**: traverse all admins to find the active bank; a bank marked full takes priority;
+11. **SearchFreeSpace**: walk the existing data in the active bank to locate the newest valid data and the free-space boundary. If the remaining space cannot hold the largest block (`FEE_MIN_FREE_SPACE`), start a backup; otherwise initialization is done.
 
-7. **Increment BankID**: If all banks' Admin have been read, proceed to the next step; otherwise, jump back to Step 2.  
-8. **CheckBankInfo**: Validate the `Info` in all read Admin data. If invalid, write the known maximum `Number`.  
+### 3.2 Reading (Fee_Read)
 
-   > **Note**: Accounts for sudden power loss during Admin erasure/writing.  
+The Read machine has just two nodes, **ReadData** and **SearchNext**:
 
-9. **CheckBankMagic**: Check for illegal Magic (banks just erased). If found, write valid Magic.  
-10. **GetWorkingBank**: Traverse all banks' Admin to find the active bank. Banks marked as "full" are prioritized.  
-11. **SearchFreeSpace**: Traverse data in the active bank to find valid addresses of existing data until free space is found. Check if remaining space is sufficient. If not, start backup; otherwise, initialization is complete.  
+1. **ReadData**: read the newest copy at the address recorded in the block context through Fls (with `FLS_DIRECT_ACCESS` it is a direct memory access). Each record carries a CRC16 and its bitwise inverse at the tail; the inverse is checked first and the CRC16 is then recomputed. Only when both pass is the data copied to the caller;
+2. **SearchNext**: if that copy has a bad CRC (power-loss corruption), its address is invalidated and the search continues toward the beginning of the bank for the next (older) valid copy of the same BlockNumber, then ReadData runs again;
+3. If no valid copy exists anywhere in the bank, the block's **ROM default** (the configured `default`) is returned and the job completes successfully.
 
+### 3.3 Writing (Fee_Write)
 
-## 2. Read Data (`Fee_Read`)  
-Too simple, too lazy to describe.  
+The Write machine has three nodes, **WriteCheckDataChanged / WriteAdmin / WriteData**:
 
+1. **WriteCheckDataChanged**: if a previous copy exists, read the old data, verify its CRC and compare it byte by byte with the new payload. **If nothing changed the job ends immediately** - no flash is consumed, minimizing wear. Old data with a broken CRC is treated as "must rewrite";
+2. **WriteAdmin**: check whether the space left between the ID area and the DATA area can hold "block admin plus aligned data" (`FEE_BLOCK_ADMIN_AND_DATA_SIZE`). If yes, write the block admin (BlockNumber, ...) from the ID side. If not, trigger the Backup machine to compact/swap banks and then continue;
+3. **WriteData**: write the payload from the DATA side (2-byte aligned, with CRC16 and its inverse appended), then update the newest-address record in the block context.
 
-## 3. Write Data (`Fee_Write`)  
-Too simple, too lazy to describe.  
-
-
-## 4. Data Backup (`Backup`)  
-
+### 3.4 Backup
 
 ![fee-backup.png](../images/fee-backup.png)
-<center> Fig. 2 FEE Data Backup </center>  
+<center> Fig. 3 FEE data backup </center>
 
+Backup machine nodes (14 nodes in factory.json):
 
-1. **ReadAdmin**: Read the Admin of the current bank and the data of the first Block (page) after the Admin.  
-2. **CheckBankStatus**: Perform `Fls_BlankCheck` on the `Status` field of the Admin. If empty, fill the read `Status` with `FLS_ERASED_VALUE`.  
-3. **EnsureFull**: Check if `Status` is `FLS_ERASED_VALUE`. If yes, write `FULL_MAGIC` ("DEAD") to mark the bank as full.  
-4. **ReadNextBankAdmin**: Read the Admin of the next Flash bank and the data of the first Block (page) after its Admin.  
-5. **BlankCheckNextBankEmpty**: Perform `Fls_BlankCheck` on the first Block (page) of the next bank. If empty, proceed to Step 6; otherwise, Step 8.  
-6. **EraseNextBank**: Erase the next Flash bank.  
-7. **SetNextBankAdmin**: Configure valid Admin for the next bank.  
+1. **ReadAdmin**: read the current bank's admin and its first block;
+2. **CheckBankStatus**: BlankCheck the admin Status; if blank treat it as `FLS_ERASED_VALUE`;
+3. **EnsureFull**: when Status is blank, write `FULL_MAGIC` ("DEAD") to mark the current bank as full;
+4. **ReadNextBankAdmin**: read the next bank's admin and its first block;
+5. **BlankCheckNextBankEmpty**: BlankCheck the first block of the next bank to see whether it is empty;
+6. **EnsureNextBankEmpty**: confirm the next bank is in a blank state ready to receive the backup;
+7. **EraseNextBank**: erase the next bank;
+8. **SetNextBankAdmin**: write a valid admin into the next bank.
 
-   > **Note**: Steps 6-7 account for sudden power loss during backup. Without traversing the next bank's data, you can't resume where you left off. Since power loss is rare, we simplify by erasing and restarting.  
+   > Steps 7-8 cover power loss during backup: after a reset there is no way to tell how far the copy progressed, and since power loss is rare the implementation keeps things simple by erasing and starting over.
 
-8. **CopyAdmin**: Loop through data blocks with valid data at legal addresses and write to the next bank's Admin.  
-9. **CopyReadData**: Read data from the legal address. If CRC is valid, proceed to Step 11.  
-10. **SearchNextData**: Search for valid data in the current bank.  
-11. **CopyData**: Write valid data. If backup is incomplete, return to Step 8.  
-12. **EraseBank**: Erase the current bank.  
-13. **SetBankAdmin**: Write valid Admin to the current bank.
+9. **CopyAdmin**: loop over every block that still has valid data and write a new block admin;
+10. **CopyReadData**: read the data at the current bank's valid address; if the CRC is good go to step 12;
+11. **SearchNextData**: keep scanning the current bank for the next valid record;
+12. **CopyData**: write the valid data into the new bank; if more blocks remain go back to step 9;
+13. **EraseBank**: after the full copy, erase the current (full) bank;
+14. **SetBankAdmin**: write a valid admin into the erased bank, making it the new spare.
+
+## 4. Flash Life-Cycle Calculation
+
+Vehicle applications usually require 10+ years of data retention, so the bank erase count under a given FEE configuration must stay below the flash endurance limit (typically 100k to 1M cycles).
+
+[FeeLifeCycle.py](../../tools/utils/memory/FeeLifeCycle.py) computes the worst-case backup (erase) rounds from the block sizes and `NumberOfWriteCycles` in NvM.json:
+
+```bash
+# basic usage
+python tools/utils/memory/FeeLifeCycle.py app/app/config/NvM/NvM.json
+
+# verbose output
+python tools/utils/memory/FeeLifeCycle.py app/app/config/NvM/NvM.json -v
+
+# custom bank parameters
+python tools/utils/memory/FeeLifeCycle.py app/app/config/NvM/NvM.json --block_size "32*1024" --num_of_banks 4 -v
+```
+
+Parameters:
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `config` | Path to NvM.json | required |
+| `-v/--verbose` | Print the detailed calculation | off |
+| `--block_size` | Bank size (expressions allowed) | `32*1024` (32 KB) |
+| `--page_size` | Flash page size in bytes | 8 |
+| `--num_of_banks` | Number of banks | 2 |
+
+The tool estimates the worst-case backup rounds from two angles and takes the maximum:
+
+* **Scenario A (per-block sum)**: each block is written independently; for each block it computes how many copies fit into an empty bank initially and how many additional writes fit after each backup, then sums the rounds and divides by the number of banks;
+* **Scenario B (accumulated total)**: writes of all blocks consume the bank together; rounds are derived from the accumulated data volume.
+
+Practical advice:
+
+* Size `NumberOfWriteCycles` to the real requirement (expected writes per day x 365 x lifetime in years x a safety factor of 2-10); do not blindly keep the 10-million default;
+* Larger banks mean fewer backups/erases and longer life, but each backup takes longer; balance against erase time;
+* Rerun the calculator whenever the NvM configuration changes; consider adding it to the CI checks.

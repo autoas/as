@@ -1,10 +1,19 @@
-## UIVIC
+---
+layout: post
+title: UIVIC Virtual Instrument Cluster
+category: Tools
+comments: true
+---
 
-What is UIVIC? UIVIC is a QT GUI based Virtual Instrusment Cluster I implemeted to simulate telltales and gauges.
+# UIVIC Virtual Instrument Cluster
 
-Default, this UIVIC is a backend GUI for CanIC, but this is just simulation, the data exchange between CanIC and UIVIC is based on SOMEIP.
+UIVIC is a Qt GUI based **Virtual Instrument Cluster** implemented to simulate vehicle telltales and gauges.
 
-follow below command to build and run, please note better to disable any vbox related adapter.
+By default UIVIC acts as the backend GUI for the CanIC demo application. This is only a simulation: the data exchange between CanIC and UIVIC runs over SOME/IP.
+
+## 1. Build and Run
+
+Follow the commands below. It is recommended to disable any VirtualBox related network adapter before running.
 
 ```sh
 # build
@@ -21,23 +30,19 @@ asone.exe
 
 cd tools\asone
 python main.py
-# in the CAN pannel, open the CAN0, then switch to COM, press key 'x' to request
-# the CanIC to enter Network mode, you can see the TxMsgTime changed each second
-# goto RxMsgAbsInfo, you can use it to control the gauge pointer of UIVIC.
+# In the CAN panel, open CAN0, then switch to COM and press key 'x' to request
+# CanIC to enter Network mode. You can see TxMsgTime change every second.
+# Go to RxMsgAbsInfo and use it to control the gauge pointer of UIVIC.
 ```
 
-![CANIC](../images/uivic-canic-demo.png)
+![CanIC and UIVIC demo](../images/uivic-canic-demo.png)
 
-For more details, reading the related source code.
+## 2. Source Code
 
-[Swc_Telltale.c](../../app/app/config/SWC/Telltale/Swc_Telltale.c)
+For more details, read the related source code:
 
-[Swc_Gauge.c](../../app/app/config/SWC/Gauge/Swc_Gauge.c)
-
-[SOMEIP server on CanIC](../../tools/asone/src/ui/vic/server.cpp)
-
-[SOMEIP client on UIVIC](../../tools/asone/src/ui/vic/client.cpp)
-
-[UIVIC](../../tools/asone/src/ui/UIVIC.cpp)
-
-
+- [Swc_Telltale.c](../../app/app/config/SWC/Telltale/Swc_Telltale.c) - telltale software component
+- [Swc_Gauge.c](../../app/app/config/SWC/Gauge/Swc_Gauge.c) - gauge software component
+- [SOME/IP server on CanIC](../../tools/asone/src/ui/vic/server.cpp)
+- [SOME/IP client on UIVIC](../../tools/asone/src/ui/vic/client.cpp)
+- [UIVIC main window](../../tools/asone/src/ui/UIVIC.cpp)

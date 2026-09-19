@@ -5,10 +5,14 @@ category: Crypto
 comments: true
 ---
 
-## How to create CA(x.509)
+# How to create CA(x.509)
+
+This guide shows how to create an X.509 root CA, an intermediate CA and signed server certificates with OpenSSL. The generated PEM files can be embedded into the [TLS](TLS.md) configuration (`ServerCerts`, `CasCerts` and `ServerKey` in `TLS.json`).
+
+References:
 
  * https://zhuanlan.zhihu.com/p/492475360 : how to create x.509
- *    C:/Anaconda3/Library/ssl openssl.cnf
+ * OpenSSL config example: `C:/Anaconda3/Library/ssl/openssl.cnf`
 
 ### How to create ROOT CA
 
@@ -48,3 +52,7 @@ openssl x509 -in AS_Root_CA.crt -outform der -out AS_Root_CA.der
 
 openssl verify -trusted ../AS_Root_CA.crt AS_RSA_ICA1.crt
 ```
+
+### Use the certificates with TLS
+
+Export the server certificate, the CA chain and the server private key as PEM files, place them next to `TLS.json` (for example in a `Cert/` folder) and reference them from the TLS configuration. The TLS generator embeds the PEM content as C strings, so no file system is needed on the target. See [TLS](TLS.md) for details.

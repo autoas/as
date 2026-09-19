@@ -1,130 +1,121 @@
 ---
 layout: post
-title: AUTOSAR LinIf
+title: AUTOSAR LinIf Configuration
 category: AUTOSAR
 comments: true
 ---
 
 # AUTOSAR LinIf Configuration Overview
 
-The **LIN Interface (LinIf)** in AUTOSAR is a middleware layer that manages communication between the LIN (Local Interconnect Network) bus and higher-level software modules (e.g., Com, LinTp). This document provides configuration guidelines, JSON examples, and architectural insights for setting up LinIf in both master and slave node scenarios.
+The LIN Interface (LinIf) manages communication between the LIN bus and the upper-layer modules (Com for signal exchange, LinTp for segmented transfer). It sits on top of the Lin driver and provides schedule-table handling, frame transmission/reception and the hooks needed by LinTp. The configuration is consumed by [LinIf.py](../../tools/generator/LinIf.py).
 
----
+## 1. Core configuration principles
 
-## 1. Core Configuration Principles
+* define the LIN network parameters (network name, self node, LDF file, timeout);
+* keep the same network/LDF referenced by the Com configuration so that signal routing stays consistent;
+* add LinTp when segmented diagnostics (for example UDS over LIN) are needed.
 
-LinIf acts as a bridge between the LIN physical layer (managed by the `Lin` driver) and upper layers (e.g., `Com` for data routing, `LinTp` for transport protocol handling). Key configuration steps include:  
-- Defining LIN network parameters (e.g., LDF file, timeout).  
-- Integrating with `Com` for signal-based communication.  
-- Configuring `LinTp` (LIN Transport Protocol) for segment-based data transfer.  
+## 2. LinIf configuration example
 
----
+Each entry in `networks` describes one LIN network:
 
-## 2. LinIf Configuration Example
-
-A typical LinIf configuration defines one or more LIN networks, specifying their properties and associated LDF (LIN Description File).
-
-### Example LinIf JSON Configuration:
 ```json
 {
-  "class": "LinIf",          // Fixed class name for LinIf configuration
-  "networks": [              // List of LIN networks managed by LinIf
+  "class": "LinIf",
+  "networks": [
     {
-      "name": "LIN0",        // Logical name for the LIN network (user-defined)
-      "me": "AS",            // The self node name
-      "timeout": 100,        // Timeout in ms for LIN operations (adjust per use case)
-      "ldf": "LIN0.ldf"      // Path to the LIN Description File (defines PDU structure)
+      "name": "LIN0",
+      "me": "AS",
+      "timeout": 100,
+      "ldf": "LIN0.ldf"
     }
   ]
 }
 ```
 
----
+* `name` - logical network name (user defined);
+* `me` - name of the local (self) node;
+* `timeout` - LIN frame timeout in milliseconds;
+* `ldf` - path to the LIN Description File defining the frames and signals.
 
-## 3. Integrating with Com Module
+## 3. Integration with the Com module
 
-The `Com` module handles signal-based communication over LIN. Its configuration must reference the same LIN network defined in LinIf to ensure proper routing.
+Com performs signal-based communication over LIN. Its network entry must use the same `name` and `ldf` as LinIf:
 
-### Example Com JSON Configuration:
 ```json
 {
   "class": "Com",
   "networks": [
-    // ... other networks (e.g., CAN)
     {
-      "name": "LIN0",        // Must match LinIf's network name
-      "network": "LIN",      // Fixed value indicating LIN physical layer
-      "me": "AS",            // The self node name
-      "ldf": "LIN0.ldf"      // Same LDF file as LinIf (ensures signal mapping consistency)
+      "name": "LIN0",
+      "network": "LIN",
+      "me": "AS",
+      "ldf": "LIN0.ldf"
     }
   ]
 }
 ```
 
-#### Key Notes:
-- `Com` uses the LIN network to exchange signals (e.g., `EngineRPM`, `BatteryVoltage`) with LIN slaves.  
-- The `ldf` file must be identical in both `LinIf` and `Com` configurations to guarantee signal alignment.  
+The LDF file must be identical in both configurations so that the signal mapping cannot drift; the Com generator converts the LDF to its internal DBC representation automatically (see the Com document).
 
----
+## 4. LinTp configuration (master and slave)
 
-## 4. LinTp Configuration (Master/Slave)
+LinTp segments and reassembles large data over LIN. The configuration depends on the node role.
 
-`LinTp` (LIN Transport Protocol) manages the segmentation/reassembly of large data frames over LIN. Its configuration depends on whether the node acts as a **LIN master** (gateway) or **LIN slave** (peripheral).
+### 4.1 LIN slave node
 
-### 4.1 LIN Master Node (Gateway)
-A LIN master typically gateways between LIN and CAN (or other buses) using `CanTp`. Example configuration (refer to `LinTp_Cfg.c` in your project):  
-- **Role**: Initiates LIN segments, manages slave responses, and forwards data to CAN via `CanTp`.  
-- **Configuration Focus**: Define LIN master parameters (e.g., segment size, retransmission limits) and `CanTp` routing rules.  
+A LIN slave answers the requests of the master (for example sensor data or read/write DTC access). Configure the slave-side LinTp channel parameters (response timeouts, frame mapping) in `LinTp_Cfg.c`.
 
-### 4.2 LIN Slave Node (Peripheral)
-A LIN slave responds to master requests (e.g., read/write DTCs, sensor data). Example configuration (refer to `LinTp_Cfg.c` in your project):  
-- **Role**: Listens for LIN segments from the master, processes requests, and returns responses.  
-- **Configuration Focus**: Define slave-specific parameters (e.g., response timeouts, data validation rules).  
+### 4.2 LIN master node (gateway)
 
----
+A LIN master typically gateways between LIN and CAN through PduR/CanTp (for example UDS over a CAN-to-LIN gateway). In addition to the local LinTp parameters, configure PduR routes between LinTp and CanTp (see the PduR document).
 
-## 5. Architectural Overviews
+## 5. Architecture overview
 
-### 5.1 LIN Slave Node Architecture
-```
-            +--------------+      +--------------+
-            |     Com      |      |     Dcm      |  <-- Upper-layer modules
-            +--------------+      +--------------+
-                 | ^                    | ^         (Signal-based communication)
-                 V |                    V |         (DTC access, etc.)
-            +--------------+      +--------------+
-            |    LinIf     | <--> |    LinTp     |  <-- LIN transport layer
-            +--------------+      +--------------+
-                 | ^                             | ^
-                 V |                             V |  <-- LIN physical layer
-            +--------------+                  +--------------+
-            |      Lin     |                  |      Lin     |  <-- LIN driver (hardware interaction)
-            +--------------+                  +--------------+
+### 5.1 LIN slave node
+
+```mermaid
+flowchart TD
+    subgraph Upper["Upper layers"]
+        COM[Com - signal based]
+        DCM[Dcm - diagnostics]
+    end
+    subgraph TP["LIN transport and interface"]
+        LINIF[LinIf]
+        LINTP[LinTp]
+    end
+    LIN[Lin driver - hardware]
+    COM --> LINIF
+    DCM --> LINTP
+    LINIF <--> LINTP
+    LINIF --> LIN
+    LINTP --> LIN
 ```
 
-### 5.2 LIN Master Node Architecture
+### 5.2 LIN master node (CAN/LIN gateway)
+
+```mermaid
+flowchart TD
+    subgraph Upper["Upper layers"]
+        COM[Com]
+        PDUR[PduR - CAN/LIN gateway]
+    end
+    LINIF[LinIf] <--> LINTP[LinTp]
+    PDUR <--> CANTP[CanTp]
+    LINTP <--> PDUR
+    LIN[Lin driver]
+    CAN[Can driver]
+    COM --> LINIF
+    LINIF --> LIN
+    CANTP --> CAN
 ```
-            +--------------+         +--------------+
-            |     Com      |         |     PduR     |  <-- PDU Router (CAN/LIN gateway)
-            +--------------+         +--------------+
-                 | ^                   | ^      | ^    (Route CAN/LIN PDUs)
-                 V |                   V |      V |    (e.g., UDS over CAN-LIN)
-            +--------------+      +--------+  +--------+
-            |    LinIf     | <--> |  LinTp |  | CanTp  |  <-- Transport protocols
-            +--------------+      +--------+  +--------+
-                 | ^                             | ^      (Segmentation/Reassembly)
-                 V |                             V |      (LIN-to-CAN translation)
-            +--------------+                  +--------+
-            |      Lin     |                  |  Can   |  <-- CAN/LIN physical drivers
-            +--------------+                  +--------+
-```
 
----
+## 6. Key considerations
 
-## 6. Key Considerations
+* **LDF consistency**: the same `.ldf` file must be referenced by LinIf and Com;
+* **timeout tuning**: adapt `timeout` to the bus speed and slave response time, typical values are 50 to 200 ms;
+* **gateway routing**: on a master node configure PduR to route segmented traffic between LinTp and CanTp for UDS-over-CAN-to-LIN gateways.
 
-- **LDF File Consistency**: Ensure the `.ldf` file (LIN Description File) is identical in `LinIf` and `Com` configurations to avoid signal mismatches.  
-- **Timeout Tuning**: Adjust `timeout` in LinIf based on LIN bus speed and slave response times (typical values: 50-200 ms).  
-- **LinTp Routing**: For master nodes, configure `PduR` to route LIN segments to/from `CanTp` (e.g., for UDS over CAN-LIN gateways).  
+## 7. Generator
 
----
+[LinIf.py](../../tools/generator/LinIf.py) generates `LinIf_Cfg.c` and `LinIf_Cfg.h` next to the JSON file.

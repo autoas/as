@@ -5,205 +5,211 @@ category: AUTOSAR
 comments: true
 ---
 
-## Menu
+# AUTOSAR Bus Mirror Configuration and Integration Guide
 
-- [Configuration notes for Bus Mirror](#configuration-notes-for-bus-mirror)
-  - [`SourceNetworkCan` Configuration](#sourcenetworkcan-configuration)
-  - [`SourceNetworkLin` Configuration](#sourcenetworklin-configuration)
-  - [`DestNetworkIp` Configuration](#destnetworkip-configuration)
-- [Integration notes for Bus Mirror](#integration-notes-for-bus-mirror)
-  - [LinIf integration notes](#linif-integration-notes)
-  - [CanIf integration notes](#canif-integration-notes)
-  - [SoAd integration notes](#soad-integration-notes)
-  - [Mirror timestamp integration notes](#mirror-timestamp-integration-notes)
+The Bus Mirror module copies (mirrors) raw CAN and LIN traffic to an IP destination for observation, logging or rest-bus analysis. Source frames are captured through CanIf/LinIf hooks, collected into UDP packets and sent through SoAd. The example configuration is [app/app/config/Mirror/Mirror.json](../../app/app/config/Mirror/Mirror.json).
+
+## Architecture overview
+
+```mermaid
+flowchart LR
+    subgraph SRC["Source buses"]
+        CAN["CAN controller x N"]
+        LIN["LIN controller x N"]
+    end
+    CAN --> CANIF["CanIf hooks<br/>Mirror_ReportCanFrame / State"]
+    LIN --> LINIF["LinIf hooks<br/>Mirror_ReportLinFrame"]
+    CANIF --> MIR["Mirror engine<br/>filters, dynamic filter table, frame batching"]
+    LINIF --> MIR
+    STBM["StbM_GetCurrentTime<br/>(timestamps)"] --> MIR
+    MIR --> SOAD["SoAd UDP/multicast socket"]
+    SOAD --> OBS["Observer / logger (IP)"]
+```
+
+## Contents
+
+* [Configuration notes for Bus Mirror](#configuration-notes-for-bus-mirror)
+  * [`SourceNetworkCan` configuration](#sourcenetworkcan-configuration)
+  * [`SourceNetworkLin` configuration](#sourcenetworklin-configuration)
+  * [`DestNetworkIp` configuration](#destnetworkip-configuration)
+* [Integration notes for Bus Mirror](#integration-notes-for-bus-mirror)
+  * [LinIf integration notes](#linif-integration-notes)
+  * [CanIf integration notes](#canif-integration-notes)
+  * [SoAd integration notes](#soad-integration-notes)
+  * [Mirror timestamp integration notes](#mirror-timestamp-integration-notes)
 
 # Configuration notes for Bus Mirror
 
-* [application/Mirror.json](../../app/app/config/Mirror/Mirror.json)
+## `SourceNetworkCan` configuration
 
-## `SourceNetworkCan` Configuration
+Defines a source CAN network with its acceptance filters and controller identification.
 
-Defines the settings for a **source CAN network**, including filters and controller identification.
+### JSON example
 
-### **JSON Example:**
 ```json
 "SourceNetworkCan": [
-    {
-      "name": "CAN0",
-      "StaticFilters": [
-         { "type": "range", "lower": 0, "upper": "0x100" },
-         { "type": "mask", "code": "0x700", "mask": "0x700" }
-      ],
-      "MaxDynamicFilters": 128,
-      "ControllerId": 0,
-      "NetworkId": 3
-    }
+  {
+    "name": "CAN0",
+    "StaticFilters": [
+      { "type": "range", "lower": 0, "upper": "0x100" },
+      { "type": "mask", "code": "0x700", "mask": "0x700" }
+    ],
+    "MaxDynamicFilters": 128,
+    "ControllerId": 0,
+    "NetworkId": 3
+  }
 ]
 ```
 
----
+### Parameter definitions
 
-### **Parameter Definitions:**
+| Parameter | Required? | Description |
+| --- | --- | --- |
+| `name` | Yes | Name of the CAN network, for example `"CAN0"` |
+| `StaticFilters` | No | List of static filters (see below). Default: `[]` |
+| `MaxDynamicFilters` | Yes | Maximum dynamic filters allowed (range 1 to 255). The total number of static plus dynamic filters must not exceed 255 |
+| `ControllerId` | Yes | Numeric CAN controller ID, for example `0` |
+| `NetworkId` | Yes | Numeric network ID placed into the mirrored frame header |
 
-| Parameter            | Required? | Description                                                                 |
-|----------------------|-----------|-----------------------------------------------------------------------------|
-| **`name`**           | Yes       | Name of the CAN network (e.g., `"CAN0"`).                                   |
-| **`StaticFilters`**  | No        | List of static filters. Supports two types (see below). Default: `[]`.      |
-| **`MaxDynamicFilters`** | Yes    | Maximum dynamic filters allowed (range: `1~255`). Total filters (static + dynamic) must **not exceed 255**. |
-| **`ControllerId`**   | Yes       | Numeric ID of the CAN controller (e.g., `0`).                              |
-| **`NetworkId`**      | Yes       | Numeric ID of the network assigned.                                        |
+### Static filter types
 
+1. **`range`** - accepts CAN IDs inside `[lower, upper]`:
+   * `lower` - range start, for example `0`;
+   * `upper` - range end, for example `"0x100"`.
+2. **`mask`** - accepts IDs matching a bit pattern:
+   * `code` - pattern to match, for example `"0x700"`;
+   * `mask` - mask applied to both sides, for example `"0x700"`;
+   * match condition: `(received & mask) == (code & mask)`.
 
----
+## `SourceNetworkLin` configuration
 
-#### **Static Filter Types:**
-1. **`range`**  
-   - Filters CAN IDs within a range.  
-   - **Fields:**  
-     - `lower`: Start of range (e.g., `0`).  
-     - `upper`: End of range (e.g., `"0x100"`).  
+Defines a source LIN network with filters and controller identification.
 
-2. **`mask`**  
-   - Filters IDs using a bitmask.  
-   - **Fields:**  
-     - `code`: Pattern to match (e.g., `"0x700"`).  
-     - `mask`: Bitmask applied (e.g., `"0x700"`).  
+### JSON example
 
----
-
-## `SourceNetworkLin` Configuration
-
-Defines the settings for a **source LIN network**, including filters and controller identification.
-
-### **JSON Example:**
 ```json
 "SourceNetworkLin": [
-    {
-      "name": "LIN0",
-      "StaticFilters": [
-         { "type": "range", "lower":0, "upper": "0x10" },
-         { "type": "mask", "code":"0x20", "mask": "0x70" }
-      ],
-      "MaxDynamicFilters": 128,
-      "ControllerId": 0,
-      "NetworkId": 3
-    }
+  {
+    "name": "LIN0",
+    "StaticFilters": [
+      { "type": "range", "lower": 0, "upper": "0x10" },
+      { "type": "mask", "code": "0x20", "mask": "0x70" }
+    ],
+    "MaxDynamicFilters": 128,
+    "ControllerId": 0,
+    "NetworkId": 3
+  }
 ]
 ```
 
----
+### Parameter definitions
 
-### **Parameter Definitions:**
+| Parameter | Required? | Description |
+| --- | --- | --- |
+| `name` | Yes | Name of the LIN network, for example `"LIN0"` |
+| `StaticFilters` | No | List of static filters (see below). Default: `[]` |
+| `MaxDynamicFilters` | Yes | Maximum dynamic filters allowed (range 1 to 255). The total number of static plus dynamic filters must not exceed 255 |
+| `ControllerId` | Yes | Numeric LIN controller ID, for example `0` |
+| `NetworkId` | Yes | Numeric network ID placed into the mirrored frame header |
 
-| Parameter            | Required? | Description                                                                 |
-|----------------------|-----------|-----------------------------------------------------------------------------|
-| **`name`**           | Yes       | Name of the LIN network (e.g., `"LIN0"`).                                   |
-| **`StaticFilters`**  | No        | List of static filters. Supports two types (see below). Default: `[]`.      |
-| **`MaxDynamicFilters`** | Yes    | Maximum dynamic filters allowed (range: `1~255`). Total filters (static + dynamic) must **not exceed 255**. |
-| **`ControllerId`**   | Yes       | Numeric ID of the LIN controller (e.g., `0`).                              |
-| **`NetworkId`**      | Yes       | Numeric ID of the network assigned.                                        |
+### Static filter types
 
----
+1. **`range`** - accepts LIN PIDs inside `[lower, upper]`:
+   * `lower` - range start, for example `0`;
+   * `upper` - range end, for example `"0x10"`.
+2. **`mask`** - accepts PIDs matching a bit pattern:
+   * `code` - pattern to match, for example `"0x20"`;
+   * `mask` - mask applied, for example `"0x70"`.
 
-#### **Static Filter Types:**
-1. **`range`**  
-   - Filters LIN IDs within a range.  
-   - **Fields:**  
-     - `lower`: Start of range (e.g., `0`).  
-     - `upper`: End of range (e.g., `"0x10"`).  
+## `DestNetworkIp` configuration
 
-2. **`mask`**  
-   - Filters IDs using a bitmask.  
-   - **Fields:**  
-     - `code`: Pattern to match (e.g., `"0x20"`).  
-     - `mask`: Bitmask applied (e.g., `"0x70"`).  
+Defines an IP destination with its queue/buffer sizes and its SoAd socket association.
 
----
+### JSON example
 
-## `DestNetworkIp` Configuration
-
-Defines the settings for a **destination IP network**, including queue/buffer sizes and SoAd socket association.  
-
-### **JSON Example:**  
 ```json
 "DestNetworkIp": [
-    {
-        "name": "AS",
-        "DestQueueSize": 2,
-        "DestBufferSize": 1400,
-        "MirrorDestTransmissionDeadline": 655,
-        "SoAd": "MIRROR_CLIENT_0"
-    }
+  {
+    "name": "AS",
+    "DestQueueSize": 2,
+    "DestBufferSize": 1400,
+    "MirrorDestTransmissionDeadline": 655,
+    "SoAd": "MIRROR_CLIENT_0"
+  }
 ]
 ```
 
----
+### Parameter definitions
 
-### **Parameter Definitions:**  
-
-| Parameter             | Required? | Description                                                                 |
-|-----------------------|-----------|-----------------------------------------------------------------------------|
-| **`name`**            | Yes       | Logical name of the IP network (e.g., `"AS"`).                              |
-| **`DestQueueSize`**   | Yes       | Maximum number of frames buffered in the output queue. <br> **Note:** Impacts latency and memory usage. <br> **Note:** The value must be power of 2. |
-| **`DestBufferSize`**  | Yes       | Size (in bytes) of the frame buffer for outgoing data. <br> **Must align with MTU/packet size constraints.** |
-| **`MirrorDestTransmissionDeadline`**  | Yes       | Time in miliseconds after which the collection of source frames into the destination frame stopped and the frame is sent at the latest. |
-| **`SoAd`**            | Yes       | Corresponding SoAd socket connection name (e.g., `"MIRROR_CLIENT_0"`). <br> Ensures proper routing to the AUTOSAR Socket Adapter layer. |
-
----
+| Parameter | Required? | Description |
+| --- | --- | --- |
+| `name` | Yes | Logical name of the IP destination, for example `"AS"` |
+| `DestQueueSize` | Yes | Maximum number of frames buffered in the output queue; affects latency and memory usage; must be a power of 2 |
+| `DestBufferSize` | Yes | Size in bytes of each batched output packet; align it with the MTU/packet size limit |
+| `MirrorDestTransmissionDeadline` | Yes | Maximum time in milliseconds that source frames are collected into one destination packet; the packet is sent at the latest when the deadline expires |
+| `SoAd` | Yes | Name of the SoAd socket connection, for example `"MIRROR_CLIENT_0"` |
 
 # Integration notes for Bus Mirror
 
 ## LinIf integration notes
 
 ```c
-void Mirror_ReportLinFrame(NetworkHandleType network, Lin_FramePidType pid, const PduInfoType *pdu, Lin_StatusType status);
+void Mirror_ReportLinFrame(NetworkHandleType network, Lin_FramePidType pid,
+                           const PduInfoType *pdu, Lin_StatusType status);
 
-// this API was optional
-Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean MirroringActive);
+/* this API is optional */
+Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel,
+                                        boolean MirroringActive);
 
-// suggest implementation for LinIf_EnableBusMirroring
+/* suggested implementation for LinIf_EnableBusMirroring */
 static boolean bLinMirroringActive[4];
-Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel, boolean MirroringActive) {
-    bLinMirroringActive[Channel] = MirroringActive;
-    return E_OK;
+Std_ReturnType LinIf_EnableBusMirroring(NetworkHandleType Channel,
+                                        boolean MirroringActive) {
+  bLinMirroringActive[Channel] = MirroringActive;
+  return E_OK;
 }
 
-// corresponding place in LinIf call Mirror_ReportLinFrame
-
+/* call Mirror_ReportLinFrame at the corresponding point in LinIf */
 if (TRUE == bLinMirroringActive[Channel]) {
-    // status: LIN_RX_OK, LIN_TX_OK or other error status
-    Mirror_ReportLinFrame(Channel, pid, &PduInfo, status);
+  /* status: LIN_RX_OK, LIN_TX_OK or another error status */
+  Mirror_ReportLinFrame(Channel, pid, &PduInfo, status);
 }
 ```
 
 ## CanIf integration notes
 
 ```c
-void Mirror_ReportCanFrame(uint8_t controllerId, Can_IdType canId, uint8_t length, const uint8_t *payload);
-void Mirror_ReportCanState(uint8_t controllerId, Mirror_CanNetworkStateType NetworkState);
+void Mirror_ReportCanFrame(uint8_t controllerId, Can_IdType canId,
+                           uint8_t length, const uint8_t *payload);
+void Mirror_ReportCanState(uint8_t controllerId,
+                           Mirror_CanNetworkStateType NetworkState);
 
-// this API was optional
-Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringActive);
+/* this API is optional */
+Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId,
+                                        boolean MirroringActive);
 
-// suggest implementation for CanIf_EnableBusMirroring
+/* suggested implementation for CanIf_EnableBusMirroring */
 static boolean bCanMirroringActive[4];
-Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId, boolean MirroringActive) {
-    bCanMirroringActive[ControllerId] = MirroringActive;
-    return E_OK;
+Std_ReturnType CanIf_EnableBusMirroring(uint8_t ControllerId,
+                                        boolean MirroringActive) {
+  bCanMirroringActive[ControllerId] = MirroringActive;
+  return E_OK;
 }
 
-// corresponding place in CanIf call Mirror_ReportCanFrame
+/* call Mirror_ReportCanFrame at the corresponding point in CanIf */
 if (TRUE == bCanMirroringActive[ControllerId]) {
-    Mirror_ReportCanFrame(ControllerId, canId, &length, payload);
+  Mirror_ReportCanFrame(ControllerId, canId, &length, payload);
 }
 
-// corresponding place in CanIf or Can status ISR call Mirror_ReportCanState
+/* call Mirror_ReportCanState from CanIf or the Can state ISR */
 if (TRUE == bCanMirroringActive[ControllerId]) {
-    Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_ONLINE);
-    // or
-    Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_OFF);
-    // or
-    Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_ERROR_PASSIVE | ((TxErrorCounter/8)&MIRROR_CAN_NS_TX_ERROR_COUNTER_MASK));
+  Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_ONLINE);
+  /* or */
+  Mirror_ReportCanState(ControllerId, MIRROR_CAN_NS_BUS_OFF);
+  /* or */
+  Mirror_ReportCanState(ControllerId,
+      MIRROR_CAN_NS_ERROR_PASSIVE |
+      ((TxErrorCounter / 8) & MIRROR_CAN_NS_TX_ERROR_COUNTER_MASK));
 }
 ```
 
@@ -213,66 +219,53 @@ if (TRUE == bCanMirroringActive[ControllerId]) {
 
 ```json
 "sockets": [
-    {
-        "name": "MIRROR_CLIENT_0",
-        "client": "224.244.224.245:30511",
-        "protocol": "UDP",
-        "multicast": true,
-        "up": "Mirror",
-        "RxPduId": "0"
-    }
+  {
+    "name": "MIRROR_CLIENT_0",
+    "client": "224.244.224.245:30511",
+    "protocol": "UDP",
+    "multicast": true,
+    "up": "Mirror",
+    "RxPduId": "0"
+  }
 ]
 ```
 
-This configuration is almost the same for other AUTOSAR SoAd implementations, where a SoAd socket is configured for Bus Mirror.
+The same idea applies to any other AUTOSAR SoAd implementation: one socket is configured for Bus Mirror and bound to the Mirror upper layer.
 
-The generator [SoAd.py](../../tools/generator/SoAd.py) may need to be updated to use the correct macros in the generated SoAd_Cfg.h, as the SoConId and TxPduId prefixes might differ from the AS implementation.
-
+The generator [SoAd.py](../../tools/generator/SoAd.py) may need adaptation so that the generated `SoAd_Cfg.h` uses the right macro prefixes for the SoConId and TxPduId names:
 
 ```python
-            C.write("    SOAD_SOCKID_%s, /* SoConId */\n" % (network["SoAd"]))
-            C.write("    SOAD_TX_PID_%s, /* TxPduId */\n" % (network["SoAd"]))
+C.write("    SOAD_SOCKID_%s, /* SoConId */\n" % (network["SoAd"]))
+C.write("    SOAD_TX_PID_%s, /* TxPduId */\n" % (network["SoAd"]))
 ```
 
 ```c
-// in AS Mirror_Cfg.c
-static const Mirror_DestNetworkIpType Mirror_DestNetworkIps[] = {  {
+/* in the AS Mirror_Cfg.c */
+static const Mirror_DestNetworkIpType Mirror_DestNetworkIps[] = { {
     &Mirror_DestNetworkIpContexts[0],
     Mirror_DestBuffersAS,
     MIRROR_CONVERT_MS_TO_MAIN_CYCLES(655u), /* MirrorDestTransmissionDeadline */
-    SOAD_SOCKID_MIRROR_CLIENT_0, /* SoConId */
-    SOAD_TX_PID_MIRROR_CLIENT_0, /* TxPduId */
-    2u, /* NumDestBuffers */
-  }
-};
+    SOAD_SOCKID_MIRROR_CLIENT_0,           /* SoConId */
+    SOAD_TX_PID_MIRROR_CLIENT_0,           /* TxPduId */
+    2u,                                    /* NumDestBuffers */
+} };
 ```
 
-In any case, either:  
-- Update the generator, or  
-- Manually modify the generated `Mirror_Cfg.c`  
-
-to ensure `SoConId` and `TxPduId` use the correct naming convention. 
-
+Either update the generator or edit the generated `Mirror_Cfg.c` manually so that `SoConId` and `TxPduId` follow the target project's naming convention.
 
 ## Mirror timestamp integration notes
 
-### A Standard `StbM_GetCurrentTime` API Must Be Provided
+### A standard `StbM_GetCurrentTime` API must be provided
 
-Even though **AS** does not include the **StbM** module, a minimal implementation exists in [`std_timer.c`](../../infras/system/timer/std_timer.c) for demonstration purposes.  
+AS does not include a full StbM module, but a minimal demonstration implementation exists in [std_timer.c](../../infras/system/timer/std_timer.c). Mirror only needs the three time fields `secondsHi`, `seconds` and `nanoseconds`:
 
-For **Mirror**, the implementation only needs to provide:
-- `secondsHi`  
-- `seconds`  
-- `nanoseconds`  
-
-#### **Example Implementation**  
 ```c
 Std_ReturnType StbM_GetCurrentTime(StbM_SynchronizedTimeBaseType timeBaseId,
-                                   StbM_TimeTupleType *timeTuple, 
+                                   StbM_TimeTupleType *timeTuple,
                                    StbM_UserDataType *userData) {
   Std_ReturnType ret = E_OK;
   std_time_t tm;
-  
+
   if (0 == timeBaseId) {
     tm = Std_GetTime();
     timeTuple->globalTime.secondsHi = (tm / 1000000) >> 32;
@@ -285,4 +278,4 @@ Std_ReturnType StbM_GetCurrentTime(StbM_SynchronizedTimeBaseType timeBaseId,
 }
 ```
 
-Additionally, the `std_time_t Std_GetTime(void)` function must be implemented to return the current time in **microseconds**.
+The platform must also implement `std_time_t Std_GetTime(void)` returning the current monotonic time in microseconds.

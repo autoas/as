@@ -63,19 +63,34 @@ MCU/ECU platforms currently supported by AS:
 
 | Topic | CN | EN |
 | --- | --- | --- |
-| Background | [CN](doc/CN/background.md) | |
+| Background | [CN](doc/CN/background.md) | [EN](doc/EN/background.md) |
 | Build environment setup | [CN](doc/CN/build-env-setup.md) | [EN](doc/EN/build-env-setup.md) |
-| Virtual CAN environment | [CN](doc/CN/virtual-can-env.md) | |
-| Virtual LIN environment | TBD | |
-| CAN bootloader | [CN: boot over QEMU](doc/CN/can-bootloader.md) | [EN: boot sim on host](doc/EN/BL.md) |
-| CAN OSEK NM | [CN](doc/CN/can-oseknm.md) | |
+| Virtual CAN environment | [CN](doc/CN/virtual-can-env.md) | [EN](doc/EN/virtual-can-env.md) |
+| Virtual LIN environment | [CN](doc/CN/virtual-lin-env.md) | [EN](doc/EN/virtual-lin-env.md) |
+| CAN bootloader | [CN: boot over QEMU](doc/CN/can-bootloader.md)<br>[CN: BL config & host sim](doc/CN/BL.md) | [EN: boot over QEMU](doc/EN/can-bootloader.md)<br>[EN: BL config & host sim](doc/EN/BL.md) |
+| CAN OSEK NM | [CN](doc/CN/can-oseknm.md) | [EN](doc/EN/can-oseknm.md) |
 | NvM | [CN](doc/CN/nvm.md) | [EN](doc/EN/NvM.md) |
-| SOME/IP-SD | | [EN](doc/EN/SOMEIP-SD.md) |
-| DoIP | | [EN](doc/EN/DoIP.md) |
-| JSON Editor | | [EN](doc/EN/JsonEditor.md) |
-| VDDS | | [EN](doc/EN/VirtioDDS.md) |
+| CAN Interface (CanIf) | [CN](doc/CN/CanIf.md) | [EN](doc/EN/CanIf.md) |
+| CAN Transport Layer (CanTp) | [CN](doc/CN/CanTp.md) | [EN](doc/EN/CanTp.md) |
+| LIN Interface (LinIf) | [CN](doc/CN/LinIf.md) | [EN](doc/EN/LinIf.md) |
+| Communication (Com) | [CN](doc/CN/Com.md) | [EN](doc/EN/Com.md) |
+| PDU Router (PduR) | [CN](doc/CN/PduR.md) | [EN](doc/EN/PduR.md) |
+| Diagnostic Communication Manager (Dcm) | [CN](doc/CN/Dcm.md) | [EN](doc/EN/Dcm.md) |
+| Diagnostic Event Manager (Dem) | [CN](doc/CN/Dem.md) | [EN](doc/EN/Dem.md) |
+| Bus Mirroring (Mirror) | [CN](doc/CN/Mirror.md) | [EN](doc/EN/Mirror.md) |
+| SOME/IP-SD | [CN](doc/CN/SOMEIP-SD.md) | [EN](doc/EN/SOMEIP-SD.md) |
+| DoIP | [CN](doc/CN/DoIP.md) | [EN](doc/EN/DoIP.md) |
+| TLS (mbedTLS) | [CN](doc/CN/TLS.md) | [EN](doc/EN/TLS.md) |
+| VDDS | [CN](doc/CN/VirtioDDS.md) | [EN](doc/EN/VirtioDDS.md) |
 
-More documents can be found under [doc/CN](doc/CN) and [doc/EN](doc/EN).
+### Tools & Guides
+
+| Topic | CN | EN |
+| --- | --- | --- |
+| JSON Editor | [CN](doc/CN/JsonEditor.md) | [EN](doc/EN/JsonEditor.md) |
+| How to create CA (X.509) | [CN](doc/CN/HowToCreateCA.md) | [EN](doc/EN/HowToCreateCA.md) |
+| UICom Lua scripting | [CN](doc/CN/UICom.md) | [EN](doc/EN/UICom.md) |
+| UIVIC virtual instrument cluster | [CN](doc/CN/UIVIC.md) | [EN](doc/EN/UIVIC.md) |
 
 ## License
 

@@ -9,77 +9,67 @@ comments: true
 
 ## Build System Overview
 
-The repository uses Python SCons as its build system, providing flexibility and simplicity for AUTOSAR development. This guide covers Windows environment setup for evaluating [autoas/as](https://github.com/autoas/as).
+The project (referred to as **AS** below) uses Python-based [SCons](https://scons.org/) as its build system. Python scripts orchestrate the compilation of a large number of modules with high flexibility and controllability. This guide explains how to set up the simulation development environment on Windows from scratch; no hardware board is required.
 
-## Required Software Installation
+## 1. Install Required Software
+
+Download and install the following three packages first. The default install paths are recommended:
 
 | Package | Download Link | Default Install Path |
-|---------|---------------|----------------------|
+| --- | --- | --- |
 | MSYS2 | [msys2.org](https://www.msys2.org/) | `C:/msys64` |
 | Anaconda3 | [anaconda.com](https://www.anaconda.com/) | `C:/Anaconda3` |
 | 7-Zip | [sparanoid.com/lab/7z](https://sparanoid.com/lab/7z/) | `C:/Program Files/7-Zip/7z.exe` |
 
-## Environment Configuration
+* **MSYS2**: provides the pacman package manager used to install the gcc/g++ toolchain, qemu and other tools;
+* **Anaconda3**: provides the Python environment and pip for installing scons and other Python dependencies (it already ships with many common libraries such as pyQt);
+* **7-Zip**: required to unpack the development console (ConEmu), which is distributed as a 7z archive.
 
-Use pacman to install essential toolchain components:
+## 2. Launch the Development Console
+
+Double-click [Console.bat](../../Console.bat) in the repository root. On the first run, the script automatically downloads and installs [ConEmu](https://conemu.github.io/), a handy Windows terminal, into `ssas/download/ConEmu`.
+
+If automatic download fails because GitHub is unreachable on your network, download [ConEmu Portable](https://www.fosshub.com/ConEmu.html) manually, unpack it into the directory above, and run Console.bat again:
+
+![ConEmu installation directory](../images/conemu-install.png)
+
+Once started, ConEmu opens four console tabs - **sim, app, boot and tools** - used to build and run the simulator node, applications, the bootloader and PC tools respectively:
+
+![ConEmu terminal](../images/conemu-terminal.png)
+
+> Tip: to keep ConEmu and third-party packages downloaded during the build outside the repository, set the `AS_DOWNLOAD_DIR` environment variable to a custom directory.
+
+## 3. Install the Dependencies
+
+Run the following commands line by line in any ConEmu tab to install the toolchain with pacman:
+
 ```sh
-pacman -Syu  # Update package database
+pacman -Syu
 pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
+pacman -S unzip wget git make cmake patch automake-wrapper libtool
+pacman -S mingw-w64-x86_64-gcc mingw32/mingw-w64-i686-gcc mingw-w64-x86_64-binutils
+pacman -S mingw-w64-x86_64-diffutils mingw-w64-x86_64-pkg-config mingw-w64-x86_64-dlfcn
+pacman -S mingw-w64-x86_64-glib2 mingw-w64-x86_64-gtk3 mingw-w64-x86_64-protobuf
+pacman -S ncurses-devel gperf curl unrar msys2-runtime-devel mingw-w64-x86_64-qemu
 ```
 
-### Anaconda Configuration
-Install Python dependencies via pip:
+Then activate the Anaconda environment and install the Python dependencies (it is recommended to activate it once per tab before running scons):
+
 ```sh
-pip install scons pyserial pybind11 pillow ply pyqt5 bitarray
+c:\anaconda3\Scripts\activate
+pip install scons==4.5.2 pyserial pybind11 pillow ply pyqt5 bitarray
 ```
 
-**Note:** For some Anaconda installations:
-1. Modify `C:\Anaconda3\Lib\site.py`:
-   ```python
-   ENABLE_USER_SITE = False  # Change from None
-   ```
-2. Ensure full user access rights to `C:\Anaconda3`
+> Note: for some Anaconda installations, change `ENABLE_USER_SITE` in `C:\Anaconda3\Lib\site.py` from `None` to `False`, and make sure the current user has full access rights to `C:\Anaconda3`.
 
-## Development Console Setup
+The command list above may not cover every dependency (the author's own environment was set up long before this document was written). If the build reports a missing header file or command, simply install the missing package with pacman/pip according to the error message.
 
-1. Launch the environment using [Console.bat](../../Console.bat)
-2. First run will automatically install [ConEmu](https://conemu.github.io/)
-   - **Manual Installation Option**:
-     - Download [ConEmu Portable](https://www.fosshub.com/ConEmu.html)
-     - Install to `as/download/ConEmu`
-     - ![ConEmu Installation](../images/conemu-install.png)
+## 4. Verify the Build
 
-Successful setup will show:  
-![ConEmu Terminal](../images/conemu-terminal.png)
-## Dependency Installation
-
-Run these commands in ConEmu:
+Switch to the **app** tab and build the two sample applications:
 
 ```sh
-# Core toolchain
-pacman -S unzip wget git mingw-w64-x86_64-gcc mingw-w64-x86_64-glib2 
-pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-diffutils
-pacman -S ncurses-devel gperf curl make cmake automake-wrapper libtool
-
-# Additional utilities
-pacman -S unrar mingw-w64-x86_64-pkg-config mingw-w64-x86_64-binutils
-pacman -S msys2-runtime-devel mingw-w64-x86_64-qemu mingw-w64-x86_64-dlfcn
-pacman -S mingw-w64-x86_64-protobuf patch autotools
-
-# Python packages
-pip install scons pyserial pybind11 pillow ply pyqt5 bitarray
-```
-
-**Note:** Missing dependencies will be revealed during compilation and can be installed as needed.
-
-## Verification Build
-
-### Building Test Applications
-
-```sh
-# app panel
-# better activate the python env before run scons, the same for other panels
-D:\repository\as>c:\anaconda3\Scripts\activate
+# app tab
 D:\repository\as>scons --app=IsoTpSend
 scons: Reading SConscript files ...
 scons: done reading SConscript files.
@@ -103,33 +93,37 @@ LINK build\nt\GCC\CanApp\CanApp.exe
 scons: done building targets.
 ```
 
-### Diagnostic Simulation Test
+## 5. Run the Diagnostic Simulation Test
+
+In the **app** tab, run CanApp, which acts as a simulated CAN node:
 
 ```sh
-# app panel
-D:\repository\as> build\nt\GCC\CanApp\CanApp.exe
+# app tab
+D:\repository\as>build\nt\GCC\CanApp\CanApp.exe
 INFO    :application build @ Dec  3 2021 21:57:05
 ......
 DCM     :physical service 10, len=2
 INFO    :App_GetSessionChangePermission(1 --> 1)
 INFO    :DCM s3server timeout!
 ```
+
+Then switch to the **boot** tab and run IsoTpSend to emulate a diagnostic tester, sending a UDS session-control request (`10 01`) to CanApp:
+
 ```sh
-# boot panel
+# boot tab
 D:\repository\as>build\nt\GCC\IsoTpSend\IsoTpSend.exe -v 1001
 TX: 10 01
 RX: 50 01 13 88 00 32
 ```
 
-As shown above, we have actually simulated a simple diagnostic session test. The CanApp acts as a CAN node, while IsoTpSend simulates another diagnostic node. For details about the simulation principle, please see the follow-up article.
+You have now completed a simple diagnostic session simulation entirely without hardware: CanApp plays the role of the CAN node, while IsoTpSend plays the role of the diagnostic tester. The simulation principle will be explained in follow-up articles.
 
-Now that the development environment setup is complete. Enjoy!
+The development environment is ready. Enjoy!
 
+## Appendix: GDB Debugging
 
-## Debugging Configuration
+The default `C:/msys64/usr/bin/gdb` may have issues debugging MinGW programs. Use the UCRT64 version `C:/msys64/ucrt64/bin/gdb.exe` instead; this toolchain is installed in section 3 with:
 
-For optimal GDB performance:
 ```sh
 pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
 ```
-Use `C:/msys64/ucrt64/bin/gdb.exe` instead of the default MSYS2 GDB.

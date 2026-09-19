@@ -1,139 +1,162 @@
 ---
 layout: post
-title: JsonEditor for SSAS
+title: JSON Editor
 category: AUTOSAR
 comments: true
 ---
 
+# JSON Editor
 
-# JsonEditor for SSAS
+The **JSON Editor** is a PyQt5-based desktop GUI tool for configuring AUTOSAR BSW modules of the AS project. Instead of hand-editing JSON or generated C files, integrators edit configuration through a schema-driven tree view, and the tool writes back JSON and (via the code generator) C/H source files.
 
-The **JsonEditor for SSAS** is a flexible, PyQt5-based configuration tool designed to streamline the setup of **SSAS** components. Inspired by the open-source [JSON Editor](https://json-editor.github.io/json-editor/) - which dynamically generates user interfaces from JSON schemas - this tool is **tailored specifically for automotive embedded systems**, with specialized features to simplify configuration of AUTOSAR Basic Software (BSW) modules such as DCM, COM, CANTP, Bootloader (BL), and more.
+This document covers the tool's architecture, command-line usage, main features, and the workflow from opening a configuration to generating C code.
 
-By combining a declarative schema with an intuitive GUI, the JsonEditor eliminates error-prone manual coding and accelerates development cycles in safety-critical automotive software projects.
+## 1. Overview
 
----
+The editor loads a single [schema.json](../../tools/json.editor/schema.json) that declares every supported ECU module as a top-level object. For each module it renders a docked window with a tree (left) and a property panel (right). Multiple modules are loaded as tabs.
 
-## Key Features & Purpose
+Supported top-level modules (defined in [schema.json](../../tools/json.editor/schema.json)):
 
-### 1. Schema-Driven GUI Generation  
-Like its open-source counterpart, the JsonEditor for SSAS automatically renders a user-friendly graphical interface based on a provided **JSON schema**. This schema defines:
-- Configuration structure (nested objects, arrays),
-- Data types (boolean, integer, string, enum),
-- Constraints (min/max, allowed values),
-- Conditional visibility (`enabled` expressions),
-- SSAS-specific extensions (e.g., `enumref`).
+| Module | Purpose |
+| --- | --- |
+| Dcm | UDS diagnostic services, sessions, security, DIDs, routines |
+| OS | OS task / alarm / resource configuration |
+| Dem | Diagnostic Event Manager (DTCs, snapshots, extended data) |
+| NvM | NVRAM Manager (block descriptors, RAM mirrors) |
+| EcuC | ECU Configuration (PDU registry, shared across modules) |
+| CanIf | CAN Interface (networks, Rx/Tx PDUs, upper-layer routing) |
+| LinIf | LIN Interface |
+| PduR | PDU Router (routing paths between modules) |
+| CanTp | ISO 15765 CAN transport layer |
+| J1939Tp | J1939 transport layer |
+| Com | COM signal / I-PDU / group / trigger definitions |
+| Net | Ethernet stack: SoAd, DoIP, SomeIp, SomeIpXf, TLS |
+| E2E | End-to-end protection profiles |
+| BL | Bootloader (memory layout, signature, security) |
 
-This enables non-programmers (e.g., system integrators) to safely configure complex BSW parameters without editing C code.
+The same JSON files are also consumed directly by the code generator under [tools/generator](../../tools/generator) (e.g. `Dcm.py`, `Com.py`, `CanIf.py`, `NvM.py`, `BL.py`, `DoIp.py`, `SomeIp.py`).
 
-
-### 2. Automatic Configuration Export  
-Once parameters are configured via the GUI, the tool **automatically generates C and header source files** (e.g., `Dcm_Cfg.c`, `Fls_Cfg.h`) that conform to AUTOSAR coding standards. This:
-- Eliminates manual transcription errors,
-- Ensures consistency between specification and implementation,
-- Integrates seamlessly into build pipelines.
-
-### 3. SSAS-Specific Enhancements  
-While not fully compliant with the general [JSON Schema Specification](https://json-schema.org/), the tool includes **domain-specific extensions** critical for automotive use cases:
-- **`enumref`**: References predefined enumeration lists (e.g., session names, security levels) to enforce valid selections.
-- **Conditional enabling**: Fields can be shown/hidden based on other field values using expressions like `'${BL_USE_META}' == 'True'`.
-- **Hexadecimal and expression support**: Accepts values like `0x731`, `8*1024`, or `0xA0600000 - 0xA0300000` for memory layout definitions.
-- **Array-of-bank support**: Special handling for flash memory banks (`FlashA`, `FlashB`, `Fee`) with address/size/sectorSize tuples.
-
----
-
-## Architecture Overview
-
-The tool consists of three core components:
+## 2. Architecture
 
 | Component | Role |
-|--------|------|
-| `main.py` | Entry point; parses CLI arguments (`-s schema.json`, `-c config.json`), initializes Qt app, loads schema/config, launches editor |
-| `json_editor.py` | Core logic; recursively builds Qt tree widgets from schema, handles data binding, validation, and conditional UI updates |
-| Schema (`schema.json`) | Declarative definition of configuration structure, types, defaults, and constraints |
+| --- | --- |
+| [main.py](../../tools/json.editor/main.py) | Entry point; CLI parsing, main window, menu bar (File / Module / Plugin), file I/O, AI validation dialog, cross-module orchestration |
+| [json_editor.py](../../tools/json.editor/json_editor.py) | Schema-driven widget framework: `JsonBase`, `JsonObject`, `JsonArray`, `JsonBasic`, `JsonModule`, field widgets, issue annotations |
+| [schema.json](../../tools/json.editor/schema.json) | Declarative schema for all 14 modules (types, defaults, constraints, cross-references, conditional visibility) |
+| [plugin/](../../tools/json.editor/plugin) | Auto-discovered plugins: `ImportDBC.py`, `ExportDBC.py` (Vector CAN DBC import/export) |
+| [tools/generator](../../tools/generator) | Backend invoked by the Generate action to turn JSON into C/H |
 
-The editor supports **two-way binding**: changes in the GUI update the internal JSON model, and saving exports it to C/H files via a backend generator (e.g., `Dcm.py`, `BL.py`).
+```mermaid
+flowchart TD
+    M["main.py: JsonEditor window"]
+    SCH["schema.json (14 modules)"]
+    JE["json_editor.py: JsonModule / JsonObject / JsonArray / JsonBasic"]
+    PLG["plugin/: ImportDBC / ExportDBC"]
+    AID["AIValidationDialog (Ctrl+V)"]
+    SPARK["spark/agent.py (LLM)"]
+    GEN["tools/generator (Ctrl+G)"]
 
----
-
-## Quickstart: Using the JsonEditor for SSAS
-
-### Step 1: Prepare a JSON Schema  
-To start, you'll need a JSON schema that defines your SSAS configuration structure. You can either:  
-- Use the [default SSAS schema](../../tools/json.editor/schema.json) (recommended for most use cases), or  
-- Create a custom schema based on your project's requirements.  
-
-For example, copy the schema from the [original JSON Editor demo](https://json-editor.github.io/json-editor/) (scroll to the bottom, click "Update Schema," then copy the JSON) and save it as `sc2.json`.  
-
-![JSON Schema Example](../images/json-editor-schema-ex1.jpg)
-
-### Step 2: Launch the JsonEditor for SSAS  
-Navigate to the tool¡¯s directory and run the editor with your schema:  
-
-```sh
-# Launch with a custom schema (e.g., sc2.json)
-cd tools/json.editor
-python main.py -s sc2.json
+    M -->|"loads"| SCH
+    M -->|"creates per module"| JE
+    M -->|"auto-loads"| PLG
+    M -->|"File -> AI Validate"| AID
+    AID -->|"chat()"| SPARK
+    M -->|"File -> Generate"| GEN
 ```
 
-A GUI window will open, rendering input fields, dropdowns, and other controls based on your schema. Configure parameters interactively (e.g., setting BSW module timeouts or PDU IDs).  
-
-![JsonEditor Demo](../images/json-editor-example1.gif)
-
-### Step 3: Generate SSAS Configuration Files  
-After configuring parameters, save the settings. The tool automatically generates:  
-- **C header/source files** (e.g., `Config.c`, `Config.h`) with the validated configuration values.  
-- Documentation (optional) summarizing the configuration choices.  
-
----
-
-## Running with the Default SSAS Schema  
-
-For SSAS-specific projects, use the built-in `schema.json` to leverage pre-defined SSAS enumerations and constraints:  
+## 3. Command-line usage
 
 ```sh
-# Launch with the default SSAS schema
 cd tools/json.editor
-python main.py
+python main.py                       # use default schema.json
+python main.py -s myschema.json      # custom schema
+python main.py -i path/to/jse.json   # open a configuration on startup
 ```
 
-This loads the SSAS schema, enabling features like `enumref` for selecting predefined values.  
+Arguments (see [main.py](../../tools/json.editor/main.py)):
 
-![SSAS JsonEditor Demo](../images/json-editor-ssas.gif)
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-s`, `--schema` | `tools/json.editor/schema.json` | Schema file to load |
+| `-i`, `--input` | none | JSON configuration file to open at startup |
 
----
+## 4. Key features
 
-## Supported Configuration Types (Examples)
+### 4.1 Schema-driven GUI
+The whole UI is generated from `schema.json`; adding a module only requires adding a schema entry, no Python code. Each property maps to a widget by type.
 
-The editor natively supports:
-- **Booleans**: `BL_USE_AB`, `DCM_DISABLE_PROGRAM_SESSION_PROTECTION`
-- **Integers/Hex**: `CAN_DIAG_P2P_RX = 0x731`, `FLASH_ERASE_SIZE = 512`
-- **Strings with expressions**: `FINGER_PRINT_SIZE = "8*1024"`
-- **Enums via `enumref`**: e.g., selecting `"Default"`, `"Program"` sessions from a predefined list
-- **Arrays of objects**: e.g., `FlashA = [{ "address": "0x0", "size": "0x200000", "sectorSize": 512 }]`
+### 4.2 Cross-module references (`enumref`)
+A field can reference values defined in another module. For example a Dcm service's `sessions` field uses `"enumref": "/Dcm/sessions:name"`, so the dropdown always lists the session names currently defined in the Dcm module. References are refreshed every second.
 
-Conditional logic ensures irrelevant fields are hidden (e.g., `META_SIZE` only appears if `ENABLE_META_SIZE_CONFIG` is true).
+### 4.3 Conditional visibility (`enabled`)
+Fields can be shown or hidden with an expression using the `${path}` template syntax:
 
----
+```json
+"enabled": "'${../use_dbc}' == 'True'"
+```
 
-## Integration with AUTOSAR Toolchain
+Supported path forms: `${/Module/path}` (absolute), `${../field}` (parent), `${field}` (same object). Operators: `==`, `!=`, `in`, `and`, `or`, `not`.
 
-The JsonEditor is designed to plug into standard AUTOSAR workflows:
-1. System architect defines schema (`schema.json`)
-2. Integrator uses JsonEditor to create `Dcm.json`, `BL.json`, etc.
-3. Generator scripts (`Dcm.py`, `Bl.py`) convert JSON ? C/H
-4. Build system compiles generated code into BSW modules
+### 4.4 Polymorphism via `map` + `extends`
+When a `map` field has `"extend": true`, selecting a choice dynamically merges an `extends` block into the object's schema (e.g. picking a UDS service type adds the relevant sub-fields). Deselecting restores the original schema.
 
-This closes the loop between specification, configuration, and implementation.
+### 4.5 Numeric formats and expressions
+Integer fields accept `0x` hexadecimal values and arithmetic expressions such as `8*1024` or `0xA0600000 - 0xA0300000`, useful for memory layout sizing.
 
----
+### 4.6 Auto-value fields (`auto_field`)
+Template strings like `Xxx_ReadDID${name}` are resolved against the current object's context, so names propagate automatically.
 
-## Troubleshooting Tips
+### 4.7 AI validation (Ctrl+V)
+The **AI Validate** action sends the current configuration to an OpenAI-compatible LLM (via [spark/agent.py](../../tools/spark/agent.py)) and parses a structured JSON response listing issues with severity (`ERROR` / `WARNING` / `INFO`), location, suggestion, and optional fixable `changes`.
 
-- **Field not appearing?** Check the `enabled` condition in the schema—it may depend on another setting.
-- **Invalid value rejected?** Ensure format matches expectations (e.g., hex must start with `0x`).
-- **Crash on load?** Validate your JSON schema with a linter—malformed schemas may cause parsing errors.
+In the validation dialog each fixable issue offers **Show in Editor** (navigates to and highlights the tree node/field) and **Apply Fix**. Leaf-value fixes are applied in place (preserving tree selection); structural changes (add/delete) reload the module. An **Apply All** button applies every remaining fix at once. Issue locations are also annotated in the editor tree with severity-colored icons and field borders, and annotations clear automatically once the user edits the affected field.
 
----
+### 4.8 Plugins
+Plugins are auto-discovered from the [plugin/](../../tools/json.editor/plugin) directory and added to the **Plugin** menu. Each plugin exports a `Plugin(QAction)` class. The bundled plugins are:
 
-The JsonEditor for SSAS bridges the gap between high-level system design and low-level embedded code, enabling faster, safer, and more maintainable automotive software development.
+- **ImportDBC**: reads a Vector `.dbc` file and updates `EcuC`, `CanIf`, `PduR`, and `Com` in one operation.
+- **ExportDBC**: writes the COM network configuration out as a `.dbc` file.
+
+### 4.9 Cross-module orchestration
+When a `CanIf` or `PduR` configuration is loaded, the editor automatically creates/updates PDU entries in the `EcuC` module (see `UpdateEcuCByCanIf` / `UpdateEcuCByPduR` in [main.py](../../tools/json.editor/main.py)), keeping the shared PDU registry consistent.
+
+## 5. Workflow
+
+```mermaid
+flowchart LR
+    A["Open / Load JSON<br/>(Ctrl+O / Ctrl+L / Ctrl+D)"] --> B["Edit in tree + panel"]
+    B --> C["Save JSON<br/>(Ctrl+S)"]
+    C --> D["Generate C/H<br/>(Ctrl+G)"]
+    B -.->|"optional"| E["AI Validate<br/>(Ctrl+V)"]
+```
+
+**Open** (`Ctrl+O`): loads a combined JSON file (`jse.json`) containing every module as one array, matching each entry's `class` to a schema `title`.
+
+**Load** (`Ctrl+L`): loads a single-module JSON file; **Load Directory** (`Ctrl+D`) loads every `*.json` in a folder (e.g. an `app/<platform>/config/` tree).
+
+**Save** (`Ctrl+S`): if every module came from its own file, each is saved back individually and a combined `jse.json` is written next to the directory; otherwise a single combined file is written.
+
+**Generate** (`Ctrl+G`): writes one `<Module>.json` per module into a `config/` subdirectory and calls [tools/generator](../../tools/generator) `Generate()` to produce C/H source files.
+
+## 6. Schema language reference
+
+| Feature | JSON key | Example |
+| --- | --- | --- |
+| Type | `type` | `"integer"`, `"string"`, `"bool"`, `"object"`, `"array"` |
+| Range | `minimum`, `maximum` | `"minimum": 0, "maximum": 255` |
+| Default | `default` | `"default": 100` |
+| Numeric format | `format` | `"hex"` or `"dec"` |
+| Fixed choices | `enum` | `"enum": ["CAN", "CANFD", "LIN"]` |
+| Cross-ref choices | `enumref` | `"enumref": "/Dcm/sessions:name"` |
+| Conditional visibility | `enabled` | `"'${../use_dbc}' == 'True'"` |
+| Named choice + auto-fill | `map`, `friends` | fills sibling fields on selection |
+| Schema extension on select | `map` with `extend: true` | merges the `extends` block |
+| Field ordering | `orders` | `["name", "Driver", "Action"]` |
+| Tooltip | `description` | shown on hover |
+
+## 7. Troubleshooting
+
+- **A field is missing**: check its `enabled` expression - it may depend on another field's value.
+- **An `enumref` dropdown is empty**: the referenced module (e.g. `Dcm`) is not loaded; use **Load** or **Load Directory** to open it.
+- **Generate produces no files**: ensure at least one module is loaded and the JSON was saved; `Generate()` only regenerates modules whose hash changed (force via the GUI's Generate action which passes `force=True`).
+- **AI validation fails**: check `.spark/settings.json` for a valid `api_key`, `base_url`, and `model`; the agent requires an OpenAI-compatible endpoint.

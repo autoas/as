@@ -1,4 +1,4 @@
-﻿---
+---
 layout: post
 title: AUTOSAR PduR
 category: AUTOSAR
@@ -113,7 +113,7 @@ flowchart TB
     MIRROR <---> LINIF
 ```
 
-**Layer Boundary**: The `ISOTP` boundary (Module > 8) separates upper-layer modules (Dcm, Com, SecOC, Mirror) from lower-layer modules (CanIf, CanTp, LinTp, DoIP, J1939Tp, CanNm, OsekNm). This boundary determines gateway forwarding behavior — upper-layer destinations receive data via TP callbacks, while lower-layer destinations receive data via direct `Transmit`.
+**Layer Boundary**: The `ISOTP` boundary (Module > 8) separates upper-layer modules (Dcm, Com, SecOC, Mirror) from lower-layer modules (CanIf, CanTp, LinTp, DoIP, J1939Tp, CanNm, OsekNm). This boundary determines gateway forwarding behavior - upper-layer destinations receive data via TP callbacks, while lower-layer destinations receive data via direct `Transmit`.
 
 ---
 

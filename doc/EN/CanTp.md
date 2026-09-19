@@ -7,79 +7,31 @@ comments: true
 
 # Configuration Notes for CanTp
 
-## Example Configuration
+CanTp implements ISO 15765-2 segmented transfer over CAN. It connects downward to CanIf and upward to PduR. The configuration is consumed by [CanTp.py](../../tools/generator/CanTp.py); the example in this document is [app/app/config/CanTp/CanTp.json](../../app/app/config/CanTp/CanTp.json) and the generated code is [CanTp_Cfg.c](../../app/app/config/CanTp/GEN/CanTp_Cfg.c).
+
+## 1. Channel-based design
+
+Each entry in `channels` creates one logical CanTp channel. A channel always owns exactly one RxPdu and one TxPdu - the generator derives their CanIf names from the channel name as `${name}_RX` and `${name}_TX`.
 
 ```json
 {
   "class": "CanTp",
   "channels": [
-    {
-      "name": "P2P"
-    },
-    {
-      "name": "P2A"
-    }
+    { "name": "P2P" },
+    { "name": "P2A", "ComType": "FUNCTIONAL" },
+    { "name": "P2A_FW", "ComType": "FUNCTIONAL" }
+  ],
+  "backup-channels": [
+    { "name": "FW_CAN0_SECOC_MSG0" }
   ]
 }
 ```
 
-## Channel Configuration
+* `channels` - physical and functional diagnostic channels. `ComType` is `PHYSICAL` (default) or `FUNCTIONAL`;
+* `backup-channels` - channels used as a SecOC fallback path. A backup channel is instantiated but is not routed until SecOC switches to it.
 
-CanTp uses a channel-based design where each configured channel automatically includes:
-- 1 TxPdu
-- 1 RxPdu
+The corresponding CanIf PDUs must exist in CanIf.json with matching names and the `up` field set to `CanTp`:
 
-Refer to the generated [`CanTp_Cfg.c`](../../app/app/config/CanTp/GEN/CanTp_Cfg.c):
-
-```c
-typedef struct {
-  CanTp_AddressingFormatType AddressingFormat;
-  PduIdType CanIfTxPduId;
-  PduIdType PduR_RxPduId;
-  PduIdType PduR_TxPduId;
-  /* Time for transmission of the CAN frame (any N-PDU) on the sender side */
-  uint16_t N_As;
-  /* Time until reception of the next flow control N-PDU (see ISO 15765-2) */
-  uint16_t N_Bs;
-  /* Time until reception of the next consecutive frame N-PDU (see ISO 15765-2) */
-  uint16_t N_Cr;
-  /* @ECUC_CanTp_00252: Minimum time between transmissions of two CF N-PDUs */
-  uint8_t STmin;
-  uint8_t BS;
-  uint8_t N_TA; /* Only required for CANTP_EXTENDED addressing */
-  uint8_t CanTpRxWftMax; /* Cannot be 0xFF */
-  uint8_t LL_DL; /* 8 for CAN, 64 for CAN FD */
-  uint8_t padding;
-  uint8_t *data; /* Data buffer for TP frame transmission */
-} CanTp_ChannelConfigType;
-```
-
-### Configuration Parameters
-
-```json
-    {
-      "name": "Channel Name",
-      "N_TA": "optional, only need if EXTENDED CanTp",
-      "N_As": "Time for transmission of the CAN frame (any N-PDU) on the sender side",
-      "N_Bs": "Time until reception of the next flow control N-PDU (see ISO 15765-2)",
-      "N_Cr": "Time until reception of the next consecutive frame N-PDU (see ISO 15765-2)",
-      "STmin": "Sets the duration of the minimum time the CanTp sender shall wait between the transmissions of two CF N-PDUs",
-      "BS": "Block Size",
-      "WftMax": "how many Flow Control wait N-PDUs can be consecutively transmitted by the receiver",
-      "LL_DL": "Low level frame maximum data length, for CAN, it was 8, for CANFD, it was 64",
-      "padding": "padding value"
-    }
-```
-
-## Important Notes
-
-1. This configuration provides basic functionality. For advanced parameters, modify the generated `CanTp_Cfg.c` directly.
-
-2. Each CanTp channel requires corresponding PDU configurations in `CanIf.json` with specific naming:
-   - RxPdu: `${name}_RX`
-   - TxPdu: `${name}_TX`
-
-Example:
 ```json
 "RxPdus": [
   { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
@@ -91,6 +43,53 @@ Example:
 ]
 ```
 
-## Generator
+## 2. Channel parameters
 
-Configuration is processed by: [CanTp.py](../../tools/generator/CanTp.py)
+Every field except `name` is optional and falls back to a compiled default:
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `name` | - | Channel name; derives the CanIf `${name}_RX` / `${name}_TX` PDU names and the PduR routing IDs |
+| `ComType` | `PHYSICAL` | `PHYSICAL` for 1-to-1 physical addressing or `FUNCTIONAL` for functional requests (CAN ID 0x7DF) |
+| `N_As` | 0 | Time for transmitting a CAN frame (any N-PDU) on the sender side |
+| `N_Bs` | 0 | Time until the next flow control N-PDU is received (ISO 15765-2) |
+| `N_Cr` | 0 | Time until the next consecutive frame N-PDU is received (ISO 15765-2) |
+| `STmin` | 0 | Minimum separation time between two consecutive frames |
+| `BS` | 0 | Block size used in outgoing flow control frames |
+| `WftMax` | 8 | Number of consecutive wait (FC-WAIT) flow control frames allowed; must not be 0xFF |
+| `LL_DL` | `CANTP_LL_DL` (8) | Lower-layer data length: 8 for classic CAN, 64 for CAN FD |
+| `padding` | `0x55` | Padding byte used when padding is enabled |
+| `N_TA` | 0 | Network target address, required only for extended addressing |
+
+A top-level `STMinAdjust` lets the generated code add a constant correction to the negotiated STmin. In the host simulator, the environment variable `LL_DL` overrides `LL_DL` of every channel at process start, which makes it possible to switch the same build between classic CAN and CAN FD without regenerating.
+
+The generated channel struct is:
+
+```c
+typedef struct {
+  CanTp_AddressingFormatType AddressingFormat;
+  PduIdType CanIfTxPduId;
+  PduIdType PduR_RxPduId;
+  PduIdType PduR_TxPduId;
+  uint16_t N_As;
+  uint16_t N_Bs;
+  uint16_t N_Cr;
+  uint8_t STmin;
+  uint8_t BS;
+  uint8_t N_TA;              /* only used with CANTP_EXTENDED addressing */
+  uint8_t CanTpRxWftMax;     /* cannot be 0xFF */
+  uint8_t LL_DL;             /* 8 for CAN, 64 for CAN FD */
+  uint8_t padding;
+  uint8_t *data;             /* transmit buffer for segmented frames */
+} CanTp_ChannelConfigType;
+```
+
+## 3. Notes
+
+1. The JSON schema exposes the common parameters. For advanced tuning (addressing format, custom buffer sizes) edit the generated `CanTp_Cfg.c` directly.
+2. CanTp never appears in a DBC file; its frames are always declared explicitly in CanIf.json.
+3. Routing between CanTp and the upper layer (Dcm, DoIP, LinTp or another CanTp for gateways) is generated by the PduR generator, see the PduR document.
+
+## 4. Generator
+
+Configuration is processed by: [CanTp.py](../../tools/generator/CanTp.py), which emits `GEN/CanTp_Cfg.c` and `GEN/CanTp_Cfg.h` next to the JSON file.
