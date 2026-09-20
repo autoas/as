@@ -68,6 +68,7 @@ MCU/ECU platforms currently supported by AS:
 | Virtual CAN environment | [CN](doc/CN/virtual-can-env.md) | [EN](doc/EN/virtual-can-env.md) |
 | Virtual LIN environment | [CN](doc/CN/virtual-lin-env.md) | [EN](doc/EN/virtual-lin-env.md) |
 | CAN bootloader | [CN: boot over QEMU](doc/CN/can-bootloader.md)<br>[CN: BL config & host sim](doc/CN/BL.md) | [EN: boot over QEMU](doc/EN/can-bootloader.md)<br>[EN: BL config & host sim](doc/EN/BL.md) |
+| BL over DoIP demo | [CN](doc/CN/BL-DoIP.md) | [EN](doc/EN/BL-DoIP.md) |
 | CAN OSEK NM | [CN](doc/CN/can-oseknm.md) | [EN](doc/EN/can-oseknm.md) |
 | NvM | [CN](doc/CN/nvm.md) | [EN](doc/EN/NvM.md) |
 | CAN Interface (CanIf) | [CN](doc/CN/CanIf.md) | [EN](doc/EN/CanIf.md) |

@@ -315,7 +315,7 @@ Loader 工具使用 `-S` 参数选择签名算法：
 
 确保以下工具在 PATH 中可用：
 
-- `objcopy`（MSYS2 binutils 包）
+- `python`（用于运行生成脚本 `tools/utils/gensims19.py`）
 - `Loader.exe`（通过 `--app=Loader` 编译）
 
 ### 6.2 编译所需组件
@@ -333,76 +333,30 @@ scons --app=CanApp
 
 ### 6.3 生成哑 Flash Driver（1052 字节）
 
-用 MSYS `objcopy` 生成一个哑 flash driver 文件，内容为顺序值（0, 1, 2, ..., 255, 0, 1, ...），地址为 0，输出到 CanBL 构建目录：
+使用生成脚本 [tools/utils/gensims19.py](../../tools/utils/gensims19.py) 生成一个哑 flash driver 文件，内容为顺序值（0, 1, 2, ..., 255, 0, 1, ...），地址为 0，输出到 CanBL 构建目录：
 
 ```bash
-# 用 Python 生成 1052 字节顺序值文件（0, 1, 2, ..., 255, 0, 1, ...）
-python -c "with open('build/FlashDriverDummy.bin', 'wb') as f: f.write(bytes([i % 256 for i in range(1052)]))"
-
-# 用 MSYS objcopy 转换为 S19，地址设为 0
-objcopy -I binary -O srec --adjust-vma 0 build/FlashDriverDummy.bin build/FlashDriverDummy.s19
+python tools/utils/gensims19.py -n 1 -s 1052 -g 0 -b 0 -o build/FlashDriverDummy.s19
 ```
 
 ### 6.4 生成哑 Application（多段）
 
-把下面的 Python 脚本保存为 `build/gensims19.py` 并运行，以生成多段 S19 文件：
-
-```python
-#!/usr/bin/env python3
-import argparse
-
-def make_s19_record(addr, chunk):
-    addr_bytes = [(addr >> 24) & 0xFF, (addr >> 16) & 0xFF, (addr >> 8) & 0xFF, addr & 0xFF]
-    count = len(chunk) + 5
-    body = [count] + addr_bytes + list(chunk)
-    checksum = (~sum(body)) & 0xFF
-    line = 'S3' + ''.join('%02X' % b for b in body) + '%02X\n' % checksum
-    return line
-
-def main():
-    parser = argparse.ArgumentParser(description='Generate multi-section S19 dummy application')
-    parser.add_argument('-n', '--sections', type=eval, default=8, help='Number of sections (default: 8)')
-    parser.add_argument('-s', '--section-size', type=eval, default=4096, help='Size of each section in bytes (default: 4096)')
-    parser.add_argument('-g', '--gap', type=eval, default=1024, help='Gap between sections in bytes (default: 1024)')
-    parser.add_argument('-b', '--base', type=eval, default=0x1000, help='Base address (default: 0x1000)')
-    parser.add_argument('-o', '--output', default='build/AppDummy.s19', help='Output file (default: build/AppDummy.s19)')
-    args = parser.parse_args()
-
-    data = bytes([i % 256 for i in range(args.section_size * args.sections)])
-
-    with open(args.output, 'w') as f:
-        f.write('S00600004844521B\n')
-        addr = args.base
-        for sec in range(args.sections):
-            for offset in range(0, args.section_size, 16):
-                chunk = data[sec * args.section_size + offset : sec * args.section_size + offset + 16]
-                if len(chunk) > 0:
-                    f.write(make_s19_record(addr, chunk))
-                    addr += len(chunk)
-            addr += args.gap
-        f.write('S5030001FB\n')
-        f.write('S9030001FB\n')
-
-    print('Generated %s with %d sections' % (args.output, args.sections))
-
-if __name__ == '__main__':
-    main()
-```
+生成脚本 [tools/utils/gensims19.py](../../tools/utils/gensims19.py) 用于生成多段 S19 文件。
 
 不带参数运行（使用默认值）：
 
 ```bash
-python build/gensims19.py
+python tools/utils/gensims19.py
 ```
 
 分别为 A、B 分区生成文件：
 
 ```bash
 # 分区 A
-python build/gensims19.py -n 8 -s 8192 -g 2048 -b 0x1000 -o build/AppDummy.s19.A
+python tools/utils/gensims19.py -n 8 -s 8192 -g 2048 -b 0x1000 -o build/AppDummy.s19.A
 
 # 分区 B
-python build/gensims19.py -n 8 -s 8192 -g 2048 -b 0x100000 -o build/AppDummy.s19.B
+python tools/utils/gensims19.py -n 8 -s 8192 -g 2048 -b 0x100000 -o build/AppDummy.s19.B
 ```
 
 ### 6.5 用 Loader 签名

@@ -1,0 +1,20 @@
+{
+  "class": "Net",
+  "Modules": [
+    {
+      "name": "DoIp",
+      "class": "DoIp",
+      "discovery": "224.244.224.245:13400",
+      "max_connections": 3,
+      "targets": [
+        { "name": "P2P", "address": "0xdead" }
+      ],
+      "routines": [
+        { "name": "default", "number": "0x00", "targets": ["P2P"] }
+      ],
+      "testers": [
+        { "name": "default", "address": "0xbeef", "routines": ["default"] }
+      ]
+    }
+  ]
+}

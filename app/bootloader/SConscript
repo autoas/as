@@ -81,3 +81,36 @@ class ApplicationLinBL(ApplicationBL):
         self.libsForBL = libsForLinBL
         super().config()
         self.platform_config()
+
+
+libsForDoIPBL = {}
+libsForDoIPBL["BL"] = Glob("config/BL/BL.json")
+libsForDoIPBL["Dcm"] = Glob("config/Net/Dcm.json")
+libsForDoIPBL["PduR"] = Glob("config/Net/PduR.json")
+
+
+"""
+scons --app=DoIPBL
+"""
+
+
+@register_application
+class ApplicationDoIPBL(ApplicationBL):
+    def gencfg(self):
+        source = self.Generate(["%s/config/Net/Network.json" % (CWD), "%s/config/Net/Mempool.json" % (CWD)])
+        libs = {
+            "SoAd": source["SoAd"] + source["MemCluster"],
+            "DoIP": source["DoIP"],
+        }
+        self.libsForBL.update(libs)
+
+    def platform_config(self):
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "USE_TCPIP"])
+        self.LIBS += ["Simulator", "TcpIp", "LibC", "RoD"]
+        self.RegisterConfig("RoD", BLRodApp)
+
+    def config(self):
+        self.libsForBL = libsForDoIPBL
+        self.gencfg()
+        super().config()
+        self.platform_config()

@@ -1,0 +1,15 @@
+{
+  "class": "PduR",
+  "routines" : [
+    {
+      "name": "P2P_RX",
+      "from": "DoIP",
+      "to": "Dcm"
+    },
+    {
+      "name": "P2P_TX",
+      "from": "Dcm",
+      "to": "DoIP"
+    }
+  ]
+}

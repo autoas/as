@@ -9,6 +9,9 @@
 
 #ifdef USE_CAN
 #include "Can.h"
+#endif
+
+#ifdef USE_CANTP
 #include "CanIf.h"
 #include "CanIf_Can.h"
 #include "CanTp.h"
@@ -39,6 +42,16 @@
 #endif
 #ifdef USE_NVM
 #include "NvM.h"
+#endif
+
+#ifdef USE_TCPIP
+#include "TcpIp.h"
+#endif
+#ifdef USE_SOAD
+#include "SoAd.h"
+#endif
+#ifdef USE_DOIP
+#include "DoIP.h"
 #endif
 
 #include "Dcm.h"
@@ -96,24 +109,33 @@ static Std_TimerType timer500ms;
 
 #ifdef USE_CAN
 #if defined(_WIN32) || defined(linux)
+static uint8_t lController = 0;
+#else
+#define lController 0
+#endif
+#endif
+
+#ifdef USE_CANTP
+#if defined(_WIN32) || defined(linux)
 static uint32_t lP2PRxId = CAN_DIAG_P2P_RX;
 static uint32_t lP2PTxId = CAN_DIAG_P2P_TX;
 static uint32_t lP2ARxId = CAN_DIAG_P2A_RX;
-static uint8_t lController = 0;
 #else
 #define lP2PRxId CAN_DIAG_P2P_RX
 #define lP2PTxId CAN_DIAG_P2P_TX
 #define lP2ARxId CAN_DIAG_P2A_RX
-#define lController 0
 #endif
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 static void MainTask_10ms(void) {
-#ifdef USE_CAN
+#ifdef USE_CANTP
   CanTp_MainFunction();
 #endif
 #ifdef USE_LINTP
   LinTp_MainFunction();
+#endif
+#ifdef USE_DOIP
+  DoIP_MainFunction();
 #endif
   Dcm_MainFunction();
   BL_MainFunction();
@@ -123,6 +145,8 @@ static void Init(void) {
 #ifdef USE_CAN
   Can_Init(NULL);
   Can_SetControllerMode(lController, CAN_CS_STARTED);
+#endif
+#ifdef USE_CANTP
   CanTp_Init(NULL);
 #endif
 #ifdef USE_DLL
@@ -138,6 +162,17 @@ static void Init(void) {
 #endif
 #ifdef USE_LINTP
   LinTp_Init(NULL);
+#endif
+
+#ifdef USE_TCPIP
+  TcpIp_Init(NULL);
+#endif
+#ifdef USE_SOAD
+  SoAd_Init(NULL);
+#endif
+#ifdef USE_DOIP
+  DoIP_Init(NULL);
+  DoIP_ActivationLineSwitchActive();
 #endif
 
   Dcm_Init(NULL);
@@ -192,7 +227,7 @@ void BL_FlushNvM(void) {
   }
 #endif
 }
-#ifdef USE_CAN
+#ifdef USE_CANTP
 void CanIf_RxIndication(const Can_HwType *Mailbox, const PduInfoType *PduInfoPtr) {
   ASLOG(CANIF, ("RX bus=%d, canid=%X, dlc=%d, data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
                 Mailbox->ControllerId, Mailbox->CanId, PduInfoPtr->SduLength,
@@ -259,7 +294,7 @@ void Task_MainLoop(void) {
   Std_TimerSet(&timer10ms, 10000);
   Std_TimerSet(&timer500ms, 500000);
   for (;
-#if defined(_WIN32) || defined(linux)
+#if (defined(_WIN32) || defined(linux))
        FALSE == Mcu_IsResetRequested()
 #endif
          ;) {
@@ -273,10 +308,18 @@ void Task_MainLoop(void) {
     }
 
     Dcm_MainFunction_Request();
-#ifdef USE_CAN
+#ifdef USE_CANTP
     CanTp_MainFunction_Fast();
+#endif
+#ifdef USE_CAN
     Can_MainFunction_Write();
     Can_MainFunction_Read();
+#endif
+#ifdef USE_TCPIP
+    TcpIp_MainFunction();
+#endif
+#ifdef USE_SOAD
+    SoAd_MainFunction();
 #endif
 #ifdef USE_DLL
     DLL_MainFunction();
@@ -296,6 +339,11 @@ void Task_MainLoop(void) {
 #endif
 #if defined(USE_STDIO_CAN) || defined(USE_STDIO_OUT)
     stdio_main_function();
+#endif
+#if defined(_WIN32) || defined(linux)
+    /* the bare main loop has no OS scheduling on the host simulator; yield to
+     * avoid 100% CPU spinning when no transport driver blocks (e.g. DoIPBL). */
+    usleep(1000);
 #endif
   }
 }
@@ -326,7 +374,8 @@ int main(int argc, char *argv[]) {
       case 'd':
         Can_ReConfig(lController, optarg, 0, 500000);
         break;
-
+#endif
+#ifdef USE_CANTP
       case 'r':
         lP2PRxId = strtoul(optarg, NULL, 16);
         break;

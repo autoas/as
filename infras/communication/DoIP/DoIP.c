@@ -1400,8 +1400,10 @@ Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr)
   uint8_t *res;
   uint32_t resLen;
 
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr) &&
-                 (PduInfoPtr->SduLength > 0u),
+  /* the payload is pulled from the upper layer through PduR_DoIPCopyTxData(),
+   * so a NULL SduDataPtr (e.g. the Dcm NRC 0x78 response-pending PDU) is valid,
+   * only the PduInfo pointer and the length are required here. */
+  DET_VALIDATE((NULL != PduInfoPtr) && (PduInfoPtr->SduLength > 0u),
                0x53, DOIP_E_PARAM_POINTER, return E_NOT_OK);
 
   if (DOIP_ACTIVATION_LINE_ACTIVE == context->ActivationLineState) {
@@ -1534,7 +1536,7 @@ void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   versionInfo->moduleID = MODULE_ID_DOIP;
   versionInfo->sw_major_version = 4;
   versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 4;
+  versionInfo->sw_patch_version = 5;
 }
 
 /** @brief release notes
@@ -1542,4 +1544,5 @@ void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo) {
  * - 4.0.2: Support optional OEM for routing activation response.
  * - 4.0.3: Fix memory leak issue during socket close.
  * - 4.0.4: Add target address config check and diag message error handling.
+ * - 4.0.5: Allow NULL SduDataPtr in DoIP_TpTransmit (payload pulled via PduR_DoIPCopyTxData).
  */
