@@ -27,6 +27,19 @@ Std_ReturnType DoIP_default_RoutingActivationConfirmationCallback(
   return E_OK;
 }
 
+Std_ReturnType DoIP_CANBL_RoutingActivationAuthenticationCallback(
+  boolean *Authentified, const uint8_t *AuthenticationReqData, uint8_t *AuthenticationResData) {
+  *Authentified = TRUE;
+  return E_OK;
+}
+
+Std_ReturnType DoIP_CANBL_RoutingActivationConfirmationCallback(
+  boolean *Confirmed, const uint8_t *ConfirmationReqData, uint8_t *ConfirmationResData) {
+  ASLOG(INFO, ("DOIP CANBL activated\n"));
+  *Confirmed = TRUE;
+  return E_OK;
+}
+
 Std_ReturnType Dcm_GetVin(uint8_t *Data) {
   static const char *vin = "ASBL0000000000001";
   memcpy(Data, vin, 17);

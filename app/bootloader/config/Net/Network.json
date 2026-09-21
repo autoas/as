@@ -7,14 +7,20 @@
       "discovery": "224.244.224.245:13400",
       "max_connections": 3,
       "targets": [
-        { "name": "P2P", "address": "0xdead" }
+        { "name": "P2P", "address": "0xdead" },
+        { "name": "CAN_BL", "address": "0x0731"}
       ],
       "routines": [
-        { "name": "default", "number": "0x00", "targets": ["P2P"] }
+        { "name": "default", "number": "0x00", "targets": ["P2P"] },
+        { "name": "CANBL", "number": "0x00", "targets": ["CAN_BL"] }
       ],
       "testers": [
-        { "name": "default", "address": "0xbeef", "routines": ["default"] }
+        { "name": "default", "address": "0xbeef", "routines": ["default"] },
+        { "name": "CANBL", "address": "0x0E80", "routines": ["CANBL"] }
       ]
     }
   ]
 }
+
+
+

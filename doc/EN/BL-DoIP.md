@@ -3,6 +3,7 @@ layout: post
 title: BL over DoIP Demo on Host Simulator
 category: AUTOSAR
 comments: true
+---
 
 # BL over DoIP Demo on Host Simulator
 
@@ -18,6 +19,10 @@ comments: true
    - [Generate Dummy Application](#62-generate-dummy-application-partition-a-and-b)
    - [Sign Flash Driver and Application](#63-sign-flash-driver-and-application)
    - [Program over DoIP](#64-program-over-doip)
+7. [DoIP to CAN Gateway Demo (Loader -> DoIPBL -> CanBL)](#7-doip-to-can-gateway-demo-loader---doipbl---canbl)
+   - [Gateway Configuration](#71-gateway-configuration)
+   - [Run the Gateway Loop Demo](#72-run-the-gateway-loop-demo)
+   - [Loader SA/TA Mapping](#73-loader-sata-mapping)
 
 ## 1. Introduction
 
@@ -103,7 +108,9 @@ Building `DoIPBL` also generates the Dcm/PduR/SoAd/DoIP configuration code from 
 Start the bootloader (on Windows, make sure the MSYS2 `mingw64/bin` runtime DLLs such as `libstdc++-6.dll` are in `PATH`):
 
 ```bash
-build\nt\GCC\DoIPBL\DoIPBL.exe -v 3
+# optional: enable the Dcm module logs (DCMI is DEBUG level, hidden by default)
+set AS_LOG_DCMI=1            # Windows CMD; on Linux use export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
 ```
 
 The DoIPBL host build never jumps to the application and never resets, so it stays running in the default session and is ready for flashing.
@@ -112,7 +119,7 @@ Expected behavior:
 
 - It prints `bootloader build @ ...` and stays running.
 - TcpIp/SoAd report link up, and DoIP listens on UDP/TCP port `13400`.
-- `-v <level>` sets the log verbosity, higher level means more logs.
+- `-v <level>` sets the global log verbosity, higher level means more logs; the `AS_LOG_<module>` environment variables control the level per module (e.g. `AS_LOG_DCMI=1` enables the Dcm logs).
 - Verify the listening sockets with `netstat -ano | findstr 13400`, it shall show a `TCP 0.0.0.0:13400 LISTENING` entry and an UDP discovery socket on port `13400`.
 - To exit, press `Ctrl+C`.
 
@@ -161,7 +168,8 @@ Run the Loader from another terminal (on Windows make sure `C:\msys64\mingw64\bi
 
 ```bash
 # start DoIPBL and keep it running
-build\nt\GCC\DoIPBL\DoIPBL.exe -v 3
+set AS_LOG_DCMI=1            # Windows CMD; on Linux use export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
 
 # program partition A
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
@@ -179,3 +187,81 @@ Notes:
 - `-l 64` is not needed here, it is only for CAN TP.
 - `-c FBL` selects the FBL loader, `-S crc32` must match the BL configuration, see [BL Configuration](BL.md) for details.
 - Troubleshooting: erasing without the flash driver (missing `-f`) fails with NRC `0x24` (request sequence error), always flash the flash driver first.
+
+## 7. DoIP to CAN Gateway Demo (Loader -> DoIPBL -> CanBL)
+
+DoIPBL additionally works as a DoIP-to-CAN diagnostic gateway: UDS requests received over DoIP with target address `0x731` are forwarded over CAN via CanTp to `CanBL`, so the CAN application (`CanApp`) can be flashed remotely over DoIP. The full loop is `Loader -> DoIPBL -> CanBL -> CanApp`:
+
+```mermaid
+graph TB
+    subgraph PC["Loader (PC tool)"]
+        LDR["Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80"]
+    end
+    subgraph GW["DoIPBL (DoIP-to-CAN gateway)"]
+        TCPIP["TcpIp"] --> SOAD["SoAd"]
+        SOAD --> DOIP["DoIP"]
+        DOIP --> PDUR["PduR"]
+        PDUR --> DCM["Dcm"]
+        PDUR --> CANTP["CanTp"]
+        CANTP --> CANIF["CAN glue (main.c)"]
+    end
+    subgraph TARGET["CanBL (host simulator process)"]
+        CANTP2["CanTp (P2P 0x731)"] --> PDUR2["PduR"] --> DCM2["Dcm"] --> BL2["BL"] --> APP["CanApp"]
+    end
+    LDR -- "UDP/TCP 13400" --> TCPIP
+    CANIF -- "CAN: TX 0x731, RX 0x732" --> CANTP2
+```
+
+- Request path: `Loader -> DoIP -> PduR(CAN_BL_RX) -> CanTp -> CAN 0x731 -> CanBL`.
+- Response path: `CanBL -> CAN 0x732 -> CanTp -> PduR(CAN_BL_TX) -> DoIP -> Loader`.
+- The `P2P` target `0xdead` still routes to the gateway's own Dcm/BL (section 6), so DoIPBL itself stays flashable while it forwards.
+
+### 7.1 Gateway Configuration
+
+Compared with section 3, the following is added under `app/bootloader/config/Net` (BL `main.c` stays unchanged):
+
+| File | Content |
+| --- | --- |
+| `Network.json` | Extra target: `CAN_BL` at `0x0731` with node TX CAN id `0x731`; extra routine/tester `CANBL` with tester address `0x0E80` |
+| `PduR.json` | TP gateway routes `CAN_BL_RX` (DoIP -> CanTp) and `CAN_BL_TX` (CanTp -> DoIP) with `DestBufferSize: 4096` (the TP gateway buffer is mandatory, otherwise DoIP answers NACK `0x08`) |
+| `CanTp.json` | One TP gateway channel `CAN_BL` (`LL_DL: 64`, the source/destination PduIds are derived from the PduR routing) |
+
+The gateway CAN TX id and RX filter are given statically as build definitions in `app/bootloader/SConscript` (`CAN_DIAG_P2P_TX=0x731`, `CAN_DIAG_P2P_RX=0x732`); the glue in `main.c` uses them as defaults, and the command line `-t`/`-r` can override them at runtime.
+
+Note: the Loader parses `-t`/`-r` as decimal unless a `0x` prefix is given, always use e.g. `-t 0x731`.
+
+### 7.2 Run the Gateway Loop Demo
+
+Build the CAN side and start the three processes (Windows: keep MSYS2 `mingw64/bin` DLLs in `PATH`):
+
+```bash
+scons --app=CanBL
+scons --app=CanApp
+
+# terminal 1: the CAN target (flashes itself into partition A/B, then jumps to CanApp)
+build\nt\GCC\CanBL\CanBL.exe
+
+# terminal 2: the DoIP-to-CAN gateway (CAN TX id 0x731, RX filter 0x732, from the SConscript build definitions)
+# the Dcm DCMI logs (DEBUG level) are hidden by default, enable them per module:
+set AS_LOG_DCMI=1            # Windows CMD; on Linux use export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
+
+# terminal 3: flash the CAN application over DoIP, tester SA 0xE80, target TA 0x731
+build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
+
+# program partition B (no need to restart)
+build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.B.sign
+```
+
+A successful run ends with `progress 100.00%` (about 2-3 kbps, the DoIP-to-CAN gateway forwards every UDS request through CAN TP). After the final ECU reset, CanBL verifies the application integrity, activates the flashed partition and jumps to `CanApp.exe`.
+
+### 7.3 Loader SA/TA Mapping
+
+The gateway introduces the tester `CANBL` (SA `0x0E80`) and the target `CAN_BL` (TA `0x0731`) routed by its routine. The Loader needs no modification to use the mapping via the command line; the mapping mechanism of its DOIP branch ([loader_cmd.cpp](../../tools/libraries/loader/utils/loader_cmd.cpp)) is:
+
+- `-r` maps to the tester source address `params.U.DoIP.sourceAddress`, default `0xbeef` when not given (matches the `default` tester);
+- `-t` maps to the diagnostic target address `params.U.DoIP.targetAddress`, default `0xdead` when not given (flashes the gateway itself, see section 6);
+- The routing activation type is fixed to `0`; SA `0x0E80` matches the `CANBL` routine in `Network.json`;
+- The Loader does not check the response SA, so no code change is needed.
+
+Optional: to forward through the gateway by default when `-r`/`-t` are not given (instead of flashing the gateway itself), differentiate the defaults by device name in the DOIP branch of `loader_cmd.cpp`, e.g. for device name `DOIP-CANBL.224.244.224.245` default to `rxid = 0xe80` (CANBL tester) and `txid = 0x731` (`CAN_BL` target). Keep the existing `0xbeef/0xdead` defaults (section 6 relies on them). Do not change `toU32` to parse hex by default: `-s` (signature offset), `-T` (timeout) and other options share it, that would change their behavior; keep the `0x` prefix convention.

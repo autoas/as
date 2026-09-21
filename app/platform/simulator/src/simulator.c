@@ -32,11 +32,17 @@ void Mcu_Init(const Mcu_ConfigType *ConfigPtr) {
 }
 
 void Dcm_PerformReset(uint8_t resetType) {
+#if !(defined(USE_BL) && defined(USE_DOIP))
   s_reset = TRUE;
+#else
+  (void)resetType;
+#endif
 }
 
 void Xcp_PerformReset(void) {
+#if !(defined(USE_BL) && defined(USE_DOIP))
   s_reset = TRUE;
+#endif
 }
 
 boolean Mcu_IsResetRequested(void) {
@@ -56,6 +62,10 @@ boolean BL_IsUpdateRequested(void) {
 }
 
 void BL_JumpToApp(void) {
+#if defined(USE_BL) && defined(USE_DOIP)
+  ASLOG(INFO, ("BL: DoIP host build, skip jump to application\n"));
+  return;
+#else
   char *appPath;
   char defaultPath[] = AS_BUILD_DIR "/CanApp/CanApp" AS_APP_SUFFIX;
   char *args[2] = {NULL};
@@ -75,6 +85,7 @@ void BL_JumpToApp(void) {
   execv(appPath, args);
 
   ASLOG(INFO, ("BL: failed to jump to %s, error: %d\n", appPath, errno));
+#endif
 }
 
 void BL_AliveIndicate(void) {

@@ -87,6 +87,7 @@ libsForDoIPBL = {}
 libsForDoIPBL["BL"] = Glob("config/BL/BL.json")
 libsForDoIPBL["Dcm"] = Glob("config/Net/Dcm.json")
 libsForDoIPBL["PduR"] = Glob("config/Net/PduR.json")
+libsForDoIPBL["CanTp"] = Glob("config/Net/CanTp.json")
 
 
 """
@@ -105,7 +106,8 @@ class ApplicationDoIPBL(ApplicationBL):
         self.libsForBL.update(libs)
 
     def platform_config(self):
-        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "USE_TCPIP"])
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "USE_TCPIP", "USE_CAN"])
+        self.Append(CPPDEFINES=["CAN_DIAG_P2P_TX=0x731", "CAN_DIAG_P2P_RX=0x732"])
         self.LIBS += ["Simulator", "TcpIp", "LibC", "RoD"]
         self.RegisterConfig("RoD", BLRodApp)
 

@@ -3,6 +3,7 @@ layout: post
 title: 主机模拟器上的 BL over DoIP 示例
 category: AUTOSAR
 comments: true
+---
 
 # 主机模拟器上的 BL over DoIP 示例
 
@@ -18,6 +19,10 @@ comments: true
    - [生成虚拟应用](#62-生成虚拟应用a-与-b-分区)
    - [为 Flash 驱动与应用签名](#63-为-flash-驱动与应用签名)
    - [通过 DoIP 烧写](#64-通过-doip-烧写)
+7. [DoIP 到 CAN 的网关示例（Loader -> DoIPBL -> CanBL）](#7-doip-到-can-的网关示例loader---doipbl---canbl)
+   - [网关配置](#71-网关配置)
+   - [运行网关环回示例](#72-运行网关环回示例)
+   - [Loader 端的 SA/TA 映射](#73-loader-端的-sata-映射)
 
 ## 1. 简介
 
@@ -103,7 +108,9 @@ Windows 下的构建产物为：
 启动 Bootloader（Windows 下请确保 MSYS2 `mingw64/bin` 中的运行时 DLL（如 `libstdc++-6.dll`）在 `PATH` 中）：
 
 ```bash
-build\nt\GCC\DoIPBL\DoIPBL.exe -v 3
+# 可选：打开 Dcm 模块日志（DCMI 为 DEBUG 级，默认日志级别下不显示）
+set AS_LOG_DCMI=1            # Windows CMD；Linux 下为 export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
 ```
 
 DoIPBL 主机构建既不会跳转到应用，也不会复位，因此它会持续运行在默认会话中，随时可接受烧写。
@@ -112,7 +119,7 @@ DoIPBL 主机构建既不会跳转到应用，也不会复位，因此它会持�
 
 - 打印 `bootloader build @ ...` 后持续运行。
 - TcpIp/SoAd 报告链路 up，DoIP 在 UDP/TCP `13400` 端口监听。
-- `-v <级别>` 设置日志详细程度，数值越大日志越多。
+- `-v <级别>` 可设置全局日志详细程度，数值越大日志越多；也可用 `AS_LOG_<模块>` 环境变量按模块控制（如 `AS_LOG_DCMI=1` 打开 Dcm 日志）。
 - 可用 `netstat -ano | findstr 13400` 验证监听 socket，应能看到 `TCP 0.0.0.0:13400 LISTENING` 条目以及 13400 端口上的 UDP 发现 socket。
 - 按 `Ctrl+C` 退出。
 
@@ -161,7 +168,8 @@ build\nt\GCC\Loader\Loader.exe -f build/FlashDriverDummy.s19 -s 2048 -S crc32
 
 ```bash
 # 启动 DoIPBL 并保持运行
-build\nt\GCC\DoIPBL\DoIPBL.exe -v 3
+set AS_LOG_DCMI=1            # Windows CMD；Linux 下为 export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
 
 # 烧写 A 分区
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
@@ -179,3 +187,81 @@ build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -c FBL -S crc32 -f build/
 - 此处不需要 `-l 64`，它仅用于 CAN TP。
 - `-c FBL` 选择 FBL 加载器，`-S crc32` 必须与 BL 配置一致，详见 [BL 配置](BL.md)。
 - 排错：未带 Flash 驱动（缺少 `-f`）时擦除会以 NRC `0x24`（请求顺序错误）失败，请务必先烧写 Flash 驱动。
+
+## 7. DoIP 到 CAN 的网关示例（Loader -> DoIPBL -> CanBL）
+
+DoIPBL 还可以用作 DoIP 到 CAN 的诊断网关：通过 DoIP 收到的、目标地址为 `0x731` 的 UDS 请求，经 CanTp 转发到 CAN 总线上的 `CanBL`，从而实现通过 DoIP 远程烧写 CAN 应用（`CanApp`）。完整环路为 `Loader -> DoIPBL -> CanBL -> CanApp`：
+
+```mermaid
+graph TB
+    subgraph PC["Loader（PC 工具）"]
+        LDR["Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80"]
+    end
+    subgraph GW["DoIPBL（DoIP 转 CAN 网关）"]
+        TCPIP["TcpIp"] --> SOAD["SoAd"]
+        SOAD --> DOIP["DoIP"]
+        DOIP --> PDUR["PduR"]
+        PDUR --> DCM["Dcm"]
+        PDUR --> CANTP["CanTp"]
+        CANTP --> CANIF["CAN 胶水（main.c）"]
+    end
+    subgraph TARGET["CanBL（主机模拟器进程）"]
+        CANTP2["CanTp（P2P 0x731）"] --> PDUR2["PduR"] --> DCM2["Dcm"] --> BL2["BL"] --> APP["CanApp"]
+    end
+    LDR -- "UDP/TCP 13400" --> TCPIP
+    CANIF -- "CAN：TX 0x731，RX 0x732" --> CANTP2
+```
+
+- 请求路径：`Loader -> DoIP -> PduR(CAN_BL_RX) -> CanTp -> CAN 0x731 -> CanBL`。
+- 响应路径：`CanBL -> CAN 0x732 -> CanTp -> PduR(CAN_BL_TX) -> DoIP -> Loader`。
+- `P2P` 目标 `0xdead` 仍然路由到网关自身的 Dcm/BL（见第 6 节），因此 DoIPBL 在转发的同时自身也可被烧写。
+
+### 7.1 网关配置
+
+与第 3 节相比，在 `app/bootloader/config/Net` 下新增如下配置（BL `main.c` 保持不变）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `Network.json` | 新增目标：`CAN_BL`（地址 `0x0731`，节点 CAN 发送 id `0x731`）；新增例程/诊断仪 `CANBL`，诊断仪地址 `0x0E80` |
+| `PduR.json` | TP 网关路由 `CAN_BL_RX`（DoIP -> CanTp）与 `CAN_BL_TX`（CanTp -> DoIP），并配置 `DestBufferSize: 4096`（TP 网关缓冲必须配置，否则 DoIP 回 NACK `0x08`） |
+| `CanTp.json` | 一个 TP 网关通道 `CAN_BL`（`LL_DL: 64`，路由的源/目的 PduId 由 PduR 配置推导） |
+
+网关的 CAN 发送 id 与接收过滤 id 由 `app/bootloader/SConscript` 中的编译定义静态给出（`CAN_DIAG_P2P_TX=0x731`、`CAN_DIAG_P2P_RX=0x732`），`main.c` 的胶水逻辑以这些宏为默认值，命令行 `-t`/`-r` 可在运行时覆盖。
+
+注意：Loader 的 `-t`/`-r` 参数不带 `0x` 前缀时按十进制解析，请务必写成例如 `-t 0x731`。
+
+### 7.2 运行网关环回示例
+
+构建 CAN 侧并启动三个进程（Windows：确保 MSYS2 `mingw64/bin` 的 DLL 在 `PATH` 中）：
+
+```bash
+scons --app=CanBL
+scons --app=CanApp
+
+# 终端 1：CAN 目标（将自身烧入 A/B 分区后跳转到 CanApp）
+build\nt\GCC\CanBL\CanBL.exe
+
+# 终端 2：DoIP 转 CAN 网关（CAN 发送 id 0x731、接收过滤 id 0x732，由 SConscript 编译定义给出）
+# 默认日志级别下 Dcm 的 DCMI 日志（DEBUG 级）不显示，可按模块打开：
+set AS_LOG_DCMI=1            # Windows CMD；Linux 下为 export AS_LOG_DCMI=1
+build\nt\GCC\DoIPBL\DoIPBL.exe
+
+# 终端 3：通过 DoIP 烧写 CAN 应用，诊断仪 SA 0xE80，目标 TA 0x731
+build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
+
+# 烧写 B 分区（无需重启）
+build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.B.sign
+```
+
+烧写成功时最后出现 `progress 100.00%`（约 2-3 kbps，每个 UDS 请求都经 CAN TP 穿过网关）。最终 ECU 复位后，CanBL 校验应用完整性、激活被烧写的分区并跳转到 `CanApp.exe`。
+
+### 7.3 Loader 端的 SA/TA 映射
+
+网关引入了诊断仪 `CANBL`（SA `0x0E80`）及其例程路由的目标 `CAN_BL`（TA `0x0731`）。Loader 无需修改即可通过命令行使用该映射，其 DOIP 分支（[loader_cmd.cpp](../../tools/libraries/loader/utils/loader_cmd.cpp)）的映射机制如下：
+
+- `-r` 映射为诊断仪源地址 `params.U.DoIP.sourceAddress`，未指定时默认 `0xbeef`（命中 `default` 诊断仪）；
+- `-t` 映射为诊断目标地址 `params.U.DoIP.targetAddress`，未指定时默认 `0xdead`（此时烧写网关自身，见第 6 节）；
+- 路由激活类型固定为 `0`，SA `0x0E80` 命中 `Network.json` 中的 `CANBL` 例程；
+- Loader 不校验 UDS 响应的 SA，因此无需修改代码。
+
+可选：若希望不带 `-r/-t` 时默认走网关转发（而不是烧写网关自身），可在 `loader_cmd.cpp` 的 DOIP 分支按设备名区分默认值，例如设备名 `DOIP-CANBL.224.244.224.245` 时默认 `rxid = 0xe80`（CANBL 诊断仪）、`txid = 0x731`（`CAN_BL` 目标）。注意保留既有的 `0xbeef/0xdead` 默认值（第 6 节依赖）。不建议将 `toU32` 改为默认十六进制解析：`-s`（签名区偏移）、`-T`（超时）等参数同样使用它，会改变既有用法的行为，保持 `0x` 前缀约定即可。

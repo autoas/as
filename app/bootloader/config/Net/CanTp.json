@@ -1,0 +1,6 @@
+{
+  "class": "CanTp",
+  "channels": [
+    { "name": "CAN_BL", "RxPduId": "CAN_BL_TX", "TxPduId": "CAN_BL_RX", "LL_DL": 64 }
+  ]
+}

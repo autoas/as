@@ -1,6 +1,6 @@
 {
   "class": "PduR",
-  "routines" : [
+  "routines": [
     {
       "name": "P2P_RX",
       "from": "DoIP",
@@ -10,6 +10,18 @@
       "name": "P2P_TX",
       "from": "Dcm",
       "to": "DoIP"
+    },
+    {
+      "name": "CAN_BL_RX",
+      "from": "DoIP",
+      "to": "CanTp",
+      "DestBufferSize": 4096
+    },
+    {
+      "name": "CAN_BL_TX",
+      "from": "CanTp",
+      "to": "DoIP",
+      "DestBufferSize": 4096
     }
   ]
 }
