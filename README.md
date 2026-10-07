@@ -81,6 +81,7 @@ MCU/ECU platforms currently supported by AS:
 | Bus Mirroring (Mirror) | [CN](doc/CN/Mirror.md) | [EN](doc/EN/Mirror.md) |
 | SOME/IP-SD | [CN](doc/CN/SOMEIP-SD.md) | [EN](doc/EN/SOMEIP-SD.md) |
 | DoIP | [CN](doc/CN/DoIP.md) | [EN](doc/EN/DoIP.md) |
+| DoIP-to-CAN Gateway demo | [CN](doc/CN/DoIP-CAN-Gateway.md) | [EN](doc/EN/DoIP-CAN-Gateway.md) |
 | TLS (mbedTLS) | [CN](doc/CN/TLS.md) | [EN](doc/EN/TLS.md) |
 | VDDS | [CN](doc/CN/VirtioDDS.md) | [EN](doc/EN/VirtioDDS.md) |
 

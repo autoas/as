@@ -1,0 +1,30 @@
+{
+  "class": "PduR",
+  "routines": [
+    {
+      "name": "PT_CANFD_E001_RX",
+      "from": "DoIP",
+      "to": "CanTp",
+      "dest": "PT_CANFD_E001_RX",
+      "DestBuffer": "FUNC_BUF",
+      "destinations": [
+        { "to": "CanTp", "name": "CL1_E001_RX" }
+      ]
+    },
+    { "name": "PT_CANFD_E001_TX", "from": "CanTp", "to": "DoIP" },
+    { "name": "CL1_E001_TX",      "from": "CanTp", "to": "DoIP" },
+
+    { "name": "PT_CANFD_004A_RX", "from": "DoIP", "to": "CanTp" },
+    { "name": "PT_CANFD_004A_TX", "from": "CanTp", "to": "DoIP" },
+    { "name": "BD_CANFD_0053_RX", "from": "DoIP", "to": "CanTp" },
+    { "name": "BD_CANFD_0053_TX", "from": "CanTp", "to": "DoIP" },
+    { "name": "CL1_0757_RX", "from": "DoIP", "to": "CanTp" },
+    { "name": "CL1_0757_TX", "from": "CanTp", "to": "DoIP" }
+  ],
+  "buffers": [ { "name": "FUNC_BUF", "size": 4096 } ],
+  "memory": [
+    { "name": "large",  "size": 4096, "number": 2 },
+    { "name": "middle", "size": 1400, "number": 8 },
+    { "name": "small",  "size": 128,  "number": 32 }
+  ]
+}

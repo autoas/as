@@ -19,6 +19,9 @@
 #if defined(_WIN32) || defined(linux)
 #include <assert.h>
 #endif
+#ifdef USE_DOIP
+#include "DoIP.h"
+#endif
 /* ================================ [ MACROS    ] ============================================== */
 #define AS_LOG_APP 0
 /* ================================ [ TYPES     ] ============================================== */
@@ -85,6 +88,9 @@ void App_Init(void) {
   User_Init();
   Std_TimerInit(&timer10ms, 10000);
   Std_TimerInit(&timer1s, 1000000);
+#ifdef USE_DOIP
+  DoIP_ActivationLineSwitchActive();
+#endif
 }
 
 void App_MainFunction(void) {

@@ -32,6 +32,19 @@ Std_ReturnType DoIP_default_RoutingActivationConfirmationCallback(
   return E_OK;
 }
 
+Std_ReturnType DoIP_rt_tester0_RoutingActivationAuthenticationCallback(
+  boolean *Authentified, const uint8_t *AuthenticationReqData, uint8_t *AuthenticationResData) {
+  *Authentified = TRUE;
+  return E_OK;
+}
+
+Std_ReturnType DoIP_rt_tester0_RoutingActivationConfirmationCallback(
+  boolean *Confirmed, const uint8_t *ConfirmationReqData, uint8_t *ConfirmationResData) {
+  ASLOG(INFO, ("DOIP rt_tester0 activated\n"));
+  *Confirmed = TRUE;
+  return E_OK;
+}
+
 #ifndef USE_PDUR
 BufReq_ReturnType PduR_DoIPStartOfReception(PduIdType id, const PduInfoType *info,
                                             PduLengthType TpSduLength,

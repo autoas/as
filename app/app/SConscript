@@ -244,3 +244,43 @@ class ApplicationNetAppT(query_application("NetApp")):
         super().config()
         self.Append(CPPDEFINES=["LWIP_IPADDR_CFG_NR=1"])
         self.Append(CPPPATH=["%s/config/Net/GEN" % (CWD)])
+
+
+libsForDoIPGW = {
+    "PduR": Glob("config/DoIPGW/PduR.json"),
+    "CanTp": Glob("config/DoIPGW/CanTp.json"),
+    "CanIf": Glob("config/DoIPGW/CanIf.json"),
+}
+
+objsDoIPGW = Glob("main.c") + Glob("src/doip.c") + Glob("src/app.c")
+
+
+"""
+scons --app=DoIPGW
+"""
+
+
+@register_application
+class ApplicationDoIPGW(ApplicationApp):
+    def gencfg(self):
+        source = self.Generate(
+            ["%s/config/DoIPGW/Network.json" % (CWD), "%s/config/DoIPGW/Mempool.json" % (CWD)]
+        )
+        libs = {
+            "SoAd": source["SoAd"] + source["MemCluster"],
+            "DoIP": source["DoIP"],
+        }
+        self.libsForApp.update(libs)
+
+    def platform_config(self):
+        self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "USE_TCPIP", "USE_CAN", "USE_DOIP"])
+        self.LIBS += ["Simulator", "TcpIp", "LibC"]
+
+    def config(self):
+        self.libsForApp = libsForDoIPGW
+        self.gencfg()
+        super().config()
+        # gateway only needs the DoIP user callbacks + app glue, not the Com/Nm/Xcp/Dcm
+        # service implementations in the rest of app/app/src
+        self.source = objsDoIPGW
+        self.platform_config()

@@ -1,0 +1,20 @@
+{
+  "class": "CanIf",
+  "networks": [
+    {
+      "name": "CAN0",
+      "RxPdus": [
+        { "name": "PT_CANFD_004A_RX", "id": "0x732", "hoh": 0, "up": "CanTp" },
+        { "name": "BD_CANFD_0053_RX", "id": "0x742", "hoh": 0, "up": "CanTp" },
+        { "name": "CL1_0757_RX",      "id": "0x75F", "hoh": 0, "up": "CanTp" }
+      ],
+      "TxPdus": [
+        { "name": "PT_CANFD_E001_TX", "id": "0x7E0", "hoh": 0, "up": "CanTp" },
+        { "name": "CL1_E001_TX",      "id": "0x7DF", "hoh": 0, "up": "CanTp" },
+        { "name": "PT_CANFD_004A_TX", "id": "0x731", "hoh": 0, "up": "CanTp" },
+        { "name": "BD_CANFD_0053_TX", "id": "0x741", "hoh": 0, "up": "CanTp" },
+        { "name": "CL1_0757_TX",      "id": "0x757", "hoh": 0, "up": "CanTp" }
+      ]
+    }
+  ]
+}

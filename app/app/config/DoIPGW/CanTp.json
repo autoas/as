@@ -1,0 +1,10 @@
+{
+  "class": "CanTp",
+  "channels": [
+    { "name": "PT_CANFD_E001", "RxPduId": "PT_CANFD_E001_TX", "TxPduId": "PT_CANFD_E001_RX", "LL_DL": 64 },
+    { "name": "CL1_E001",      "RxPduId": "CL1_E001_TX",      "TxPduId": "CL1_E001_RX",      "LL_DL": 8  },
+    { "name": "PT_CANFD_004A", "RxPduId": "PT_CANFD_004A_TX", "TxPduId": "PT_CANFD_004A_RX", "LL_DL": 64 },
+    { "name": "BD_CANFD_0053", "RxPduId": "BD_CANFD_0053_TX", "TxPduId": "BD_CANFD_0053_RX", "LL_DL": 64 },
+    { "name": "CL1_0757",      "RxPduId": "CL1_0757_TX",      "TxPduId": "CL1_0757_RX",      "LL_DL": 8  }
+  ]
+}
