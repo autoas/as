@@ -1,0 +1,25 @@
+{
+  "class": "Com",
+  "networks": [
+    {
+      "name": "CAN0",
+      "network": "CAN",
+      "device": "simulator_v2",
+      "port": 0,
+      "baudrate": 500000,
+      "me": "AS",
+      "enable_message_tx_callout": true,
+      "messages": [
+        {
+          "name": "SECOC_MSG", "id": "0x99", "dlc": 36,
+          "node": "AS", "CycleTime": 1000,
+          "signals": [
+            { "name": "VehicleConfig", "start": 7, "size": 288, "endian": "big",
+              "InitialValue": "[i for i in range(32)]",
+              "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "Other"] }
+          ]
+        }
+      ]
+    }
+  ]
+}

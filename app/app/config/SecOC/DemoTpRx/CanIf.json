@@ -1,0 +1,15 @@
+{
+  "class": "CanIf",
+  "networks": [
+    {
+      "name": "CAN0",
+      "me": "AS",
+      "RxPdus": [
+        { "name": "FW_CAN0_SECOC_MSG_RX", "id": "0x99", "hoh": 0, "up": "CanTp" }
+      ],
+      "TxPdus": [
+        { "name": "FW_CAN0_SECOC_MSG_TX", "id": "0x98", "hoh": 0, "up": "CanTp" }
+      ]
+    }
+  ]
+}

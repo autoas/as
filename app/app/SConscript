@@ -284,3 +284,76 @@ class ApplicationDoIPGW(ApplicationApp):
         # service implementations in the rest of app/app/src
         self.source = objsDoIPGW
         self.platform_config()
+
+
+class ApplicationSecOCDemo(ApplicationApp):
+    """common base for the two SecOC IF demo applications"""
+
+    # the demo directory, its configuration and the app specific glue source
+    # are prepared up-front outside of the class body
+    configDir = None
+    configs = {}
+    sources = []
+
+    def platform_config(self):
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
+
+    def config(self):
+        self.libsForApp = self.configs
+        super().config()
+        self.Append(CPPDEFINES=["USE_CAN"])
+        self.platform_config()
+        # app specific glue source, lives with the configuration
+        self.source += self.sources
+
+
+def secocDemoConfigs(demoDir, canTp=False):
+    """prepare the dedicated config set and source of one SecOC demo app"""
+    dir = "config/SecOC/%s" % (demoDir)
+    configs = {
+        "Csm": Glob("%s/Csm.json" % (dir)),
+        "SecOC": Glob("%s/SecOC.json" % (dir)),
+        "PduR": Glob("%s/PduR.json" % (dir)),
+        "Com": Glob("%s/Com.json" % (dir)),
+        "CanIf": Glob("%s/CanIf.json" % (dir)),
+    }
+    if canTp:
+        # when the Secured I-PDU is transported over CAN TP, the extra layer is
+        # needed and the app links the CanTp module as well
+        configs["CanTp"] = Glob("%s/CanTp.json" % (dir))
+    sources = Glob("%s/*.c" % (dir))
+    return configs, sources
+
+
+configsIfTx, sourcesIfTx = secocDemoConfigs("DemoIfTx")
+configsIfRx, sourcesIfRx = secocDemoConfigs("DemoIfRx")
+configsTpTx, sourcesTpTx = secocDemoConfigs("DemoTpTx", canTp=True)
+configsTpRx, sourcesTpRx = secocDemoConfigs("DemoTpRx", canTp=True)
+
+
+@register_application
+class ApplicationSecOCDemoIfTx(ApplicationSecOCDemo):
+    configDir = "DemoIfTx"
+    configs = configsIfTx
+    sources = sourcesIfTx
+
+
+@register_application
+class ApplicationSecOCDemoIfRx(ApplicationSecOCDemo):
+    configDir = "DemoIfRx"
+    configs = configsIfRx
+    sources = sourcesIfRx
+
+@register_application
+class ApplicationSecOCDemoTpTx(ApplicationSecOCDemo):
+    configDir = "DemoTpTx"
+    configs = configsTpTx
+    sources = sourcesTpTx
+
+
+@register_application
+class ApplicationSecOCDemoTpRx(ApplicationSecOCDemo):
+    configDir = "DemoTpRx"
+    configs = configsTpRx
+    sources = sourcesTpRx

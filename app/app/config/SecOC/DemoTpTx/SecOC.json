@@ -1,0 +1,24 @@
+{
+    "class": "SecOC",
+    "comment": "length in bits. The Secured I-PDU is transported over CanTp: SecOC -> PduR -> CanTp -> CanIf",
+    "FreshnessValueManager": [
+        {
+            "name": "FreshnessValue0",
+            "GenDummy": true,
+            "length": 32
+        }
+    ],
+    "TxProc": [
+        {
+            "name": "CAN0_SECOC_MSG_TX",
+            "DataId": "0x1234",
+            "AuthInfoLength": 128,
+            "AuthInfoTruncLength": 64,
+            "AuthPduHeaderLength": 3,
+            "TxAuthServiceConfigRef": "SECOC_MACGEN_0",
+            "FreshnessValueId": "FreshnessValue0",
+            "FreshnessValueTruncLength": 8,
+            "AuthenticIPduLength": 64
+        }
+    ]
+}

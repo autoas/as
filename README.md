@@ -79,6 +79,7 @@ MCU/ECU platforms currently supported by AS:
 | Diagnostic Communication Manager (Dcm) | [CN](doc/CN/Dcm.md) | [EN](doc/EN/Dcm.md) |
 | Diagnostic Event Manager (Dem) | [CN](doc/CN/Dem.md) | [EN](doc/EN/Dem.md) |
 | Bus Mirroring (Mirror) | [CN](doc/CN/Mirror.md) | [EN](doc/EN/Mirror.md) |
+| Secure Onboard Communication (SecOC) | [CN](doc/CN/SecOC.md) | [EN](doc/EN/SecOC.md) |
 | SOME/IP-SD | [CN](doc/CN/SOMEIP-SD.md) | [EN](doc/EN/SOMEIP-SD.md) |
 | DoIP | [CN](doc/CN/DoIP.md) | [EN](doc/EN/DoIP.md) |
 | DoIP-to-CAN Gateway demo | [CN](doc/CN/DoIP-CAN-Gateway.md) | [EN](doc/EN/DoIP-CAN-Gateway.md) |

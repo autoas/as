@@ -1,0 +1,25 @@
+{
+    "class": "SecOC",
+    "comment": "length in bits, single message SECOC_MSG shared by Tx/Rx demo",
+    "FreshnessValueManager": [
+        {
+            "name": "FreshnessValue0",
+            "GenDummy": true,
+            "length": 32
+        }
+    ],
+    "RxProc": [
+        {
+            "name": "CAN0_SECOC_MSG_RX",
+            "DataId": "0x1234",
+            "AuthInfoLength": 128,
+            "AuthInfoTruncLength": 64,
+            "AuthPduHeaderLength": 3,
+            "RxAuthServiceConfigRef": "SECOC_MACGEN_0",
+            "FreshnessValueId": "FreshnessValue0",
+            "FreshnessValueTruncLength": 8,
+            "AuthenticIPduLength": 64,
+            "UseAuthDataFreshness": false
+        }
+    ]
+}

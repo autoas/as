@@ -1,0 +1,15 @@
+{
+  "class": "CanTp",
+  "UseTxConfirmation": true,
+  "comment": "single channel, the receive side: the peer's data comes in on 0x99 (RxPduId), Flow Control goes out on 0x98 (TxPduId). PduR_TxPduId (outgoing SDU) is unused on this node but must name an existing id",
+  "channels": [
+    {
+      "name": "FW_CAN0_SECOC_MSG",
+      "RxPduId": "FW_CAN0_SECOC_MSG_RX",
+      "TxPduId": "FW_CAN0_SECOC_MSG_RX",
+      "LL_DL": 8,
+      "BS": 8,
+      "STmin": 0
+    }
+  ]
+}
