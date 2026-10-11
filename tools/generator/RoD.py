@@ -150,10 +150,10 @@ def GenConstants(C, cfg):
                 cstr += '"%s"' % (value)
                 for c in value:
                     raw.append(ord(c))
-                i = len(value)
-                while i < data.get("size", 1):
+                n = len(value)
+                while n < data.get("size", 1):
                     raw.append(0)
-                    i = i + 1
+                    n = n + 1
             else:
                 value = data.get("value", 0)
                 if type(value) == str:
@@ -163,10 +163,10 @@ def GenConstants(C, cfg):
                 if type(value) in [list, tuple]:
                     for v in value:
                         PlaceToRaw(raw, v, data["type"], data, endian)
-                    i = len(value)
-                    while i < data.get("size", 1):
+                    n = len(value)
+                    while n < data.get("size", 1):
                         PlaceToRaw(raw, 0, data["type"], data, endian)
-                        i = i + 1
+                        n = n + 1
                 else:
                     PlaceToRaw(raw, value, data["type"], data, endian)
 

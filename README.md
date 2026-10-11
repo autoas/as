@@ -95,6 +95,7 @@ MCU/ECU platforms currently supported by AS:
 | How to create CA (X.509) | [CN](doc/CN/HowToCreateCA.md) | [EN](doc/EN/HowToCreateCA.md) |
 | UICom Lua scripting | [CN](doc/CN/UICom.md) | [EN](doc/EN/UICom.md) |
 | UIVIC virtual instrument cluster | [CN](doc/CN/UIVIC.md) | [EN](doc/EN/UIVIC.md) |
+| UIXcp XCP services and calibration | [CN](doc/CN/UIXcp.md) | [EN](doc/EN/UIXcp.md) |
 
 ## License
 

@@ -611,7 +611,7 @@ UIXcp::UIXcp() : QWidget() {
   connect(m_btnStart, SIGNAL(clicked()), this, SLOT(on_btnStart_clicked()));
   connect(m_Tree, SIGNAL(itemSelectionChanged()), this, SLOT(on_Tree_itemSelectionChanged()));
 
-  std::string defJs = "./diagnostic.json";
+  std::string defJs = "./xcp.json";
   if (0 != access(defJs.c_str(), F_OK | R_OK)) {
     defJs = "../../../../tools/asone/examples/xcp.json";
   }
