@@ -369,8 +369,8 @@ Build and run:
 ```bash
 scons --app=SecOCDemoIfTx
 scons --app=SecOCDemoIfRx
-build/nt/GCC/SecOCDemoIfTx/SecOCDemoIfTx.exe -v 0
-build/nt/GCC/SecOCDemoIfRx/SecOCDemoIfRx.exe -v 0
+build\nt\GCC\SecOCDemoIfTx\SecOCDemoIfTx.exe -v 0
+build\nt\GCC\SecOCDemoIfRx\SecOCDemoIfRx.exe -v 0
 ```
 
 **Tx app** (`SecOCDemoIfTx.exe -v 0`) — printed from the Com Tx IPdu callout, before SecOC secures it:
@@ -412,8 +412,8 @@ Build and run:
 ```bash
 scons --app=SecOCDemoTpTx
 scons --app=SecOCDemoTpRx
-build/nt/GCC/SecOCDemoTpTx/SecOCDemoTpTx.exe -v 0
-build/nt/GCC/SecOCDemoTpRx/SecOCDemoTpRx.exe -v 0
+build\nt\GCC\SecOCDemoTpTx\SecOCDemoTpTx.exe -v 0
+build\nt\GCC\SecOCDemoTpRx\SecOCDemoTpRx.exe -v 0
 ```
 
 **Tx app** — the 48-byte secured I-PDU is first buffered by CanTp, then a First Frame (`10 30 …`, length `0x0030` = 48) goes out and the sender **waits for a Flow Control**. Only after the peer answers with an FC on `0x98` (`30 08 00`: CTS, block size 8, STmin 0) does it send the Consecutive Frames with increasing sequence numbers `21`…`26`, the last one carrying the truncated MAC:

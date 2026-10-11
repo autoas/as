@@ -371,8 +371,8 @@ EcuM 会自动调用 SecOC_Init 并调度 SecOC_MainFunctionTx/Rx。按第 2 节
 ```bash
 scons --app=SecOCDemoIfTx
 scons --app=SecOCDemoIfRx
-build/nt/GCC/SecOCDemoIfTx/SecOCDemoIfTx.exe -v 0
-build/nt/GCC/SecOCDemoIfRx/SecOCDemoIfRx.exe -v 0
+build\nt\GCC\SecOCDemoIfTx\SecOCDemoIfTx.exe -v 0
+build\nt\GCC\SecOCDemoIfRx\SecOCDemoIfRx.exe -v 0
 ```
 
 **Tx 应用**（`SecOCDemoIfTx.exe -v 0`）——由 Com 发送 IPdu Callout 在 SecOC 加签之前打印 Authentic I-PDU：
@@ -414,8 +414,8 @@ canid=00000099,dlc=48,data=[00,00,24,01,02,...,24,00,CE,41,A8,A4,3B,0A,3A,69,] [
 ```bash
 scons --app=SecOCDemoTpTx
 scons --app=SecOCDemoTpRx
-build/nt/GCC/SecOCDemoTpTx/SecOCDemoTpTx.exe -v 0
-build/nt/GCC/SecOCDemoTpRx/SecOCDemoTpRx.exe -v 0
+build\nt\GCC\SecOCDemoTpTx\SecOCDemoTpTx.exe -v 0
+build\nt\GCC\SecOCDemoTpRx\SecOCDemoTpRx.exe -v 0
 ```
 
 **Tx 应用**——48 字节 Secured I-PDU 先由 CanTp 缓存，随后发送首帧（`10 30 ...`，长度 `0x0030` = 48）并**等待流控帧**；收到对端在 `0x98` 上回送的 FC（`30 08 00`，CTS、块大小 8、STmin 0）后，才开始按 `21`…`26` 递增序号发送连续帧，末帧携带截断 MAC：

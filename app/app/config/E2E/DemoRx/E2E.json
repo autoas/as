@@ -1,0 +1,7 @@
+{
+    "class": "E2E",
+    "comment": "DemoRx - check the same message with profile P11, must match DemoTx exactly. Offsets are in BITS, the profile name must match the Com message name in Com.json.",
+    "CheckP11": [
+        { "name": "MSG_TIME", "DataID": "0x1234", "DataIDMode": "NIBBLE", "CRCOffset": 0, "CounterOffset": 8, "DataIDNibbleOffset": 12 }
+    ]
+}

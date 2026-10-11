@@ -357,3 +357,56 @@ class ApplicationSecOCDemoTpRx(ApplicationSecOCDemo):
     configDir = "DemoTpRx"
     configs = configsTpRx
     sources = sourcesTpRx
+
+
+class ApplicationE2EDemo(ApplicationApp):
+    """common base for the two E2E demo applications"""
+
+    # E2E is part of Com: the application just links Com/PduR/CanIf plus the
+    # dedicated configuration directory and the app specific glue source
+    configDir = None
+    configs = {}
+    sources = []
+
+    def platform_config(self):
+        self.Append(CPPDEFINES=["USE_STD_DEBUG"])
+        self.LIBS.append("Simulator")
+
+    def config(self):
+        self.libsForApp = self.configs
+        super().config()
+        self.Append(CPPDEFINES=["USE_CAN"])
+        self.platform_config()
+        # app specific glue source, lives with the configuration
+        self.source += self.sources
+
+
+def e2eDemoConfigs(demoDir):
+    """prepare the dedicated config set and source of one E2E demo app"""
+    dir = "config/E2E/%s" % (demoDir)
+    configs = {
+        "E2E": Glob("%s/E2E.json" % (dir)),
+        "PduR": Glob("%s/PduR.json" % (dir)),
+        "Com": Glob("%s/Com.json" % (dir)),
+        "CanIf": Glob("%s/CanIf.json" % (dir)),
+    }
+    sources = Glob("%s/*.c" % (dir))
+    return configs, sources
+
+
+configsE2ETx, sourcesE2ETx = e2eDemoConfigs("DemoTx")
+configsE2ERx, sourcesE2ERx = e2eDemoConfigs("DemoRx")
+
+
+@register_application
+class ApplicationE2EDemoTx(ApplicationE2EDemo):
+    configDir = "DemoTx"
+    configs = configsE2ETx
+    sources = sourcesE2ETx
+
+
+@register_application
+class ApplicationE2EDemoRx(ApplicationE2EDemo):
+    configDir = "DemoRx"
+    configs = configsE2ERx
+    sources = sourcesE2ERx

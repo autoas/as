@@ -1,0 +1,7 @@
+{
+    "class": "E2E",
+    "comment": "DemoTx - protect one message with profile P11. Offsets are in BITS, the profile name must match the Com message name in Com.json. NIBBLE mode: the high nibble of DataID (0x1234 -> 0x2) is placed in the PDU, the low byte (0x34) is only fed into the CRC.",
+    "ProtectP11": [
+        { "name": "MSG_TIME", "DataID": "0x1234", "DataIDMode": "NIBBLE", "CRCOffset": 0, "CounterOffset": 8, "DataIDNibbleOffset": 12 }
+    ]
+}
