@@ -297,8 +297,25 @@ def get_resource(cfg):
 
 def preprocess(cfg):
     for x in cfg["services"]:
-        x["id"] = toNum(x["id"])
-    cfg["services"].sort(key=lambda x: str(x["id"]))
+        pid = toNum(x["id"])
+        x["id"] = pid
+        if pid not in ServiceMap:
+            raise ValueError(
+                "Xcp: PID %s of service '%s' is not supported, supported PIDs: %s"
+                % (
+                    "0x%02X" % pid if type(pid) is int else pid,
+                    x.get("name", "?"),
+                    ", ".join("0x%02X" % p for p in sorted(ServiceMap)),
+                )
+            )
+    ids = [x["id"] for x in cfg["services"]]
+    dups = sorted(set(i for i in ids if ids.count(i) > 1))
+    if len(dups) > 0:
+        raise ValueError(
+            "Xcp: duplicated PID(s) %s in services" % ", ".join("0x%02X" % i for i in dups)
+        )
+    # the service table is binary searched by Xcp_FindService(), so it must ascend numerically
+    cfg["services"].sort(key=lambda x: x["id"])
 
 
 def Gen_Xcp(cfg, dir):
@@ -310,7 +327,7 @@ def Gen_Xcp(cfg, dir):
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("#ifndef XCP_PACKET_POOL_SIZE\n")
-    H.write("#define XCP_PACKET_POOL_SIZE 8\n")
+    H.write("#define XCP_PACKET_POOL_SIZE %s\n" % (cfg.get("PacketPoolSize", 8)))
     H.write("#endif\n\n")
 
     H.write("#ifndef XCP_MAIN_FUNCTION_PERIOD\n")

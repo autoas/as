@@ -22,7 +22,7 @@
 #define XCP_PID_CMD_STD_SYNCH 0xFCu               /* no */
 #define XCP_PID_CMD_STD_GET_COMM_MODE_INFO 0xFBu  /* yes */
 #define XCP_PID_CMD_STD_GET_ID 0xFAu              /* yes */
-#define XCP_PID_CMD_STD_SET_REQUEST OxF9u         /* yes */
+#define XCP_PID_CMD_STD_SET_REQUEST 0xF9u         /* yes */
 #define XCP_PID_CMD_STD_GET_SEED 0xF8u            /* yes */
 #define XCP_PID_CMD_STD_UNLOCK 0xF7u              /* yes */
 #define XCP_PID_CMD_STD_SET_MTA 0xF6u             /* yes */

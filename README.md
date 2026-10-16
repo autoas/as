@@ -86,6 +86,7 @@ MCU/ECU platforms currently supported by AS:
 | DoIP-to-CAN Gateway demo | [CN](doc/CN/DoIP-CAN-Gateway.md) | [EN](doc/EN/DoIP-CAN-Gateway.md) |
 | TLS (mbedTLS) | [CN](doc/CN/TLS.md) | [EN](doc/EN/TLS.md) |
 | VDDS | [CN](doc/CN/VirtioDDS.md) | [EN](doc/EN/VirtioDDS.md) |
+| XCP (measurement & calibration) | [CN](doc/CN/Xcp.md) | [EN](doc/EN/Xcp.md) |
 
 ### Tools & Guides
 
