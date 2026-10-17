@@ -40,10 +40,18 @@ struct DevList_s {
 /* ================================ [ DECLARES  ] ============================================== */
 extern "C" const Dev_DeviceOpsType rs232_dev_ops;
 extern "C" const Dev_DeviceOpsType lin_dev_ops;
+#ifdef _WIN32
+extern "C" const Dev_DeviceOpsType ch341_i2c_dev_ops;
+extern "C" const Dev_DeviceOpsType ch341_spi_dev_ops;
+#endif
 /* ================================ [ DATAS     ] ============================================== */
 static const Dev_DeviceOpsType *devOps[] = {
   &rs232_dev_ops,
   &lin_dev_ops,
+#ifdef _WIN32
+  &ch341_i2c_dev_ops,
+  &ch341_spi_dev_ops,
+#endif
   nullptr,
 };
 static int _fd = 0; /* file identifier start from 0 */

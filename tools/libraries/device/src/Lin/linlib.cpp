@@ -36,6 +36,8 @@ static void rx_daemon(void *param);
 
 extern "C" const Lin_DeviceOpsType lin_simulator_ops;
 extern "C" const Lin_DeviceOpsType lin_simulator_v2_ops;
+extern "C" const Lin_DeviceOpsType lin_i2c_ops;
+extern "C" const Lin_DeviceOpsType lin_spi_ops;
 /* ================================ [ DATAS     ] ============================================== */
 extern "C" const Dev_DeviceOpsType lin_dev_ops = {
   .name = "lin/",
@@ -47,7 +49,7 @@ extern "C" const Dev_DeviceOpsType lin_dev_ops = {
 };
 
 static const Lin_DeviceOpsType *linOps[] = {
-  &lin_simulator_ops, &lin_simulator_v2_ops, nullptr,
+  &lin_simulator_ops, &lin_simulator_v2_ops, &lin_i2c_ops, &lin_spi_ops, nullptr,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 static const Lin_DeviceOpsType *search_ops(const char *name) {
