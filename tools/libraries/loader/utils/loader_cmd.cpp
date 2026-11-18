@@ -20,20 +20,20 @@ void std_set_log_name(const char *path);
 void std_set_log_level(int level);
 }
 /* ================================ [ DATAS     ] ============================================== */
-static volatile int g_bExit = 0;
+static volatile int loaderExitFlag = 0;
 /* ================================ [ LOCALS    ] ============================================== */
-static void sigint_handler(int sig) {
+static void Loader_SigintHandler(int sig) {
   (void)sig;
-  g_bExit = 1;
+  loaderExitFlag = 1;
 }
 
-static void usage(char *prog) {
-  printf("usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
+static void Loader_Usage(char *prog) {
+  printf("Loader_Usage: %s -a app_srecord_file [-f flash_driver_srecord_file] [-l 8|64 ] [-s range]"
          "[-S crc16|crc32] [-c choice] [-F funcAddr] [-n N_TA] [-s delayUs]\n"
          "[-d device] [-p port] [-r rxid] [-t txid] [-b baudrate] [-V version]\n",
          prog);
 }
-static uint32_t toU32(const char *strV) {
+static uint32_t Loader_ToU32(const char *strV) {
   uint32_t u32V = 0;
 
   if ((0 == strncmp("0x", strV, 2)) || (0 == strncmp("0X", strV, 2))) {
@@ -56,31 +56,31 @@ int main(int argc, char *argv[]) {
   uint16_t N_TA = 0xFFFF;
   uint32_t delayUs = 0;
   uint32_t funcAddr = 0x7DF;
-  int ll_dl = 8;
+  int linkLayerDataLength = 8;
   char *appSRecPath = NULL;
   char *flsSRecPath = NULL;
-  srec_t *appSRec = NULL;
-  srec_t *flsSRec = NULL;
+  Srec_FileType *appSRec = NULL;
+  Srec_FileType *flsSRec = NULL;
   size_t total = 0; /* for sign */
-  srec_sign_type_t signType = SREC_SIGN_CRC16;
+  Srec_SignType signType = SREC_SIGN_CRC16;
   uint32_t timeout = 100; /* ms */
   int r = 0;
   int verbose = 0;
   const char *choice = "FBL";
-  isotp_can_version_t version = ISOTP_CAN_V2;
-  loader_args_t args;
+  IsoTp_CanVersionType version = ISOTP_CAN_V2;
+  Loader_ArgsType args;
 
-  signal(SIGINT, sigint_handler);
-  signal(SIGTERM, sigint_handler);
+  signal(SIGINT, Loader_SigintHandler);
+  signal(SIGTERM, Loader_SigintHandler);
 
   int progress = 0;
   int lastProgress = 0;
   char *log = NULL;
 
-  isotp_t *isotp = NULL;
-  loader_t *loader = NULL;
+  IsoTp_Type *isotp = NULL;
+  Loader_Type *loader = NULL;
 
-  isotp_parameter_t params;
+  IsoTp_ParameterType params;
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "a:b:c:d:D:f:F:l:n:p:r:s:S:t:T:vV:")) != -1) {
@@ -104,24 +104,24 @@ int main(int argc, char *argv[]) {
       flsSRecPath = optarg;
       break;
     case 'F':
-      funcAddr = toU32(optarg);
+      funcAddr = Loader_ToU32(optarg);
       break;
     case 'l':
-      ll_dl = atoi(optarg);
+      linkLayerDataLength = atoi(optarg);
       break;
     case 'n':
-      N_TA = toU32(optarg);
+      N_TA = Loader_ToU32(optarg);
       break;
     case 'p':
       port = atoi(optarg);
-      bPortSet = FALSE;
+      bPortSet = TRUE;
       break;
     case 'r':
-      rxid = toU32(optarg);
+      rxid = Loader_ToU32(optarg);
       bRxIdSet = TRUE;
       break;
     case 's':
-      total = toU32(optarg);
+      total = Loader_ToU32(optarg);
       break;
     case 'S':
       if (0 == strcmp("crc32", optarg)) {
@@ -137,22 +137,22 @@ int main(int argc, char *argv[]) {
       } else if (0 == strcmp("crc16-v3", optarg)) {
         signType = SREC_SIGN_CRC16_V3;
       } else {
-        usage(argv[0]);
+        Loader_Usage(argv[0]);
         return -1;
       }
       break;
     case 't':
-      txid = toU32(optarg);
+      txid = Loader_ToU32(optarg);
       bTxIdSet = TRUE;
       break;
     case 'T':
-      timeout = toU32(optarg);
+      timeout = Loader_ToU32(optarg);
       break;
     case 'v':
       verbose = 1;
       break;
     case 'V':
-      version = (isotp_can_version_t)toU32(optarg);
+      version = (IsoTp_CanVersionType)Loader_ToU32(optarg);
       break;
     default:
       break;
@@ -165,58 +165,58 @@ int main(int argc, char *argv[]) {
       r = -1;
     } else {
       if (NULL != appSRecPath) {
-        r = srec_sign(appSRecPath, total, signType);
+        r = Srec_Sign(appSRecPath, total, signType);
       } else {
-        r = srec_sign(flsSRecPath, total, signType);
+        r = Srec_Sign(flsSRecPath, total, signType);
       }
       return r;
     }
   }
 
   if ((NULL == device) || (port < 0) || (baudrate < 0) || (opterr != 0)) {
-    usage(argv[0]);
+    Loader_Usage(argv[0]);
     return -1;
   }
 
   if (NULL == appSRecPath) {
-    usage(argv[0]);
+    Loader_Usage(argv[0]);
     r = -2;
   }
 
   if (0 == r) {
-    appSRec = srec_open(appSRecPath);
+    appSRec = Srec_Open(appSRecPath);
     if (NULL == appSRec) {
       r = -3;
       printf("failed to load srecord file %s\n", appSRecPath);
     } else {
       printf("block information of %s:\n", appSRecPath);
-      srec_print(appSRec);
+      Srec_Print(appSRec);
     }
   }
 
   if ((0 == r) && (NULL != flsSRecPath)) {
-    flsSRec = srec_open(flsSRecPath);
+    flsSRec = Srec_Open(flsSRecPath);
     if (NULL == flsSRecPath) {
       r = -4;
       printf("failed to load srecord file %s\n", flsSRecPath);
     } else {
       printf("block information of %s:\n", flsSRecPath);
-      srec_print(flsSRec);
+      Srec_Print(flsSRec);
     }
   }
 
-  params.baudrate = (uint32_t)baudrate;
-  params.port = port;
-  params.ll_dl = ll_dl;
+  params.Baudrate = (uint32_t)baudrate;
+  params.Port = port;
+  params.LinkLayerDataLength = linkLayerDataLength;
   params.N_TA = N_TA;
   if (0 == strncmp("CAN", device, 3)) {
-    strcpy(params.device, &device[4]);
-    params.protocol = ISOTP_OVER_CAN;
+    strcpy(params.Device, &device[4]);
+    params.Protocol = ISOTP_OVER_CAN;
     params.U.CAN.RxCanId = (uint32_t)rxid;
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
     params.U.CAN.STmin = delayUs;
-    params.U.CAN.version = version;
+    params.U.CAN.Version = version;
   } else if (0 == strncmp("LIN", device, 3)) {
     if (0x731 == txid) {
       txid = 0x3c;
@@ -224,22 +224,22 @@ int main(int argc, char *argv[]) {
     if (0x732 == rxid) {
       rxid = 0x3d;
     }
-    strcpy(params.device, &device[4]);
-    params.protocol = ISOTP_OVER_LIN;
+    strcpy(params.Device, &device[4]);
+    params.Protocol = ISOTP_OVER_LIN;
     params.U.LIN.RxId = (uint32_t)rxid;
     params.U.LIN.TxId = (uint32_t)txid;
-    params.U.LIN.timeout = timeout;
+    params.U.LIN.Timeout = timeout;
     funcAddr = 0; /* This is not avaiable for LIN */
-    params.U.LIN.delayUs = delayUs;
+    params.U.LIN.DelayUs = delayUs;
   } else if (0 == strncmp("DOIP", device, 4)) {
     /* device: "DOIP.224.244.224.245" for example */
     size_t length = strlen(device);
     if (length > 5) {
-      strcpy(params.device, &device[5]);
+      strcpy(params.Device, &device[5]);
     } else {
-      strcpy(params.device, "224.244.224.245");
+      strcpy(params.Device, "224.244.224.245");
     }
-    params.protocol = ISOTP_OVER_DOIP;
+    params.Protocol = ISOTP_OVER_DOIP;
     if (FALSE == bRxIdSet) {
       rxid = 0xbeef;
     }
@@ -247,14 +247,14 @@ int main(int argc, char *argv[]) {
       txid = 0xdead;
     }
     if (FALSE == bPortSet) {
-      params.port = 13400;
+      params.Port = 13400;
     }
-    params.U.DoIP.sourceAddress = (uint32_t)rxid;
-    params.U.DoIP.targetAddress = (uint32_t)txid;
-    params.U.DoIP.activationType = 0;
+    params.U.DoIP.SourceAddress = (uint32_t)rxid;
+    params.U.DoIP.TargetAddress = (uint32_t)txid;
+    params.U.DoIP.ActivationType = 0;
   } else {
     printf("%s not supported\n", device);
-    usage(argv[0]);
+    Loader_Usage(argv[0]);
     r = -5;
   }
 
@@ -263,40 +263,40 @@ int main(int argc, char *argv[]) {
   }
 
   if (0 == r) {
-    isotp = isotp_create(&params);
+    isotp = IsoTp_Create(&params);
     if (NULL == isotp) {
       printf("failed to create isotp\n");
       r = -6;
     } else {
-      if (ISOTP_OVER_CAN == params.protocol) {
+      if (ISOTP_OVER_CAN == params.Protocol) {
         if (timeout > 1000) {
-          isotp_ioctl(isotp, ISOTP_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
+          IsoTp_IoCtl(isotp, ISOTP_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
         }
       }
     }
   }
 
   if (0 == r) {
-    args.isotp = isotp;
-    args.appSRec = appSRec;
-    args.flsSRec = flsSRec;
-    args.choice = choice;
-    args.signType = signType;
-    args.funcAddr = (uint32_t)funcAddr;
-    loader = loader_create(&args);
+    args.Isotp = isotp;
+    args.AppSRec = appSRec;
+    args.FlsSRec = flsSRec;
+    args.Choice = choice;
+    args.SignType = signType;
+    args.FuncAddr = (uint32_t)funcAddr;
+    loader = Loader_Create(&args);
     if (NULL == loader) {
       printf("failed to create loader\n");
       r = -7;
     } else {
       if (verbose) {
-        loader_set_log_level(loader, L_LOG_DEBUG);
+        Loader_SetLogLevel(loader, L_LOG_DEBUG);
         std_set_log_level(0);
       }
     }
   }
 
-  while ((0 == r) && (progress < 10000) && (0 == g_bExit)) {
-    r = loader_poll(loader, &progress, &log);
+  while ((0 == r) && (progress < 10000) && (0 == loaderExitFlag)) {
+    r = Loader_Poll(loader, &progress, &log);
     if (NULL != log) {
       printf(log);
       free(log);
@@ -309,11 +309,11 @@ int main(int argc, char *argv[]) {
   }
 
   if (NULL != loader) {
-    loader_destory(loader);
+    Loader_Destroy(loader);
   }
 
   if (NULL != isotp) {
-    isotp_destory(isotp);
+    IsoTp_Destroy(isotp);
   }
 
   return r;

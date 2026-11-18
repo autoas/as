@@ -4,8 +4,8 @@
  *
  * ref: Specification of UDP Network Management AUTOSAR CP Release 4.4.0
  */
-#ifndef _UDPNM_H
-#define _UDPNM_H
+#ifndef UDPNM_H
+#define UDPNM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "NmStack_Types.h"
@@ -26,7 +26,7 @@ typedef struct UdpNm_Config_s UdpNm_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_UdpNm_00208 */
-void UdpNm_Init(const UdpNm_ConfigType *ConfigPtr);
+void UdpNm_Init(const UdpNm_ConfigType *configPtr);
 
 /* @SWS_UdpNm_00211 */
 Std_ReturnType UdpNm_PassiveStartUp(NetworkHandleType nmChannelHandle);
@@ -70,22 +70,22 @@ Std_ReturnType UdpNm_RequestBusSynchronization(NetworkHandleType nmChannelHandle
 
 /* @SWS_UdpNm_00227 */
 Std_ReturnType UdpNm_CheckRemoteSleepIndication(NetworkHandleType nmChannelHandle,
-                                                boolean *NmRemoteSleepIndPtr);
+                                                boolean *nmRemoteSleepIndPtr);
 
 /* @SWS_UdpNm_00324 */
 Std_ReturnType UdpNm_SetSleepReadyBit(NetworkHandleType nmChannelHandle, boolean nmSleepReadyBit);
 
 /* @SWS_UdpNm_00313 */
-Std_ReturnType UdpNm_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType UdpNm_Transmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_UdpNm_00228 */
-void UdpNm_SoAdIfTxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void UdpNm_SoAdIfTxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_UdpNm_00231 */
-void UdpNm_SoAdIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void UdpNm_SoAdIfRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_UdpNm_91001 */
-Std_ReturnType UdpNm_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr);
+Std_ReturnType UdpNm_TriggerTransmit(PduIdType txPduId, PduInfoType *pduInfoPtr);
 
 /* @SWS_UdpNm_00234 */
 void UdpNm_MainFunction(void);
@@ -95,4 +95,4 @@ void UdpNm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _UDPNM_H */
+#endif /* UDPNM_H */

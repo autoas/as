@@ -1,35 +1,35 @@
 {
-    "class": "RoD",
-    "name": "AppSim",
-    "comments": "Read Only Data In Rom",
-    "enidan": "little",
-    "blocks": [
+    "Class": "RoD",
+    "Name": "AppSim",
+    "Comments": "Read Only Data In Rom",
+    "Enidan": "little",
+    "Blocks": [
         {
-            "name": "AppVersion",
-            "data": [
-                { "name": "year", "type": "uint16", "value": 0 },
-                { "name": "month", "type": "uint8", "value": 0 },
-                { "name": "day",   "type": "uint8", "value": 0 },
-                { "name": "hour",  "type": "uint8", "value": 0 },
-                { "name": "minute", "type": "uint8", "value": 0 },
-                { "name": "second", "type": "uint8", "value": 0 },
-                { "name": "major", "type": "uint8", "value": 1 },
-                { "name": "minor", "type": "uint8", "value": 0 },
-                { "name": "patch", "type": "uint8", "value": 0 }
+            "Name": "AppVersion",
+            "Data": [
+                { "Name": "year", "Type": "uint16", "Value": 0 },
+                { "Name": "month", "Type": "uint8", "Value": 0 },
+                { "Name": "day",   "Type": "uint8", "Value": 0 },
+                { "Name": "hour",  "Type": "uint8", "Value": 0 },
+                { "Name": "minute", "Type": "uint8", "Value": 0 },
+                { "Name": "second", "Type": "uint8", "Value": 0 },
+                { "Name": "major", "Type": "uint8", "Value": 1 },
+                { "Name": "minor", "Type": "uint8", "Value": 0 },
+                { "Name": "patch", "Type": "uint8", "Value": 0 }
             ]
         },
         {
-            "name": "ProgramDependency",
-            "crc": "0x6567",
-            "data": [
-                { "name": "callout", "type": "function",
-                    "value": "NULL",
-                    "args": ["uint8_t", "uint8_t", "uint8_t"],
-                    "return": "Std_ReturnType"  },
-                { "name": "BLVersionMin", "type": "struct", "data": [
-                        { "name": "major", "type": "uint8", "value": 4 },
-                        { "name": "minor", "type": "uint8", "value": 0 },
-                        { "name": "patch", "type": "uint8", "value": 0 }
+            "Name": "ProgramDependency",
+            "Crc": "0x6567",
+            "Data": [
+                { "Name": "callout", "Type": "function",
+                    "Value": "NULL",
+                    "Args": ["uint8_t", "uint8_t", "uint8_t"],
+                    "Return": "Std_ReturnType"  },
+                { "Name": "BLVersionMin", "Type": "struct", "Data": [
+                        { "Name": "major", "Type": "uint8", "Value": 4 },
+                        { "Name": "minor", "Type": "uint8", "Value": 0 },
+                        { "Name": "patch", "Type": "uint8", "Value": 0 }
                     ] }
             ]
         }

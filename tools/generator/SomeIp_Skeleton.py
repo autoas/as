@@ -11,7 +11,7 @@ __all__ = ["Gen_SomeIpSkeleton"]
 
 def Gen_SomeIpSkeleton(cfg, service, dir, source):
     allStructs = GetStructs(cfg)
-    service_name = service["name"]
+    service_name = service["Name"]
     source["%sSkeleton" % (service_name)] = ["%s/%sSkeleton.cpp" % (dir, service_name)]
     
     # Create Jinja2 environment
@@ -33,10 +33,10 @@ def Gen_SomeIpSkeleton(cfg, service, dir, source):
     
     # Prepare context data
     MaxPayloadSize = 32
-    listenNum = service.get("listen", 1)
+    listenNum = service.get("Listen", 1)
     context = {
         "cfg": cfg,
-        "service": service,
+        "Service": service,
         "service_name": service_name,
         "allStructs": allStructs,
         "MaxPayloadSize": MaxPayloadSize,

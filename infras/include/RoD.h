@@ -17,18 +17,18 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  const void *data;
-  uint16_t size;
-  uint16_t crc;
-  uint16_t invCrc;
+  const void *Data;
+  uint16_t Size;
+  uint16_t Crc;
+  uint16_t InvCrc;
 } RoD_DataType;
 
 typedef struct {
-  const RoD_DataType *datas;
-  uint32_t magic;
-  uint32_t invMagic;
-  uint16_t numOfData;
-  uint16_t invNumOfData;
+  const RoD_DataType *Datas;
+  uint32_t Magic;
+  uint32_t InvMagic;
+  uint16_t NumOfData;
+  uint16_t InvNumOfData;
 } RoD_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

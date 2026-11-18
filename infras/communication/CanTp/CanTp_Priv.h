@@ -20,34 +20,34 @@
 #ifdef CANTP_USE_STD_TIMER
 #define CanTpSetAlarm(v)                                                                           \
   do {                                                                                             \
-    Std_TimerInit(&context->timer, ((v) * 1000 * CANTP_MAIN_FUNCTION_PERIOD));                     \
+    Std_TimerInit(&context->Timer, ((v) * 1000 * CANTP_MAIN_FUNCTION_PERIOD));                     \
   } while (0)
 
 #define CanTpSignalAlarm()
-#define CanTpIsAlarmTimeout() Std_IsTimerTimeout(&context->timer)
-#define CanTpIsAlarmStarted() Std_IsTimerStarted(&context->timer)
-#define CanTpCancelAlarm() Std_TimerStop(&context->timer)
+#define CanTpIsAlarmTimeout() Std_IsTimerTimeout(&context->Timer)
+#define CanTpIsAlarmStarted() Std_IsTimerStarted(&context->Timer)
+#define CanTpCancelAlarm() Std_TimerStop(&context->Timer)
 #else
 #define CanTpSetAlarm(v)                                                                           \
   do {                                                                                             \
-    context->timer = 1u + (v);                                                                     \
+    context->Timer = 1u + (v);                                                                     \
   } while (0)
 
 /* signal the alarm to process one step/tick forward */
 #define CanTpSignalAlarm()                                                                         \
   do {                                                                                             \
-    if (context->timer > 1u) {                                                                     \
-      (context->timer)--;                                                                          \
+    if (context->Timer > 1u) {                                                                     \
+      (context->Timer)--;                                                                          \
     }                                                                                              \
   } while (0)
 
-#define CanTpIsAlarmTimeout() (1u == context->timer)
+#define CanTpIsAlarmTimeout() (1u == context->Timer)
 
-#define CanTpIsAlarmStarted() (0u != context->timer)
+#define CanTpIsAlarmStarted() (0u != context->Timer)
 
 #define CanTpCancelAlarm()                                                                         \
   do {                                                                                             \
-    context->timer = 0;                                                                            \
+    context->Timer = 0;                                                                            \
   } while (0)
 #endif
 /* ================================ [ TYPES     ] ============================================== */
@@ -64,7 +64,7 @@ typedef enum {
 typedef uint8_t CanTp_CommunicationType;
 
 typedef struct {
-  uint8_t *data; /* data buffer to TP frame transmission */
+  uint8_t *Data; /* data buffer to TP frame transmission */
   CanTp_AddressingFormatType AddressingFormat;
   PduIdType CanIfTxPduId;
   PduIdType PduR_RxPduId;
@@ -82,10 +82,10 @@ typedef struct {
   uint8_t N_TA; /* if addressing format is CANTP_EXTENDED.
                  * Note: for Lin, N_TA = 0 is reserved for go to sleep command */
   /* @ECUC_CanTp_00251 */
-  uint8_t CanTpRxWftMax; /* can't not be 0xFF */
-  uint8_t LL_DL;         /* for CAN it was 8, for CANFD it was 64 */
-  uint8_t padding;
-  CanTp_CommunicationType comType;
+  uint8_t CanTpRxWftMax;       /* can't not be 0xFF */
+  uint8_t LinkLayerDataLength; /* for CAN it was 8, for CANFD it was 64 */
+  uint8_t Padding;
+  CanTp_CommunicationType ComType;
 } CanTp_ChannelConfigType;
 
 enum {
@@ -110,24 +110,24 @@ enum {
 typedef struct {
   PduInfoType PduInfo;
 #ifdef CANTP_USE_STD_TIMER
-  Std_TimerType timer;
+  Std_TimerType Timer;
 #else
-  uint16_t timer;
+  uint16_t Timer;
 #endif
   PduLengthType TpSduLength;
   PduLengthType TpSduOffset; /* added for SecOC & Com */
-  uint8_t cfgBS;
+  uint8_t CfgBS;
   uint8_t BS;
   uint8_t SN;
   uint8_t STmin;
   uint8_t WftCounter;
-  uint8_t state;
+  uint8_t State;
 } CanTp_ChannelContextType;
 
 struct CanTp_Config_s {
-  const CanTp_ChannelConfigType *channelConfigs;
-  CanTp_ChannelContextType *channelContexts;
-  uint8_t numOfChannels;
+  const CanTp_ChannelConfigType *ChannelConfigs;
+  CanTp_ChannelContextType *ChannelContexts;
+  uint8_t NumOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

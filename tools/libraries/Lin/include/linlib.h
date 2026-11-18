@@ -12,16 +12,16 @@ extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-typedef uint32_t lin_id_t;
+typedef uint32_t LinL_IdType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int lin_open(const char *device_name, uint32_t port, uint32_t baudrate);
-bool lin_write(int busid, lin_id_t id, uint8_t dlc, const uint8_t *data, bool enhanced);
-bool lin_read(int busid, lin_id_t id, uint8_t dlc, uint8_t *data, bool enhanced,
-              int timeout /* ms */);
-bool lin_close(int busid);
+int LinL_Open(const char *deviceName, uint32_t port, uint32_t baudrate);
+bool LinL_Write(int busId, LinL_IdType id, uint8_t dlc, const uint8_t *data, bool enhanced);
+bool LinL_Read(int busId, LinL_IdType id, uint8_t dlc, uint8_t *data, bool enhanced,
+               int timeout /* ms */);
+bool LinL_Close(int busId);
 #ifdef __cplusplus
 }
 #endif

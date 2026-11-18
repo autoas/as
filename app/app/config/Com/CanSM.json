@@ -1,8 +1,8 @@
 {
-    "class": "CanSM",
-    "networks": [
+    "Class": "CanSM",
+    "Networks": [
       {
-        "name": "CANSM0",
+        "Name": "CANSM0",
         "BorTimeL1": 1000,
         "BorTimeL2": 5000,
         "BorTimeTxEnsured": 1000,
@@ -10,7 +10,7 @@
         "BorCounterL1ToL2": 5
       },
       {
-        "name": "CANSM1",
+        "Name": "CANSM1",
         "BorTimeL1": 1000,
         "BorTimeL2": 5000,
         "BorTimeTxEnsured": 1000,

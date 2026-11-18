@@ -13,7 +13,7 @@ namespace as {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-x509::x509(std::string der) {
+X509::X509(std::string der) {
   FILE *fp = fopen(der.c_str(), "rb");
   if (fp) {
     size_t sz;
@@ -28,7 +28,7 @@ x509::x509(std::string der) {
     if ((rval.code == RC_OK) && (m_Certificate != nullptr)) {
       auto xer = der + ".xer";
       LOG(INFO, "load X509 certificate %s:\n", der.c_str());
-      xer_fprint(Log::getFile(), &asn_DEF_Certificate, m_Certificate);
+      xer_fprint(Log::GetFile(), &asn_DEF_Certificate, m_Certificate);
     } else {
       throw std::runtime_error("x509 failed to load der file: <" + der + ">, error is " +
                                std::to_string(rval.code));
@@ -38,7 +38,7 @@ x509::x509(std::string der) {
   }
 }
 
-std::vector<uint8_t> x509::public_key() {
+std::vector<uint8_t> X509::PublicKey() {
   std::vector<uint8_t> key;
   uint8_t *ptr = m_Certificate->tbsCertificate.subjectPublicKeyInfo.subjectPublicKey.buf;
   size_t len = m_Certificate->tbsCertificate.subjectPublicKeyInfo.subjectPublicKey.size;
@@ -49,7 +49,7 @@ std::vector<uint8_t> x509::public_key() {
   return key;
 }
 
-std::vector<uint8_t> x509::signature() {
+std::vector<uint8_t> X509::Signature() {
   std::vector<uint8_t> sig;
   sig.reserve(m_Certificate->signature.size);
   for (int i = 0; i < m_Certificate->signature.size; i++) {
@@ -58,7 +58,7 @@ std::vector<uint8_t> x509::signature() {
   return sig;
 }
 
-std::vector<uint8_t> x509::tbs_certificate() {
+std::vector<uint8_t> X509::TbsCertificate() {
   std::vector<uint8_t> tbs;
   uint8_t *der = m_DerData.data();
   size_t len;
@@ -80,7 +80,7 @@ std::vector<uint8_t> x509::tbs_certificate() {
   return tbs;
 }
 
-x509::~x509() {
+X509::~X509() {
 }
 
 } /* namespace as */

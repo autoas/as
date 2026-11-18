@@ -14,9 +14,9 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType Det_ReportError(uint16_t ModuleId, uint8_t InstanceId, uint8_t ApiId,
-                               uint8_t ErrorId) {
+Std_ReturnType Det_ReportError(uint16_t moduleId, uint8_t instanceId, uint8_t apiId,
+                               uint8_t errorId) {
   ASLOG(DET, ("Module %" PRIu16 " Instance %02" PRIx8 "h Api %02" PRIx8 "h Error %02" PRIx8 "h\n",
-              ModuleId, InstanceId, ApiId, ErrorId));
+              moduleId, instanceId, apiId, errorId));
   return E_OK;
 }

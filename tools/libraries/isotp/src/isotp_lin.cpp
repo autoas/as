@@ -31,10 +31,10 @@
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern "C" {
-void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl, uint16_t N_TA);
+void LinTp_ReConfig(uint8_t channel, uint8_t linkLayerDataLength, uint16_t N_TA);
 #ifdef USE_LINIF
-void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint32_t rxid, uint32_t txid);
-void Lin_ReConfig(uint8_t Controller, const char *device, int port, uint32_t baudrate);
+void LinIf_ReConfig(uint8_t channel, uint8_t linkLayerDataLength, uint32_t rxid, uint32_t txid);
+void Lin_ReConfig(uint8_t controller, const char *device, int port, uint32_t baudrate);
 #endif
 
 Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
@@ -42,43 +42,43 @@ Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
 Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
                                      Std_ReturnType notifyResult);
 }
-void isotp_lin_destory(isotp_t *isotp);
+void IsoTp_LinDestroy(IsoTp_Type *isotp);
 /* ================================ [ DATAS     ] ============================================== */
-static isotp_t lIsoTp;
-static int lServerUp = FALSE;
-static std::mutex lMutex;
+static IsoTp_Type isotpTp;
+static int isotpServerUp = FALSE;
+static std::mutex isotpMutex;
 #ifndef USE_LINIF
-static LinIf_SchHandleType lDiagRequestType = LINIF_NULL_SCHEDULE;
+static LinIf_SchHandleType isotpDiagRequestType = LINIF_NULL_SCHEDULE;
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 #ifndef USE_LINIF
-Std_ReturnType LinIf_ScheduleRequest(NetworkHandleType Channel, LinIf_SchHandleType Schedule) {
-  lDiagRequestType = Schedule;
+Std_ReturnType LinIf_ScheduleRequest(NetworkHandleType channel, LinIf_SchHandleType schedule) {
+  isotpDiagRequestType = schedule;
   return E_OK;
 }
 
-static void lin_sched(int busId, isotp_t *isotp) {
+static void IsoTp_LinSchedule(int busId, IsoTp_Type *isotp) {
   uint8_t data[64];
   Lin_PduType frame;
   Std_ReturnType r;
   bool ret;
   bool enahnced = true;
-  int timeout = isotp->params.U.LIN.timeout + isotp->params.U.LIN.timeout / 5; /* ms */
+  int timeout = isotp->Params.U.LIN.Timeout + isotp->Params.U.LIN.Timeout / 5; /* ms */
   frame.SduPtr = data;
-  frame.Dl = isotp->params.ll_dl;
-  if (LINIF_SCH_TABLE_DIAG_REQUEST == lDiagRequestType) {
+  frame.Dl = isotp->Params.LinkLayerDataLength;
+  if (LINIF_SCH_TABLE_DIAG_REQUEST == isotpDiagRequestType) {
     r = LinIf_DiagMRFCallback(0, &frame, LINIF_R_TRIGGER_TRANSMIT);
     if (LINIF_R_OK == r) {
-      ret = lin_write(busId, isotp->params.U.LIN.TxId, frame.Dl, frame.SduPtr, enahnced);
+      ret = LinL_Write(busId, isotp->Params.U.LIN.TxId, frame.Dl, frame.SduPtr, enahnced);
       if (false == ret) {
-        lIsoTp.result = -__LINE__;
-        Std_TimerStop(&lIsoTp.timerErrorNotify);
+        isotpTp.Result = -__LINE__;
+        Std_TimerStop(&isotpTp.TimerErrorNotify);
         LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-        lIsoTp.sem.post();
+        isotpTp.Sem.Post();
       }
     }
-  } else if (LINIF_SCH_TABLE_DIAG_RESPONSE == lDiagRequestType) {
-    ret = lin_read(busId, isotp->params.U.LIN.RxId, frame.Dl, frame.SduPtr, enahnced, timeout);
+  } else if (LINIF_SCH_TABLE_DIAG_RESPONSE == isotpDiagRequestType) {
+    ret = LinL_Read(busId, isotp->Params.U.LIN.RxId, frame.Dl, frame.SduPtr, enahnced, timeout);
     if (ret) {
       (void)LinIf_DiagSRFCallback(0, &frame, LINIF_R_RECEIVED_OK);
     }
@@ -86,34 +86,34 @@ static void lin_sched(int busId, isotp_t *isotp) {
   }
 }
 
-extern "C" uint32_t LinIf_CanTpGetTxId(uint8_t Channel) {
-  return lIsoTp.params.U.LIN.TxId;
+extern "C" uint32_t LinIf_CanTpGetTxId(uint8_t channel) {
+  return isotpTp.Params.U.LIN.TxId;
 }
 
-extern "C" uint32_t LinIf_CanTpGetRxId(uint8_t Channel) {
-  return lIsoTp.params.U.LIN.RxId;
+extern "C" uint32_t LinIf_CanTpGetRxId(uint8_t channel) {
+  return isotpTp.Params.U.LIN.RxId;
 }
 #endif
-static void lin_server_main(isotp_t *isotp) {
+static void IsoTp_LinServerMain(IsoTp_Type *isotp) {
   Std_TimerType timer10ms = {0};
 #ifndef USE_LINIF
   int busId = -1;
-  uint32_t timeout = isotp->params.U.LIN.timeout * 1000;
+  uint32_t timeout = isotp->Params.U.LIN.Timeout * 1000;
 #endif
 
-  LinTp_ReConfig(0, (uint8_t)isotp->params.ll_dl, (uint16_t)isotp->params.N_TA);
+  LinTp_ReConfig(0, (uint8_t)isotp->Params.LinkLayerDataLength, (uint16_t)isotp->Params.N_TA);
 #ifdef USE_LINIF
-  LinIf_ReConfig(0, (uint8_t)isotp->params.ll_dl, isotp->params.U.LIN.RxId,
-                 isotp->params.U.LIN.TxId);
-  Lin_ReConfig(0, isotp->params.device, isotp->params.port, isotp->params.baudrate);
+  LinIf_ReConfig(0, (uint8_t)isotp->Params.LinkLayerDataLength, isotp->Params.U.LIN.RxId,
+                 isotp->Params.U.LIN.TxId);
+  Lin_ReConfig(0, isotp->Params.Device, isotp->Params.Port, isotp->Params.Baudrate);
 #else
-  busId = lin_open(isotp->params.device, isotp->params.port, isotp->params.baudrate);
+  busId = LinL_Open(isotp->Params.Device, isotp->Params.Port, isotp->Params.Baudrate);
   if (busId < 0) {
-    isotp->result = -__LINE__;
-    isotp->sem.post();
+    isotp->Result = -__LINE__;
+    isotp->Sem.Post();
     return;
   }
-  dev_ioctl(busId, DEV_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
+  Dev_IoCtl(busId, DEV_IOCTL_SET_TIMEOUT, &timeout, sizeof(timeout));
 #endif
 #ifdef USE_LINIF
   Lin_Init(NULL);
@@ -121,37 +121,37 @@ static void lin_server_main(isotp_t *isotp) {
 #endif
   LinTp_Init(NULL);
   Std_TimerSet(&timer10ms, 10000);
-  Std_TimerStop(&isotp->timerErrorNotify);
+  Std_TimerStop(&isotp->TimerErrorNotify);
 
-  lServerUp = TRUE;
-  isotp->sem.post();
+  isotpServerUp = TRUE;
+  isotp->Sem.Post();
 
-  while (lServerUp) {
+  while (isotpServerUp) {
     if (TRUE == Std_IsTimerTimeout(&timer10ms)) {
-      std::lock_guard<std::mutex> lg(isotp->mutex);
+      std::lock_guard<std::mutex> lg(isotp->Mutex);
       LinTp_MainFunction();
       Std_TimerSet(&timer10ms, 10000);
     }
 
     {
-      std::lock_guard<std::mutex> lg(isotp->mutex);
+      std::lock_guard<std::mutex> lg(isotp->Mutex);
 #ifdef USE_LINIF
       Lin_MainFunction();
       LinIf_MainFunction();
       Lin_MainFunction_Read();
 #else
-      lin_sched(busId, isotp);
+      IsoTp_LinSchedule(busId, isotp);
 #endif
     }
 
     {
-      std::lock_guard<std::mutex> lg(isotp->mutex);
-      if (Std_IsTimerStarted(&isotp->timerErrorNotify)) {
-        if (Std_GetTimerElapsedTime(&isotp->timerErrorNotify) >= isotp->errorTimeout) {
-          isotp->result = -__LINE__;
+      std::lock_guard<std::mutex> lg(isotp->Mutex);
+      if (Std_IsTimerStarted(&isotp->TimerErrorNotify)) {
+        if (Std_GetTimerElapsedTime(&isotp->TimerErrorNotify) >= isotp->ErrorTimeout) {
+          isotp->Result = -__LINE__;
           LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-          Std_TimerStop(&isotp->timerErrorNotify);
-          isotp->sem.post();
+          Std_TimerStop(&isotp->TimerErrorNotify);
+          isotp->Sem.Post();
         }
       }
     }
@@ -162,7 +162,7 @@ static void lin_server_main(isotp_t *isotp) {
 #ifdef USE_LINIF
   LinIf_DeInit();
 #else
-  lin_close(busId);
+  LinL_Close(busId);
 #endif
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
@@ -181,15 +181,15 @@ Std_ReturnType LinIf_DiagMRFCallback(uint8_t channel, Lin_PduType *frame,
   if (LINIF_R_TRIGGER_TRANSMIT == notifyResult) {
     pduInfo.SduDataPtr = frame->SduPtr;
     pduInfo.SduLength = frame->Dl;
-    if (lIsoTp.params.ll_dl == pduInfo.SduLength) {
+    if (isotpTp.Params.LinkLayerDataLength == pduInfo.SduLength) {
       ret = LinTp_TriggerTransmit(0, &pduInfo);
       if (E_OK == ret) {
         r = LINIF_R_OK;
       } else {
-        lIsoTp.result = -__LINE__;
-        Std_TimerStop(&lIsoTp.timerErrorNotify);
+        isotpTp.Result = -__LINE__;
+        Std_TimerStop(&isotpTp.TimerErrorNotify);
         LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-        lIsoTp.sem.post();
+        isotpTp.Sem.Post();
       }
     }
   }
@@ -205,28 +205,28 @@ Std_ReturnType LinIf_DiagSRFCallback(uint8_t channel, Lin_PduType *frame,
   if (LINIF_R_RECEIVED_OK == notifyResult) {
     pduInfo.SduDataPtr = frame->SduPtr;
     pduInfo.SduLength = frame->Dl;
-    if (lIsoTp.params.ll_dl == pduInfo.SduLength) {
+    if (isotpTp.Params.LinkLayerDataLength == pduInfo.SduLength) {
       LinTp_RxIndication(0, &pduInfo);
     }
   } else {
-    lIsoTp.result = -__LINE__;
-    Std_TimerStop(&lIsoTp.timerErrorNotify);
+    isotpTp.Result = -__LINE__;
+    Std_TimerStop(&isotpTp.TimerErrorNotify);
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    lIsoTp.sem.post();
+    isotpTp.Sem.Post();
   }
 
   return r;
 }
 
 extern "C" BufReq_ReturnType LinTp_StartOfReception(PduIdType id, const PduInfoType *info,
-                                                    PduLengthType TpSduLength,
+                                                    PduLengthType tpSduLength,
                                                     PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_OK;
 
-  if (TpSduLength <= sizeof(lIsoTp.RX.data)) {
-    *bufferSizePtr = lIsoTp.RX.length;
-    lIsoTp.RX.length = TpSduLength;
-    lIsoTp.RX.index = 0;
+  if (tpSduLength <= sizeof(isotpTp.Rx.Data)) {
+    *bufferSizePtr = isotpTp.Rx.Length;
+    isotpTp.Rx.Length = tpSduLength;
+    isotpTp.Rx.Index = 0;
   } else {
     ret = BUFREQ_E_NOT_OK;
   }
@@ -238,10 +238,10 @@ extern "C" BufReq_ReturnType LinTp_CopyRxData(PduIdType id, const PduInfoType *i
                                               PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_OK;
 
-  if (lIsoTp.RX.index < lIsoTp.RX.length) {
-    memcpy(&lIsoTp.RX.data[lIsoTp.RX.index], info->SduDataPtr, info->SduLength);
-    lIsoTp.RX.index += info->SduLength;
-    *bufferSizePtr = lIsoTp.RX.length - lIsoTp.RX.index;
+  if (isotpTp.Rx.Index < isotpTp.Rx.Length) {
+    memcpy(&isotpTp.Rx.Data[isotpTp.Rx.Index], info->SduDataPtr, info->SduLength);
+    isotpTp.Rx.Index += info->SduLength;
+    *bufferSizePtr = isotpTp.Rx.Length - isotpTp.Rx.Index;
   } else {
     ret = BUFREQ_E_NOT_OK;
   }
@@ -251,16 +251,16 @@ extern "C" BufReq_ReturnType LinTp_CopyRxData(PduIdType id, const PduInfoType *i
 
 extern "C" void LinTp_TpRxIndication(PduIdType id, Std_ReturnType result) {
   if (E_OK == result) {
-    lIsoTp.result = 0;
-    Std_TimerStop(&lIsoTp.timerErrorNotify);
+    isotpTp.Result = 0;
+    Std_TimerStop(&isotpTp.TimerErrorNotify);
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    lIsoTp.sem.post();
+    isotpTp.Sem.Post();
   } else {
     /* FAILED */
-    lIsoTp.result = -__LINE__;
-    Std_TimerStop(&lIsoTp.timerErrorNotify);
+    isotpTp.Result = -__LINE__;
+    Std_TimerStop(&isotpTp.TimerErrorNotify);
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    lIsoTp.sem.post();
+    isotpTp.Sem.Post();
   }
 }
 
@@ -270,10 +270,10 @@ extern "C" BufReq_ReturnType LinTp_CopyTxData(PduIdType id, const PduInfoType *i
 
   BufReq_ReturnType ret = BUFREQ_OK;
 
-  if ((lIsoTp.TX.data != NULL) && (lIsoTp.TX.index < lIsoTp.TX.length)) {
-    memcpy(info->SduDataPtr, &lIsoTp.TX.data[lIsoTp.TX.index], info->SduLength);
-    lIsoTp.TX.index += info->SduLength;
-    *availableDataPtr = lIsoTp.TX.length - lIsoTp.TX.index;
+  if ((isotpTp.Tx.Data != NULL) && (isotpTp.Tx.Index < isotpTp.Tx.Length)) {
+    memcpy(info->SduDataPtr, &isotpTp.Tx.Data[isotpTp.Tx.Index], info->SduLength);
+    isotpTp.Tx.Index += info->SduLength;
+    *availableDataPtr = isotpTp.Tx.Length - isotpTp.Tx.Index;
   } else {
     ret = BUFREQ_E_NOT_OK;
   }
@@ -283,90 +283,90 @@ extern "C" BufReq_ReturnType LinTp_CopyTxData(PduIdType id, const PduInfoType *i
 
 extern "C" void LinTp_TpTxConfirmation(PduIdType id, Std_ReturnType result) {
   if (E_OK == result) {
-    lIsoTp.result = 0;
-    Std_TimerStop(&lIsoTp.timerErrorNotify);
+    isotpTp.Result = 0;
+    Std_TimerStop(&isotpTp.TimerErrorNotify);
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    lIsoTp.sem.post();
+    isotpTp.Sem.Post();
   } else {
-    lIsoTp.result = -88;
-    Std_TimerStop(&lIsoTp.timerErrorNotify);
+    isotpTp.Result = -88;
+    Std_TimerStop(&isotpTp.TimerErrorNotify);
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    lIsoTp.sem.post();
+    isotpTp.Sem.Post();
   }
 }
 
-isotp_t *isotp_lin_create(isotp_parameter_t *params) {
-  isotp_t *isotp;
+IsoTp_Type *IsoTp_LinCreate(IsoTp_ParameterType *params) {
+  IsoTp_Type *isotp;
   int r = 0;
 
-  std::unique_lock<std::mutex> lck(lMutex);
-  if (lServerUp == TRUE) {
+  std::unique_lock<std::mutex> lck(isotpMutex);
+  if (isotpServerUp == TRUE) {
     return NULL;
   }
 
-  isotp = &lIsoTp;
-  isotp->params = *params;
-  Std_TimerStop(&isotp->timerErrorNotify);
+  isotp = &isotpTp;
+  isotp->Params = *params;
+  Std_TimerStop(&isotp->TimerErrorNotify);
 
-  isotp->serverThread = std::thread(lin_server_main, isotp);
+  isotp->ServerThread = std::thread(IsoTp_LinServerMain, isotp);
 
-  isotp->sem.wait();
-  r = isotp->result;
+  isotp->Sem.Wait();
+  r = isotp->Result;
   if (0 != r) {
-    isotp->running = FALSE;
-    isotp_lin_destory(isotp);
+    isotp->Running = FALSE;
+    IsoTp_LinDestroy(isotp);
     isotp = NULL;
   }
 
   return isotp;
 }
 
-int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
-                       size_t rxSize) {
+int IsoTp_LinTransmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
+                      size_t rxSize) {
   int r = 0;
   PduInfoType PduInfo;
 
   {
-    std::lock_guard<std::mutex> lg(isotp->mutex);
-    isotp->result = -1;
-    isotp->TX.data = (uint8_t *)txBuffer;
-    isotp->TX.length = txSize;
-    isotp->TX.index = 0;
-    isotp->RX.length = sizeof(isotp->RX.data);
-    isotp->RX.index = 0;
+    std::lock_guard<std::mutex> lg(isotp->Mutex);
+    isotp->Result = -1;
+    isotp->Tx.Data = (uint8_t *)txBuffer;
+    isotp->Tx.Length = txSize;
+    isotp->Tx.Index = 0;
+    isotp->Rx.Length = sizeof(isotp->Rx.Data);
+    isotp->Rx.Index = 0;
     PduInfo.SduDataPtr = (uint8_t *)txBuffer;
     PduInfo.SduLength = txSize;
-    isotp->errorTimeout = UDS_TIMEOUT;
+    isotp->ErrorTimeout = UDS_TIMEOUT;
     r = LinTp_Transmit(0, &PduInfo);
     if (E_OK == r) {
       LinIf_ScheduleRequest(0, LINIF_SCH_TABLE_DIAG_REQUEST);
-      Std_TimerStart(&isotp->timerErrorNotify);
+      Std_TimerStart(&isotp->TimerErrorNotify);
     }
   }
 
   if (E_OK == r) {
-    isotp->sem.wait();
-    r = isotp->result;
+    isotp->Sem.Wait();
+    r = isotp->Result;
 
     if (0 == r) {
       if (NULL != rxBuffer) {
-        if (isotp->params.U.LIN.delayUs > 0) {
+        if (isotp->Params.U.LIN.DelayUs > 0) {
           /* give slave some time to process, generally wait response to be ready */
-          std::this_thread::sleep_for(std::chrono::microseconds(isotp->params.U.LIN.delayUs));
+          std::this_thread::sleep_for(std::chrono::microseconds(isotp->Params.U.LIN.DelayUs));
         }
         {
-          std::lock_guard<std::mutex> lg(isotp->mutex);
+          std::lock_guard<std::mutex> lg(isotp->Mutex);
           LinIf_ScheduleRequest(0, LINIF_SCH_TABLE_DIAG_RESPONSE);
-          isotp->errorTimeout = UDS_TIMEOUT;
-          Std_TimerStart(&isotp->timerErrorNotify);
-          isotp->sem.wait();
+          isotp->ErrorTimeout = UDS_TIMEOUT;
+          Std_TimerStart(&isotp->TimerErrorNotify);
+          isotp->Sem.Wait();
         }
-        r = isotp->result;
+        r = isotp->Result;
         if (0 == r) {
-          std::lock_guard<std::mutex> lg(isotp->mutex);
-          r = isotp->RX.index;
+          std::lock_guard<std::mutex> lg(isotp->Mutex);
+          r = isotp->Rx.Index;
           if ((int)rxSize >= r) {
-            memcpy(rxBuffer, isotp->RX.data, r);
+            memcpy(rxBuffer, isotp->Rx.Data, r);
           } else {
             r = -__LINE__;
           }
@@ -378,60 +378,60 @@ int isotp_lin_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, u
   }
 
   {
-    std::lock_guard<std::mutex> lg(isotp->mutex);
-    isotp->TX.data = NULL;
+    std::lock_guard<std::mutex> lg(isotp->Mutex);
+    isotp->Tx.Data = NULL;
     LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-    Std_TimerStop(&isotp->timerErrorNotify);
+    Std_TimerStop(&isotp->TimerErrorNotify);
   }
 
   if (0 == r) {
-    if (isotp->params.U.LIN.delayUs > 0) {
+    if (isotp->Params.U.LIN.DelayUs > 0) {
       /* give slave some time to process */
-      std::this_thread::sleep_for(std::chrono::microseconds(isotp->params.U.LIN.delayUs));
+      std::this_thread::sleep_for(std::chrono::microseconds(isotp->Params.U.LIN.DelayUs));
     }
   }
 
   return r;
 }
 
-int isotp_lin_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
+int IsoTp_LinReceive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize) {
 
   int r = 0;
   {
-    std::lock_guard<std::mutex> lg(isotp->mutex);
+    std::lock_guard<std::mutex> lg(isotp->Mutex);
     LinIf_ScheduleRequest(0, LINIF_SCH_TABLE_DIAG_RESPONSE);
-    isotp->errorTimeout = UDS_TIMEOUT;
-    Std_TimerStart(&isotp->timerErrorNotify);
+    isotp->ErrorTimeout = UDS_TIMEOUT;
+    Std_TimerStart(&isotp->TimerErrorNotify);
   }
-  isotp->sem.wait();
-  r = isotp->result;
+  isotp->Sem.Wait();
+  r = isotp->Result;
   if (0 == r) {
-    std::lock_guard<std::mutex> lg(isotp->mutex);
-    r = isotp->RX.index;
+    std::lock_guard<std::mutex> lg(isotp->Mutex);
+    r = isotp->Rx.Index;
     if ((int)rxSize >= r) {
-      memcpy(rxBuffer, isotp->RX.data, r);
+      memcpy(rxBuffer, isotp->Rx.Data, r);
     } else {
       r = -__LINE__;
     }
   }
 
-  std::lock_guard<std::mutex> lg(isotp->mutex);
-  isotp->RX.length = sizeof(isotp->RX.data);
-  isotp->RX.index = 0;
+  std::lock_guard<std::mutex> lg(isotp->Mutex);
+  isotp->Rx.Length = sizeof(isotp->Rx.Data);
+  isotp->Rx.Index = 0;
   LinIf_ScheduleRequest(0, LINIF_NULL_SCHEDULE);
-  Std_TimerStop(&isotp->timerErrorNotify);
+  Std_TimerStop(&isotp->TimerErrorNotify);
 
   return r;
 }
 
-void isotp_lin_destory(isotp_t *isotp) {
-  lServerUp = FALSE;
-  if (isotp->serverThread.joinable()) {
-    isotp->serverThread.join();
+void IsoTp_LinDestroy(IsoTp_Type *isotp) {
+  isotpServerUp = FALSE;
+  if (isotp->ServerThread.joinable()) {
+    isotp->ServerThread.join();
   }
 }
 
-int isotp_lin_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+int IsoTp_LinIoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size) {
   return -__LINE__;
 }
 #endif /* USE_LINTP */

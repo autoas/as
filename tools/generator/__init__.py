@@ -82,8 +82,8 @@ def GetGen(cfg):
     if cfg.endswith(".json"):
         with open(cfg) as f:
             con = json.load(f)
-            if "class" in con:
-                cls = con["class"]
+            if "Class" in con:
+                cls = con["Class"]
                 if cls in __GEN__:
                     return cls, __GEN__[cls]
                 else:
@@ -99,16 +99,16 @@ def CalcHash(js):
     with open(js) as f:
         cfg = json.load(f)
         for cls in ["Com", "CanIf", "PduR"]:
-            if cfg.get("class", None) == cls:
-                for n in cfg.get("networks", []):
-                    for x in ["dbc", "ldf"]:
+            if cfg.get("Class", None) == cls:
+                for n in cfg.get("Networks", []):
+                    for x in ["Dbc", "Ldf"]:
                         path = n.get(x, None)
                         if path != None:
                             if not os.path.isfile(path):
                                 path = os.path.join(os.path.dirname(js), path)
                             L.append(path)
-        for cls, key in [("Dcm", "excel"), ("Rte", "py"), ("protoc", "entry")]:
-            if cfg.get("class", None) == cls:
+        for cls, key in [("Dcm", "Excel"), ("Rte", "Py"), ("protoc", "Entry")]:
+            if cfg.get("Class", None) == cls:
                 path = cfg.get(key, None)
                 if path != None:
                     if not os.path.isfile(path):

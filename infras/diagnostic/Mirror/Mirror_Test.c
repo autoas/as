@@ -21,9 +21,9 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, uint8_t *dataOut,
+Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType opStatus, uint8_t *dataOut,
                                 uint16_t *currentDataLength,
-                                Dcm_NegativeResponseCodeType *ErrorCode) {
+                                Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ret;
   uint8_t cmd = dataIn[0];
   NetworkHandleType network;
@@ -41,11 +41,11 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       isActive = dataIn[3];
       ret = Mirror_SetStaticFilterState(network, filterId, isActive);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_GET_STATIC_FILTER_STATE == cmd) {
     if (3 == *currentDataLength) {
@@ -54,13 +54,13 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       filterId = dataIn[2];
       ret = Mirror_GetStaticFilterState(network, filterId, &isActive);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       } else {
         dataOut[0] = isActive;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_ADD_CAN_RANGE_FILTER == cmd) {
     if (10 == *currentDataLength) {
@@ -72,13 +72,13 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
               ((uint32_t)dataIn[8] << 8) + dataIn[9];
       ret = Mirror_AddCanRangeFilter(network, &filterId, lower, upper);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       } else {
         dataOut[0] = filterId;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_ADD_CAN_MASK_FILTER == cmd) {
     if (10 == *currentDataLength) {
@@ -90,13 +90,13 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
              ((uint32_t)dataIn[8] << 8) + dataIn[9];
       ret = Mirror_AddCanMaskFilter(network, &filterId, code, mask);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       } else {
         dataOut[0] = filterId;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_ADD_LIN_RANGE_FILTER == cmd) {
     if (4 == *currentDataLength) {
@@ -104,13 +104,13 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       network = dataIn[1];
       ret = Mirror_AddLinRangeFilter(network, &filterId, dataIn[2], dataIn[3]);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       } else {
         dataOut[0] = filterId;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_ADD_LIN_MASK_FILTER == cmd) {
     if (4 == *currentDataLength) {
@@ -118,13 +118,13 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       network = dataIn[1];
       ret = Mirror_AddLinMaskFilter(network, &filterId, dataIn[2], dataIn[3]);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       } else {
         dataOut[0] = filterId;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_REMOVE_FILTER == cmd) {
     if (3 == *currentDataLength) {
@@ -133,11 +133,11 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       filterId = dataIn[2];
       ret = Mirror_RemoveFilter(network, filterId);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_SWITCH_DEST == cmd) {
     if (2 == *currentDataLength) {
@@ -145,11 +145,11 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
       network = dataIn[1];
       ret = Mirror_SwitchDestNetwork(network);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (CMD_MIRROR_START_STOP_SOURCE == cmd) {
     if (3 == *currentDataLength) {
@@ -162,15 +162,15 @@ Std_ReturnType Mirror_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus
         ret = Mirror_StopSourceNetwork(network);
       }
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+        *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else {
     ret = E_NOT_OK;
-    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
   }
 
   return ret;

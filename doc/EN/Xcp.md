@@ -5,243 +5,292 @@ category: AUTOSAR
 comments: true
 ---
 
-# Configuration Notes for the Xcp Module
+# Xcp - Universal Measurement and Calibration Protocol (slave)
 
-The AUTOSAR [XCP](https://www.asam.net/standards/detail/xcp/) module is the on-ECU XCP **slave** — the counterpart of the PC tool [`UIXcp`](./UIXcp.md). It exposes a memory-transfer address (MTA), calibration download, programming flash and event-driven DAQ over a single transport (CAN for now, see section 6), and follows the *Specification of Module XCP AUTOSAR CP R23-11*.
+> **In one sentence:** Xcp is the on-ECU XCP **slave** - the counterpart of the
+> PC tool [`UIXcp`](UIXcp.md) (INCA, CANape, ...): it exposes an MTA (memory
+> transfer address), calibration download, flash programming and event-driven
+> DAQ measurement over CAN, governed by a seed-and-key resource lock.
 
-Configuration is consumed by [Xcp.py](../../tools/generator/Xcp.py), which reads [`Xcp.json`](../../app/app/config/Xcp/Xcp.json) and emits `GEN/Xcp_Cfg.c` / `GEN/Xcp_Cfg.h` containing the service table, the DAQ layout and the configuration pointers. Every platform variant in `app/platform/<cpl>/<app>/config/Xcp/Xcp.json` is generated from the same JSON via the build system.
+| Item | Value |
+| --- | --- |
+| Module | `infras/communication/Xcp` (API: `infras/include/Xcp.h`) |
+| Layer | Peer of the diagnostic stack: sits directly on [CanIf](CanIf.md) (fixed PDU ids), not routed through PduR |
+| Configuration | `app/app/config/Xcp/Xcp.json` |
+| Generator | `tools/generator/Xcp.py` -> `GEN/Xcp_Cfg.c` / `GEN/Xcp_Cfg.h` |
+| Standard | ASAM XCP 1.5 / AUTOSAR CP R23-11 XCP (slave side) |
+| Host counterpart | [`UIXcp`](UIXcp.md) PC tool |
+| Demo | `scons --app=CanApp` + `CanSend` / `CanDump` (section 6) |
+
+**Contents**
+
+1. [What the module is for](#1-what-the-module-is-for)
+2. [Where it sits in the stack](#2-where-it-sits-in-the-stack)
+3. [Configuration](#3-configuration)
+4. [How it works at runtime](#4-how-it-works-at-runtime)
+5. [Public API](#5-public-api)
+6. [Build and run a demo](#6-build-and-run-a-demo)
+7. [Key notes and gotchas](#7-key-notes-and-gotchas)
+8. [Troubleshooting](#8-troubleshooting)
+9. [Known limitations and code review findings](#9-known-limitations-and-code-review-findings)
+10. [Related documents](#10-related-documents)
+
+---
+
+## 1. What the module is for
+
+* **Measurement (DAQ)** - periodic sampling of RAM/flash addresses, packed into
+  DTOs and streamed on the bus without any request; driven by *event channels*
+  (e.g. "every 100 ms").
+* **Calibration (CAL/PAG)** - read (`Upload`/`ShortUpload`) and write
+  (`Download`) arbitrary memory through the MTA pointer, typically ECU
+  parameters.
+* **Flash programming (PGM)** - `ProgramStart`/`ProgramClear`/`Program` hooks
+  for a bootloader integration.
+* **Protection** - every resource is locked until the master passes
+  `GetSeed`/`Unlock`; `Connect` reports which resources the build supports.
+
+The implementation follows the *ASAM XCP* protocol layer 2 semantics with a
+command/response core, pending (multi-frame) services and a per-service
+user-callback table generated from JSON.
+
+---
+
+## 2. Where it sits in the stack
 
 ```mermaid
 flowchart LR
   subgraph Host["PC side"]
     MCP["UIXcp / INCA / CANape"]
   end
-  subgraph Bus["CAN"]
-    FRM["XCP frames"]
+  subgraph Bus["CAN bus"]
+    FRM["XCP frames 0x7A0 / 0x7B0"]
   end
   subgraph ECU["ECU side (this module)"]
-    CANIF["CanIf"] --> XCP["Xcp slave"]
-    XCP --> DAQ["DAQ lists (static + dynamic)"]
-    XCP --> MTA["MTA (RAM/FLASH)"]
-    XCP --> CBK["User: App_XcpGetSeed, App_CompareKey, ..."]
+    CANIF["CanIf"] --> XCP["<b>Xcp slave</b>"]
+    XCP --> DAQ["DAQ lists<br/>(static + dynamic)"]
+    XCP --> MTA["MTA (RAM / FLASH)"]
+    XCP --> CBK["user callbacks<br/>App_XcpGetSeed, App_CompareKey, ..."]
   end
-  MCP <-->|XCP on CAN| FRM <--> CANIF
+  MCP <-->|"XCP on CAN"| FRM <--> CANIF
 ```
 
-## 1. Configuration example
+Unlike the diagnostic services, XCP does **not** go through PduR/Dcm: CanIf
+routes the two fixed PDUs straight into the module:
 
-The shipped configuration lives at [app/app/config/Xcp/Xcp.json](../../app/app/config/Xcp/Xcp.json):
+| PDU | Direction | Default CAN ID | `Up` |
+| --- | --- | --- | --- |
+| `CANIF_XCP_ON_CAN_RX` | master -> slave | `0x7A0` | `Xcp` |
+| `CANIF_XCP_ON_CAN_TX` | slave -> master | `0x7B0` | `Xcp` |
+
+The PDU names in the application's `CanIf.json` must be exactly
+`XCP_ON_CAN_RX` / `XCP_ON_CAN_TX` - the generator hardcodes
+`CANIF_XCP_ON_CAN_TX` as the transmit PDU id.
+
+---
+
+## 3. Configuration
+
+`Xcp.json` ([app/app/config/Xcp/Xcp.json](../../app/app/config/Xcp/Xcp.json))
+has three blocks that control three different parts of the slave:
+
+| Block | Controls |
+| --- | --- |
+| `EventChannels` | the periodic DAQ event channels |
+| `DaqList` | the preconfigured static DAQ lists and the dynamic DAQ pool sizes |
+| `Services` | which XCP commands the slave accepts and which user API each one calls |
+
+Plus two scalar keys: `PacketPoolSize` (default `8`, `#ifndef`-guarded macro
+`XCP_PACKET_POOL_SIZE`) and `MainFunctionPeriod` (default `10` ms,
+`XCP_MAIN_FUNCTION_PERIOD`). Note `UsePostBuildConfig` (default **true** here,
+unlike most modules) only emits an `XCP_USE_PB_CONFIG` macro that `Xcp.c`
+never reads - see section 9.
+
+### 3.1 Event channels
 
 ```json
-{
-  "class": "Xcp",
-  "EventChannels": [
-    {"name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
-    {"name": "500ms", "TimeCycle": 500 },
-    {"name": "1s",    "TimeCycle": 1000 }
-  ],
-  "DaqList": {
-    "StaticDaqList": [
-      { "name": "Daq0", "ODTs": [
-          { "name": "ODT0", "Entries": [
-              { "Address": 0, "Length": 1 },
-              { "Address": 10, "Length": 1 },
-              { "Address": 20, "Length": 1 }
-          ]},
-          { "name": "ODT1", "Entries": [
-              { "Address": 30, "Length": 1 },
-              { "Address": 40, "Length": 1 },
-              { "Address": 50, "Length": 1 }
-          ]}
-      ]}
-    ],
-    "DynamicDaqList": { "DaqPoolSize": 2, "OdtPoolSize": 16, "OdtEntryPoolSize": 128 }
-  },
-  "services": [
-    { "name": "Connect",      "id": "0xFF", "API": "App_XcpGetConnectPermission" },
-    { "name": "GetStatus",    "id": "0xFD" },
-    { "name": "GetSeed",      "id": "0xF8", "API": "App_XcpGetSeed" },
-    { "name": "Unlock",       "id": "0xF7", "API": "App_CompareKey" },
-    { "name": "SetMTA",       "id": "0xF6" },
-    { "name": "Upload",       "id": "0xF5" },
-    { "name": "ShortUpload",  "id": "0xF4" },
-    { "name": "Download",     "id": "0xF0" },
-    { "name": "DownloadNext", "id": "0xEF" },
-    { "name": "ProgramStart",   "id": "0xD2", "API": "Xcp_GetProgramStartPermission" },
-    { "name": "ProgramClear",   "id": "0xD1" },
-    { "name": "Program",        "id": "0xD0" },
-    { "name": "ProgramNext",    "id": "0xCA" },
-    { "name": "FreeDAQ",        "id": "0xD6" },
-    { "name": "AllocDAQ",       "id": "0xD5" },
-    { "name": "AllocODT",       "id": "0xD4" },
-    { "name": "DAQ_ALLOC_ODT_ENTRY", "id": "0xD3" },
-    { "name": "ClearDAQList",   "id": "0xE3" },
-    { "name": "SetDAQPtr",      "id": "0xE2" },
-    { "name": "WriteDAQ",       "id": "0xE1" },
-    { "name": "ReadDAQ",        "id": "0xDB" },
-    { "name": "SetDAQListMode", "id": "0xE0" },
-    { "name": "StartStopDAQList", "id": "0xDE" },
-    { "name": "StartStopSynch",   "id": "0xDD" },
-    { "name": "GetDAQProcessorInfo", "id": "0xDA" },
-    { "name": "GetDAQResolutionInfo","id": "0xD9" },
-    { "name": "GetDAQListInfo",     "id": "0xD8" },
-    { "name": "GetDAQEventInfo",    "id": "0xD7" },
-    { "name": "ProgramReset",  "id": "0xCF", "delay": "100", "API": "Xcp_GetProgramResetPermission" },
-    { "name": "Disconnect",    "id": "0xFE", "API": "App_XcpDisconnecNotification" }
-  ]
-}
+"EventChannels": [
+  {"Name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
+  {"Name": "500ms", "TimeCycle": 500 },
+  {"Name": "1s",    "TimeCycle": 1000 }
+]
 ```
 
-The three blocks control three different parts of the slave:
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `Name` | yes | channel label |
+| `TimeCycle` | yes | period in ms, converted to `Xcp_MainFunction` cycles (round up) |
+| `MaxDaqList` | optional | kept for spec completeness but **not consumed** (commented out in `Xcp_Priv.h`) |
 
-| Block             | Controls                                                          |
-| ----------------- | ----------------------------------------------------------------- |
-| `EventChannels`   | The periodic DAQ event channels (`TimeCycle` in ms, see section 2) |
-| `DaqList`         | The preconfigured DAQ lists and the dynamic DAQ pool sizes        |
-| `services`        | The XCP commands the slave accepts and which user API each one calls |
+### 3.2 DAQ lists
 
-## 2. Event channels
+Two kinds coexist:
 
-Each entry defines one **event channel** that fires its associated DAQ lists periodically. The JSON `TimeCycle` is in milliseconds; the generator converts it to `Xcp_MainFunction` cycles via `XCP_CONVERT_MS_TO_MAIN_CYCLES(TimeCycle)` (round up). The period of `Xcp_MainFunction` itself comes from the JSON key `MainFunctionPeriod` (default `10` ms), which the generator emits as `XCP_MAIN_FUNCTION_PERIOD`.
+**Static** (`DaqList.StaticDaqList[]`) - built at compile time, all `const`:
 
-| Field        | Required | Meaning                                                                                  |
-| ------------ | -------- | ---------------------------------------------------------------------------------------- |
-| `name`       | yes      | Channel name, used as a label                                                            |
-| `TimeCycle`  | yes      | Period in ms; converted to main-function cycles                                          |
-| `MaxDaqList` | optional | Kept for spec completeness but **not consumed**: the field is commented out in `Xcp_Priv.h` and the generator never reads it |
+| Field of an ODT entry | Meaning |
+| --- | --- |
+| `Address` | absolute address to sample |
+| `Length` | size in bytes |
+| `BitOffset` | optional, default `0xFF` (whole byte) |
+| `Extension` | address space: `MEMORY` (default) or `FLASH` (`XCP_MTA_EXT_<name>`) |
 
-Event channels are processed in `Xcp_MainFunction_Daq()`. When a channel's timer expires, every DAQ list attached to it is sampled in order and packed into one DTO per ODT, sent through `CanIf_Transmit` on `CANIF_XCP_ON_CAN_TX`.
+Static DAQs occupy list indices `0 .. numOfStaticDaqList-1` and cannot be
+re-allocated by `AllocDAQ`.
 
-## 3. DAQ lists
+**Dynamic** (`DaqList.DynamicDaqList`) - a RAM pool the master carves at
+runtime via `AllocDAQ` / `AllocODT` / `AllocODTEntry` / `SetDAQPtr` /
+`WriteDAQ`:
 
-DAQ lists are how the slave publishes measurements to the master. Two kinds coexist:
+| Field | Meaning |
+| --- | --- |
+| `DaqPoolSize` | number of extra DAQ lists beyond the static ones |
+| `OdtPoolSize` | total ODTs available across all dynamic lists |
+| `OdtEntryPoolSize` | total ODT entries across all dynamic ODTs |
 
-### 3.1 Static DAQ lists (`DaqList.StaticDaqList[]`)
+### 3.3 Services
 
-Pre-built at compile time from JSON — the ODTs and ODT entries are `const`, no runtime allocation:
+`Services[]` is the command table. Each entry becomes one `Xcp_ServiceType`
+row; **the `Name` field is display-only** - the generator derives everything
+from `Id` via its `ServiceMap`:
 
-```json
-{ "name": "Daq0", "ODTs": [
-    { "name": "ODT0", "Entries": [
-        { "Address": 0, "Length": 1 },
-        { "Address": 10, "Length": 1 }
-    ]}
-]}
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `Name` | yes | display name only |
+| `Id` | yes | the XCP PID (e.g. `"0xFF"` Connect) |
+| `API` | optional | user callback name (section 3.4) |
+| `Delay` | optional | `ProgramReset` only: ms before `Xcp_PerformReset()` |
+| `maxBs`/`STmin`/`queSz` | optional | `ProgramStart` only, programming-mode parameters |
+
+`preprocess()` rejects unknown PIDs (with the list of supported ones) and
+duplicate PIDs, then **sorts the table by PID** - required by the binary search
+in `Xcp_FindService()`. The resource bitmap that `Connect` reports is derived
+automatically from which command groups are listed.
+
+### 3.4 User callbacks
+
+Services whose `API` is set call a user function via a per-service config
+struct in `GEN/Xcp_Cfg.c`; the implementations live in
+[app/app/src/xcp_user.c](../../app/app/src/xcp_user.c):
+
+| Service | Callback signature |
+| --- | --- |
+| `Connect` | `App_XcpGetConnectPermission(mode, *nrc)` |
+| `Disconnect` | `App_XcpDisconnecNotification(void)` |
+| `GetSeed` | `App_XcpGetSeed(mode, resource, *seed, *seedLen, *nrc)` |
+| `Unlock` | `App_CompareKey(*key, keyLen, *nrc)` |
+| `ProgramStart` | `Xcp_GetProgramStartPermission(opStatus, *nrc)` |
+| `ProgramReset` | `Xcp_GetProgramResetPermission(opStatus, *nrc)` |
+
+The shipped `xcp_user.c` implements a toy seed/key (`seed ^ 0x78934673`) and
+accepts program operations unconditionally - replace these before production.
+
+### 3.5 Protected resources
+
+| Resource | Bit | Gates |
+| --- | --- | --- |
+| `XCP_RES_CALPAG` | `0x01` | `Download`, `DownloadNext` (whole `CAL_`/`PAG_` groups) |
+| `XCP_RES_DAQ` | `0x04` | all `DAQ_*` services |
+| `XCP_RES_STIM` | `0x08` | STIM (unused) |
+| `XCP_RES_PGM` | `0x10` | `Program*` services |
+
+After `Xcp_Init` **all** resources are locked (`lockedResource = XCP_RES_MASK`);
+`Unlock` clears the bits for the resources the key matched, `Disconnect` locks
+everything again. A command whose resource is still locked gets NRC `0x25
+Access locked`.
+
+---
+
+## 4. How it works at runtime
+
+### 4.1 Command execution
+
+Every received frame is queued into an STAILQ of pool packets; the main
+function processes **one command per cycle**:
+
+```mermaid
+stateDiagram-v2
+    IDLE --> DISPATCH: frame queued by Xcp_RxIndication
+    DISPATCH --> RUNNING: Xcp_FindService, resource check passes
+    DISPATCH --> REPLY_ERR: unknown PID (0x08) or locked (0x25)
+    RUNNING --> REPLY_OK: dsp returns E_OK, one response frame
+    RUNNING --> PENDING: dsp returns XCP_E_PENDING (multi-frame service)
+    PENDING --> PENDING: next cycle continues the same service
+    PENDING --> REPLY_OK: continuation finished
+    REPLY_OK --> IDLE: free the request packet
+    REPLY_ERR --> IDLE: send ERR packet with NRC
 ```
 
-| Field of an ODT entry | Meaning                                                                                  |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| `Address`             | Absolute address to sample (the master reads it back from `GetDAQEventInfo` etc.)         |
-| `Length`              | Size in bytes                                                                            |
-| `BitOffset`           | Optional, default `0xFF` (whole byte); otherwise bit-granular within the byte             |
-| `Extension`           | Address space: `MEMORY` (default) or `FLASH`                                             |
+Response frames are queued into the same pool and drained by
+`Xcp_MainFunction_Response()` via `CanIf_Transmit` - if the bus is busy the
+frame simply stays queued for the next cycle.
 
-The generator emits one `Xcp_OdtEntryType[]`, one `Xcp_OdtType[]` and one `Xcp_DaqListType` per DAQ list, all `const`. Static DAQs cannot be re-allocated by `AllocDAQ` — they always count from index `0` to `numOfStaticDaqList - 1`.
+A multi-frame service (e.g. `SHORT_UPLOAD` of 255 bytes with 7 payload bytes
+per frame) keeps the request packet at the head of the queue and returns
+`XCP_E_PENDING` until done - one response frame per main cycle:
 
-### 3.2 Dynamic DAQ lists (`DaqList.DynamicDaqList`)
+```mermaid
+sequenceDiagram
+    participant M as master (UIXcp)
+    participant C as CanIf
+    participant X as Xcp slave
 
-A runtime pool the master can carve up with `AllocDAQ` / `AllocODT` / `AllocODTEntry` / `SetDAQPtr` / `WriteDAQ`. Sizes only:
-
-| Field            | Meaning                                                |
-| ---------------- | ------------------------------------------------------ |
-| `DaqPoolSize`    | Number of extra DAQ lists beyond the static ones        |
-| `OdtPoolSize`    | Total ODTs available across all dynamic DAQ lists       |
-| `OdtEntryPoolSize` | Total ODT entries across all dynamic ODTs              |
-
-The generator emits `Xcp_DynDaq0..N`, `Xcp_DynOdts[M]` and `Xcp_DynOdtEntries[K]` as plain (non-`const`) RAM; the slave carves them at runtime. Dynamic DAQs are freed en bloc by `ClearDAQList` on the affected list.
-
-## 4. Services
-
-`services[]` is the command table of the slave. Each entry becomes one `Xcp_ServiceType` row in `Xcp_Services[]`:
-
-```c
-{
-  Xcp_Dsp<Name>,                 /* the implementation in Xcp_DspStd.c / Xcp_DspCal.c / ... */
-  (const void *)&Xcp_<Name>Config,/* per-service config (NULL when no API) */
-  XCP_PID_CMD_<GROUP>_<NAME>,    /* the XCP PID, e.g. XCP_PID_CMD_STD_CONNECT */
-  /* resource */ XCP_RES_<...>,  /* the protected resource this command needs */
-}
+    M->>C: 0x7A0 FF 00 (CONNECT)
+    C->>X: Xcp_CanIfRxIndication -> queue
+    Note over X: MainFunction: dispatch, App_XcpGetConnectPermission
+    X-->>M: 0x7B0 FF 15 00 08 00 08 01 01
+    M->>C: 0x7A0 F5 .. (UPLOAD / F4 SHORT_UPLOAD, N=255)
+    loop until all 255 bytes served
+        Note over X: dsp returns XCP_E_PENDING,<br/>one 7-byte continuation per 10 ms
+        X-->>M: 0x7B0 FF <7 bytes>
+    end
+    Note over M: drop each 0xFF PID byte, concatenate
 ```
 
-| Field        | Required | Meaning                                                                                       |
-| ------------ | -------- | --------------------------------------------------------------------------------------------- |
-| `name`       | yes      | Display name only — the generator never reads it; `Xcp_Dsp<Name>`, `XCP_PID_CMD_<GROUP>_<NAME>` and the resource bit are all derived from `id` through `ServiceMap` in Xcp.py |
-| `id`         | yes      | The XCP PID, e.g. `"0xFF"` for `Connect`; can be decimal or hex                              |
-| `API`        | optional | User callback for services that need one (see section 5)                                      |
-| `delay`      | optional | For `ProgramReset` only: how many ms to wait after the command is accepted before `Xcp_PerformReset()` runs |
-| `maxBs`/`STmin`/`queSz` | optional | For `ProgramStart` only, the programming-mode communication parameters              |
+### 4.2 DAQ
 
-The PID prefix the generator uses (`STD_`, `CAL_`, `DAQ_`, `PGM_`) is the first four characters of the canonical name that [`ServiceMap`](../../tools/generator/Xcp.py#L87) holds for that PID — the `name` field of the JSON entry is not consulted (see also the PID list in [Xcp_Priv.h](../../infras/communication/Xcp/Xcp_Priv.h#L17)). A PID missing from `ServiceMap` fails the build.
+`Xcp_MainFunction_Daq()` runs from `Xcp_MainFunction`,
+`Xcp_MainFunction_DaqWrite()` from `Xcp_MainFunction_Write` (both in the EcuM
+main list). When an event channel timer expires, every started DAQ list
+attached to it is sampled in ODT order and one DTO per ODT is queued for
+transmission on `CANIF_XCP_ON_CAN_TX`. DAQ timestamps and `PID_OFF` are not
+supported - every DTO starts with the ODT PID byte.
 
-### 4.1 The protected resources
+### 4.3 Scheduling
 
-Every service is gated by the resource(s) it touches. `Connect` reports the set the slave owns in `RESOURCE` (e.g. `0x15` = `CALPAG|DAQ|PGM`); the master has to `GetSeed` + `Unlock` that resource before any service gated on it is accepted. On `Disconnect` all resources are locked again.
+`Xcp_Init` is called by EcuM (`EcuM_DriverInitListOne`); `Xcp_MainFunction` and
+`Xcp_MainFunction_Write` sit in the EcuM main list (`EcuM_Cfg.c`, guarded by
+`USE_XCP`). Everything is single-threaded; the only ISR entry is
+`Xcp_CanIfRxIndication`, which only copies the frame into the pool inside a
+critical section - but note it also sends `Xcp_TxError` directly when the pool
+is exhausted (section 9).
 
-| Resource        | Bit | Gates                                                                                |
-| --------------- | --- | ------------------------------------------------------------------------------------ |
-| `XCP_RES_CALPAG` | `0x01` | `Download`, `DownloadNext` — the generator maps the whole `CAL_` and `PAG_` groups here   |
-| `XCP_RES_DAQ`    | `0x04` | All `DAQ_*` services                                                               |
-| `XCP_RES_PGM`    | `0x10` | `ProgramStart`, `ProgramClear`, `Program`, `ProgramNext`, `ProgramReset`          |
-| `XCP_RES_STIM`   | `0x08` | DAQ STIM (not used by this slave)                                                  |
+---
 
-A negative `0x25 = Access locked` is returned on `Xcp_MainFunction_Request()` whenever the current `lockedResource` still has the bit the service needs. The full resource list reported at `Connect` is `get_resource(cfg)` in the generator — derived from the `services[]` list, not declared by hand.
+## 5. Public API
 
-## 5. User callbacks
+| Function | Purpose |
+| --- | --- |
+| `Xcp_Init(config)` | reset context, init packet pool, lock all resources |
+| `Xcp_CanIfRxIndication(RxPduId, PduInfo)` | CanIf RX hook (validates `RxPduId == XCP_ON_CAN_CHL`) |
+| `Xcp_CanIfTxConfirmation(TxPduId, result)` | no-op placeholder |
+| `Xcp_RxIndication(channel, PduInfo)` | generic entry used by other transports |
+| `Xcp_MainFunction` / `Xcp_MainFunction_Write` | request/response/event + DAQ processing |
+| `Xcp_HasFreePacket` / `Xcp_AllocPacket` / `Xcp_FreePacket` | packet pool helpers |
+| `Xcp_GetU32` / `Xcp_SetU32` / `Xcp_GetU16` / `Xcp_SetU16` | endian-safe accessors used by the DSP modules |
+| `Xcp_GetVersionInfo(info)` | 4.0.0 |
 
-Every service whose `API` is set in the JSON calls a user function via a per-service config struct in `Xcp_Cfg.c`. The integration point for the application is [app/app/src/xcp_user.c](../../app/app/src/xcp_user.c), which is where the callbacks are implemented for every platform variant.
+Everything else (MTA, CAL, DAQ, PGM) is internal, split across
+`Xcp_DspStd.c` (standard commands), `Xcp_DspCal.c` (CAL/PAG),
+`Xcp_DspDaq.c` (DAQ), `Xcp_DspPgm.c` (PGM) and `Xcp_Mta.c` (memory access).
 
-| Service        | `API` callback signature                                                                                                  | Called by                       |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `Connect`      | `Std_ReturnType App_XcpGetConnectPermission(uint8_t mode, Xcp_NegativeResponseCodeType *nrc)`                            | `Xcp_DspConnect`                |
-| `Disconnect`   | `Std_ReturnType App_XcpDisconnecNotification(void)`                                                                       | `Xcp_DspDisconnect`             |
-| `GetSeed`      | `Std_ReturnType App_XcpGetSeed(uint8_t mode, uint8_t resource, uint8_t *seed, uint16_t *seedLen, Xcp_NegativeResponseCodeType *nrc)` | `Xcp_DspGetSeed`                |
-| `Unlock`       | `Std_ReturnType App_CompareKey(uint8_t *key, uint16_t keyLen, Xcp_NegativeResponseCodeType *nrc)`                        | `Xcp_DspUnlock`                 |
-| `ProgramStart` | `Std_ReturnType Xcp_GetProgramStartPermission(Xcp_OpStatusType opStatus, Xcp_NegativeResponseCodeType *nrc)`              | `Xcp_DspProgramStart`           |
-| `ProgramReset` | `Std_ReturnType Xcp_GetProgramResetPermission(Xcp_OpStatusType opStatus, Xcp_NegativeResponseCodeType *nrc)`             | `Xcp_DspProgramReset` (after `delay` ms) |
+---
 
-Anything not listed has no callback and `Xcp_Priv.h` declares no user API for it — the implementation either needs nothing (`GetStatus`, `SetMTA`, `Upload`, `ShortUpload`, `Download`, the DAQ list/info commands) or it calls the upper layer directly (`Program`, `ProgramNext`, `ProgramClear` — see [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c)).
+## 6. Build and run a demo
 
-The shipped `xcp_user.c` implements a minimal seed-and-key scheme (`lXcpSeed ^ 0x78934673`) and accepts `ProgramReset` / `ProgramStart` unconditionally. Adapt the four key callbacks (`GetConnectPermission`, `GetSeed`, `CompareKey`, `DisconnecNotification`) and the two program callbacks to your security policy.
-
-## 6. Transport
-
-This slave currently speaks **XCP on CAN only**. The receive side is hooked through `Xcp_CanIfRxIndication()`, which validates `RxPduId == XCP_ON_CAN_CHL` (`0`) and drops every command other than `0xFF CONNECT` until a connection is established. The transmit side goes through `CanIf_Transmit(CANIF_XCP_ON_CAN_TX, &PduInfo)`. The pool of `XCP_PACKET_POOL_SIZE` (JSON `PacketPoolSize`, default `8`) slots in [Xcp.c](../../infras/communication/Xcp/Xcp.c#L28) holds the received commands and doubles as the TX fallback when the bus is busy — see `Xcp_TxResponse()` and `Xcp_TxError()` in [Xcp.c](../../infras/communication/Xcp/Xcp.c#L61).
-
-The transport-layer PDU IDs come from the application's `CanIf.json` configuration:
-
-| PDU ID                  | Direction | Default CAN ID |
-| ---------------------- | --------- | ------------- |
-| `CANIF_XCP_ON_CAN_RX`  | master → slave | `0x7A0`   |
-| `CANIF_XCP_ON_CAN_TX`  | slave → master | `0x7B0`   |
-
-The slave's `XCP_PATCKET_MAX_SIZE` is fixed at `8` bytes, so `LL_DL` of the bus must be `8` (the default `target.LL_DL` in the PC tool's [`xcp.json`](../../tools/asone/examples/xcp.json)). `FlexRay` and `Ethernet` channel IDs are declared in [`Xcp.h`](../../infras/include/Xcp.h#L13) but not implemented.
-
-## 7. Generator
-
-[Xcp.py](../../tools/generator/Xcp.py) reads `Xcp.json` and emits `GEN/Xcp_Cfg.h` plus `GEN/Xcp_Cfg.c`:
-
-1. `preprocess()` converts each `id` to a number, rejects PIDs that are not in `ServiceMap` or that appear twice, and sorts the services by PID, so the runtime can binary-search the table in `Xcp_FindService()`.
-2. The header defines `XCP_PACKET_POOL_SIZE` (JSON `PacketPoolSize`, default `8`), `XCP_MAIN_FUNCTION_PERIOD` (JSON `MainFunctionPeriod`, default `10` ms) and one `XCP_USE_SERVICE_<GROUP>_<NAME>` macro per service — the source files use these macros to compile only the implementations that are actually configured. Both macros are `#ifndef`-guarded, so a build define still overrides them.
-3. The C file declares every `API` callback as `extern`, instantiates the per-service config struct (`Xcp_<Name>Config`), the static DAQ ODTs, the dynamic DAQ pool, the `Xcp_Services[]` table and finally the `Xcp_Config` root that `Xcp_GetConfig()` returns.
-4. `get_resource(cfg)` walks `services[]`, derives the union of the resource groups touched by the listed commands, and writes that into `Xcp_Config.resource` — this is the bitmap `Connect` reports to the master.
-
-The build regenerates both files whenever `Xcp.json` changes; the only thing that is hand-written is `xcp_user.c` (the user callbacks) and the slave sources under [infras/communication/Xcp](../../infras/communication/Xcp/).
-
-## 8. Limitations
-
-- Transport is **CAN** at this moment. `XCP_ON_FLEXRAY_CHL` and `XCP_ON_ETHERNET_CHL` are reserved IDs but the slave only registers `Xcp_CanIfRxIndication`.
-- Maximum PDU size is `XCP_PATCKET_MAX_SIZE = 8`, so `LL_DL` of the bus must be `8`. There is no oversize-segmentation support.
-- DAQ timestamp and `PID_OFF` are not supported; `DAQ_LIST_MODE_TIMESTAMP` / `DAQ_LIST_MODE_PID_OFF` bits are ignored.
-- `STIM` (master → slave DAQ) is not implemented. The slave accepts only DAQ direction.
-- `MTA_EXT_MEMORY` and `MTA_EXT_FLASH` are accepted by `Xcp_MtaRead/Write` on real targets; on `linux` / `_WIN32` host builds the read/write bodies are stubbed (`#if defined(linux) || defined(_WIN32)`), see [Xcp_Mta.c](../../infras/communication/Xcp/Xcp_Mta.c). Flashing a real target still requires a custom `Program*` integration in [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c).
-- The slave is single-channel and single-connection. The `0x10 ERR_CMD_BUSY` branch in `Xcp_RxIndication()` fires only when a command arrives on a channel other than the active one; on CAN the channel is always `XCP_ON_CAN_CHL`, so that branch is unreachable today and reserved for further transports.
-- More than `XCP_PACKET_POOL_SIZE` frames in flight gets `0x33 ERR_RESOURCE_TEMPORARY_NOT_ACCESSIBLE`; if it shows up under load, raise the pool with the `PacketPoolSize` attribute of `Xcp.json` (or a `-DXCP_PACKET_POOL_SIZE=N` build define) rather than editing the generated `Xcp_Cfg.h`.
-
-## 9. Verifying the slave with CanSend
-
-The host `CanApp` build already has XCP enabled (`app/app/SConscript` registers `config/Xcp/Xcp.json`), so the slave can be exercised without any hardware: `CanApp` talks on the `simulator_v2` virtual bus (a UDP multicast group) and the PC tools `CanSend` / `CanDump` join that same bus on the same machine.
-
-Build the three pieces:
+The host `CanApp` build already has XCP enabled, so the slave can be exercised
+without hardware - `CanApp`, `CanSend` and `CanDump` all talk on the
+`simulator_v2` virtual bus:
 
 ```bash
 scons --app=CanApp      # the XCP slave  -> build\nt\GCC\CanApp\CanApp.exe
@@ -256,7 +305,7 @@ build\nt\GCC\CanApp\CanApp.exe
 build\nt\GCC\one\CanDump.exe -d simulator_v2 -p 0 -f 700#700
 ```
 
-Then run any of these in a third shell — each line is a complete command, copy it as is and press Enter:
+Then run any of these in a third shell - each line is one complete XCP command:
 
 ```bash
 build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v FF00
@@ -264,33 +313,113 @@ build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v F440000000000000
 build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v F4FF000000000000
 ```
 
-`CanDump -f <Mask>#<Code>` keeps only the frames where `(canid & Mask) == (Code & Mask)`, so `-f 700#700` restricts the trace to the XCP IDs `0x7A0` (request) and `0x7B0` (response) and hides the unrelated traffic on the shared bus; drop the option to watch everything.
-
-`CanSend` sends the raw CTO payload as hex (`-i` CAN ID, `-v` data). `CanDump` prints the whole data array, so the trailing `55` bytes are display fill and not part of the request. The three commands above are in the same order as the table rows:
+`CanDump -f <Mask>#<Code>` keeps only frames where `(canid & Mask) == (Code &
+Mask)`, i.e. just the XCP pair `0x7A0`/`0x7B0`.
 
 | Request | `-v` payload | Answer on `0x7B0` |
-| ------- | ------------ | ----------------- |
+| --- | --- | --- |
 | `CONNECT` | `FF00` | `FF 15 00 08 00 08 01 01` |
-| `SHORT_UPLOAD`, 64 bytes | `F440000000000000` | 1 request, 10 frames, 64 bytes |
-| `SHORT_UPLOAD`, 255 bytes | `F4FF000000000000` | 1 request, 37 frames, 255 bytes |
+| `SHORT_UPLOAD`, 64 bytes | `F440000000000000` | 1 request, 10 frames |
+| `SHORT_UPLOAD`, 255 bytes | `F4FF000000000000` | 1 request, 37 frames |
 
-The `CONNECT` answer is `FF` (positive response), `15` (`resource` = `CALPAG|DAQ|PGM`), `00` (`COMM_MODE_BASIC`), `08` (`MAX_CTO`), `00 08` (`MAX_DTO`) and `01 01` (protocol/transport layer version).
+The `CONNECT` answer is: `FF` positive, `15` = resource `CALPAG|DAQ|PGM`,
+`00` COMM_MODE_BASIC, `08` MAX_CTO, `00 08` MAX_DTO, `01 01` protocol/transport
+version. A `SHORT_UPLOAD` request is `F4 | Number | rsv | Ext | Addr32(LE)`;
+`Ext 0` = `MTA_EXT_MEMORY`. The continuation frames come out one per
+`XCP_MAIN_FUNCTION_PERIOD` (10 ms); the master strips the leading `0xFF` of
+each frame and concatenates (see `UIMeasure::on_btnRead_clicked()` in
+[UIXcp.cpp](../../tools/asone/src/ui/UIXcp.cpp)).
 
-A `SHORT_UPLOAD` request is always 8 bytes: `F4 | Number | reserved | Extension | Address (32-bit, little endian)`. `Number` is the byte count to read and `Extension` `0` selects `MTA_EXT_MEMORY`.
+> On the host build `Xcp_MtaRead()` is stubbed (`linux`/`_WIN32`), so the
+> uploaded bytes are stale buffer content - this recipe verifies sequencing,
+> not data. Use a target build (e.g. the QEMU `VersatilepbCanApp`) for real
+> data; addresses come from the map file or `tools/utils/readelf.py`.
 
-One request may ask for up to 255 bytes, but a single CTO frame only carries `XCP_PATCKET_MAX_SIZE - 1` = 7 payload bytes. `Xcp_DspShortUpload()` therefore returns `XCP_E_PENDING` while bytes are left, and `Xcp_MainFunction_Request()` emits one response frame per invocation, keeping the request packet at the head of `rxPackets` until it is finished. As `Xcp_MainFunction()` is driven by `MainTask_10ms()` → `EcuM_BswService()` → `EcuM_DriverMainList[]`, the continuation frames come out one per 10 ms (`XCP_MAIN_FUNCTION_PERIOD`):
+---
 
-```text
-2026-10-16 21:49:57 7A0 dlc=08 data=[F4,40,00,00,00,00,00,00]  <- 1 request for 64 bytes
-2026-10-16 21:49:57 7B0 dlc=08 data=[FF,80,3F,FE,E2,F6,7F,00]  <- frame 1 of 10
-2026-10-16 21:49:57 7B0 dlc=08 data=[FF,80,3F,FE,E2,F6,7F,00]  <- +10 ms
-...
-2026-10-16 21:49:57 7B0 dlc=02 data=[FF,80]                    <- frame 10, last byte
-```
+## 7. Key notes and gotchas
 
-Every response frame starts with `XCP_PID_RES` (`0xFF`); the master drops that first byte of each frame and concatenates the rest, see `UIMeasure::on_btnRead_clicked()` in [UIXcp.cpp](../../tools/asone/src/ui/UIXcp.cpp#L362). `CanSend` only injects the request, so pair it with `CanDump` to watch both directions.
+* **XCP bypasses PduR and Dcm.** The two CanIf PDUs must be named
+  `XCP_ON_CAN_RX` / `XCP_ON_CAN_TX`; nothing else needs configuring in PduR.
+* **The service table is sorted by PID at generation time** and binary-searched
+  at runtime - never hand-edit `GEN/Xcp_Cfg.c`.
+* **`Services[].name` is decorative.** The PID decides everything; a PID not in
+  the generator's `ServiceMap` fails the build with the list of supported PIDs.
+* **One command per main cycle** (10 ms default). Bulk uploads continue at one
+  frame per cycle - a 255-byte upload takes ~0.4 s. DAQ runs in the same
+  main function.
+* **All resources are locked after init.** Even `Download` needs
+  `CONNECT -> GetSeed -> Unlock` first; NRC `0x25` means you forgot that.
+* **The packet pool is shared** between RX commands and TX responses
+  (`PacketPoolSize`, default 8). A busy DAQ plus a pending upload can exhaust
+  it; the symptom is NRC `0x33 resource temporarily not accessible`.
+* **8-byte frames only.** `XCP_PATCKET_MAX_SIZE = 8` (sic - typo included in
+  the macro name) limits CTO/DTO to 7 payload bytes; the bus `LinkLayerDataLength` must be 8.
+* **`UsePostBuildConfig` is a no-op** for this module (generated but never
+  read by `Xcp.c`).
+* **Single connection, single channel.** A second CONNECT from another
+  "channel" gets NRC `0x10 CMD_BUSY`; on CAN there is only one channel anyway.
 
-> Two caveats when using the host build:
->
-> - `Xcp_MtaRead()` is stubbed on `linux` / `_WIN32` (see section 8), so the payload bytes are stale buffer content and not the memory at `Address`. The recipe above verifies the request/response sequencing, not the data. To check real data, run it against a target build (e.g. the QEMU `VersatilepbCanApp`) and take the address from the map file or from the JSON exported by `tools/utils/readelf.py`.
-> - A log line `Abort pending service F4` (from [Xcp.c](../../infras/communication/Xcp/Xcp.c#L177)) means that `Xcp_TxResponse()` failed for a continuation frame. The usual cause is that the CAN driver's TX main function is never scheduled: `Can_MainFunction_Write` sits in `EcuM_DriverMainFastList` behind `#ifdef USE_CAN`, so a platform that fails to define `USE_CAN` stops after the very first frame.
+---
+
+## 8. Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| No response at all on `0x7B0` | `XCP_ON_CAN_TX` PDU missing/misnamed in `CanIf.json`, or the CAN TX main function is not scheduled (`USE_CAN` undefined - see below) |
+| `0x25 Access locked` | run `GetSeed` + `Unlock` for the resource first |
+| `0x33 Resource temporarily not accessible` | packet pool exhausted - raise `PacketPoolSize` (JSON or `-DXCP_PACKET_POOL_SIZE=N`) |
+| `0x08 Command unknown` | the PID is not in `Services[]` of `Xcp.json` |
+| `Abort pending service F4` in the log | `Xcp_TxResponse()` failed for a continuation frame - typically `Can_MainFunction_Write` not running because the platform build forgot `USE_CAN` |
+| Response frames stop mid-upload | same as above; also check the TX queue is not starved by DAQ traffic |
+| DAQ produces no data | DAQ list never started (`START_STOP_DAQ_LIST`), or the event channel `TimeCycle` is a multiple of `MainFunctionPeriod` that rounds to 0 cycles |
+| Uploaded data is garbage on host build | expected - `Xcp_MtaRead` is stubbed on `linux`/`_WIN32`; verify on a target build |
+
+---
+
+## 9. Known limitations and code review findings
+
+### 9.1 Functional limitations
+
+* **CAN transport only.** `XCP_ON_FLEXRAY_CHL` / `XCP_ON_ETHERNET_CHL` are
+  declared but not implemented; there is no XCP-on-Ethernet/TCP.
+* **8-byte PDUs.** No CAN FD (`XCP_PATCKET_MAX_SIZE = 8`), no segmentation.
+* **No DAQ timestamp / PID_OFF / STIM.** The mode bits are accepted but
+  ignored; STIM (master -> slave DAQ) does not exist.
+* **Single-connection.** The `activeChannel` concept exists, but CAN offers
+  only channel 0.
+* **Host MTA is stubbed** (`Xcp_Mta.c`), so measurement on `linux`/`_WIN32`
+  returns stale data; flashing needs a per-target `Xcp_DspPgm.c` integration.
+
+### 9.2 Code review findings
+
+| # | Where | Finding |
+| --- | --- | --- |
+| 1 | `Xcp.c:345-366` | `Xcp_RxIndication` calls `Xcp_TxError(channel, nrc)` **directly** on errors - and `Xcp_RxIndication` runs in the CanIf RX context (potentially an ISR). `Xcp_TxError` allocates a pool packet (with `mp_alloc`, protected) and calls `CanIf_Transmit`, so error responses are sent from ISR context; on drivers that do not allow TX from ISR this is a latent race. |
+| 2 | `Xcp.c:33-53` | `Xcp_FindService` computes `h = numOfServices - 1` and dereferences `config->services[0]` before any empty-table check; an `Xcp.json` without `Services[]` produces an underflow and an out-of-bounds read (same pattern as `LinIf_HeaderIndication`). |
+| 3 | `Xcp.c:160-166` | When a *different* command arrives while a service is still `PENDING`, the code logs "Fatal memory error", aborts the pending service and starts the new one. For `Program*` sequences (which are legitimately pending for a long time) an interleaved command silently corrupts the programming session instead of answering `CMD_BUSY`. |
+| 4 | `Xcp.c:210-231` | `Xcp_MainFunction_Response` has no timeout/queue-depth control: if `CanIf_Transmit` never succeeds (bus off), TX packets accumulate until the pool is exhausted, which then also blocks RX commands (`no free packet`). |
+| 5 | `Xcp.c:419-421` | `Xcp_MainFunction_Write` runs DAQ *writing* from the EcuM main list while `Xcp_MainFunction_Daq` (sampling) runs in `Xcp_MainFunction` - both are the same list in `EcuM_Cfg.c:176`, so the split brings no parallelism, just a naming trap. |
+| 6 | `Xcp_Priv.h:102-103` | `XCP_PATCKET_MAX_SIZE` - the macro name misspells "PACKET" and propagates into every DSP file; a rename is cosmetic but any grepping integrator will stumble. |
+| 7 | `Xcp.py:340` | `UsePostBuildConfig` defaults to **true** (all other modules default to false) and the generated `XCP_USE_PB_CONFIG` macro is never referenced by `Xcp.c` (`Xcp_Init` ignores `ConfigPtr` unconditionally). Misleading dead configuration. |
+| 8 | `Xcp.py:299-316` | `preprocess()` sorts `cfg["services"]` in place; the JSON itself is not rewritten, so the `GEN/Xcp_Cfg.c` order differs from the JSON order - surprising when diffing generated output. |
+| 9 | `Xcp_DspDaq.c` (888 lines) | The DAQ implementation keeps per-DAQ state in plain RAM structures without checksum/protection; a master that misconfigures `WriteDAQ` entries can point ODT entries at arbitrary addresses, and sampling then reads those addresses every cycle - by design for a calibration tool, but worth noting in a security review alongside `App_CompareKey`. |
+| 10 | `Xcp.c:124-207` | `resData[XCP_PATCKET_MAX_SIZE]` is a stack buffer of 8 bytes with `resMaxDataLen = 7`; any DSP function writing longer responses has no overflow detection beyond the `resMaxDataLen` convention - a new DSP command that ignores the convention overflows the stack silently. |
+
+---
+
+## 10. Related documents
+
+* [UIXcp](UIXcp.md) - the PC-side XCP master tool (Qt), with its own doc
+* [CanIf](CanIf.md) - the transport PDUs (`XCP_ON_CAN_RX` / `XCP_ON_CAN_TX`)
+* [CanApp / virtual-can-env](virtual-can-env.md) - the virtual bus used by the
+  demo
+* Code: [Xcp.c](../../infras/communication/Xcp/Xcp.c),
+  [Xcp_DspStd.c](../../infras/communication/Xcp/Xcp_DspStd.c),
+  [Xcp_DspDaq.c](../../infras/communication/Xcp/Xcp_DspDaq.c),
+  [Xcp_DspCal.c](../../infras/communication/Xcp/Xcp_DspCal.c),
+  [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c),
+  [Xcp_Mta.c](../../infras/communication/Xcp/Xcp_Mta.c),
+  [Xcp.h](../../infras/include/Xcp.h),
+  [Xcp.py](../../tools/generator/Xcp.py)
+* ASAM XCP Part 1-5; AUTOSAR CP R23-11 Specification of XCP

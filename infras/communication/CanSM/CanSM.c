@@ -50,8 +50,8 @@ static void CanSM_PreNoCom_DeinitPnNotSupported(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if (CANSM_BSM_S_ENTRY_POINT == context->BusSubState) {
     context->BusSubState = CANSM_BSM_S_CC_STOPPED;
@@ -98,8 +98,8 @@ static void CanSM_PreNoCom(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if (TRUE == config->CanTrcvPnEnabled) {
     CanSM_PreNoCom_DeinitPnSupported(network);
@@ -108,8 +108,8 @@ static void CanSM_PreNoCom(NetworkHandleType network) {
   }
 
   if (CANSM_BSM_S_EXIT_POINT == context->BusSubState) {
-    if (TRUE == context->bStartWakeup) {
-      context->bStartWakeup = FALSE;
+    if (TRUE == context->StartWakeup) {
+      context->StartWakeup = FALSE;
       context->BusState = CANSM_BSM_WUVALIDATION;
       context->BusSubState = CANSM_BSM_S_TRCV_NORMAL;
       ASLOG(CANSM, ("[%d] Goto Wakeup Validation\n", network));
@@ -129,8 +129,8 @@ static void CanSM_WakeupValidation(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if (CANSM_BSM_S_TRCV_NORMAL == context->BusSubState) { /* @SWS_CanSM_00623 */
     ret = CanIf_SetTrcvMode(config->TransceiverId, CANTRCV_TRCVMODE_NORMAL);
@@ -160,15 +160,15 @@ static void CanSM_WakeupValidation(NetworkHandleType network) {
   }
 
   if (CANSM_BSM_WAIT_WUVALIDATION_LEAVE == context->BusSubState) {
-    if ((COMM_FULL_COMMUNICATION == context->requestedMode) ||
-        (COMM_FULL_COMMUNICATION_WITH_WAKEUP_REQUEST == context->requestedMode)) {
+    if ((COMM_FULL_COMMUNICATION == context->RequestedMode) ||
+        (COMM_FULL_COMMUNICATION_WITH_WAKEUP_REQUEST == context->RequestedMode)) {
       /* T_FULL_COM_MODE_REQUEST */
       ASLOG(CANSM, ("[%d] Goto Pre Full Com\n", network));
       context->BusState = CANSM_BSM_S_PRE_FULLCOM;
       context->BusSubState = CANSM_BSM_S_EXIT_POINT; /* direct goto exit point */
       CanSM_PreFullCom(network);
-    } else if (TRUE == context->bStopWakeup) {
-      context->bStopWakeup = FALSE;
+    } else if (TRUE == context->StopWakeup) {
+      context->StopWakeup = FALSE;
       ASLOG(CANSM, ("[%d] Goto Pre No Com\n", network));
       context->BusState = CANSM_BSM_S_PRE_NOCOM;
       context->BusSubState = CANSM_BSM_S_ENTRY_POINT;
@@ -183,11 +183,11 @@ static void CanSM_PreFullCom(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if (CANSM_BSM_S_TRCV_NORMAL == context->BusSubState) { /* @SWS_CanSM_00483 */
     ret = CanIf_SetTrcvMode(config->TransceiverId, CANTRCV_TRCVMODE_NORMAL);
@@ -241,13 +241,13 @@ static void CanSM_FullCom(NetworkHandleType network) {
   const CanSM_NetworkConfigType *config;
   Std_ReturnType ret;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if ((CANSM_BSM_S_BUS_OFF_CHECK == context->BusSubState) ||
       (CANSM_BSM_S_NO_BUS_OFF == context->BusSubState)) {
-    if (TRUE == context->bBusOff) {
-      context->bBusOff = FALSE;
+    if (TRUE == context->BusOff) {
+      context->BusOff = FALSE;
       if (context->BusOffCounter < CANSM_BUSOFF_COUNTER_MAX) {
         context->BusOffCounter++;
       }
@@ -330,8 +330,8 @@ static void CanSM_FullCom(NetworkHandleType network) {
   }
 
   if (CANSM_BSM_S_NO_BUS_OFF == context->BusSubState) {
-    if ((COMM_SILENT_COMMUNICATION == context->requestedMode) ||
-        (COMM_NO_COMMUNICATION == context->requestedMode)) {
+    if ((COMM_SILENT_COMMUNICATION == context->RequestedMode) ||
+        (COMM_NO_COMMUNICATION == context->RequestedMode)) {
       /* @SWS_CanSM_00541 */
       ret = CanIf_SetPduMode(config->ControllerId, CANIF_TX_OFFLINE);
       if (E_OK == ret) {
@@ -344,8 +344,8 @@ static void CanSM_FullCom(NetworkHandleType network) {
       } else {
         ASLOG(CANSME, ("[%d]Fail to E_FULL_TO_SILENT_COM\n", network));
       }
-    } else if (TRUE == context->bTxTimeout) {
-      context->bTxTimeout = FALSE;
+    } else if (TRUE == context->TxTimeout) {
+      context->TxTimeout = FALSE;
       ASLOG(CANSM, ("[%d] Tx Timeout\n", network));
       ret = CanIf_SetPduMode(config->ControllerId, CANIF_OFFLINE);
       if (E_OK == ret) {
@@ -375,11 +375,11 @@ static void CanSM_SilentCom(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
-  if ((COMM_FULL_COMMUNICATION == context->requestedMode) ||
-      (COMM_FULL_COMMUNICATION_WITH_WAKEUP_REQUEST == context->requestedMode)) {
+  if ((COMM_FULL_COMMUNICATION == context->RequestedMode) ||
+      (COMM_FULL_COMMUNICATION_WITH_WAKEUP_REQUEST == context->RequestedMode)) {
     /* @SWS_CanSM_00550: the same as E_FULL_COM */
     if (FALSE == bCanSmEcuPassive) { /* @SWS_CanSM_00539 */
       ret = CanIf_SetPduMode(config->ControllerId, CANIF_ONLINE);
@@ -397,12 +397,12 @@ static void CanSM_SilentCom(NetworkHandleType network) {
     } else {
       ASLOG(CANSME, ("[%d]Fail to E_FULL_COM\n", network));
     }
-  } else if (TRUE == context->bBusOff) {
+  } else if (TRUE == context->BusOff) {
     ASLOG(CANSM, ("[%d] Goto Full Com\n", network));
-    context->bBusOff = FALSE;
+    context->BusOff = FALSE;
     context->BusState = CANSM_BSM_S_SILENTCOM_BOR;
     context->BusSubState = CANSM_BSM_S_RESTART_CC;
-  } else if (COMM_NO_COMMUNICATION == context->requestedMode) {
+  } else if (COMM_NO_COMMUNICATION == context->RequestedMode) {
     ASLOG(CANSM, ("[%d] Goto Pre No Com\n", network));
     context->BusState = CANSM_BSM_S_PRE_NOCOM;
     context->BusSubState = CANSM_BSM_S_ENTRY_POINT;
@@ -416,8 +416,8 @@ static void CanSM_SilentComBOR(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
 
   if (CANSM_BSM_S_RESTART_CC == context->BusSubState) {
     ret = CanIf_SetControllerMode(config->ControllerId, CAN_CS_STARTED);
@@ -427,7 +427,7 @@ static void CanSM_SilentComBOR(NetworkHandleType network) {
   }
 
   if (CANSM_BSM_S_EXIT_POINT == context->BusSubState) {
-    if (COMM_NO_COMMUNICATION == context->requestedMode) {
+    if (COMM_NO_COMMUNICATION == context->RequestedMode) {
       ASLOG(CANSM, ("[%d] Goto Pre No Com\n", network));
       context->BusState = CANSM_BSM_S_PRE_NOCOM;
       context->BusSubState = CANSM_BSM_S_ENTRY_POINT;
@@ -442,14 +442,14 @@ static void CanSM_SilentComBOR(NetworkHandleType network) {
 static void CanSM_NoCom(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
 
-  context = &CANSM_CONFIG->contexts[network];
-  if (TRUE == context->bStartWakeup) {
-    context->bStartWakeup = FALSE;
+  context = &CANSM_CONFIG->Contexts[network];
+  if (TRUE == context->StartWakeup) {
+    context->StartWakeup = FALSE;
     context->BusState = CANSM_BSM_WUVALIDATION;
     context->BusSubState = CANSM_BSM_S_TRCV_NORMAL;
     ASLOG(CANSM, ("[%d] Goto Wakeup Validation\n", network));
     CanSM_WakeupValidation(network);
-  } else if (COMM_FULL_COMMUNICATION == context->requestedMode) {
+  } else if (COMM_FULL_COMMUNICATION == context->RequestedMode) {
     context->BusState = CANSM_BSM_S_PRE_FULLCOM;
     context->BusSubState = CANSM_BSM_S_TRCV_NORMAL;
     ASLOG(CANSM, ("[%d] Goto Pre Full Com\n", network));
@@ -459,23 +459,23 @@ static void CanSM_NoCom(NetworkHandleType network) {
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanSM_Init(const CanSM_ConfigType *ConfigPtr) {
+void CanSM_Init(const CanSM_ConfigType *configPtr) {
   uint8_t i;
   CanSM_ChannelContextType *context;
 
 #ifdef CANSM_USE_PB_CONFIG
-  if (NULL != ConfigPtr) {
-    CANSM_CONFIG = ConfigPtr;
+  if (NULL != configPtr) {
+    CANSM_CONFIG = configPtr;
   } else {
     CANSM_CONFIG = &CanSM_Config;
   }
 #else
-  (void)ConfigPtr;
+  (void)configPtr;
 #endif
 
-  for (i = 0; i < CANSM_CONFIG->numOfNetworks; i++) {
-    context = &CANSM_CONFIG->contexts[i];
-    context->requestedMode = COMM_NO_COMMUNICATION;
+  for (i = 0; i < CANSM_CONFIG->NumOfNetworks; i++) {
+    context = &CANSM_CONFIG->Contexts[i];
+    context->RequestedMode = COMM_NO_COMMUNICATION;
     context->BusOffTimer = 0;
     context->BusOffCounter = 0;
     context->BusOffTxEnsuredTimer = 0;
@@ -491,8 +491,8 @@ void CanSM_DeInit(void) {
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x14, CANSM_E_UNINIT, return);
 
-  for (i = 0; i < CANSM_CONFIG->numOfNetworks; i++) {
-    context = &CANSM_CONFIG->contexts[i];
+  for (i = 0; i < CANSM_CONFIG->NumOfNetworks; i++) {
+    context = &CANSM_CONFIG->Contexts[i];
     /* @SWS_CanSM_00660 */
     DET_VALIDATE(CANSM_BSM_S_NOCOM != context->BusState, 0x14, CANSM_E_NOT_IN_NO_COM, (void)0);
     context->BusState = CANSM_BSM_S_NOT_INITIALIZED;
@@ -504,11 +504,11 @@ Std_ReturnType CanSM_RequestComMode(NetworkHandleType network, ComM_ModeType Com
   CanSM_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x02, CANSM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(network < CANSM_CONFIG->numOfNetworks, 0x02, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(network < CANSM_CONFIG->NumOfNetworks, 0x02, CANSM_E_INVALID_NETWORK_HANDLE,
                return E_NOT_OK); /* @SWS_CanSM_00183 */
 
-  context = &CANSM_CONFIG->contexts[network];
-  context->requestedMode = ComM_Mode;
+  context = &CANSM_CONFIG->Contexts[network];
+  context->RequestedMode = ComM_Mode;
 
   return ret;
 }
@@ -524,13 +524,13 @@ Std_ReturnType CanSM_GetCurrentComMode(NetworkHandleType network, ComM_ModeType 
   CanSM_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x03, CANSM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(network < CANSM_CONFIG->numOfNetworks, 0x03, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(network < CANSM_CONFIG->NumOfNetworks, 0x03, CANSM_E_INVALID_NETWORK_HANDLE,
                return E_NOT_OK); /* @SWS_CanSM_00187 */
 
   DET_VALIDATE(NULL != ComM_ModePtr, 0x03, CANSM_E_PARAM_POINTER,
                return E_NOT_OK); /* @SWS_CanSM_00360 */
 
-  context = &CANSM_CONFIG->contexts[network];
+  context = &CANSM_CONFIG->Contexts[network];
   switch (context->BusState) {
   case CANSM_BSM_S_FULLCOM:
     if ((CANSM_BSM_S_BUS_OFF_CHECK == context->BusSubState) ||
@@ -556,11 +556,11 @@ Std_ReturnType CanSM_StartWakeupSource(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x11, CANSM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(network < CANSM_CONFIG->numOfNetworks, 0x11, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(network < CANSM_CONFIG->NumOfNetworks, 0x11, CANSM_E_INVALID_NETWORK_HANDLE,
                return E_NOT_OK); /* @SWS_CanSM_00613 */
 
-  context = &CANSM_CONFIG->contexts[network];
-  context->bStartWakeup = TRUE;
+  context = &CANSM_CONFIG->Contexts[network];
+  context->StartWakeup = TRUE;
 
   return ret;
 }
@@ -570,45 +570,45 @@ Std_ReturnType CanSM_StopWakeupSource(NetworkHandleType network) {
   CanSM_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x12, CANSM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(network < CANSM_CONFIG->numOfNetworks, 0x12, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(network < CANSM_CONFIG->NumOfNetworks, 0x12, CANSM_E_INVALID_NETWORK_HANDLE,
                return E_NOT_OK); /* @SWS_CanSM_00621 */
 
-  context = &CANSM_CONFIG->contexts[network];
-  context->bStopWakeup = TRUE;
+  context = &CANSM_CONFIG->Contexts[network];
+  context->StopWakeup = TRUE;
 
   return ret;
 }
 
-void CanSM_ControllerBusOff(uint8_t ControllerId) {
+void CanSM_ControllerBusOff(uint8_t controllerId) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x14, CANSM_E_UNINIT, return);
-  DET_VALIDATE(ControllerId < CANSM_CONFIG->numOfNetworks, 0x14, CANSM_E_PARAM_CONTROLLER,
+  DET_VALIDATE(controllerId < CANSM_CONFIG->NumOfNetworks, 0x14, CANSM_E_PARAM_CONTROLLER,
                return); /* @SWS_CanSM_00189 */
 
-  /* For this simple implementation: ControllerId == network */
-  context = &CANSM_CONFIG->contexts[ControllerId];
-  config = &CANSM_CONFIG->networks[ControllerId];
+  /* For this simple implementation: controllerId == network */
+  context = &CANSM_CONFIG->Contexts[controllerId];
+  config = &CANSM_CONFIG->Networks[controllerId];
 
-  context->bBusOff = TRUE;
+  context->BusOff = TRUE;
   /* immediately switch TX offline */
   (void)CanIf_SetPduMode(config->ControllerId, CANIF_TX_OFFLINE);
 }
 
-void CanSM_TxTimeoutException(NetworkHandleType Channel) {
+void CanSM_TxTimeoutException(NetworkHandleType channel) {
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x0B, CANSM_E_UNINIT, return);
-  DET_VALIDATE(Channel < CANSM_CONFIG->numOfNetworks, 0x0B, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(channel < CANSM_CONFIG->NumOfNetworks, 0x0B, CANSM_E_INVALID_NETWORK_HANDLE,
                return); /* @SWS_CanSM_00412 */
 
-  /* For this simple implementation: Channel == network */
-  context = &CANSM_CONFIG->contexts[Channel];
-  config = &CANSM_CONFIG->networks[Channel];
+  /* For this simple implementation: channel == network */
+  context = &CANSM_CONFIG->Contexts[channel];
+  config = &CANSM_CONFIG->Networks[channel];
 
-  context->bTxTimeout = TRUE;
+  context->TxTimeout = TRUE;
   /* immediately switch TX offline */
   (void)CanIf_SetPduMode(config->ControllerId, CANIF_TX_OFFLINE);
 }
@@ -618,8 +618,8 @@ void CanSM_MainFunction(void) {
   CanSM_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0x05, CANSM_E_UNINIT, return);
-  for (i = 0; i < CANSM_CONFIG->numOfNetworks; i++) {
-    context = &CANSM_CONFIG->contexts[i];
+  for (i = 0; i < CANSM_CONFIG->NumOfNetworks; i++) {
+    context = &CANSM_CONFIG->Contexts[i];
     switch (context->BusState) {
     case CANSM_BSM_S_PRE_NOCOM:
       CanSM_PreNoCom((NetworkHandleType)i);
@@ -649,34 +649,34 @@ void CanSM_MainFunction(void) {
 }
 
 Std_ReturnType CanSM_GetBusoff_Substate(NetworkHandleType network,
-                                        CanSM_BusOffRecoveryStateType *BORStatePtr) {
+                                        CanSM_BusOffRecoveryStateType *bORStatePtr) {
   Std_ReturnType ret = E_OK;
   CanSM_ChannelContextType *context;
   const CanSM_NetworkConfigType *config;
 
   DET_VALIDATE(NULL != CANSM_CONFIG, 0xF1, CANSM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(network < CANSM_CONFIG->numOfNetworks, 0xF1, CANSM_E_INVALID_NETWORK_HANDLE,
+  DET_VALIDATE(network < CANSM_CONFIG->NumOfNetworks, 0xF1, CANSM_E_INVALID_NETWORK_HANDLE,
                return E_NOT_OK);
 
-  context = &CANSM_CONFIG->contexts[network];
-  config = &CANSM_CONFIG->networks[network];
+  context = &CANSM_CONFIG->Contexts[network];
+  config = &CANSM_CONFIG->Networks[network];
   if (CANSM_BSM_S_FULLCOM == context->BusState) {
     switch (context->BusSubState) {
     case CANSM_BSM_S_BUS_OFF_CHECK:
-      *BORStatePtr = CANSM_S_BUS_OFF_CHECK;
+      *bORStatePtr = CANSM_S_BUS_OFF_CHECK;
       break;
     case CANSM_BSM_S_RESTART_CC:
-      *BORStatePtr = CANSM_S_RESTART_CC;
+      *bORStatePtr = CANSM_S_RESTART_CC;
       break;
     case CANSM_BSM_S_TX_OFF:
       if (context->BusOffCounter <= config->BorCounterL1ToL2) {
-        *BORStatePtr = CANSM_S_BUS_OFF_RECOVERY_L1;
+        *bORStatePtr = CANSM_S_BUS_OFF_RECOVERY_L1;
       } else {
-        *BORStatePtr = CANSM_S_BUS_OFF_RECOVERY_L2;
+        *bORStatePtr = CANSM_S_BUS_OFF_RECOVERY_L2;
       }
       break;
     case CANSM_BSM_S_NO_BUS_OFF:
-      *BORStatePtr = CANSM_BOR_IDLE;
+      *bORStatePtr = CANSM_BOR_IDLE;
       break;
     default:
       ASLOG(CANSME, ("[%d] Fatal as in sub state %d\n", network, context->BusSubState));
@@ -695,9 +695,9 @@ Std_ReturnType CanSM_GetBusoff_Substate(NetworkHandleType network,
 void CanSM_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x01, CANSM_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_CANSM;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_CANSM;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

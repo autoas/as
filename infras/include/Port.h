@@ -4,14 +4,15 @@
  *
  * ref: Specification of Port Driver AUTOSAR CP Release 4.4.0
  */
-#ifndef _PORT_H
-#define _PORT_H
+#ifndef PORT_H
+#define PORT_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define PORT_PIN_IN ((Port_PinDirectionType)0x00)
 #define PORT_PIN_OUT ((Port_PinDirectionType)0x01)
-#define PORT_PIN_UNUSED ((Port_PinDirectionType)0x02) /* A mode that don't set the pin direction */
+/* A mode that don't set the pin direction */
+#define PORT_PIN_UNUSED ((Port_PinDirectionType)0x02)
 
 #define PORT_PIN_MODE_ADC ((Port_PinModeType)0)
 #define PORT_PIN_MODE_CAN ((Port_PinModeType)1)
@@ -49,14 +50,14 @@ typedef uint8_t Port_PinModeType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Port_00140 */
-void Port_Init(const Port_ConfigType *ConfigPtr);
+void Port_Init(const Port_ConfigType *configPtr);
 
 /* @SWS_Port_00141 */
-void Port_SetPinDirection(Port_PinType Pin, Port_PinDirectionType Direction);
+void Port_SetPinDirection(Port_PinType pin, Port_PinDirectionType direction);
 
 /* @SWS_Port_00142 */
 void Port_RefreshPortDirection(void);
 
 /* @SWS_Port_00145 */
-void Port_SetPinMode(Port_PinType Pin, Port_PinModeType Mode);
-#endif /* _PORT_H */
+void Port_SetPinMode(Port_PinType pin, Port_PinModeType mode);
+#endif /* PORT_H */

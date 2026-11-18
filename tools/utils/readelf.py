@@ -558,10 +558,10 @@ class ElfParser:
                             pos_v = self.die_location(die)
                             id_v = "0x%08x" % (parent_die.offset)
                             mem = {
-                                "name": name_v,
-                                "type": type_v,
-                                "offset": loc_v,
-                                "loc": pos_v,
+                                "Name": name_v,
+                                "Type": type_v,
+                                "Offset": loc_v,
+                                "Loc": pos_v,
                             }
                             if id_v not in members:
                                 members[id_v] = []
@@ -572,17 +572,17 @@ class ElfParser:
 
     def buildType(self, name_v, id_v, shape, loc_v):
         """Type entry of the composite DIE `id_v`: shape, byte size and member layout."""
-        typ = {"name": name_v, "type": shape, "shape": shape, "loc": loc_v}
+        typ = {"Name": name_v, "Type": shape, "Shape": shape, "Loc": loc_v}
         size = self.typeSize.get(id_v)
         if size is not None:
-            typ["size"] = size
+            typ["Size"] = size
         if "enumeration" == shape:
             return typ
         ms = self.members.get(id_v)
         if ms is None:
             return None
-        ms.sort(key=lambda x: eval(x["offset"]))
-        typ["members"] = ms
+        ms.sort(key=lambda x: eval(x["Offset"]))
+        typ["Members"] = ms
         return typ
 
     def parseTypes(self):
@@ -599,12 +599,12 @@ class ElfParser:
             """
             old = types.get(name_v)
             if old is not None:
-                if "members" in old and "members" not in typ:
+                if "Members" in old and "Members" not in typ:
                     return
-                if "size" in old and "size" not in typ:
-                    typ = dict(typ, size=old["size"])
-                if "shape" in old and "shape" not in typ:
-                    typ = dict(typ, shape=old["shape"])
+                if "Size" in old and "Size" not in typ:
+                    typ = dict(typ, Size=old["Size"])
+                if "Shape" in old and "Shape" not in typ:
+                    typ = dict(typ, Shape=old["Shape"])
             types[name_v] = typ
 
         for cu in self._dwarfinfo.iter_CUs():
@@ -633,7 +633,7 @@ class ElfParser:
                 name_v = self.describe_attr_value(die, a["DW_AT_name"]).split('"')[1]
                 type_v = self.die_type_name(die) or ""
                 pos_v = self.die_location(die)
-                typ = {"name": name_v, "type": type_v, "loc": pos_v}
+                typ = {"Name": name_v, "Type": type_v, "Loc": pos_v}
                 try:
                     target = die.get_DIE_from_attribute("DW_AT_type")
                 except Exception:
@@ -644,23 +644,23 @@ class ElfParser:
                     sub = self.buildType(name_v, "0x%08x" % target.offset, COMPOSITE_TAGS[target.tag],
                                          pos_v)
                     if sub is not None:
-                        typ["shape"] = sub["shape"]
-                        if "size" in sub:
-                            typ["size"] = sub["size"]
-                        if "members" in sub:
-                            typ["members"] = sub["members"]
-                if "size" not in typ:
+                        typ["Shape"] = sub["Shape"]
+                        if "Size" in sub:
+                            typ["Size"] = sub["Size"]
+                        if "Members" in sub:
+                            typ["Members"] = sub["Members"]
+                if "Size" not in typ:
                     # a scalar typedef such as uint64_t has no composite to size it
                     size = self.die_byte_size(target)
                     if size is not None:
-                        typ["size"] = size
+                        typ["Size"] = size
                 register(name_v, typ)
 
         # resolve the anonymous composites the registered members and variables point at
         pending = set()
         for typ in types.values():
-            for mem in typ.get("members", []):
-                name_v = _strip_qualifiers(mem["type"])
+            for mem in typ.get("Members", []):
+                name_v = _strip_qualifiers(mem["Type"])
                 if name_v.startswith(ANON_PREFIX) and name_v not in types:
                     pending.add(name_v)
         for name_v in self.typeShape:
@@ -674,8 +674,8 @@ class ElfParser:
             if typ is None:
                 continue
             types[name_v] = typ
-            for mem in typ.get("members", []):
-                sub = _strip_qualifiers(mem["type"])
+            for mem in typ.get("Members", []):
+                sub = _strip_qualifiers(mem["Type"])
                 if sub.startswith(ANON_PREFIX) and sub not in types:
                     pending.add(sub)
         return types
@@ -798,16 +798,16 @@ class ElfParser:
                         if pos_v.startswith("unknown.c") and cu_file:
                             pos_v = ":".join((cu_file, pos_v.split(":")[1]))
                         var = {
-                            "name": name_v,
-                            "addr": "0x%08x" % addr,
-                            "type": type_v,
-                            "loc": pos_v,
+                            "Name": name_v,
+                            "Addr": "0x%08x" % addr,
+                            "Type": type_v,
+                            "Loc": pos_v,
                         }
                         # the true byte size of this very DIE: the type table is keyed by
                         # name, so it cannot tell two file local types of the same name apart
                         size = self.die_byte_size(die)
                         if size is not None:
-                            var["size"] = size
+                            var["Size"] = size
                         vars.append(var)
                         self.varStats["static"] += 1
                 else:
@@ -884,12 +884,12 @@ def getBaseType(types, typ):
         typdef = types.get(typ)
         if typdef is None:
             return None
-        if "enumeration" == typdef.get("shape"):
+        if "enumeration" == typdef.get("Shape"):
             # an enum is as wide as its underlying type, which is not always 32 bits
-            size = typdef.get("size")
+            size = typdef.get("Size")
             if size in (1, 2, 4):
                 return {1: "U8", 2: "U16", 4: "U32"}[size]
-        typ = _strip_qualifiers(typdef["type"])
+        typ = _strip_qualifiers(typdef["Type"])
         depth += 1
     return None
 
@@ -905,7 +905,7 @@ def isPointerType(types, typ):
             return True
         if typ not in types:
             return False
-        typ = _strip_qualifiers(types[typ]["type"])
+        typ = _strip_qualifiers(types[typ]["Type"])
         depth += 1
     return False
 
@@ -931,19 +931,19 @@ def getTypeSize(types, typ, depth=0):
     typdef = types.get(typ)
     if typdef is None:
         return None
-    if typdef.get("size"):
-        return typdef["size"]
-    return getTypeSize(types, typdef.get("type", ""), depth + 1)
+    if typdef.get("Size"):
+        return typdef["Size"]
+    return getTypeSize(types, typdef.get("Type", ""), depth + 1)
 
 
 def _dataSize(data):
-    typ = data["type"]
+    typ = data["Type"]
     if typ.endswith("Array"):
         typ = typ[:-5]
     bits = SCALAR_BITS.get(typ)
     if bits is None:
         return None
-    return (bits // 8) * data.get("size", 1)
+    return (bits // 8) * data.get("Size", 1)
 
 
 def _datasSize(datas):
@@ -958,30 +958,30 @@ def _datasSize(datas):
 
 def _arrayData(name, baseType, count, readonly=False):
     data = {
-        "name": name,
-        "type": baseType + "Array",
-        "size": count,
-        "display": "dec",
-        "default": "%s" % ([0] * count),
+        "Name": name,
+        "Type": baseType + "Array",
+        "Size": count,
+        "Display": "dec",
+        "Default": "%s" % ([0] * count),
     }
     if readonly:
-        data["readonly"] = True
+        data["Readonly"] = True
     return data
 
 
 def _blobData(name, count, readonly=True, visible=True):
     """Raw bytes: either a field the tooling cannot describe, or alignment padding."""
     data = {
-        "name": name,
-        "type": "U8Array",
-        "size": count,
-        "display": "hex",
-        "default": "%s" % ([0] * count),
+        "Name": name,
+        "Type": "U8Array",
+        "Size": count,
+        "Display": "hex",
+        "Default": "%s" % ([0] * count),
     }
     if readonly:
-        data["readonly"] = True
+        data["Readonly"] = True
     if not visible:
-        data["visible"] = False
+        data["Visible"] = False
     return data
 
 
@@ -1002,7 +1002,7 @@ def _expandTyped(types, name, typ, readonly, depth, labelPrefix=""):
     arr = _split_array(typ)
     if arr is None and isPointerType(types, typ):
         # a pointer is a 32bit address: measurable, but calibrating it is rarely meant
-        return [{"name": label, "type": "U32", "display": "hex", "default": 0, "readonly": True}]
+        return [{"Name": label, "Type": "U32", "Display": "hex", "Default": 0, "Readonly": True}]
     if arr is not None:
         base, dims = arr
         baseType = getBaseType(types, base)
@@ -1031,7 +1031,7 @@ def _expandTyped(types, name, typ, readonly, depth, labelPrefix=""):
         return datas
     baseType = getBaseType(types, typ)
     if baseType is not None:
-        return [{"name": label, "type": baseType, "display": "dec", "default": 0}]
+        return [{"Name": label, "Type": baseType, "Display": "dec", "Default": 0}]
     datas = getDatas(types, typ, depth + 1, name, readonly, labelPrefix)
     if datas is not None:
         return datas
@@ -1043,7 +1043,7 @@ def _expandTyped(types, name, typ, readonly, depth, labelPrefix=""):
 
 
 def getMemberData(types, mem, readonly=False):
-    return _expandTyped(types, mem["name"], mem["type"], readonly, 0)
+    return _expandTyped(types, mem["Name"], mem["Type"], readonly, 0)
 
 
 def getDatas(types, typ, depth=0, name="", readonly=False, labelPrefix=""):
@@ -1052,34 +1052,34 @@ def getDatas(types, typ, depth=0, name="", readonly=False, labelPrefix=""):
         return None
     typ = _strip_qualifiers(typ)
     typdef = types.get(typ)
-    if typdef is None or ("members" not in typdef and "union" != typdef.get("shape")):
+    if typdef is None or ("Members" not in typdef and "union" != typdef.get("Shape")):
         return None
-    total = typdef.get("size")
-    if "union" == typdef.get("shape"):
+    total = typdef.get("Size")
+    if "union" == typdef.get("Shape"):
         # union members overlap, the layout cannot be flattened field by field
         if total is None:
             return None
         return [_blobData(labelPrefix + name or typ, total, readonly)]
-    members = typdef["members"]
+    members = typdef["Members"]
     datas = []
     pos = 0
     for i, mem in enumerate(members):
-        offset = _int(mem["offset"])
+        offset = _int(mem["Offset"])
         if offset is None:
             return None
         if offset > pos:
             datas.append(_blobData(labelPrefix + "pad_%d" % pos, offset - pos, visible=False))
             pos = offset
-        sub = _expandTyped(types, mem["name"], mem["type"], readonly, depth + 1, labelPrefix)
+        sub = _expandTyped(types, mem["Name"], mem["Type"], readonly, depth + 1, labelPrefix)
         if sub is None:
             # a field the tooling cannot describe: keep it as raw bytes when sized
             if i + 1 < len(members):
-                nxt = _int(members[i + 1]["offset"])
+                nxt = _int(members[i + 1]["Offset"])
             else:
                 nxt = total
             if nxt is None or nxt <= offset:
                 return None
-            sub = [_blobData(labelPrefix + mem["name"], nxt - offset)]
+            sub = [_blobData(labelPrefix + mem["Name"], nxt - offset)]
         size = _datasSize(sub)
         if size is None:
             return None
@@ -1089,9 +1089,9 @@ def getDatas(types, typ, depth=0, name="", readonly=False, labelPrefix=""):
             return None
     if total is not None and pos < total:
         datas.append(_blobData(labelPrefix + "pad_%d" % pos, total - pos, visible=False))
-    if any("Array" in d["type"] for d in datas):
+    if any("Array" in d["Type"] for d in datas):
         for d in datas:
-            d["newline"] = True
+            d["Newline"] = True
     return datas
 
 
@@ -1103,19 +1103,19 @@ def processXcp(info, stats=None):
     described field by field is exported as raw bytes instead of being dropped, as
     long as its size is known.
     """
-    types = info["types"]
+    types = info["Types"]
     xcp_vars = {}
-    for var in info["vars"]:
-        name = var["name"]
-        addr = var["addr"]
+    for var in info["Vars"]:
+        name = var["Name"]
+        addr = var["Addr"]
         addr = int(addr, 0) if isinstance(addr, str) else addr
-        loc = var["loc"].replace("\\", "/")
-        typ = var["type"]
+        loc = var["Loc"].replace("\\", "/")
+        typ = var["Type"]
         fileName = os.path.basename(loc.split(":")[0]) or "unknown.c"
         readonly = bool(re.search(r"\bconst\b", typ))
-        ds = getMemberData(types, {"name": name, "type": typ}, readonly)
+        ds = getMemberData(types, {"Name": name, "Type": typ}, readonly)
         blob = False
-        size = var.get("size")
+        size = var.get("Size")
         if ds is not None and size is not None and _datasSize(ds) != size:
             # the flattened layout does not cover the variable's real bytes: two file
             # local types sharing one name cannot both live in the name keyed table, so
@@ -1129,41 +1129,41 @@ def processXcp(info, stats=None):
                 blob = True
         if stats is not None:
             stat = stats.setdefault(fileName, collections.Counter())
-            stat["vars"] += 1
+            stat["Vars"] += 1
             if ds is None:
-                stat["dropped"] += 1
+                stat["Dropped"] += 1
             elif blob:
-                stat["raw"] += 1
+                stat["Raw"] += 1
             elif readonly:
-                stat["readonly"] += 1
+                stat["Readonly"] += 1
         if ds is None:
             continue
         if fileName not in xcp_vars:
             xcp_vars[fileName] = []
-        xcp_vars[fileName].append({"name": name, "addr": addr, "datas": ds})
-    info["xcp_vars"] = xcp_vars
+        xcp_vars[fileName].append({"Name": name, "Addr": addr, "Datas": ds})
+    info["XcpVars"] = xcp_vars
 
 
 def report(elfParser, info, stats):
     stderr = sys.stderr
-    stderr.write("readelf: %s\n" % (info["elf"],))
+    stderr.write("readelf: %s\n" % (info["Elf"],))
     vs = getattr(elfParser, "varStats", collections.Counter())
     stderr.write("  DW_TAG_variable with a name and a location : %d\n" % (vs["candidates"],))
     for reason in ("not static", "address == 0", "no DW_AT_type"):
         stderr.write("    skipped, %-28s : %d\n" % (reason, vs[reason]))
-    stderr.write("  exported as `vars`                        : %d\n" % (len(info["vars"]),))
+    stderr.write("  exported as `vars`                        : %d\n" % (len(info["Vars"]),))
     stderr.write("  `xcp_vars`                                : %d entries in %d files\n" % (
-        sum(len(v) for v in info["xcp_vars"].values()), len(info["xcp_vars"])))
-    stderr.write("  %-24s %5s %8s %5s %7s\n" % ("file", "vars", "readonly", "raw", "dropped"))
-    for name in sorted(stats, key=lambda k: (-stats[k]["vars"], k)):
+        sum(len(v) for v in info["XcpVars"].values()), len(info["XcpVars"])))
+    stderr.write("  %-24s %5s %8s %5s %7s\n" % ("file", "Vars", "Readonly", "Raw", "Dropped"))
+    for name in sorted(stats, key=lambda k: (-stats[k]["Vars"], k)):
         s = stats[name]
-        stderr.write("  %-24s %5d %8d %5d %7d\n" % (name, s["vars"], s["readonly"], s["raw"], s["dropped"]))
+        stderr.write("  %-24s %5d %8d %5d %7d\n" % (name, s["Vars"], s["Readonly"], s["Raw"], s["Dropped"]))
     stderr.write("  %-24s %5d %8d %5d %7d\n" % (
         "TOTAL",
-        sum(s["vars"] for s in stats.values()),
-        sum(s["readonly"] for s in stats.values()),
-        sum(s["raw"] for s in stats.values()),
-        sum(s["dropped"] for s in stats.values())))
+        sum(s["Vars"] for s in stats.values()),
+        sum(s["Readonly"] for s in stats.values()),
+        sum(s["Raw"] for s in stats.values()),
+        sum(s["Dropped"] for s in stats.values())))
 
 
 def main():
@@ -1179,9 +1179,9 @@ def main():
     args = parser.parse_args()
     elfParser = ElfParser(args.input)
     vars = elfParser.parseVars()
-    vars.sort(key=lambda x: int(x["addr"], 0) if isinstance(x["addr"], str) else x["addr"])
+    vars.sort(key=lambda x: int(x["Addr"], 0) if isinstance(x["Addr"], str) else x["Addr"])
     types = elfParser.parseTypes()
-    info = {"elf": args.input, "vars": vars, "types": types, "endian": elfParser.getCpuEndian()}
+    info = {"Elf": args.input, "Vars": vars, "Types": types, "Endian": elfParser.getCpuEndian()}
     stats = collections.OrderedDict() if args.verbose else None
     processXcp(info, stats)
     with open(args.output, "w") as f:

@@ -61,7 +61,7 @@
                    payloadLength, clientId, sessionId, RemoteAddr, isTp, offset, more, isRx)
 #endif
 
-#define IS_TP_ENABLED(obj) (NULL != (obj)->onTpCopyTxData)
+#define IS_TP_ENABLED(obj) (NULL != (obj)->OnTpCopyTxData)
 
 /* SQP: SOMEIP Queue and Pool */
 #define DEF_SQP(T, size)                                                                           \
@@ -80,7 +80,7 @@
 
 #define SQP_FIRST(T)                                                                               \
   do {                                                                                             \
-    var = STAILQ_FIRST(&context->pending##T##s);                                                   \
+    var = STAILQ_FIRST(&context->Pending##T##s);                                                   \
   } while (0u)
 
 #define SQP_NEXT()                                                                                 \
@@ -103,7 +103,7 @@
 #define SQP_CRM_AND_FREE(T)                                                                        \
   do {                                                                                             \
     EnterCritical();                                                                               \
-    STAILQ_REMOVE(&context->pending##T##s, var, SomeIp_##T##_s, entry);                            \
+    STAILQ_REMOVE(&context->Pending##T##s, var, SomeIp_##T##_s, entry);                            \
     ExitCritical();                                                                                \
     mp_free(&someIp##T##Pool, (uint8_t *)var);                                                     \
   } while (0u)
@@ -121,7 +121,7 @@
 #define SQP_CAPPEND(T)                                                                             \
   do {                                                                                             \
     EnterCritical();                                                                               \
-    STAILQ_INSERT_TAIL(&context->pending##T##s, var, entry);                                       \
+    STAILQ_INSERT_TAIL(&context->Pending##T##s, var, entry);                                       \
     ExitCritical();                                                                                \
   } while (0u)
 
@@ -147,11 +147,11 @@
   do {                                                                                             \
     SomeIp_##T##Type *var;                                                                         \
     EnterCritical();                                                                               \
-    var = STAILQ_FIRST(&context->pending##T##s);                                                   \
+    var = STAILQ_FIRST(&context->Pending##T##s);                                                   \
     while (NULL != var) {                                                                          \
-      STAILQ_REMOVE_HEAD(&context->pending##T##s, entry);                                          \
+      STAILQ_REMOVE_HEAD(&context->Pending##T##s, entry);                                          \
       mp_free(&someIp##T##Pool, (uint8_t *)var);                                                   \
-      var = STAILQ_FIRST(&context->pending##T##s);                                                 \
+      var = STAILQ_FIRST(&context->Pending##T##s);                                                 \
     }                                                                                              \
     ExitCritical();                                                                                \
   } while (0u)
@@ -175,31 +175,31 @@ static Std_ReturnType SomeIp_DecodeHeader(const uint8_t *data, uint32_t length,
       ASLOG(SOMEIP, ("invlaid protocol version\n"));
       ret = SOMEIP_E_WRONG_PROTOCOL_VERSION;
     } else {
-      header->length =
+      header->Length =
         ((uint32_t)data[4] << 24) + ((uint32_t)data[5] << 16) + ((uint32_t)data[6] << 8u) + data[7];
-      header->serviceId = ((uint16_t)data[0] << 8u) + data[1];
-      header->methodId = ((uint16_t)data[2] << 8u) + data[3];
-      header->clientId = ((uint16_t)data[8] << 8u) + data[9];
-      header->sessionId = ((uint16_t)data[10] << 8u) + data[11];
-      header->interfaceVersion = data[13];
-      header->messageType = data[14];
-      header->returnCode = data[15];
-      if (0u != (header->messageType & SOMEIP_TP_FLAG)) {
-        header->messageType &= ~SOMEIP_TP_FLAG;
-        header->isTpFlag = TRUE;
-        if ((header->length > (8u + 4u + SOMEIP_TP_MAX)) || (header->length <= (8u + 4u))) {
+      header->ServiceId = ((uint16_t)data[0] << 8u) + data[1];
+      header->MethodId = ((uint16_t)data[2] << 8u) + data[3];
+      header->ClientId = ((uint16_t)data[8] << 8u) + data[9];
+      header->SessionId = ((uint16_t)data[10] << 8u) + data[11];
+      header->InterfaceVersion = data[13];
+      header->MessageType = data[14];
+      header->ReturnCode = data[15];
+      if (0u != (header->MessageType & SOMEIP_TP_FLAG)) {
+        header->MessageType &= ~SOMEIP_TP_FLAG;
+        header->IsTpFlag = TRUE;
+        if ((header->Length > (8u + 4u + SOMEIP_TP_MAX)) || (header->Length <= (8u + 4u))) {
           ASLOG(SOMEIPE, ("TP length not valid\n"));
           ret = SOMEIP_E_MALFORMED_MESSAGE;
         }
       } else {
-        header->isTpFlag = FALSE;
+        header->IsTpFlag = FALSE;
       }
-      if (header->length < 8u) {
+      if (header->Length < 8u) {
         ret = E_NOT_OK;
         ASLOG(SOMEIPE, ("invalid length\n"));
-      } else if ((header->length + 8u) > length) {
+      } else if ((header->Length + 8u) > length) {
         ret = SOMEIP_E_MSG_TOO_SHORT;
-      } else if ((header->length + 8u) < length) {
+      } else if ((header->Length + 8u) < length) {
         ret = SOMEIP_E_MSG_TOO_LARGE;
       } else {
       }
@@ -211,24 +211,24 @@ static Std_ReturnType SomeIp_DecodeHeader(const uint8_t *data, uint32_t length,
   return ret;
 }
 
-static Std_ReturnType SomeIp_DecodeMsg(const PduInfoType *PduInfoPtr, SomeIp_MsgType *msg) {
+static Std_ReturnType SomeIp_DecodeMsg(const PduInfoType *pduInfoPtr, SomeIp_MsgType *msg) {
   Std_ReturnType ret;
   uint32_t offset;
 
-  ret = SomeIp_DecodeHeader(PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength, &msg->header);
+  ret = SomeIp_DecodeHeader(pduInfoPtr->SduDataPtr, pduInfoPtr->SduLength, &msg->Header);
   if (E_OK == ret) {
-    msg->RemoteAddr = *(const TcpIp_SockAddrType *)PduInfoPtr->MetaDataPtr;
-    if (TRUE == msg->header.isTpFlag) {
-      offset = ((uint32_t)PduInfoPtr->SduDataPtr[16] << 24) +
-               ((uint32_t)PduInfoPtr->SduDataPtr[17] << 16) +
-               ((uint32_t)PduInfoPtr->SduDataPtr[18] << 8u) + PduInfoPtr->SduDataPtr[19];
-      msg->tpHeader.offset = offset & 0xFFFFFFF0UL;
-      msg->tpHeader.moreSegmentsFlag = offset & 0x01u;
-      msg->req.data = &PduInfoPtr->SduDataPtr[20];
-      msg->req.length = PduInfoPtr->SduLength - 20u;
+    msg->RemoteAddr = *(const TcpIp_SockAddrType *)pduInfoPtr->MetaDataPtr;
+    if (TRUE == msg->Header.IsTpFlag) {
+      offset = ((uint32_t)pduInfoPtr->SduDataPtr[16] << 24) +
+               ((uint32_t)pduInfoPtr->SduDataPtr[17] << 16) +
+               ((uint32_t)pduInfoPtr->SduDataPtr[18] << 8u) + pduInfoPtr->SduDataPtr[19];
+      msg->TpHeader.Offset = offset & 0xFFFFFFF0UL;
+      msg->TpHeader.MoreSegmentsFlag = offset & 0x01u;
+      msg->Req.Data = &pduInfoPtr->SduDataPtr[20];
+      msg->Req.Length = pduInfoPtr->SduLength - 20u;
     } else {
-      msg->req.data = &PduInfoPtr->SduDataPtr[16];
-      msg->req.length = PduInfoPtr->SduLength - 16u;
+      msg->Req.Data = &pduInfoPtr->SduDataPtr[16];
+      msg->Req.Length = pduInfoPtr->SduLength - 16u;
     }
   }
 
@@ -263,7 +263,7 @@ static void SomeIp_BuildHeader(uint8_t *header, uint16_t serviceId, uint16_t met
          sessionId));
 }
 
-static Std_ReturnType SomeIp_Transmit(PduIdType TxPduId, TcpIp_SockAddrType *RemoteAddr,
+static Std_ReturnType SomeIp_Transmit(PduIdType txPduId, TcpIp_SockAddrType *remoteAddr,
                                       uint8_t *data, uint16_t serviceId, uint16_t methodId,
                                       uint16_t clientId, uint16_t sessionId,
                                       uint8_t interfaceVersion, uint8_t messageType,
@@ -271,22 +271,22 @@ static Std_ReturnType SomeIp_Transmit(PduIdType TxPduId, TcpIp_SockAddrType *Rem
   Std_ReturnType ret;
   PduInfoType PduInfo;
 
-  PduInfo.MetaDataPtr = (uint8_t *)RemoteAddr;
+  PduInfo.MetaDataPtr = (uint8_t *)remoteAddr;
   PduInfo.SduDataPtr = data;
   PduInfo.SduLength = payloadLength + 16u;
   SomeIp_BuildHeader(data, serviceId, methodId, clientId, sessionId, interfaceVersion, messageType,
                      returnCode, payloadLength);
-  ret = SoAd_IfTransmit(TxPduId, &PduInfo);
+  ret = SoAd_IfTransmit(txPduId, &PduInfo);
   if (E_OK != ret) {
     ASLOG(SOMEIPE, ("Fail to send msg\n"));
   } else {
     PCAP_TRACE(serviceId, methodId, interfaceVersion, messageType, returnCode, &data[16],
-               payloadLength, clientId, sessionId, RemoteAddr, FALSE, 0u, FALSE, FALSE);
+               payloadLength, clientId, sessionId, remoteAddr, FALSE, 0u, FALSE, FALSE);
   }
   return ret;
 }
 
-static Std_ReturnType SomeIp_TransError(PduIdType TxPduId, TcpIp_SockAddrType *RemoteAddr,
+static Std_ReturnType SomeIp_TransError(PduIdType txPduId, TcpIp_SockAddrType *remoteAddr,
                                         uint16_t serviceId, uint16_t methodId, uint16_t clientId,
                                         uint16_t sessionId, uint8_t interfaceVersion,
                                         uint8_t messageType, uint8_t returnCode) {
@@ -294,49 +294,49 @@ static Std_ReturnType SomeIp_TransError(PduIdType TxPduId, TcpIp_SockAddrType *R
   PduInfoType PduInfo;
   uint8_t errMsg[16];
 
-  PduInfo.MetaDataPtr = (uint8_t *)RemoteAddr;
+  PduInfo.MetaDataPtr = (uint8_t *)remoteAddr;
   PduInfo.SduDataPtr = errMsg;
   PduInfo.SduLength = 16u;
   SomeIp_BuildHeader(errMsg, serviceId, methodId, clientId, sessionId, interfaceVersion,
                      messageType, returnCode, 0u);
-  ret = SoAd_IfTransmit(TxPduId, &PduInfo);
+  ret = SoAd_IfTransmit(txPduId, &PduInfo);
   if (E_OK != ret) {
     ASLOG(SOMEIPE, ("Fail to send error\n"));
   } else {
     PCAP_TRACE(serviceId, methodId, interfaceVersion, messageType, returnCode, NULL, 0u, clientId,
-               sessionId, RemoteAddr, FALSE, 0u, FALSE, FALSE);
+               sessionId, remoteAddr, FALSE, 0u, FALSE, FALSE);
   }
   return ret;
 }
 
-static Std_ReturnType SomeIp_ReplyError(PduIdType TxPduId, SomeIp_MsgType *msg, uint8_t errorCode) {
+static Std_ReturnType SomeIp_ReplyError(PduIdType txPduId, SomeIp_MsgType *msg, uint8_t errorCode) {
   Std_ReturnType ret = SomeIp_TransError(
-    TxPduId, &msg->RemoteAddr, msg->header.serviceId, msg->header.methodId, msg->header.clientId,
-    msg->header.sessionId, msg->header.interfaceVersion, SOMEIP_MSG_ERROR, errorCode);
+    txPduId, &msg->RemoteAddr, msg->Header.ServiceId, msg->Header.MethodId, msg->Header.ClientId,
+    msg->Header.SessionId, msg->Header.InterfaceVersion, SOMEIP_MSG_ERROR, errorCode);
   return ret;
 }
 
 static void SomeIp_InitServer(const SomeIp_ServerServiceType *config) {
   uint16_t i;
-  for (i = 0u; i < config->numOfConnections; i++) {
-    (void)memset(config->connections[i].context, 0u, sizeof(SomeIp_ServerConnectionContextType));
-    STAILQ_INIT(&(config->connections[i].context->pendingAsyncReqMsgs));
-    STAILQ_INIT(&(config->connections[i].context->pendingRxTpMsgs));
-    STAILQ_INIT(&(config->connections[i].context->pendingTxTpMsgs));
+  for (i = 0u; i < config->NumOfConnections; i++) {
+    (void)memset(config->Connections[i].Context, 0u, sizeof(SomeIp_ServerConnectionContextType));
+    STAILQ_INIT(&(config->Connections[i].Context->PendingAsyncReqMsgs));
+    STAILQ_INIT(&(config->Connections[i].Context->PendingRxTpMsgs));
+    STAILQ_INIT(&(config->Connections[i].Context->PendingTxTpMsgs));
   }
-  (void)memset(config->context, 0u, sizeof(SomeIp_ServerContextType));
-  STAILQ_INIT(&(config->context->pendingTxTpEvtMsgs));
-  config->context->sessionId = 1u;
+  (void)memset(config->Context, 0u, sizeof(SomeIp_ServerContextType));
+  STAILQ_INIT(&(config->Context->PendingTxTpEvtMsgs));
+  config->Context->SessionId = 1u;
 }
 
 static void SomeIp_InitClient(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   (void)memset(context, 0u, sizeof(SomeIp_ClientServiceContextType));
-  STAILQ_INIT(&(context->pendingRxTpEvtMsgs));
-  STAILQ_INIT(&(context->pendingRxTpMsgs));
-  STAILQ_INIT(&(context->pendingTxTpMsgs));
-  STAILQ_INIT(&(context->pendingWaitResMsgs));
-  context->sessionId = 1u;
+  STAILQ_INIT(&(context->PendingRxTpEvtMsgs));
+  STAILQ_INIT(&(context->PendingRxTpMsgs));
+  STAILQ_INIT(&(context->PendingTxTpMsgs));
+  STAILQ_INIT(&(context->PendingWaitResMsgs));
+  context->SessionId = 1u;
 }
 
 static SomeIp_RxTpMsgType *SomeIp_RxTpMsgFind(SomeIp_RxTpMsgList *pendingRxTpMsgs,
@@ -345,7 +345,7 @@ static SomeIp_RxTpMsgType *SomeIp_RxTpMsgFind(SomeIp_RxTpMsgList *pendingRxTpMsg
   SomeIp_RxTpMsgType *var;
   EnterCritical();
   STAILQ_FOREACH(var, pendingRxTpMsgs, entry) {
-    if ((var->methodId == methodId) &&
+    if ((var->MethodId == methodId) &&
         (0u == memcmp(&var->RemoteAddr, &msg->RemoteAddr, sizeof(TcpIp_SockAddrType)))) {
       rxTpMsg = var;
       break;
@@ -362,20 +362,20 @@ static Std_ReturnType SomeIp_RxTpMsgStartFF(SomeIp_RxTpMsgList *pendingRxTpMsgs,
                                             SomeIp_MsgType *msg, SomeIp_RxTpMsgType **pVar) {
   Std_ReturnType ret = E_OK;
   SomeIp_RxTpMsgType *var;
-  ASLOG(SOMEIP, ("%x:%x:%x:%d FF length = %u\n", msg->header.serviceId, msg->header.methodId,
-                 msg->header.clientId, msg->header.sessionId, msg->req.length));
+  ASLOG(SOMEIP, ("%x:%x:%x:%d FF length = %u\n", msg->Header.ServiceId, msg->Header.MethodId,
+                 msg->Header.ClientId, msg->Header.SessionId, msg->Req.Length));
   SQP_ALLOC(RxTpMsg);
   if (NULL == var) {
     ret = SOMEIP_E_NOMEM;
-    ASLOG(SOMEIPE, ("%x:%x:%x:%d OoM for Tp Rx\n", msg->header.serviceId, msg->header.methodId,
-                    msg->header.clientId, msg->header.sessionId));
+    ASLOG(SOMEIPE, ("%x:%x:%x:%d OoM for Tp Rx\n", msg->Header.ServiceId, msg->Header.MethodId,
+                    msg->Header.ClientId, msg->Header.SessionId));
   } else {
-    var->offset = 0u;
-    var->clientId = msg->header.clientId;
-    var->sessionId = msg->header.sessionId;
+    var->Offset = 0u;
+    var->ClientId = msg->Header.ClientId;
+    var->SessionId = msg->Header.SessionId;
     var->RemoteAddr = msg->RemoteAddr;
-    var->methodId = methodId;
-    var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
+    var->MethodId = methodId;
+    var->Timer = SOMEIP_CONFIG->TpRxTimeoutTime;
     SQP_LAPPEND(RxTpMsg);
   }
   *pVar = var;
@@ -396,38 +396,38 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
   if (NULL != onTpCopyRxData) {
     var = SomeIp_RxTpMsgFind(pendingRxTpMsgs, methodId, msg);
     if (NULL == var) {
-      if ((0u == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
+      if ((0u == msg->TpHeader.Offset) && (msg->TpHeader.MoreSegmentsFlag)) {
         ret = SomeIp_RxTpMsgStartFF(pendingRxTpMsgs, methodId, msg, &var);
       } else {
         ret = SOMEIP_E_MALFORMED_MESSAGE;
-        ASLOG(SOMEIPE, ("%x:%x:%x:%d Tp message malformed or loss\n", msg->header.serviceId,
-                        msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+        ASLOG(SOMEIPE, ("%x:%x:%x:%d Tp message malformed or loss\n", msg->Header.ServiceId,
+                        msg->Header.MethodId, msg->Header.ClientId, msg->Header.SessionId));
       }
     } else {
       result = memcmp(&var->RemoteAddr, &msg->RemoteAddr, sizeof(TcpIp_SockAddrType));
-      if ((var->clientId == msg->header.clientId) && (var->sessionId == msg->header.sessionId) &&
-          (var->offset == msg->tpHeader.offset) && (0 == result)) {
-        var->timer = SOMEIP_CONFIG->TpRxTimeoutTime;
-        ASLOG(SOMEIP, ("%x:%x:%x:%d %s length = %u, offset = %d\n", msg->header.serviceId,
-                       msg->header.methodId, msg->header.clientId, msg->header.sessionId,
-                       msg->tpHeader.moreSegmentsFlag ? "CF" : "LF", msg->req.length, var->offset));
+      if ((var->ClientId == msg->Header.ClientId) && (var->SessionId == msg->Header.SessionId) &&
+          (var->Offset == msg->TpHeader.Offset) && (0 == result)) {
+        var->Timer = SOMEIP_CONFIG->TpRxTimeoutTime;
+        ASLOG(SOMEIP, ("%x:%x:%x:%d %s length = %u, offset = %d\n", msg->Header.ServiceId,
+                       msg->Header.MethodId, msg->Header.ClientId, msg->Header.SessionId,
+                       msg->TpHeader.MoreSegmentsFlag ? "CF" : "LF", msg->Req.Length, var->Offset));
       } else {
         /* Pending TP msg does not match the incoming one. Typically the tail of
-         * the previous message (var->sessionId) was lost on the wire and the
-         * peer has moved on to a new message (msg->header.sessionId). Abort the
+         * the previous message (var->SessionId) was lost on the wire and the
+         * peer has moved on to a new message (msg->Header.SessionId). Abort the
          * old pending message first. */
-        requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
+        requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
         (void)onTpCopyRxData(requestId, NULL);
         SQP_LRM_AND_FREE(RxTpMsg);
         var = NULL;
-        if ((0u == msg->tpHeader.offset) && (msg->tpHeader.moreSegmentsFlag)) {
+        if ((0u == msg->TpHeader.Offset) && (msg->TpHeader.MoreSegmentsFlag)) {
           /* New First Frame of a fresh session: start receiving it instead. */
           ret = SomeIp_RxTpMsgStartFF(pendingRxTpMsgs, methodId, msg, &var);
         } else {
           ret = SOMEIP_E_MALFORMED_MESSAGE;
           ASLOG(SOMEIPE,
-                ("%x:%x:%x:%d Tp message not as expected, loss maybe\n", msg->header.serviceId,
-                 msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+                ("%x:%x:%x:%d Tp message not as expected, loss maybe\n", msg->Header.ServiceId,
+                 msg->Header.MethodId, msg->Header.ClientId, msg->Header.SessionId));
         }
       }
     }
@@ -436,19 +436,19 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
   }
 
   if (E_OK == ret) {
-    tpMsg.data = msg->req.data;
-    tpMsg.length = msg->req.length;
-    tpMsg.offset = msg->tpHeader.offset;
-    tpMsg.moreSegmentsFlag = msg->tpHeader.moreSegmentsFlag;
-    requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
+    tpMsg.Data = msg->Req.Data;
+    tpMsg.Length = msg->Req.Length;
+    tpMsg.Offset = msg->TpHeader.Offset;
+    tpMsg.MoreSegmentsFlag = msg->TpHeader.MoreSegmentsFlag;
+    requestId = ((uint32_t)msg->Header.ClientId << 16) + msg->Header.SessionId;
     ret = onTpCopyRxData(requestId, &tpMsg);
     if (E_OK == ret) {
-      var->offset += msg->req.length;
-      if (TRUE == msg->tpHeader.moreSegmentsFlag) {
+      var->Offset += msg->Req.Length;
+      if (TRUE == msg->TpHeader.MoreSegmentsFlag) {
         ret = SOMEIP_E_OK_SILENT;
       } else {
-        msg->req.data = tpMsg.data;
-        msg->req.length = var->offset;
+        msg->Req.Data = tpMsg.Data;
+        msg->Req.Length = var->Offset;
         SQP_LRM_AND_FREE(RxTpMsg);
       }
     }
@@ -457,46 +457,46 @@ SomeIp_ProcessRxTpMsg(uint16_t conId, SomeIp_RxTpMsgList *pendingRxTpMsgs, uint1
   return ret;
 }
 
-static Std_ReturnType SomeIp_SendNextTxTpMsg(PduIdType TxPduId, uint16_t serviceId,
+static Std_ReturnType SomeIp_SendNextTxTpMsg(PduIdType txPduId, uint16_t serviceId,
                                              uint16_t methodId, uint8_t interfaceVersion,
                                              uint8_t messageType,
                                              SomeIp_OnTpCopyTxDataFncType onTpCopyTxData,
                                              SomeIp_TxTpMsgType *var) {
   Std_ReturnType ret = E_OK;
   SomeIp_TpMessageType tpMsg;
-  uint32_t len = var->length - var->offset;
-  uint32_t offset = var->offset;
+  uint32_t len = var->Length - var->Offset;
+  uint32_t offset = var->Offset;
   uint32_t requestId;
   uint8_t *data;
 
   if (len > SOMEIP_TP_MAX) {
     len = SOMEIP_TP_MAX;
     offset |= 0x01u; /* setup more flag */
-    tpMsg.moreSegmentsFlag = TRUE;
+    tpMsg.MoreSegmentsFlag = TRUE;
   } else {
-    tpMsg.moreSegmentsFlag = FALSE;
+    tpMsg.MoreSegmentsFlag = FALSE;
   }
 
-  tpMsg.data = NULL;
-  tpMsg.length = len;
-  tpMsg.offset = var->offset;
-  requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
+  tpMsg.Data = NULL;
+  tpMsg.Length = len;
+  tpMsg.Offset = var->Offset;
+  requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
   ret = onTpCopyTxData(requestId, &tpMsg);
-  if ((E_OK == ret) && (NULL != tpMsg.data)) {
-    data = tpMsg.data - 20;
+  if ((E_OK == ret) && (NULL != tpMsg.Data)) {
+    data = tpMsg.Data - 20;
     data[16] = (offset >> 24) & 0xFFu;
     data[17] = (offset >> 16) & 0xFFu;
     data[18] = (offset >> 8u) & 0xFFu;
     data[19] = offset & 0xFFu;
-    ret = SomeIp_Transmit(TxPduId, &var->RemoteAddr, data, serviceId, methodId, var->clientId,
-                          var->sessionId, interfaceVersion, messageType | SOMEIP_TP_FLAG, E_OK,
+    ret = SomeIp_Transmit(txPduId, &var->RemoteAddr, data, serviceId, methodId, var->ClientId,
+                          var->SessionId, interfaceVersion, messageType | SOMEIP_TP_FLAG, E_OK,
                           len + 4u);
     if (E_OK == ret) {
-      var->offset += len;
+      var->Offset += len;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
-    } else if ((E_NOT_OK == ret) && (var->retryCounter < SOMEIP_TX_NOK_RETRY_MAX)) {
-      var->retryCounter++;
-      ASLOG(SOMEIPW, ("Tx TP NOK, try %d\n", var->retryCounter));
+    } else if ((E_NOT_OK == ret) && (var->RetryCounter < SOMEIP_TX_NOK_RETRY_MAX)) {
+      var->RetryCounter++;
+      ASLOG(SOMEIPW, ("Tx TP NOK, try %d\n", var->RetryCounter));
       ret = E_OK;
 #endif
     } else {
@@ -525,21 +525,21 @@ static Std_ReturnType SomeIp_TransmitEvtMsg(const SomeIp_ServerServiceType *conf
 
   sub = STAILQ_FIRST(list);
   while (NULL != sub) {
-    if (0u != sub->flags) {
+    if (0u != sub->Flags) {
       RemoteAddr = &sub->RemoteAddr;
-      if (0u != (SD_FLG_EVENT_GROUP_MULTICAST & sub->flags)) {
+      if (0u != (SD_FLG_EVENT_GROUP_MULTICAST & sub->Flags)) {
         bMulticast = TRUE;
         RemoteAddr = NULL;
       }
-      ret2 = SomeIp_Transmit(sub->TxPduId, RemoteAddr, data, config->serviceId, event->eventId,
-                             config->clientId, sessionId, event->interfaceVersion, messageType, 0u,
+      ret2 = SomeIp_Transmit(sub->TxPduId, RemoteAddr, data, config->ServiceId, event->EventId,
+                             config->ClientId, sessionId, event->InterfaceVersion, messageType, 0u,
                              payloadLength);
       if (E_OK == ret2) {
         ret = E_OK;
       } else {
-        ASLOG(SOMEIPE, ("Failed to notify event %x:%x to %d.%d.%d.%d:%d\n", config->serviceId,
-                        event->eventId, sub->RemoteAddr.addr[0], sub->RemoteAddr.addr[1],
-                        sub->RemoteAddr.addr[2], sub->RemoteAddr.addr[3], sub->RemoteAddr.port));
+        ASLOG(SOMEIPE, ("Failed to notify event %x:%x to %d.%d.%d.%d:%d\n", config->ServiceId,
+                        event->EventId, sub->RemoteAddr.Addr[0], sub->RemoteAddr.Addr[1],
+                        sub->RemoteAddr.Addr[2], sub->RemoteAddr.Addr[3], sub->RemoteAddr.Port));
       }
     }
     /* NOTE: if any one is unsubscribed during this, TX is broken, but Sd Main and SomeIp Main
@@ -559,33 +559,33 @@ static Std_ReturnType SomeIp_SendNextTxTpEvtMsg(const SomeIp_ServerServiceType *
                                                 Sd_EventHandlerSubscriberListType *list) {
   Std_ReturnType ret = E_OK;
   SomeIp_TpMessageType tpMsg;
-  uint32_t len = var->length - var->offset;
-  uint32_t offset = var->offset;
+  uint32_t len = var->Length - var->Offset;
+  uint32_t offset = var->Offset;
   uint8_t *data;
   uint32_t requestId;
 
   if (len > SOMEIP_TP_MAX) {
     len = SOMEIP_TP_MAX;
     offset |= 0x01u; /* setup more flag */
-    tpMsg.moreSegmentsFlag = TRUE;
+    tpMsg.MoreSegmentsFlag = TRUE;
   } else {
-    tpMsg.moreSegmentsFlag = FALSE;
+    tpMsg.MoreSegmentsFlag = FALSE;
   }
 
-  tpMsg.data = NULL;
-  tpMsg.length = len;
-  tpMsg.offset = var->offset;
-  requestId = ((uint32_t)var->eventId << 16) + var->sessionId;
-  ret = event->onTpCopyTxData(requestId, &tpMsg);
-  if ((E_OK == ret) && (NULL != tpMsg.data)) {
-    data = tpMsg.data - 20;
+  tpMsg.Data = NULL;
+  tpMsg.Length = len;
+  tpMsg.Offset = var->Offset;
+  requestId = ((uint32_t)var->EventId << 16) + var->SessionId;
+  ret = event->OnTpCopyTxData(requestId, &tpMsg);
+  if ((E_OK == ret) && (NULL != tpMsg.Data)) {
+    data = tpMsg.Data - 20;
     data[16] = (offset >> 24) & 0xFFu;
     data[17] = (offset >> 16) & 0xFFu;
     data[18] = (offset >> 8u) & 0xFFu;
     data[19] = offset & 0xFFu;
-    ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, list, var->sessionId);
+    ret = SomeIp_TransmitEvtMsg(config, event, data, len + 4, TRUE, list, var->SessionId);
     if (E_OK == ret) {
-      var->offset += len;
+      var->Offset += len;
     } else {
       ASLOG(SOMEIPE, ("Tx TP EVT NOK\n"));
     }
@@ -595,29 +595,29 @@ static Std_ReturnType SomeIp_SendNextTxTpEvtMsg(const SomeIp_ServerServiceType *
 
 static Std_ReturnType SomeIp_ReplyRequest(const SomeIp_ServerServiceType *config, uint16_t conId,
                                           uint16_t methodId, uint16_t clientId, uint16_t sessionId,
-                                          TcpIp_SockAddrType *RemoteAddr, SomeIp_MessageType *res) {
+                                          TcpIp_SockAddrType *remoteAddr, SomeIp_MessageType *res) {
   Std_ReturnType ret = E_OK;
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
-  const SomeIp_ServerMethodType *method = &config->methods[methodId];
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
+  const SomeIp_ServerMethodType *method = &config->Methods[methodId];
   SomeIp_TxTpMsgType *var;
 
-  if (IS_TP_ENABLED(method) && (res->length > SOMEIP_SF_MAX)) {
+  if (IS_TP_ENABLED(method) && (res->Length > SOMEIP_SF_MAX)) {
     SQP_ALLOC(TxTpMsg);
     if (NULL != var) {
-      var->clientId = clientId;
-      var->sessionId = sessionId;
-      var->methodId = methodId;
-      var->RemoteAddr = *RemoteAddr;
-      var->offset = 0u;
-      var->length = res->length;
+      var->ClientId = clientId;
+      var->SessionId = sessionId;
+      var->MethodId = methodId;
+      var->RemoteAddr = *remoteAddr;
+      var->Offset = 0u;
+      var->Length = res->Length;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
-      var->retryCounter = 0u;
+      var->RetryCounter = 0u;
 #endif
-      var->timer = config->SeparationTime;
-      ret = SomeIp_SendNextTxTpMsg(connection->TxPduId, config->serviceId, method->methodId,
-                                   method->interfaceVersion, SOMEIP_MSG_RESPONSE,
-                                   method->onTpCopyTxData, var);
+      var->Timer = config->SeparationTime;
+      ret = SomeIp_SendNextTxTpMsg(connection->TxPduId, config->ServiceId, method->MethodId,
+                                   method->InterfaceVersion, SOMEIP_MSG_RESPONSE,
+                                   method->OnTpCopyTxData, var);
       if (E_OK == ret) {
         SQP_CAPPEND(TxTpMsg);
       } else {
@@ -628,9 +628,9 @@ static Std_ReturnType SomeIp_ReplyRequest(const SomeIp_ServerServiceType *config
       ASLOG(SOMEIPE, ("OoM for cache reply Tp Tx\n"));
     }
   } else {
-    ret = SomeIp_Transmit(connection->TxPduId, RemoteAddr, res->data, config->serviceId,
-                          method->methodId, clientId, sessionId, method->interfaceVersion,
-                          SOMEIP_MSG_RESPONSE, E_OK, res->length);
+    ret = SomeIp_Transmit(connection->TxPduId, remoteAddr, res->Data, config->ServiceId,
+                          method->MethodId, clientId, sessionId, method->InterfaceVersion,
+                          SOMEIP_MSG_RESPONSE, E_OK, res->Length);
   }
 
   return ret;
@@ -639,14 +639,14 @@ static Std_ReturnType SomeIp_ReplyRequest(const SomeIp_ServerServiceType *config
 static Std_ReturnType SomeIp_WaitResponse(const SomeIp_ClientServiceType *config, uint16_t methodId,
                                           uint16_t sessionId) {
   Std_ReturnType ret = E_OK;
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   SomeIp_WaitResMsgType *var;
 
   SQP_ALLOC(WaitResMsg);
   if (NULL != var) {
-    var->methodId = methodId;
-    var->sessionId = sessionId;
-    var->timer = config->ResponseTimeout;
+    var->MethodId = methodId;
+    var->SessionId = sessionId;
+    var->Timer = config->ResponseTimeout;
     SQP_CAPPEND(WaitResMsg);
   } else {
     ASLOG(SOMEIPE, ("OoM for wait res msg\n"));
@@ -658,31 +658,31 @@ static Std_ReturnType SomeIp_WaitResponse(const SomeIp_ClientServiceType *config
 
 static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config, uint16_t methodId,
                                          uint16_t clientId, uint16_t sessionId,
-                                         TcpIp_SockAddrType *RemoteAddr, SomeIp_MessageType *req,
+                                         TcpIp_SockAddrType *remoteAddr, SomeIp_MessageType *req,
                                          uint8_t messageType) {
   Std_ReturnType ret = E_OK;
-  SomeIp_ClientServiceContextType *context = config->context;
-  const SomeIp_ClientMethodType *method = &config->methods[methodId];
+  SomeIp_ClientServiceContextType *context = config->Context;
+  const SomeIp_ClientMethodType *method = &config->Methods[methodId];
   SomeIp_TxTpMsgType *var;
   uint8_t *data;
   uint8_t localBuf[16];
-  if (IS_TP_ENABLED(method) && (req->length > SOMEIP_SF_MAX)) {
+  if (IS_TP_ENABLED(method) && (req->Length > SOMEIP_SF_MAX)) {
     SQP_ALLOC(TxTpMsg);
     if (NULL != var) {
-      var->clientId = clientId;
-      var->sessionId = sessionId;
-      var->methodId = methodId;
-      var->RemoteAddr = *RemoteAddr;
-      var->offset = 0u;
-      var->length = req->length;
-      var->messageType = messageType;
+      var->ClientId = clientId;
+      var->SessionId = sessionId;
+      var->MethodId = methodId;
+      var->RemoteAddr = *remoteAddr;
+      var->Offset = 0u;
+      var->Length = req->Length;
+      var->MessageType = messageType;
 #ifndef DISABLE_SOMEIP_TX_NOK_RETRY
-      var->retryCounter = 0u;
+      var->RetryCounter = 0u;
 #endif
-      var->timer = config->SeparationTime;
+      var->Timer = config->SeparationTime;
       ret =
-        SomeIp_SendNextTxTpMsg(config->TxPduId, config->serviceId, method->methodId,
-                               method->interfaceVersion, messageType, method->onTpCopyTxData, var);
+        SomeIp_SendNextTxTpMsg(config->TxPduId, config->ServiceId, method->MethodId,
+                               method->InterfaceVersion, messageType, method->OnTpCopyTxData, var);
       if (E_OK == ret) {
         SQP_CAPPEND(TxTpMsg);
       } else {
@@ -693,14 +693,14 @@ static Std_ReturnType SomeIp_SendRequest(const SomeIp_ClientServiceType *config,
       ASLOG(SOMEIPE, ("OoM for cache request Tp Tx\n"));
     }
   } else {
-    if ((NULL == req->data) || (0 == req->length)) {
+    if ((NULL == req->Data) || (0 == req->Length)) {
       data = localBuf;
     } else {
-      data = req->data - 16;
+      data = req->Data - 16;
     }
-    ret = SomeIp_Transmit(config->TxPduId, RemoteAddr, data, config->serviceId, method->methodId,
-                          clientId, sessionId, method->interfaceVersion, messageType, E_OK,
-                          req->length);
+    ret = SomeIp_Transmit(config->TxPduId, remoteAddr, data, config->ServiceId, method->MethodId,
+                          clientId, sessionId, method->InterfaceVersion, messageType, E_OK,
+                          req->Length);
     if (E_OK == ret) {
       ret = SomeIp_WaitResponse(config, methodId, sessionId);
     }
@@ -717,21 +717,21 @@ static Std_ReturnType SomeIp_CheckTxTpBusy(const SomeIp_ClientServiceType *confi
                                            const SomeIp_ClientServiceContextType *context,
                                            uint16_t methodIndex, uint32_t length) {
   Std_ReturnType ret = E_OK;
-  const SomeIp_ClientMethodType *method = &config->methods[methodIndex];
-  const SomeIp_TxTpMsgList *pendingTxTpMsgs = &context->pendingTxTpMsgs;
+  const SomeIp_ClientMethodType *method = &config->Methods[methodIndex];
+  const SomeIp_TxTpMsgList *PendingTxTpMsgs = &context->PendingTxTpMsgs;
   SomeIp_TxTpMsgType *txTpMsg;
 
   if (IS_TP_ENABLED(method) && (length > SOMEIP_SF_MAX)) {
     EnterCritical();
-    STAILQ_FOREACH(txTpMsg, pendingTxTpMsgs, entry) {
-      if (txTpMsg->methodId == methodIndex) {
+    STAILQ_FOREACH(txTpMsg, PendingTxTpMsgs, entry) {
+      if (txTpMsg->MethodId == methodIndex) {
         ret = SOMEIP_E_BUSY;
         break;
       }
     }
     ExitCritical();
     if (SOMEIP_E_BUSY == ret) {
-      ASLOG(SOMEIPE, ("%x:%x busy for long TP TX\n", config->serviceId, method->methodId));
+      ASLOG(SOMEIPE, ("%x:%x busy for long TP TX\n", config->ServiceId, method->MethodId));
     }
   }
 
@@ -749,11 +749,11 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
   TcpIp_SockAddrType RemoteAddr;
   SomeIp_MessageType msg;
 
-  if (TxMethodId < SOMEIP_CONFIG->numOfTxMethods) {
+  if (TxMethodId < SOMEIP_CONFIG->NumOfTxMethods) {
     index = SOMEIP_CONFIG->TxMethod2ServiceMap[TxMethodId];
-    config = (const SomeIp_ClientServiceType *)SOMEIP_CONFIG->services[index].service;
-    context = config->context;
-    if (FALSE == context->online) {
+    config = (const SomeIp_ClientServiceType *)SOMEIP_CONFIG->Services[index].Service;
+    context = config->Context;
+    if (FALSE == context->Online) {
       ret = E_NOT_OK;
     }
   } else {
@@ -762,10 +762,10 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
 
   if (E_OK == ret) {
     index = SOMEIP_CONFIG->TxMethod2PerServiceMap[TxMethodId];
-    ret = Sd_GetProviderAddr(config->sdHandleID, &RemoteAddr);
+    ret = Sd_GetProviderAddr(config->SdHandleID, &RemoteAddr);
     if (E_OK == ret) {
-      msg.data = data;
-      msg.length = length;
+      msg.Data = data;
+      msg.Length = length;
     }
   }
 
@@ -776,14 +776,14 @@ static Std_ReturnType SomeIp_RequestOrFire(uint32_t requestId, uint8_t *data, ui
   if (E_OK == ret) {
     if (0 == sessionId) {
       EnterCritical();
-      sessionId = context->sessionId;
-      context->sessionId++;
-      if (0 == context->sessionId) {
-        context->sessionId = 1;
+      sessionId = context->SessionId;
+      context->SessionId++;
+      if (0 == context->SessionId) {
+        context->SessionId = 1;
       }
       ExitCritical();
     }
-    ret = SomeIp_SendRequest(config, index, config->clientId, sessionId, &RemoteAddr, &msg,
+    ret = SomeIp_SendRequest(config, index, config->ClientId, sessionId, &RemoteAddr, &msg,
                              messageType);
   }
 
@@ -795,20 +795,20 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
                                               SomeIp_MessageType *req,
                                               Sd_EventHandlerSubscriberListType *list) {
   Std_ReturnType ret = E_OK;
-  SomeIp_ServerContextType *context = config->context;
+  SomeIp_ServerContextType *context = config->Context;
   const SomeIp_ServerEventType *event =
-    &config->events[SOMEIP_CONFIG->TxEvent2PerServiceMap[eventId]];
+    &config->Events[SOMEIP_CONFIG->TxEvent2PerServiceMap[eventId]];
   SomeIp_TxTpEvtMsgType *var;
   uint8_t *data;
   uint8_t localBuf[16];
-  if (IS_TP_ENABLED(event) && (req->length > SOMEIP_SF_MAX)) {
+  if (IS_TP_ENABLED(event) && (req->Length > SOMEIP_SF_MAX)) {
     SQP_ALLOC(TxTpEvtMsg);
     if (NULL != var) {
-      var->eventId = eventId;
-      var->sessionId = sessionId;
-      var->offset = 0u;
-      var->length = req->length;
-      var->timer = config->SeparationTime;
+      var->EventId = eventId;
+      var->SessionId = sessionId;
+      var->Offset = 0u;
+      var->Length = req->Length;
+      var->Timer = config->SeparationTime;
       ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, list);
       if (E_OK == ret) {
         SQP_CAPPEND(TxTpEvtMsg);
@@ -820,12 +820,12 @@ static Std_ReturnType SomeIp_SendNotification(const SomeIp_ServerServiceType *co
       ASLOG(SOMEIPE, ("OoM for cache notification Tp Tx\n"));
     }
   } else {
-    if ((NULL == req->data) || (0 == req->length)) {
+    if ((NULL == req->Data) || (0 == req->Length)) {
       data = localBuf;
     } else {
-      data = req->data - 16;
+      data = req->Data - 16;
     }
-    ret = SomeIp_TransmitEvtMsg(config, event, data, req->length, FALSE, list, sessionId);
+    ret = SomeIp_TransmitEvtMsg(config, event, data, req->Length, FALSE, list, sessionId);
   }
 
   return ret;
@@ -839,22 +839,22 @@ static Std_ReturnType SomeIp_CheckTxTpEvtBusy(const SomeIp_ServerServiceType *co
                                               uint16_t eventIndex, uint16_t eventId,
                                               uint32_t length) {
   Std_ReturnType ret = E_OK;
-  const SomeIp_ServerContextType *context = config->context;
-  const SomeIp_ServerEventType *event = &config->events[eventIndex];
-  const SomeIp_TxTpEvtMsgList *pendingTxTpEvtMsgs = &context->pendingTxTpEvtMsgs;
+  const SomeIp_ServerContextType *context = config->Context;
+  const SomeIp_ServerEventType *event = &config->Events[eventIndex];
+  const SomeIp_TxTpEvtMsgList *PendingTxTpEvtMsgs = &context->PendingTxTpEvtMsgs;
   SomeIp_TxTpEvtMsgType *txTpEvtMsg;
 
   if (IS_TP_ENABLED(event) && (length > SOMEIP_SF_MAX)) {
     EnterCritical();
-    STAILQ_FOREACH(txTpEvtMsg, pendingTxTpEvtMsgs, entry) {
-      if (txTpEvtMsg->eventId == eventId) {
+    STAILQ_FOREACH(txTpEvtMsg, PendingTxTpEvtMsgs, entry) {
+      if (txTpEvtMsg->EventId == eventId) {
         ret = SOMEIP_E_BUSY;
         break;
       }
     }
     ExitCritical();
     if (SOMEIP_E_BUSY == ret) {
-      ASLOG(SOMEIPE, ("%x:%x busy for long TP EVT TX\n", config->serviceId, event->eventId));
+      ASLOG(SOMEIPE, ("%x:%x busy for long TP EVT TX\n", config->ServiceId, event->EventId));
     }
   }
 
@@ -864,47 +864,47 @@ static Std_ReturnType SomeIp_CheckTxTpEvtBusy(const SomeIp_ServerServiceType *co
 static Std_ReturnType SomeIp_ProcessRequest(const SomeIp_ServerServiceType *config, uint16_t conId,
                                             uint16_t methodId, SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_OK;
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
-  const SomeIp_ServerMethodType *method = &config->methods[methodId];
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
+  const SomeIp_ServerMethodType *method = &config->Methods[methodId];
   SomeIp_AsyncReqMsgType *var;
   SomeIp_MessageType res;
-  uint32_t requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
+  uint32_t requestId = ((uint32_t)msg->Header.ClientId << 16) + msg->Header.SessionId;
   uint8_t localBuf[16];
 
-  res.data = NULL;
-  res.length = 0;
-  ASLOG(SOMEIP, ("%x:%x:%x:%d request length = %u\n", msg->header.serviceId, msg->header.methodId,
-                 msg->header.clientId, msg->header.sessionId, msg->req.length));
-  ret = method->onRequest(requestId, &msg->req, &res);
-  ASLOG(SOMEIP, ("%x:%x:%x:%d reply length = %u\n", msg->header.serviceId, msg->header.methodId,
-                 msg->header.clientId, msg->header.sessionId, res.length));
+  res.Data = NULL;
+  res.Length = 0;
+  ASLOG(SOMEIP, ("%x:%x:%x:%d request length = %u\n", msg->Header.ServiceId, msg->Header.MethodId,
+                 msg->Header.ClientId, msg->Header.SessionId, msg->Req.Length));
+  ret = method->OnRequest(requestId, &msg->Req, &res);
+  ASLOG(SOMEIP, ("%x:%x:%x:%d reply length = %u\n", msg->Header.ServiceId, msg->Header.MethodId,
+                 msg->Header.ClientId, msg->Header.SessionId, res.Length));
   if (E_OK == ret) {
-    if (0 == res.length) {
-      res.data = localBuf;
-    } else if (NULL != res.data) {
-      res.data -= 16;
+    if (0 == res.Length) {
+      res.Data = localBuf;
+    } else if (NULL != res.Data) {
+      res.Data -= 16;
     } else {
-      ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", msg->header.serviceId,
-                      msg->header.methodId, msg->header.clientId, msg->header.sessionId));
+      ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", msg->Header.ServiceId,
+                      msg->Header.MethodId, msg->Header.ClientId, msg->Header.SessionId));
       ret = E_NOT_OK;
     }
   }
 
   if (E_OK == ret) {
-    ret = SomeIp_ReplyRequest(config, conId, methodId, msg->header.clientId, msg->header.sessionId,
+    ret = SomeIp_ReplyRequest(config, conId, methodId, msg->Header.ClientId, msg->Header.SessionId,
                               &msg->RemoteAddr, &res);
     if (E_OK != ret) {
       /* with NULL to tell app that failed to transmit response */
-      (void)method->onAsyncRequest(conId, NULL);
+      (void)method->OnAsyncRequest(conId, NULL);
     }
   } else if (SOMEIP_E_PENDING == ret) {
     /* response pending */
     SQP_ALLOC(AsyncReqMsg);
     if (NULL != var) {
-      var->clientId = msg->header.clientId;
-      var->sessionId = msg->header.sessionId;
-      var->methodId = methodId;
+      var->ClientId = msg->Header.ClientId;
+      var->SessionId = msg->Header.SessionId;
+      var->MethodId = methodId;
       var->RemoteAddr = msg->RemoteAddr;
       SQP_CAPPEND(AsyncReqMsg);
     } else {
@@ -921,16 +921,16 @@ static Std_ReturnType SomeIp_HandleServerMessage_Request(const SomeIp_ServerServ
                                                          uint16_t conId, SomeIp_MsgType *msg) {
   Std_ReturnType ret = SOMEIP_E_UNKNOWN_METHOD;
   uint16_t methodId;
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   const SomeIp_ServerMethodType *method = NULL;
   uint32_t requestId;
 
-  for (methodId = 0u; methodId < config->numOfMethods; methodId++) {
-    if (config->methods[methodId].methodId == msg->header.methodId) {
-      if (((0xFFu == config->methods[methodId].interfaceVersion) ||
-           (config->methods[methodId].interfaceVersion == msg->header.interfaceVersion))) {
-        method = &config->methods[methodId];
+  for (methodId = 0u; methodId < config->NumOfMethods; methodId++) {
+    if (config->Methods[methodId].MethodId == msg->Header.MethodId) {
+      if (((0xFFu == config->Methods[methodId].InterfaceVersion) ||
+           (config->Methods[methodId].InterfaceVersion == msg->Header.InterfaceVersion))) {
+        method = &config->Methods[methodId];
         ret = E_OK;
         break;
       } else {
@@ -940,18 +940,18 @@ static Std_ReturnType SomeIp_HandleServerMessage_Request(const SomeIp_ServerServ
   }
 
   if (E_OK == ret) {
-    if (TRUE == msg->header.isTpFlag) {
-      ret = SomeIp_ProcessRxTpMsg(conId, &context->pendingRxTpMsgs, methodId,
-                                  method->onTpCopyRxData, msg);
+    if (TRUE == msg->Header.IsTpFlag) {
+      ret = SomeIp_ProcessRxTpMsg(conId, &context->PendingRxTpMsgs, methodId,
+                                  method->OnTpCopyRxData, msg);
     }
   }
 
   if (E_OK == ret) {
-    requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
-    if (SOMEIP_MSG_REQUEST == msg->header.messageType) {
+    requestId = ((uint32_t)msg->Header.ClientId << 16) + msg->Header.SessionId;
+    if (SOMEIP_MSG_REQUEST == msg->Header.MessageType) {
       ret = SomeIp_ProcessRequest(config, conId, methodId, msg);
     } else {
-      ret = method->onFireForgot(requestId, &msg->req);
+      ret = method->OnFireForgot(requestId, &msg->Req);
       if (E_OK == ret) {
         ret = SOMEIP_E_OK_SILENT;
       }
@@ -964,13 +964,13 @@ static Std_ReturnType SomeIp_HandleServerMessage_Request(const SomeIp_ServerServ
 static Std_ReturnType SomeIp_IsResponseExpected(const SomeIp_ClientServiceType *config,
                                                 uint16_t methodId, SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_NOT_OK;
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   SomeIp_WaitResMsgType *var;
 
   EnterCritical();
-  if ((FALSE == msg->header.isTpFlag) || (0u == msg->tpHeader.offset)) {
-    STAILQ_FOREACH(var, &context->pendingWaitResMsgs, entry) {
-      if ((var->methodId == methodId) && (var->sessionId == msg->header.sessionId)) {
+  if ((FALSE == msg->Header.IsTpFlag) || (0u == msg->TpHeader.Offset)) {
+    STAILQ_FOREACH(var, &context->PendingWaitResMsgs, entry) {
+      if ((var->MethodId == methodId) && (var->SessionId == msg->Header.SessionId)) {
         ret = E_OK;
         SQP_CRM_AND_FREE(WaitResMsg);
         break;
@@ -988,15 +988,15 @@ static Std_ReturnType SomeIp_HandleClientMessage_Respose(const SomeIp_ClientServ
                                                          SomeIp_MsgType *msg) {
   Std_ReturnType ret = SOMEIP_E_UNKNOWN_METHOD;
   const SomeIp_ClientMethodType *method = NULL;
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   uint16_t methodId;
   uint32_t requestId;
 
-  for (methodId = 0u; methodId < config->numOfMethods; methodId++) {
-    if (config->methods[methodId].methodId == msg->header.methodId) {
-      if (((0xFFu == config->methods[methodId].interfaceVersion) ||
-           (config->methods[methodId].interfaceVersion == msg->header.interfaceVersion))) {
-        method = &config->methods[methodId];
+  for (methodId = 0u; methodId < config->NumOfMethods; methodId++) {
+    if (config->Methods[methodId].MethodId == msg->Header.MethodId) {
+      if (((0xFFu == config->Methods[methodId].InterfaceVersion) ||
+           (config->Methods[methodId].InterfaceVersion == msg->Header.InterfaceVersion))) {
+        method = &config->Methods[methodId];
         ret = E_OK;
         break;
       } else {
@@ -1008,26 +1008,26 @@ static Std_ReturnType SomeIp_HandleClientMessage_Respose(const SomeIp_ClientServ
   if (E_OK == ret) {
     ret = SomeIp_IsResponseExpected(config, methodId, msg);
     if (E_OK != ret) {
-      ASLOG(SOMEIPE, ("response %x:%x:%d not as expected\n", config->serviceId, method->methodId,
-                      msg->header.sessionId));
+      ASLOG(SOMEIPE, ("response %x:%x:%d not as expected\n", config->ServiceId, method->MethodId,
+                      msg->Header.SessionId));
     }
   }
 
   if (E_OK == ret) {
-    if (TRUE == msg->header.isTpFlag) {
+    if (TRUE == msg->Header.IsTpFlag) {
       ret =
-        SomeIp_ProcessRxTpMsg(0u, &context->pendingRxTpMsgs, methodId, method->onTpCopyRxData, msg);
+        SomeIp_ProcessRxTpMsg(0u, &context->PendingRxTpMsgs, methodId, method->OnTpCopyRxData, msg);
     }
   }
 
   if (E_OK == ret) {
-    requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
-    if (E_OK == msg->header.returnCode) {
-      ret = method->onResponse(requestId, &msg->req);
+    requestId = ((uint32_t)msg->Header.ClientId << 16) + msg->Header.SessionId;
+    if (E_OK == msg->Header.ReturnCode) {
+      ret = method->OnResponse(requestId, &msg->Req);
     } else {
-      ret = method->onError(requestId, msg->header.returnCode);
-      ASLOG(SOMEIPE, ("response %x:%x:%d with error %u\n", config->serviceId, method->methodId,
-                      msg->header.sessionId, msg->header.returnCode));
+      ret = method->OnError(requestId, msg->Header.ReturnCode);
+      ASLOG(SOMEIPE, ("response %x:%x:%d with error %u\n", config->ServiceId, method->MethodId,
+                      msg->Header.SessionId, msg->Header.ReturnCode));
     }
   }
 
@@ -1038,8 +1038,8 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
                                                  uint16_t conId, SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_OK;
 
-  if (conId < config->numOfConnections) {
-    if (config->serviceId != msg->header.serviceId) {
+  if (conId < config->NumOfConnections) {
+    if (config->ServiceId != msg->Header.ServiceId) {
       ASLOG(SOMEIPE, ("unknown service\n"));
       ret = SOMEIP_E_UNKNOWN_SERVICE;
     }
@@ -1049,7 +1049,7 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
   }
 
   if (E_OK == ret) {
-    switch (msg->header.messageType) {
+    switch (msg->Header.MessageType) {
     case SOMEIP_MSG_REQUEST:
     case SOMEIP_MSG_REQUEST_NO_RETURN:
       ret = SomeIp_HandleServerMessage_Request(config, conId, msg);
@@ -1058,7 +1058,7 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
       /* slient as event multicast */
       break;
     default:
-      ASLOG(SOMEIPE, ("server: unsupported message type 0x%x\n", msg->header.messageType));
+      ASLOG(SOMEIPE, ("server: unsupported message type 0x%x\n", msg->Header.MessageType));
       ret = SOMEIP_E_WRONG_MESSAGE_TYPE;
       break;
     }
@@ -1069,7 +1069,7 @@ static Std_ReturnType SomeIp_HandleServerMessage(const SomeIp_ServerServiceType 
   } else if (SOMEIP_E_WRONG_MESSAGE_TYPE == ret) {
     /* ignore it */
   } else if (E_OK != ret) {
-    (void)SomeIp_ReplyError(config->connections[conId].TxPduId, msg, ret);
+    (void)SomeIp_ReplyError(config->Connections[conId].TxPduId, msg, ret);
   } else {
     /* ok, pass */
   }
@@ -1081,16 +1081,16 @@ static Std_ReturnType
 SomeIp_HandleClientMessage_Notification(const SomeIp_ClientServiceType *config,
                                         SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_NOT_OK;
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   const SomeIp_ClientEventType *event = NULL;
   uint16_t eventId;
   uint32_t requestId;
 
-  for (eventId = 0u; eventId < config->numOfEvents; eventId++) {
-    if (config->events[eventId].eventId == msg->header.methodId) {
-      if (((0xFFu == config->events[eventId].interfaceVersion) ||
-           (config->events[eventId].interfaceVersion == msg->header.interfaceVersion))) {
-        event = &config->events[eventId];
+  for (eventId = 0u; eventId < config->NumOfEvents; eventId++) {
+    if (config->Events[eventId].EventId == msg->Header.MethodId) {
+      if (((0xFFu == config->Events[eventId].InterfaceVersion) ||
+           (config->Events[eventId].InterfaceVersion == msg->Header.InterfaceVersion))) {
+        event = &config->Events[eventId];
         ret = E_OK;
         break;
       } else {
@@ -1100,15 +1100,15 @@ SomeIp_HandleClientMessage_Notification(const SomeIp_ClientServiceType *config,
   }
 
   if (E_OK == ret) {
-    if (TRUE == msg->header.isTpFlag) {
-      ret = SomeIp_ProcessRxTpMsg(0u, &context->pendingRxTpEvtMsgs, eventId, event->onTpCopyRxData,
+    if (TRUE == msg->Header.IsTpFlag) {
+      ret = SomeIp_ProcessRxTpMsg(0u, &context->PendingRxTpEvtMsgs, eventId, event->OnTpCopyRxData,
                                   msg);
     }
   }
 
   if (E_OK == ret) {
-    requestId = ((uint32_t)msg->header.clientId << 16) + msg->header.sessionId;
-    ret = event->onNotification(requestId, &msg->req);
+    requestId = ((uint32_t)msg->Header.ClientId << 16) + msg->Header.SessionId;
+    ret = event->OnNotification(requestId, &msg->Req);
   } else {
     ret = SOMEIP_E_UNKNOWN_METHOD;
   }
@@ -1120,13 +1120,13 @@ static Std_ReturnType SomeIp_HandleClientMessage(const SomeIp_ClientServiceType 
                                                  SomeIp_MsgType *msg) {
   Std_ReturnType ret = E_OK;
 
-  if (config->serviceId != msg->header.serviceId) {
+  if (config->ServiceId != msg->Header.ServiceId) {
     ASLOG(SOMEIPE, ("unknown service\n"));
     ret = SOMEIP_E_UNKNOWN_SERVICE;
   }
 
   if (E_OK == ret) {
-    switch (msg->header.messageType) {
+    switch (msg->Header.MessageType) {
     case SOMEIP_MSG_NOTIFICATION:
       ret = SomeIp_HandleClientMessage_Notification(config, msg);
       break;
@@ -1137,7 +1137,7 @@ static Std_ReturnType SomeIp_HandleClientMessage(const SomeIp_ClientServiceType 
       ret = SomeIp_HandleClientMessage_Respose(config, msg);
       break;
     default:
-      ASLOG(SOMEIPE, ("client: unsupported message type 0x%x\n", msg->header.messageType));
+      ASLOG(SOMEIPE, ("client: unsupported message type 0x%x\n", msg->Header.MessageType));
       ret = SOMEIP_E_WRONG_MESSAGE_TYPE;
       break;
     }
@@ -1148,21 +1148,21 @@ static Std_ReturnType SomeIp_HandleClientMessage(const SomeIp_ClientServiceType 
 
 static void SomeIp_MainServerAsyncRequestOnClose(const SomeIp_ServerServiceType *config,
                                                  uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(AsyncReqMsg);
   const SomeIp_ServerMethodType *method = NULL;
   SQP_WHILE(AsyncReqMsg) {
-    method = &config->methods[var->methodId];
-    (void)method->onAsyncRequest(conId, NULL);
+    method = &config->Methods[var->MethodId];
+    (void)method->OnAsyncRequest(conId, NULL);
     SQP_CRM_AND_FREE(AsyncReqMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config, uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(AsyncReqMsg);
   const SomeIp_ServerMethodType *method = NULL;
   SomeIp_MessageType res;
@@ -1170,33 +1170,33 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
   uint8_t localBuf[16];
 
   SQP_WHILE(AsyncReqMsg) {
-    method = &config->methods[var->methodId];
+    method = &config->Methods[var->MethodId];
 
-    res.data = NULL;
-    res.length = 0;
+    res.Data = NULL;
+    res.Length = 0;
 
-    ret = method->onAsyncRequest(conId, &res);
+    ret = method->OnAsyncRequest(conId, &res);
     if (E_OK == ret) {
-      if (0 == res.length) {
-        res.data = localBuf;
-      } else if (NULL != res.data) {
-        res.data -= 16;
+      if (0 == res.Length) {
+        res.Data = localBuf;
+      } else if (NULL != res.Data) {
+        res.Data -= 16;
       } else {
-        ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", config->serviceId, method->methodId,
-                        var->clientId, var->sessionId));
+        ASLOG(SOMEIPE, ("%x:%x:%x:%d reply buffer is null\n", config->ServiceId, method->MethodId,
+                        var->ClientId, var->SessionId));
         ret = E_NOT_OK;
       }
     }
     if (E_OK == ret) {
-      ret = SomeIp_ReplyRequest(config, conId, var->methodId, var->clientId, var->sessionId,
+      ret = SomeIp_ReplyRequest(config, conId, var->MethodId, var->ClientId, var->SessionId,
                                 &var->RemoteAddr, &res);
       if (E_OK != ret) {
-        (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
-                                method->methodId, var->clientId, var->sessionId,
-                                method->interfaceVersion, SOMEIP_MSG_ERROR, ret);
+        (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->ServiceId,
+                                method->MethodId, var->ClientId, var->SessionId,
+                                method->InterfaceVersion, SOMEIP_MSG_ERROR, ret);
         if (E_OK != ret) {
           /* with NULL to tell app that failed to transmit response */
-          (void)method->onAsyncRequest(conId, NULL);
+          (void)method->OnAsyncRequest(conId, NULL);
         }
       }
 
@@ -1204,9 +1204,9 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
     } else if (SOMEIP_E_PENDING == ret) {
       /* do nothing */
     } else {
-      (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
-                              method->methodId, var->clientId, var->sessionId,
-                              method->interfaceVersion, SOMEIP_MSG_RESPONSE, ret);
+      (void)SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->ServiceId,
+                              method->MethodId, var->ClientId, var->SessionId,
+                              method->InterfaceVersion, SOMEIP_MSG_RESPONSE, ret);
 
       SQP_CRM_AND_FREE(AsyncReqMsg);
     }
@@ -1215,28 +1215,28 @@ static void SomeIp_MainServerAsyncRequest(const SomeIp_ServerServiceType *config
 }
 
 static void SomeIp_MainServerRxTpMsg(const SomeIp_ServerServiceType *config, uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(RxTpMsg);
   const SomeIp_ServerMethodType *method = NULL;
   Std_ReturnType ret;
 
   SQP_WHILE(RxTpMsg) {
-    method = &config->methods[var->methodId];
+    method = &config->Methods[var->MethodId];
 
-    if (var->timer > 0u) {
-      var->timer--;
-      if (0 == var->timer) {
+    if (var->Timer > 0u) {
+      var->Timer--;
+      if (0 == var->Timer) {
         ASLOG(SOMEIPE,
-              ("server method %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->serviceId,
-               method->methodId, var->clientId, var->sessionId, var->offset));
-        ret = SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->serviceId,
-                                method->methodId, var->clientId, var->sessionId,
-                                method->interfaceVersion, SOMEIP_MSG_ERROR, SOMEIP_E_TIMEOUT);
+              ("server method %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->ServiceId,
+               method->MethodId, var->ClientId, var->SessionId, var->Offset));
+        ret = SomeIp_TransError(connection->TxPduId, &var->RemoteAddr, config->ServiceId,
+                                method->MethodId, var->ClientId, var->SessionId,
+                                method->InterfaceVersion, SOMEIP_MSG_ERROR, SOMEIP_E_TIMEOUT);
         if (E_NOT_OK == ret) {
-          var->timer = 1; /* retry next time */
+          var->Timer = 1; /* retry next time */
         } else {
-          method->onTpCopyRxData(((uint32_t)var->clientId << 16) + var->sessionId, NULL);
+          method->OnTpCopyRxData(((uint32_t)var->ClientId << 16) + var->SessionId, NULL);
           SQP_CRM_AND_FREE(RxTpMsg);
         }
       }
@@ -1247,43 +1247,43 @@ static void SomeIp_MainServerRxTpMsg(const SomeIp_ServerServiceType *config, uin
 
 static void SomeIp_MainServerRxTpMsgOnClose(const SomeIp_ServerServiceType *config,
                                             uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(RxTpMsg);
   const SomeIp_ServerMethodType *method = NULL;
 
   SQP_WHILE(RxTpMsg) {
-    method = &config->methods[var->methodId];
-    method->onTpCopyRxData(((uint32_t)var->clientId << 16) + var->sessionId, NULL);
+    method = &config->Methods[var->MethodId];
+    method->OnTpCopyRxData(((uint32_t)var->ClientId << 16) + var->SessionId, NULL);
     SQP_CRM_AND_FREE(RxTpMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainServerTxTpMsg(const SomeIp_ServerServiceType *config, uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(TxTpMsg);
   const SomeIp_ServerMethodType *method = NULL;
   Std_ReturnType ret;
 
   SQP_WHILE(TxTpMsg) {
-    method = &config->methods[var->methodId];
-    if (var->timer > 0u) {
-      var->timer--;
+    method = &config->Methods[var->MethodId];
+    if (var->Timer > 0u) {
+      var->Timer--;
     }
-    if (0 == var->timer) {
-      ret = SomeIp_SendNextTxTpMsg(connection->TxPduId, config->serviceId, method->methodId,
-                                   method->interfaceVersion, SOMEIP_MSG_RESPONSE,
-                                   method->onTpCopyTxData, var);
+    if (0 == var->Timer) {
+      ret = SomeIp_SendNextTxTpMsg(connection->TxPduId, config->ServiceId, method->MethodId,
+                                   method->InterfaceVersion, SOMEIP_MSG_RESPONSE,
+                                   method->OnTpCopyTxData, var);
       if (E_OK == ret) {
-        if (var->offset >= var->length) {
+        if (var->Offset >= var->Length) {
           SQP_CRM_AND_FREE(TxTpMsg);
         } else {
-          var->timer = config->SeparationTime;
+          var->Timer = config->SeparationTime;
         }
       } else { /* abort this tx */
-        (void)method->onTpCopyTxData(((uint32_t)var->clientId << 16) + var->sessionId, NULL);
+        (void)method->OnTpCopyTxData(((uint32_t)var->ClientId << 16) + var->SessionId, NULL);
         SQP_CRM_AND_FREE(TxTpMsg);
       }
     }
@@ -1293,48 +1293,48 @@ static void SomeIp_MainServerTxTpMsg(const SomeIp_ServerServiceType *config, uin
 
 static void SomeIp_MainServerTxTpMsgOnClose(const SomeIp_ServerServiceType *config,
                                             uint16_t conId) {
-  const SomeIp_ServerConnectionType *connection = &config->connections[conId];
-  SomeIp_ServerConnectionContextType *context = connection->context;
+  const SomeIp_ServerConnectionType *connection = &config->Connections[conId];
+  SomeIp_ServerConnectionContextType *context = connection->Context;
   DEC_SQP(TxTpMsg);
   const SomeIp_ServerMethodType *method = NULL;
 
   SQP_WHILE(TxTpMsg) {
-    method = &config->methods[var->methodId];
-    (void)method->onTpCopyTxData(((uint32_t)var->clientId << 16) + var->sessionId, NULL);
+    method = &config->Methods[var->MethodId];
+    (void)method->OnTpCopyTxData(((uint32_t)var->ClientId << 16) + var->SessionId, NULL);
     SQP_CRM_AND_FREE(TxTpMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainServerTxTpEvtMsg(const SomeIp_ServerServiceType *config) {
-  SomeIp_ServerContextType *context = config->context;
+  SomeIp_ServerContextType *context = config->Context;
   DEC_SQP(TxTpEvtMsg);
   const SomeIp_ServerEventType *event = NULL;
   Sd_EventHandlerSubscriberListType *list;
   Std_ReturnType ret;
 
   SQP_WHILE(TxTpEvtMsg) {
-    event = &config->events[SOMEIP_CONFIG->TxEvent2PerServiceMap[var->eventId]];
-    if (var->timer > 0u) {
-      var->timer--;
+    event = &config->Events[SOMEIP_CONFIG->TxEvent2PerServiceMap[var->EventId]];
+    if (var->Timer > 0u) {
+      var->Timer--;
     }
-    if (0 == var->timer) {
+    if (0 == var->Timer) {
       /* NOTE: may result partial data send to later online subscribers */
-      ret = Sd_GetSubscribers(event->sdHandleID, &list);
+      ret = Sd_GetSubscribers(event->SdHandleID, &list);
       if (E_OK == ret) {
         ret = SomeIp_SendNextTxTpEvtMsg(config, event, var, list);
         if (E_OK == ret) {
-          if (var->offset >= var->length) {
+          if (var->Offset >= var->Length) {
             SQP_CRM_AND_FREE(TxTpEvtMsg);
           } else {
-            var->timer = config->SeparationTime;
+            var->Timer = config->SeparationTime;
           }
         } else { /* abort this tx */
-          (void)event->onTpCopyTxData(((uint32_t)var->eventId << 16) + var->sessionId, NULL);
+          (void)event->OnTpCopyTxData(((uint32_t)var->EventId << 16) + var->SessionId, NULL);
           SQP_CRM_AND_FREE(TxTpEvtMsg);
         }
       } else { /* No Subscribers now */
-        (void)event->onTpCopyTxData(((uint32_t)var->eventId << 16) + var->sessionId, NULL);
+        (void)event->OnTpCopyTxData(((uint32_t)var->EventId << 16) + var->SessionId, NULL);
         SQP_CRM_AND_FREE(TxTpEvtMsg);
       }
     }
@@ -1343,13 +1343,13 @@ static void SomeIp_MainServerTxTpEvtMsg(const SomeIp_ServerServiceType *config) 
 }
 
 static void SomeIp_MainServerTxTpEvtMsgOnClose(const SomeIp_ServerServiceType *config) {
-  SomeIp_ServerContextType *context = config->context;
+  SomeIp_ServerContextType *context = config->Context;
   DEC_SQP(TxTpEvtMsg);
   const SomeIp_ServerEventType *event = NULL;
 
   SQP_WHILE(TxTpEvtMsg) {
-    event = &config->events[SOMEIP_CONFIG->TxEvent2PerServiceMap[var->eventId]];
-    (void)event->onTpCopyTxData(((uint32_t)var->eventId << 16) + var->sessionId, NULL);
+    event = &config->Events[SOMEIP_CONFIG->TxEvent2PerServiceMap[var->EventId]];
+    (void)event->OnTpCopyTxData(((uint32_t)var->EventId << 16) + var->SessionId, NULL);
     SQP_CRM_AND_FREE(TxTpEvtMsg);
   }
   SQP_WHILE_END()
@@ -1358,7 +1358,7 @@ static void SomeIp_MainServerTxTpEvtMsgOnClose(const SomeIp_ServerServiceType *c
 static void SomeIp_MainServer(const SomeIp_ServerServiceType *config) {
   uint16_t conId;
 
-  for (conId = 0u; conId < config->numOfConnections; conId++) {
+  for (conId = 0u; conId < config->NumOfConnections; conId++) {
     SomeIp_MainServerAsyncRequest(config, conId);
     SomeIp_MainServerTxTpMsg(config, conId);
     SomeIp_MainServerRxTpMsg(config, conId);
@@ -1375,22 +1375,22 @@ static void SomeIp_MainServerOnClose(const SomeIp_ServerServiceType *config, uin
 }
 
 static void SomeIp_MainClientRxTpMsg(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(RxTpMsg);
   const SomeIp_ClientMethodType *method = NULL;
   uint32_t requestId;
 
   SQP_WHILE(RxTpMsg) {
-    method = &config->methods[var->methodId];
+    method = &config->Methods[var->MethodId];
 
-    if (var->timer > 0u) {
-      var->timer--;
-      if (0 == var->timer) {
-        requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
+    if (var->Timer > 0u) {
+      var->Timer--;
+      if (0 == var->Timer) {
+        requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
         ASLOG(SOMEIPE,
-              ("client method %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->serviceId,
-               method->methodId, var->clientId, var->sessionId, var->offset));
-        method->onError(requestId, SOMEIP_E_TIMEOUT);
+              ("client method %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->ServiceId,
+               method->MethodId, var->ClientId, var->SessionId, var->Offset));
+        method->OnError(requestId, SOMEIP_E_TIMEOUT);
         SQP_CRM_AND_FREE(RxTpMsg);
       }
     }
@@ -1399,37 +1399,37 @@ static void SomeIp_MainClientRxTpMsg(const SomeIp_ClientServiceType *config) {
 }
 
 static void SomeIp_MainClientRxTpMsgOnClose(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(RxTpMsg);
   const SomeIp_ClientMethodType *method = NULL;
   uint32_t requestId;
 
   SQP_WHILE(RxTpMsg) {
-    method = &config->methods[var->methodId];
-    requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
-    method->onTpCopyRxData(requestId, NULL);
-    method->onError(requestId, SOMEIP_E_NOT_REACHABLE);
+    method = &config->Methods[var->MethodId];
+    requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
+    method->OnTpCopyRxData(requestId, NULL);
+    method->OnError(requestId, SOMEIP_E_NOT_REACHABLE);
     SQP_CRM_AND_FREE(RxTpMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainClientRxTpEvtMsg(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   const SomeIp_ClientEventType *event;
   uint32_t requestId;
   DEC_SQP(RxTpEvtMsg);
 
   SQP_WHILE(RxTpEvtMsg) {
-    if (var->timer > 0u) {
-      var->timer--;
-      if (0 == var->timer) {
-        event = &config->events[var->methodId];
+    if (var->Timer > 0u) {
+      var->Timer--;
+      if (0 == var->Timer) {
+        event = &config->Events[var->MethodId];
         ASLOG(SOMEIPE,
-              ("client event %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->serviceId,
-               event->eventId, var->clientId, var->sessionId, var->offset));
-        requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
-        event->onTpCopyRxData(requestId, NULL);
+              ("client event %x:%x:%x:%d Rx Tp msg timeout, offset %d\n", config->ServiceId,
+               event->EventId, var->ClientId, var->SessionId, var->Offset));
+        requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
+        event->OnTpCopyRxData(requestId, NULL);
         SQP_CRM_AND_FREE(RxTpEvtMsg);
       }
     }
@@ -1438,39 +1438,39 @@ static void SomeIp_MainClientRxTpEvtMsg(const SomeIp_ClientServiceType *config) 
 }
 
 static void SomeIp_MainClientRxTpEvtMsgOnClose(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   const SomeIp_ClientEventType *event;
   uint32_t requestId;
   DEC_SQP(RxTpEvtMsg);
 
   SQP_WHILE(RxTpEvtMsg) {
-    event = &config->events[var->methodId];
-    requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
-    event->onTpCopyRxData(requestId, NULL);
+    event = &config->Events[var->MethodId];
+    requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
+    event->OnTpCopyRxData(requestId, NULL);
     SQP_CRM_AND_FREE(RxTpEvtMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainClientTxTpMsg(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(TxTpMsg);
   const SomeIp_ClientMethodType *method = NULL;
   Std_ReturnType ret;
 
   SQP_WHILE(TxTpMsg) {
-    method = &config->methods[var->methodId];
-    if (var->timer > 0u) {
-      var->timer--;
+    method = &config->Methods[var->MethodId];
+    if (var->Timer > 0u) {
+      var->Timer--;
     }
-    if (0u == var->timer) {
-      ret = SomeIp_SendNextTxTpMsg(config->TxPduId, config->serviceId, method->methodId,
-                                   method->interfaceVersion, SOMEIP_MSG_REQUEST,
-                                   method->onTpCopyTxData, var);
+    if (0u == var->Timer) {
+      ret = SomeIp_SendNextTxTpMsg(config->TxPduId, config->ServiceId, method->MethodId,
+                                   method->InterfaceVersion, SOMEIP_MSG_REQUEST,
+                                   method->OnTpCopyTxData, var);
       if (E_OK == ret) {
-        if (var->offset >= var->length) {
+        if (var->Offset >= var->Length) {
           SQP_CRM_AND_FREE(TxTpMsg);
-          (void)SomeIp_WaitResponse(config, var->methodId, var->sessionId);
+          (void)SomeIp_WaitResponse(config, var->MethodId, var->SessionId);
         }
       } else { /* abort this tx */
         SQP_CRM_AND_FREE(TxTpMsg);
@@ -1481,37 +1481,37 @@ static void SomeIp_MainClientTxTpMsg(const SomeIp_ClientServiceType *config) {
 }
 
 static void SomeIp_MainClientTxTpMsgOnClose(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(TxTpMsg);
   const SomeIp_ClientMethodType *method = NULL;
   uint32_t requestId;
 
   SQP_WHILE(TxTpMsg) {
-    method = &config->methods[var->methodId];
-    requestId = ((uint32_t)var->clientId << 16) + var->sessionId;
-    method->onTpCopyTxData(requestId, NULL);
-    method->onError(requestId, SOMEIP_E_NOT_REACHABLE);
+    method = &config->Methods[var->MethodId];
+    requestId = ((uint32_t)var->ClientId << 16) + var->SessionId;
+    method->OnTpCopyTxData(requestId, NULL);
+    method->OnError(requestId, SOMEIP_E_NOT_REACHABLE);
     SQP_CRM_AND_FREE(TxTpMsg);
   }
   SQP_WHILE_END()
 }
 
 static void SomeIp_MainClientWaitResMsg(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(WaitResMsg);
   const SomeIp_ClientMethodType *method = NULL;
   uint32_t requestId;
 
   SQP_WHILE(WaitResMsg) {
-    method = &config->methods[var->methodId];
-    if (var->timer > 0u) {
-      var->timer--;
+    method = &config->Methods[var->MethodId];
+    if (var->Timer > 0u) {
+      var->Timer--;
     }
-    if (0u == var->timer) {
-      requestId = ((uint32_t)var->methodId << 16) + var->sessionId;
-      ASLOG(SOMEIPE, ("client method %x:%x:%u wait response timeout\n", config->serviceId,
-                      method->methodId, var->sessionId));
-      method->onError(requestId, SOMEIP_E_TIMEOUT);
+    if (0u == var->Timer) {
+      requestId = ((uint32_t)var->MethodId << 16) + var->SessionId;
+      ASLOG(SOMEIPE, ("client method %x:%x:%u wait response timeout\n", config->ServiceId,
+                      method->MethodId, var->SessionId));
+      method->OnError(requestId, SOMEIP_E_TIMEOUT);
       SQP_CRM_AND_FREE(WaitResMsg);
     }
   }
@@ -1519,15 +1519,15 @@ static void SomeIp_MainClientWaitResMsg(const SomeIp_ClientServiceType *config) 
 }
 
 static void SomeIp_MainClientWaitResMsgOnClose(const SomeIp_ClientServiceType *config) {
-  SomeIp_ClientServiceContextType *context = config->context;
+  SomeIp_ClientServiceContextType *context = config->Context;
   DEC_SQP(WaitResMsg);
   const SomeIp_ClientMethodType *method = NULL;
   uint32_t requestId;
 
   SQP_WHILE(WaitResMsg) {
-    method = &config->methods[var->methodId];
-    requestId = ((uint32_t)var->methodId << 16) + var->sessionId;
-    method->onError(requestId, SOMEIP_E_NOT_REACHABLE);
+    method = &config->Methods[var->MethodId];
+    requestId = ((uint32_t)var->MethodId << 16) + var->SessionId;
+    method->OnError(requestId, SOMEIP_E_NOT_REACHABLE);
     SQP_CRM_AND_FREE(WaitResMsg);
   }
   SQP_WHILE_END()
@@ -1548,60 +1548,60 @@ static void SomeIp_MainClientOnClose(const SomeIp_ClientServiceType *config) {
 }
 
 static void SomeIp_ServerServiceModeChg(const SomeIp_ServerServiceType *service, uint16_t conId,
-                                        SoAd_SoConModeType Mode) {
-  SomeIp_ServerConnectionContextType *context = service->connections[conId].context;
+                                        SoAd_SoConModeType mode) {
+  SomeIp_ServerConnectionContextType *context = service->Connections[conId].Context;
   uint16_t i;
-  if (SOAD_SOCON_OFFLINE == Mode) {
+  if (SOAD_SOCON_OFFLINE == mode) {
     SomeIp_MainServerOnClose(service, conId);
-    context->online = FALSE;
-    service->onConnect(conId, FALSE);
-    for (i = 0u; i < service->numOfEvents; i++) {
-      Sd_RemoveSubscriber(service->events[i].sdHandleID, service->connections[conId].TxPduId);
+    context->Online = FALSE;
+    service->OnConnect(conId, FALSE);
+    for (i = 0u; i < service->NumOfEvents; i++) {
+      Sd_RemoveSubscriber(service->Events[i].SdHandleID, service->Connections[conId].TxPduId);
     }
-    Sd_NotifyServiceOffline(service->sdHandleID);
+    Sd_NotifyServiceOffline(service->SdHandleID);
   } else {
-    context->online = TRUE;
-    service->onConnect(conId, TRUE);
+    context->Online = TRUE;
+    service->OnConnect(conId, TRUE);
   }
 }
 
 static void SomeIp_ClientServiceModeChg(const SomeIp_ClientServiceType *service,
-                                        SoAd_SoConModeType Mode) {
-  SomeIp_ClientServiceContextType *context = service->context;
+                                        SoAd_SoConModeType mode) {
+  SomeIp_ClientServiceContextType *context = service->Context;
 
-  if (SOAD_SOCON_OFFLINE == Mode) {
+  if (SOAD_SOCON_OFFLINE == mode) {
     SomeIp_MainClientOnClose(service);
-    context->online = FALSE;
-    service->onAvailability(FALSE);
+    context->Online = FALSE;
+    service->OnAvailability(FALSE);
   } else {
-    context->online = TRUE;
-    service->onAvailability(TRUE);
+    context->Online = TRUE;
+    service->OnAvailability(TRUE);
   }
 }
-static Std_ReturnType SomeIp_HandleRxMsg(PduIdType RxPduId, SomeIp_MsgType *msg) {
+static Std_ReturnType SomeIp_HandleRxMsg(PduIdType rxPduId, SomeIp_MsgType *msg) {
   Std_ReturnType ret;
   uint16_t index;
   ASLOG(SOMEIP, ("[%d] service 0x%x:0x%x:%d message type 0x%x return code %d payload %d bytes "
                  "from client 0x%x:%d %d.%d.%d.%d:%d\n",
-                 RxPduId, msg->header.serviceId, msg->header.methodId, msg->header.interfaceVersion,
-                 msg->header.messageType, msg->header.returnCode, msg->header.length - 8,
-                 msg->header.clientId, msg->header.sessionId, msg->RemoteAddr.addr[0],
-                 msg->RemoteAddr.addr[1], msg->RemoteAddr.addr[2], msg->RemoteAddr.addr[3],
-                 msg->RemoteAddr.port));
-  PCAP_TRACE(msg->header.serviceId, msg->header.methodId, msg->header.interfaceVersion,
-             msg->header.messageType, msg->header.returnCode, msg->req.data, msg->req.length,
-             msg->header.clientId, msg->header.sessionId, &msg->RemoteAddr, msg->header.isTpFlag,
-             msg->tpHeader.offset, msg->tpHeader.moreSegmentsFlag, TRUE);
-  if (RxPduId < SOMEIP_CONFIG->numOfPIDs) {
-    index = SOMEIP_CONFIG->PID2ServiceMap[RxPduId];
-    if (index < SOMEIP_CONFIG->numOfService) {
-      if (TRUE == SOMEIP_CONFIG->services[index].isServer) {
+                 rxPduId, msg->Header.ServiceId, msg->Header.MethodId, msg->Header.InterfaceVersion,
+                 msg->Header.MessageType, msg->Header.ReturnCode, msg->Header.Length - 8,
+                 msg->Header.ClientId, msg->Header.SessionId, msg->RemoteAddr.Addr[0],
+                 msg->RemoteAddr.Addr[1], msg->RemoteAddr.Addr[2], msg->RemoteAddr.Addr[3],
+                 msg->RemoteAddr.Port));
+  PCAP_TRACE(msg->Header.ServiceId, msg->Header.MethodId, msg->Header.InterfaceVersion,
+             msg->Header.MessageType, msg->Header.ReturnCode, msg->Req.Data, msg->Req.Length,
+             msg->Header.ClientId, msg->Header.SessionId, &msg->RemoteAddr, msg->Header.IsTpFlag,
+             msg->TpHeader.Offset, msg->TpHeader.MoreSegmentsFlag, TRUE);
+  if (rxPduId < SOMEIP_CONFIG->NumOfPIDs) {
+    index = SOMEIP_CONFIG->PID2ServiceMap[rxPduId];
+    if (index < SOMEIP_CONFIG->NumOfService) {
+      if (TRUE == SOMEIP_CONFIG->Services[index].IsServer) {
         ret = SomeIp_HandleServerMessage(
-          (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[index].service,
-          SOMEIP_CONFIG->PID2ServiceConnectionMap[RxPduId], msg);
+          (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->Services[index].Service,
+          SOMEIP_CONFIG->PID2ServiceConnectionMap[rxPduId], msg);
       } else {
         ret = SomeIp_HandleClientMessage(
-          (const SomeIp_ClientServiceType *)SOMEIP_CONFIG->services[index].service, msg);
+          (const SomeIp_ClientServiceType *)SOMEIP_CONFIG->Services[index].Service, msg);
       }
     } else {
       ret = E_NOT_OK;
@@ -1614,19 +1614,19 @@ static Std_ReturnType SomeIp_HandleRxMsg(PduIdType RxPduId, SomeIp_MsgType *msg)
   return ret;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void SomeIp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void SomeIp_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   SomeIp_MsgType msg;
   Std_ReturnType ret;
 
-  ret = SomeIp_DecodeMsg(PduInfoPtr, &msg);
+  ret = SomeIp_DecodeMsg(pduInfoPtr, &msg);
   if (E_OK == ret) {
-    (void)SomeIp_HandleRxMsg(RxPduId, &msg);
+    (void)SomeIp_HandleRxMsg(rxPduId, &msg);
   } else {
     ASLOG(SOMEIPE, ("IF message malformed\n"));
   }
 }
 
-void SomeIp_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
+void SomeIp_SoConModeChg(SoAd_SoConIdType soConId, SoAd_SoConModeType mode) {
   Std_ReturnType ret = E_NOT_OK;
   const SomeIp_ServiceType *service = NULL;
   const SomeIp_ServerServiceType *ss = NULL;
@@ -1635,15 +1635,15 @@ void SomeIp_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   uint16_t j;
   uint16_t conId = 0u;
 
-  ASLOG(SOMEIP, ("SoConId %d Mode %d\n", SoConId, Mode));
-  for (i = 0u; (i < SOMEIP_CONFIG->numOfService) && (E_NOT_OK == ret); i++) {
-    service = &SOMEIP_CONFIG->services[i];
-    if (service->SoConId == SoConId) {
+  ASLOG(SOMEIP, ("SoConId %d mode %d\n", soConId, mode));
+  for (i = 0u; (i < SOMEIP_CONFIG->NumOfService) && (E_NOT_OK == ret); i++) {
+    service = &SOMEIP_CONFIG->Services[i];
+    if (service->SoConId == soConId) {
       ret = E_OK;
-    } else if (TRUE == service->isServer) {
-      ss = (const SomeIp_ServerServiceType *)service->service;
-      for (j = 0u; (j < ss->numOfConnections) && (E_NOT_OK == ret); j++) {
-        if (ss->connections[j].SoConId == SoConId) {
+    } else if (TRUE == service->IsServer) {
+      ss = (const SomeIp_ServerServiceType *)service->Service;
+      for (j = 0u; (j < ss->NumOfConnections) && (E_NOT_OK == ret); j++) {
+        if (ss->Connections[j].SoConId == soConId) {
           conId = j;
           ret = E_OK;
         }
@@ -1654,34 +1654,34 @@ void SomeIp_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
   }
 
   if (E_OK == ret) {
-    if (TRUE == service->isServer) {
-      if (service->SoConId == SoConId) {
-        ss = (const SomeIp_ServerServiceType *)service->service;
-        context = ss->context;
-        if (SOAD_SOCON_OFFLINE == Mode) {
-          context->online = FALSE;
+    if (TRUE == service->IsServer) {
+      if (service->SoConId == soConId) {
+        ss = (const SomeIp_ServerServiceType *)service->Service;
+        context = ss->Context;
+        if (SOAD_SOCON_OFFLINE == mode) {
+          context->Online = FALSE;
         } else {
-          context->online = TRUE;
+          context->Online = TRUE;
         }
-        if (TCPIP_IPPROTO_TCP == ss->protocol) {
-          if (SOAD_SOCON_OFFLINE == Mode) {
-            for (j = 0u; j < ss->numOfConnections; j++) {
-              (void)SoAd_CloseSoCon(ss->connections[j].SoConId, TRUE);
+        if (TCPIP_IPPROTO_TCP == ss->Protocol) {
+          if (SOAD_SOCON_OFFLINE == mode) {
+            for (j = 0u; j < ss->NumOfConnections; j++) {
+              (void)SoAd_CloseSoCon(ss->Connections[j].SoConId, TRUE);
               SomeIp_ServerServiceModeChg(ss, j, SOAD_SOCON_OFFLINE);
             }
           }
         } else {
-          SomeIp_ServerServiceModeChg(ss, 0u, Mode);
+          SomeIp_ServerServiceModeChg(ss, 0u, mode);
         }
       } else {
-        SomeIp_ServerServiceModeChg((const SomeIp_ServerServiceType *)service->service, conId,
-                                    Mode);
+        SomeIp_ServerServiceModeChg((const SomeIp_ServerServiceType *)service->Service, conId,
+                                    mode);
       }
     } else {
-      SomeIp_ClientServiceModeChg((const SomeIp_ClientServiceType *)service->service, Mode);
+      SomeIp_ClientServiceModeChg((const SomeIp_ClientServiceType *)service->Service, mode);
     }
   } else {
-    ASLOG(SOMEIPE, ("SoConId %d unknown\n", SoConId));
+    ASLOG(SOMEIPE, ("SoConId %d unknown\n", soConId));
   }
 }
 
@@ -1703,10 +1703,10 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   Sd_EventHandlerSubscriberListType *list;
   SomeIp_MessageType msg;
 
-  if (TxEventId < SOMEIP_CONFIG->numOfTxEvents) {
+  if (TxEventId < SOMEIP_CONFIG->NumOfTxEvents) {
     index = SOMEIP_CONFIG->TxEvent2ServiceMap[TxEventId];
-    config = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[index].service;
-    if (FALSE == config->context->online) {
+    config = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->Services[index].Service;
+    if (FALSE == config->Context->Online) {
       ret = E_NOT_OK;
     }
   } else {
@@ -1715,13 +1715,13 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
 
   if (E_OK == ret) {
     index = SOMEIP_CONFIG->TxEvent2PerServiceMap[TxEventId];
-    event = &config->events[index];
-    ret = Sd_GetSubscribers(event->sdHandleID, &list);
+    event = &config->Events[index];
+    ret = Sd_GetSubscribers(event->SdHandleID, &list);
   }
 
   if (E_OK == ret) {
-    msg.data = data;
-    msg.length = length;
+    msg.Data = data;
+    msg.Length = length;
   }
 
   if (E_OK == ret) {
@@ -1731,10 +1731,10 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   if (E_OK == ret) {
     if (0 == sessionId) {
       EnterCritical();
-      sessionId = config->context->sessionId;
-      config->context->sessionId++;
-      if (0 == config->context->sessionId) {
-        config->context->sessionId = 1u;
+      sessionId = config->Context->SessionId;
+      config->Context->SessionId++;
+      if (0 == config->Context->SessionId) {
+        config->Context->SessionId = 1u;
       }
       ExitCritical();
     }
@@ -1744,7 +1744,7 @@ Std_ReturnType SomeIp_Notification(uint32_t requestId, uint8_t *data, uint32_t l
   return ret;
 }
 
-Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubscriberType *sub) {
+Std_ReturnType SomeIp_ResolveSubscriber(uint16_t serviceId, Sd_EventHandlerSubscriberType *sub) {
   Std_ReturnType ret = E_NOT_OK;
   Std_ReturnType ret2;
   const SomeIp_ServerServiceType *service = NULL;
@@ -1753,18 +1753,18 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
   uint16_t i;
   int result;
 
-  if (ServiceId < SOMEIP_CONFIG->numOfService) {
-    if (TRUE == SOMEIP_CONFIG->services[ServiceId].isServer) {
-      service = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[ServiceId].service;
-      if (TRUE == service->context->online) {
-        if (TCPIP_IPPROTO_UDP == service->protocol) {
-          connection = &service->connections[0];
+  if (serviceId < SOMEIP_CONFIG->NumOfService) {
+    if (TRUE == SOMEIP_CONFIG->Services[serviceId].IsServer) {
+      service = (const SomeIp_ServerServiceType *)SOMEIP_CONFIG->Services[serviceId].Service;
+      if (TRUE == service->Context->Online) {
+        if (TCPIP_IPPROTO_UDP == service->Protocol) {
+          connection = &service->Connections[0];
           sub->TxPduId = connection->TxPduId;
           ret = E_OK;
         } else {
-          for (i = 0u; i < service->numOfConnections; i++) {
-            connection = &service->connections[i];
-            if (TRUE == connection->context->online) {
+          for (i = 0u; i < service->NumOfConnections; i++) {
+            connection = &service->Connections[i];
+            if (TRUE == connection->Context->Online) {
               ret2 = SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
               if (E_OK == ret2) {
                 result = memcmp(&sub->RemoteAddr, &RemoteAddr, sizeof(RemoteAddr));
@@ -1778,7 +1778,7 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
           }
         }
       } else {
-        ASLOG(SOMEIPE, ("service[%d] not online\n", ServiceId));
+        ASLOG(SOMEIPE, ("service[%d] not online\n", serviceId));
       }
     }
   }
@@ -1786,10 +1786,10 @@ Std_ReturnType SomeIp_ResolveSubscriber(uint16_t ServiceId, Sd_EventHandlerSubsc
   return ret;
 }
 
-void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr) {
+void SomeIp_Init(const SomeIp_ConfigType *configPtr) {
   uint16_t i;
-  if (NULL != ConfigPtr) {
-    someIpConfigPtr = ConfigPtr;
+  if (NULL != configPtr) {
+    someIpConfigPtr = configPtr;
   } else {
     someIpConfigPtr = &SomeIp_Config;
   }
@@ -1798,11 +1798,11 @@ void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr) {
   SQP_INIT(RxTpMsg);
   SQP_INIT(TxTpEvtMsg);
   SQP_INIT(WaitResMsg);
-  for (i = 0u; i < SOMEIP_CONFIG->numOfService; i++) {
-    if (TRUE == SOMEIP_CONFIG->services[i].isServer) {
-      SomeIp_InitServer((const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[i].service);
+  for (i = 0u; i < SOMEIP_CONFIG->NumOfService; i++) {
+    if (TRUE == SOMEIP_CONFIG->Services[i].IsServer) {
+      SomeIp_InitServer((const SomeIp_ServerServiceType *)SOMEIP_CONFIG->Services[i].Service);
     } else {
-      SomeIp_InitClient((const SomeIp_ClientServiceType *)SOMEIP_CONFIG->services[i].service);
+      SomeIp_InitClient((const SomeIp_ClientServiceType *)SOMEIP_CONFIG->Services[i].Service);
     }
   }
 }
@@ -1810,11 +1810,11 @@ void SomeIp_Init(const SomeIp_ConfigType *ConfigPtr) {
 void SomeIp_MainFunction(void) {
   uint16_t i;
   boolean bLinkedUp = TcpIp_IsLinkedUp();
-  for (i = 0u; (TRUE == bLinkedUp) && (i < SOMEIP_CONFIG->numOfService); i++) {
-    if (TRUE == SOMEIP_CONFIG->services[i].isServer) {
-      SomeIp_MainServer((const SomeIp_ServerServiceType *)SOMEIP_CONFIG->services[i].service);
+  for (i = 0u; (TRUE == bLinkedUp) && (i < SOMEIP_CONFIG->NumOfService); i++) {
+    if (TRUE == SOMEIP_CONFIG->Services[i].IsServer) {
+      SomeIp_MainServer((const SomeIp_ServerServiceType *)SOMEIP_CONFIG->Services[i].Service);
     } else {
-      SomeIp_MainClient((const SomeIp_ClientServiceType *)SOMEIP_CONFIG->services[i].service);
+      SomeIp_MainClient((const SomeIp_ClientServiceType *)SOMEIP_CONFIG->Services[i].Service);
     }
   }
 }
@@ -1825,16 +1825,16 @@ Std_ReturnType SomeIp_ConnectionTakeControl(uint16_t serviceId, uint16_t conId) 
   const SomeIp_ServerConnectionType *connection;
   SomeIp_ServerConnectionContextType *context;
 
-  if (serviceId < SOMEIP_CONFIG->numOfService) {
-    if (TRUE == SOMEIP_CONFIG->services[serviceId].isServer) {
-      config = SOMEIP_CONFIG->services[serviceId].service;
-      if (conId < config->numOfConnections) {
-        connection = &config->connections[conId];
-        context = connection->context;
+  if (serviceId < SOMEIP_CONFIG->NumOfService) {
+    if (TRUE == SOMEIP_CONFIG->Services[serviceId].IsServer) {
+      config = SOMEIP_CONFIG->Services[serviceId].Service;
+      if (conId < config->NumOfConnections) {
+        connection = &config->Connections[conId];
+        context = connection->Context;
         ret = SoAd_TakeControl(connection->SoConId);
         if (E_OK == ret) {
           ret = SoAd_SetTimeout(connection->SoConId, 10u);
-          context->takenControled = TRUE;
+          context->TakenControled = TRUE;
         }
       }
     }
@@ -1853,79 +1853,79 @@ Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId,
   TcpIp_SockAddrType RemoteAddr;
   SomeIp_MsgType msg;
 
-  if (serviceId < SOMEIP_CONFIG->numOfService) {
-    if (TRUE == SOMEIP_CONFIG->services[serviceId].isServer) {
-      config = SOMEIP_CONFIG->services[serviceId].service;
-      if (conId < config->numOfConnections) {
-        connection = &config->connections[conId];
-        context = connection->context;
-        if (TRUE == context->takenControled) {
+  if (serviceId < SOMEIP_CONFIG->NumOfService) {
+    if (TRUE == SOMEIP_CONFIG->Services[serviceId].IsServer) {
+      config = SOMEIP_CONFIG->Services[serviceId].Service;
+      if (conId < config->NumOfConnections) {
+        connection = &config->Connections[conId];
+        context = connection->Context;
+        if (TRUE == context->TakenControled) {
           ret = E_OK;
         }
       }
     }
   }
   if (E_OK == ret) {
-    if (TCPIP_IPPROTO_UDP == config->protocol) {
-      buffer->length = buffer->size;
-      ret = SoAd_ControlRecv(connection->SoConId, buffer->data, &buffer->length);
-      if ((E_OK == ret) && (buffer->length > 0u)) {
-        buffer->offset = buffer->length;
+    if (TCPIP_IPPROTO_UDP == config->Protocol) {
+      buffer->Length = buffer->Size;
+      ret = SoAd_ControlRecv(connection->SoConId, buffer->Data, &buffer->Length);
+      if ((E_OK == ret) && (buffer->Length > 0u)) {
+        buffer->Offset = buffer->Length;
       }
     } else {
-      if (buffer->offset < 16) {
-        buffer->length = 16 - buffer->offset;
-        ret = SoAd_ControlRecv(connection->SoConId, &buffer->data[buffer->offset], &buffer->length);
-        if ((E_OK == ret) && (buffer->length > 0u)) {
-          buffer->offset += buffer->length;
-          if (buffer->offset >= 16) {
+      if (buffer->Offset < 16) {
+        buffer->Length = 16 - buffer->Offset;
+        ret = SoAd_ControlRecv(connection->SoConId, &buffer->Data[buffer->Offset], &buffer->Length);
+        if ((E_OK == ret) && (buffer->Length > 0u)) {
+          buffer->Offset += buffer->Length;
+          if (buffer->Offset >= 16) {
             (void)SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
-            PduInfo.SduDataPtr = buffer->data;
-            PduInfo.SduLength = buffer->offset;
+            PduInfo.SduDataPtr = buffer->Data;
+            PduInfo.SduLength = buffer->Offset;
             PduInfo.MetaDataPtr = (uint8_t *)&RemoteAddr;
-            ret = SomeIp_HeaderIndication(connection->RxPduId, &PduInfo, &buffer->length);
+            ret = SomeIp_HeaderIndication(connection->RxPduId, &PduInfo, &buffer->Length);
             if (E_OK == ret) {
-              if (buffer->length > buffer->size) {
+              if (buffer->Length > buffer->Size) {
                 ASLOG(SOMEIPE, ("SOMEIP message payload length %d exceeds buffer size %d\n",
-                                buffer->length, buffer->size));
-                while (buffer->offset < buffer->length) {
-                  PduInfo.SduLength = buffer->length - buffer->offset;
-                  if (PduInfo.SduLength > buffer->size) {
-                    PduInfo.SduLength = buffer->size;
+                                buffer->Length, buffer->Size));
+                while (buffer->Offset < buffer->Length) {
+                  PduInfo.SduLength = buffer->Length - buffer->Offset;
+                  if (PduInfo.SduLength > buffer->Size) {
+                    PduInfo.SduLength = buffer->Size;
                     /* drop the rest */
-                    (void)SoAd_ControlRecv(connection->SoConId, buffer->data, &PduInfo.SduLength);
-                    buffer->offset += PduInfo.SduLength;
+                    (void)SoAd_ControlRecv(connection->SoConId, buffer->Data, &PduInfo.SduLength);
+                    buffer->Offset += PduInfo.SduLength;
                   }
                 }
-                buffer->offset = 0u;
+                buffer->Offset = 0u;
                 ret = E_NOT_OK;
               }
             } else {
-              buffer->offset = 0u;
+              buffer->Offset = 0u;
             }
           }
         }
       }
-      if ((buffer->offset >= 16) && (buffer->offset < buffer->length)) {
-        PduInfo.SduLength = buffer->length - buffer->offset;
+      if ((buffer->Offset >= 16) && (buffer->Offset < buffer->Length)) {
+        PduInfo.SduLength = buffer->Length - buffer->Offset;
         ret =
-          SoAd_ControlRecv(connection->SoConId, &buffer->data[buffer->offset], &PduInfo.SduLength);
+          SoAd_ControlRecv(connection->SoConId, &buffer->Data[buffer->Offset], &PduInfo.SduLength);
         if ((E_OK == ret) && (PduInfo.SduLength > 0u)) {
-          buffer->offset += PduInfo.SduLength;
+          buffer->Offset += PduInfo.SduLength;
         }
       } else {
-        ASLOG(SOMEIPE, ("SOMEIP message offset %u exceeds payload size %u\n", buffer->offset,
-                        buffer->length));
-        buffer->offset = 0u;
+        ASLOG(SOMEIPE, ("SOMEIP message offset %u exceeds payload size %u\n", buffer->Offset,
+                        buffer->Length));
+        buffer->Offset = 0u;
       }
     }
   }
 
   if (E_OK == ret) {
-    if ((buffer->offset >= buffer->length) && (buffer->offset >= 16)) {
+    if ((buffer->Offset >= buffer->Length) && (buffer->Offset >= 16)) {
       (void)SoAd_GetRemoteAddr(connection->SoConId, &RemoteAddr);
-      PduInfo.SduDataPtr = buffer->data;
-      PduInfo.SduLength = buffer->offset;
+      PduInfo.SduDataPtr = buffer->Data;
+      PduInfo.SduLength = buffer->Offset;
       PduInfo.MetaDataPtr = (uint8_t *)&RemoteAddr;
       ret = SomeIp_DecodeMsg(&PduInfo, &msg);
       if (E_OK == ret) {
@@ -1933,7 +1933,7 @@ Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId,
       } else {
         ASLOG(SOMEIPE, ("IF message malformed\n"));
       }
-      buffer->offset = 0u;
+      buffer->Offset = 0u;
     } else {
       ret = SOMEIP_E_PENDING;
     }
@@ -1941,11 +1941,11 @@ Std_ReturnType SomeIp_ConnectionRxControl(uint16_t serviceId, uint16_t conId,
   return ret;
 }
 
-Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+Std_ReturnType SomeIp_HeaderIndication(PduIdType rxPduId, const PduInfoType *info,
                                        uint32_t *payloadLength) {
   Std_ReturnType ret = E_OK;
   uint8_t *data = info->SduDataPtr;
-  (void)RxPduId;
+  (void)rxPduId;
 
   if (info->SduLength < 8u) {
     ASLOG(SOMEIPE, ("malformed SOMEIP message\n"));
@@ -1963,9 +1963,9 @@ Std_ReturnType SomeIp_HeaderIndication(PduIdType RxPduId, const PduInfoType *inf
 void SomeIp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x01, SOMEIP_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_SOMEIPTP;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_SOMEIPTP;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

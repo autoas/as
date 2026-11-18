@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef _SHELL_H
-#define _SHELL_H
+#ifndef SHELL_H
+#define SHELL_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdio.h>
 #include <string.h>
@@ -36,14 +36,14 @@ extern "C" {
 typedef int (*Sh_CmdFuncType)(int argc, const char *argv[]);
 
 typedef struct {
-  const char *cmdName;
-  const char *cmdDesc;
-  Sh_CmdFuncType cmdFunc;
+  const char *CmdName;
+  const char *CmdDesc;
+  Sh_CmdFuncType CmdFunc;
 } Shell_CmdType;
 
 typedef struct {
-  const Shell_CmdType *const *cmds;
-  uint32_t numOfCmds;
+  const Shell_CmdType *const *Cmds;
+  uint32_t NumOfCmds;
 } Shell_ConfigType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -58,4 +58,4 @@ void Shell_MainFunction(void);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _SHELL_H */
+#endif /* SHELL_H */

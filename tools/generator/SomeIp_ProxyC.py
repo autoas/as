@@ -7,7 +7,7 @@ __all__ = ["Gen_SomeIpProxyC"]
 
 def Gen_SomeIpProxyC(cfg, service, dir, source):
     allStructs = GetStructs(cfg)
-    service_name = service["name"]
+    service_name = service["Name"]
     source["%sProxyC" % (service_name)] = ["%s/%sProxy.c" % (dir, service_name)]
     
     # Create Jinja2 environment
@@ -37,9 +37,10 @@ def Gen_SomeIpProxyC(cfg, service, dir, source):
     import datetime
     context = {
         "cfg": cfg,
-        "service": service,
+        "Service": service,
         "service_name": service_name,
         "allStructs": allStructs,
+        "hasE2E": ServiceUsesE2E(service),
         "now": datetime.datetime.now()
     }
     

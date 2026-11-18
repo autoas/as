@@ -53,7 +53,7 @@ static void _eep_stop(void) {
   if (NULL != lEep) {
     lStoped = TRUE;
     lJobType = EEP_AC_JOB_NONE;
-    lSem.post();
+    lSem.Post();
     if (lThread.joinable()) {
       lThread.join();
     }
@@ -66,7 +66,7 @@ static void _eep_engine(void *arg) {
   uint8_t u8V;
   boolean conditionOk;
   while (FALSE == lStoped) {
-    lSem.wait();
+    lSem.Wait();
     std::lock_guard<std::mutex> lck(lMutex);
     switch (lJobType) {
     case EEP_AC_JOB_ERASE:
@@ -144,7 +144,7 @@ Std_ReturnType Eep_AcErase(Eep_AddressType address, Eep_LengthType length) {
       lLength = length;
       lJobType = EEP_AC_JOB_ERASE;
       lJobStatus = EEP_AC_JOB_ONGOING;
-      lSem.post();
+      lSem.Post();
       r = E_EEP_PENDING;
       break;
     case EEP_AC_JOB_ERASE:
@@ -177,7 +177,7 @@ Std_ReturnType Eep_AcWrite(Eep_AddressType address, const uint8_t *data, Eep_Len
       lLength = length;
       lJobType = EEP_AC_JOB_WRITE;
       lJobStatus = EEP_AC_JOB_ONGOING;
-      lSem.post();
+      lSem.Post();
       r = E_EEP_PENDING;
       break;
     case EEP_AC_JOB_WRITE:

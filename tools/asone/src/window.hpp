@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef __WINDOW_HPP__
-#define __WINDOW_HPP__
+#ifndef WINDOW_HPP
+#define WINDOW_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QMainWindow>
 #include <QAction>
@@ -26,10 +26,10 @@ public:
   ~Action();
 
 signals:
-  void action(std::string);
+  void ActionRequested(std::string);
 
 public slots:
-  void onAction(void);
+  void OnTriggered(void);
 
 private:
   std::string m_Name;
@@ -42,22 +42,22 @@ public:
   ~Window();
 
 public slots:
-  void onAction(std::string name);
+  void OnAction(std::string name);
 
 private:
-  void creGui(void);
-  void creMenu(void);
-  void loadUIs(void);
+  void CreateGui(void);
+  void CreateMenu(void);
+  void LoadUis(void);
 
 private:
   QMenu *m_MenuApp;
   QTabWidget *m_Tab;
   struct UIInfo {
-    std::string rpath;
-    std::string name;
-    CreateUIFncType createUIFnc;
-    GetNameFncType getNameFnc;
-    void *dll;
+    std::string Rpath;
+    std::string Name;
+    CreateUIFncType CreateUiFnc;
+    GetNameFncType GetNameFnc;
+    void *Dll;
   };
   UIInfo m_UIs[MAX_UI];
   size_t m_UINum = 0;
@@ -66,4 +66,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __WINDOW_HPP__ */
+#endif /* WINDOW_HPP */

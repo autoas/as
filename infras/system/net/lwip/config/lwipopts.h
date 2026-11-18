@@ -42,6 +42,13 @@
  * Include user defined options first. Anything not defined in these files
  * will be set to standard values. Override anything you dont like!
  */
+#include <limits.h>
+/* lwip/arch.h defines ssize_t itself as int unless SSIZE_MAX is known.
+ * The C library ssize_t is long on 64-bit targets, so provide the limit
+ * to let lwip use the C library type instead of a conflicting one. */
+#ifndef SSIZE_MAX
+#define SSIZE_MAX LONG_MAX
+#endif
 #include "lwipcfg.h"
 #include "lwip/debug.h"
 /*

@@ -60,7 +60,7 @@ comments: true
 
 - **物理**请求拥有唯一的 DoIP TA（一个 ECU）和唯一的 CAN 请求 ID。
 - **功能**请求使用一个 DoIP 组 TA（如 `0xE001`）并扇出到多条总线。判定特征： **同一个 DoIP TA 在多行中对应不同的目标总线/CAN ID**。上表中 TA `0xE001` 对应两行（PT_CANFD、CL1_CAN），CAN ID 分别为 `0x7E0`（CAN FD）与 `0x7DF`（经典 CAN）， 表示功能寻址在不同总线上的扇出。
-- 本示例统一使用 11 位标准（CAN STD）ID：CAN FD 与经典 CAN 均采用 11 位 ID，二者仅 通过 `LL_DL`（64 与 8）区分；例如 ECU_A 请求 `0x731` / 响应 `0x732`， ECU_B 请求 `0x741` / 响应 `0x742`，功能 ID `0x7DF` / `0x7E0`。
+- 本示例统一使用 11 位标准（CAN STD）ID：CAN FD 与经典 CAN 均采用 11 位 ID，二者仅 通过 `LinkLayerDataLength`（64 与 8）区分；例如 ECU_A 请求 `0x731` / 响应 `0x732`， ECU_B 请求 `0x741` / 响应 `0x742`，功能 ID `0x7DF` / `0x7E0`。
 
 第二段通常列出远程/OTA 诊断仪，使用不同的 SA（如 `0x0F00`）及其各自的功能组 （例如高压组与低压组路由到不同的总线子集）。每个诊断仪 SA 在 DoIP 配置中对应一个 诊断仪/例程（tester/routine）对。
 
@@ -80,41 +80,46 @@ comments: true
 
 | 文件 | 内容 |
 | --- | --- |
-| [`Network.json`](../../app/app/config/DoIPGW/Network.json) | DoIP 模块：发现地址、`max_connections`、目标（物理 + 功能组）、例程、诊断仪 |
-| [`PduR.json`](../../app/app/config/DoIPGW/PduR.json) | PduR 网关路由：每个节点的 `_RX`/`_TX`，功能目标带 `destinations` 扇出与 `DestBuffer` |
-| [`CanTp.json`](../../app/app/config/DoIPGW/CanTp.json) | 每个节点一个 CanTp 通道，CAN FD 的 `LL_DL` 为 64，经典 CAN 为 8 |
+| [`Network.json`](../../app/app/config/DoIPGW/Network.json) | DoIP 模块：发现地址、`MaxConnections`、目标（物理 + 功能组）、例程、诊断仪 |
+| [`PduR.json`](../../app/app/config/DoIPGW/PduR.json) | PduR 网关路由：每个节点的 `_RX`/`_TX`，功能目标带 `Destinations` 扇出与 `DestBuffer` |
+| [`CanTp.json`](../../app/app/config/DoIPGW/CanTp.json) | 每个节点一个 CanTp 通道，CAN FD 的 `LinkLayerDataLength` 为 64，经典 CAN 为 8 |
 | [`CanIf.json`](../../app/app/config/DoIPGW/CanIf.json) | 总线报文 ID：TX PDU = 请求 ID，RX PDU = 响应 ID，全部 11 位标准 ID |
 | [`Mempool.json`](../../app/app/config/DoIPGW/Mempool.json) | SoAd/DoIP 使用的内存池 |
 
 ### 3.1 CanIf 与 CanTp 的 PDU 方向说明
 
-本项目的 DoIP-CAN 网关配置中，PduR 路由路径按命名约定区分方向：`_RX` 表示“从诊断仪到 ECU”（请求路径），`_TX` 表示“从 ECU 到诊断仪”（响应路径）。CanTp 的配置需与 PduR 的 PDU ID 保持一致。
+这是 DoIP-CAN 网关配置中最容易混淆的地方，因为这里同时存在**两套视角相反的 `_RX`/`_TX` 命名约定**：
 
-以生成的配置为例（参见 `tools/generator/CanTp.py`、`app/app/config/DoIPGW/GEN/CanTp_Cfg.c`、`GEN/PduR_Cfg.h`）：
+* **PduR 路由名**以诊断仪视角命名：`<node>_RX` 表示从 DoIP 进入网关的请求路径，`<node>_TX` 表示从网关发回诊断仪的响应路径。
+* **CanTp JSON 的 `RxPduId` / `TxPduId`**以总线视角命名：`TxPduId` = 为 CanTp 提供总线发送数据（请求）的 PduR 路径，`RxPduId` = CanTp 把从总线收到的数据向上递交给 PduR（响应）的路径。
 
-- 对于通道 `PT_CANFD_E001`，CanTp 配置中 `PduR_RxPduId = PDUR_PT_CANFD_E001_TX`，`PduR_TxPduId = PDUR_PT_CANFD_E001_RX`。
-- PduR 路由路径：请求路径为 `PT_CANFD_E001_RX`（DoIP → CanTp），响应路径为 `PT_CANFD_E001_TX`（CanTp → DoIP）。
-- 同时，CanTp 发送到 CAN 总线时使用 `CANIF_PT_CANFD_E001_TX`（对应 CanIf 的网关 TX 帧），从 CAN 总线接收的响应由对应的 CanIf RX 帧传递给 CanTp。
+因此通道 JSON 看起来是"交叉"的（见 [CanTp.json](../../app/app/config/DoIPGW/CanTp.json)）：
 
-在 `CanTp.json` 中：
 ```json
-{ "name": "PT_CANFD_E001", "RxPduId": "PT_CANFD_E001_TX", "TxPduId": "PT_CANFD_E001_RX", "LL_DL": 64 }
+{ "Name": "PT_CANFD_004A", "RxPduId": "PT_CANFD_004A_TX", "TxPduId": "PT_CANFD_004A_RX", "LinkLayerDataLength": 64 }
 ```
 
-生成器的映射规则（`tools/generator/CanTp.py`）为：
-- `CanIfTxPduId = CANIF_<name>_TX`
-- `PduR_RxPduId = PDUR_<RxPduId>`（来自 JSON 的 `RxPduId`）
-- `PduR_TxPduId = PDUR_<TxPduId>`（来自 JSON 的 `TxPduId`）
+生成器（[CanTp.py](../../tools/generator/CanTp.py)）把它映射到生成的 `CanTp_Cfg.c`：
 
-因此，JSON 中的 `RxPduId` 并非“CanTp 从 CanIf 接收”的总线 RX 名称，而是用来推导 CanTp 与 PduR 交互所用的 PDU ID 名称。对于功能组通道（如 `PT_CANFD_E001`、`CL1_E001`），虽然响应路径（`*_RX`）实际不会被使用，但仍保留 `TxPduId` 以保持所有通道配置结构一致。
+| 生成字段 | 取值 | 运行时含义（已在 `CanTp.c` 中核实） |
+| --- | --- | --- |
+| `CanIfTxPduId` | `CANIF_<name>_TX` | CanTp 发到总线上的 CAN 帧（请求、流控帧） |
+| `PduR_TxPduId` | `PDUR_<TxPduId>` = `PDUR_PT_CANFD_004A_RX` | CanTp 从 PduR 拉取请求载荷（`PduR_CanTpCopyTxData`）——即 DoIP→CanTp 请求路由 |
+| `PduR_RxPduId` | `PDUR_<RxPduId>` = `PDUR_PT_CANFD_004A_TX` | CanTp 把收到的响应上递给 PduR（`PduR_CanTpStartOfReception/CopyRxData/RxIndication`）——即 CanTp→DoIP 响应路由 |
+
+对应地，[PduR.json](../../app/app/config/DoIPGW/PduR.json) 中有 `{ "Name": "PT_CANFD_004A_RX", "From": "DoIP", "To": "CanTp" }`（请求）与 `{ "Name": "PT_CANFD_004A_TX", "From": "CanTp", "To": "DoIP" }`（响应）两条路由；DoIP→CanTp 路由的 `Dest`（`PT_CANFD_004A_RX`）恰好落在 CanTp 的 `PduR_TxPduId` 上，即 `CanTpTransmit` 拉取数据的位置。
+
+CanIf 补齐最后一环：网关在 CAN 请求 ID（`CANIF_<node>_TX`，如 `0x731`）上发送请求，在 CAN 响应 ID（`CANIF_<node>_RX`，如 `0x732`）上接收响应，二者都在 [CanIf.json](../../app/app/config/DoIPGW/CanIf.json) 中定义为 11 位标准 ID。
+
+功能组通道采用相同结构；响应侧 PDU 因功能请求抑制正响应而不会被使用，但仍保留 `TxPduId` 以保持所有通道配置结构一致。
 
 ### 3.2 配置要点
 
-- **物理目标**：一个 DoIP TA 映射到一个 CanTp 通道。**功能目标**：一个 DoIP TA 带 `nodes` 数组（DoIP 接收一次请求，由 PduR 复制到每个节点）。DoIP 响应匹配使用节点自身的 `doipTxPduId`，避免响应混淆。
-- **功能扇出**：功能目标的请求路由带 `destinations`，同一缓冲请求被转发到各 CanTp 通道。
-- **目的缓冲必需**：TP 网关**必须**配置目的缓冲（`DestBuffer` + `buffers` 条目）。否则 `PduR_GwStartOfReception` 拒绝报文，DoIP 返回 NACK `0x08`（`DOIP_E_DIAG_TP_ERROR`）。按最大预期 UDS 报文大小配置（如烧写用 4096）。
+- **物理目标**：一个 DoIP TA 映射到一个 CanTp 通道。**功能目标**：一个 DoIP TA 带 `Nodes` 数组（DoIP 接收一次请求，由 PduR 复制到每个节点）。DoIP 响应匹配使用节点自身的 `doipTxPduId`，避免响应混淆。
+- **功能扇出**：功能目标的请求路由带 `Destinations`，同一缓冲请求被转发到各 CanTp 通道。
+- **目的缓冲必需**：TP 网关**必须**配置目的缓冲（`DestBuffer` + `Buffers` 条目）。否则 `PduR_GwStartOfReception` 拒绝报文，DoIP 返回 NACK `0x08`（`DOIP_E_DIAG_TP_ERROR`）。按最大预期 UDS 报文大小配置（如烧写用 4096）。
 - **ID 格式**：全部 11 位标准 ID，原样书写，不使用扩展帧标志。
-- **主机模拟**：所有虚拟节点共享 `simulator_v2` 总线，通过 CAN ID 过滤区分；`networks` 对物理控制器的划分仅在真实硬件上有意义。
+- **主机模拟**：所有虚拟节点共享 `simulator_v2` 总线，通过 CAN ID 过滤区分；`Networks` 对物理控制器的划分仅在真实硬件上有意义。
 
 ## 4. 运行时路由行为
 
@@ -171,18 +176,38 @@ graph TB
 - **功能请求**（`0xE001`）被复制到每个节点；通常置位正响应抑制位（如 `0x28 0x83 0x03`、`0x10 0x83`、`0x3E 0x80`），没有边缘节点应答，从而避免多个 ECU 共享同一功能 ID 时发生响应冲突。
 - DoIP 诊断 ACK（`0x8002`）先于 UDS 响应；按 ISO 13400 它可以回显请求的前几个 字节 —— 该回显不是 UDS 响应。
 
+物理请求（ECU_A，TA `0x004A`）的完整往返：
+
+```mermaid
+sequenceDiagram
+    participant T as 诊断仪（SA 0x0E80）
+    participant G as DoIPGW 网关
+    participant P as PduR（网关缓冲）
+    participant C as CanTp（PT_CANFD_004A）
+    participant E as ECU_A
+    T->>G: TCP 0x8001 诊断报文（TA 0x004A，UDS 10 01）
+    G-->>T: TCP 0x8002 肯定 ACK
+    G->>P: DoIP 路由 PT_CANFD_004A_RX
+    P->>C: CanTpTransmit（经 PDUR_..._RX 拉取）
+    C->>E: CAN 0x731 SF 02 10 01（FD，LinkLayerDataLength 64）
+    E-->>C: CAN 0x732 SF 06 50 01 00 32 01 F4
+    C->>P: PduR_CanTpRxIndication（PDUR_..._TX）
+    P->>G: DoIP_TpTransmit（节点 004A 的 doipTxPduId）
+    G-->>T: TCP 0x8001 诊断报文（SA 0x004A，UDS 50 01 ...）
+```
+
 ## 5. 模拟边缘 CAN TP 节点
 
-[`dummy_ecu.py`](../../app/app/config/DoIPGW/dummy_ecu.py) 基于主机模拟器绑定 `one.AsPy.isotp`，每个 ECU 一个独立进程（无需线程），由命令行参数 `--rxid`/`--txid`/`--ll-dl` 指定。id 方向以 ECU 视角定义：
+[`dummy_ecu.py`](../../app/app/config/DoIPGW/dummy_ecu.py) 基于主机模拟器绑定 `one.AsPy.isotp`，每个 ECU 一个独立进程（无需线程），由命令行参数 `--RxId`/`--TxId`/`--LinkLayerDataLength` 指定。id 方向以 ECU 视角定义：
 
-- `rxid` = 发往该 ECU 的请求 CAN id（= 网关 CanIf 的 **TX** id）；
-- `txid` = 该 ECU 发回响应的 CAN id（= 网关 CanIf 的 **RX** id）。
+- `RxId` = 发往该 ECU 的请求 CAN id（= 网关 CanIf 的 **TX** id）；
+- `TxId` = 该 ECU 发回响应的 CAN id（= 网关 CanIf 的 **RX** id）。
 
 假响应器对每个请求回正响应（`SID | 0x40`）并回显其余字节；对 `0x10`（会话控制）附加 P2/P2* 定时字节 `00 32 01 F4`（P2=50ms、P2*=5s）。功能寻址节点（`0x7E0`/`0x7DF`）不模拟：功能请求置位正响应抑制位，无需应答。
 
 ### 5.1 节点与 CAN id 对照表
 
-| 节点 | 总线 | 请求 id（网关 TX PDU） | 响应 id（网关 RX PDU） | `LL_DL` |
+| 节点 | 总线 | 请求 id（网关 TX PDU） | 响应 id（网关 RX PDU） | `LinkLayerDataLength` |
 | --- | --- | --- | --- | --- |
 | ECU_A | PT_CANFD | `0x731` `PT_CANFD_004A_TX` | `0x732` `PT_CANFD_004A_RX` | 64 |
 | ECU_B | BD_CANFD | `0x741` `BD_CANFD_0053_TX` | `0x742` `BD_CANFD_0053_RX` | 64 |
@@ -218,9 +243,9 @@ build\nt\GCC\DoIPGW\DoIPGW.exe
 build\nt\GCC\one\CanDump.exe -d simulator_v2 -p 0
 
 # Shell 3：三个边缘 ECU
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x731 --txid 0x732 --ll-dl 64 --name ECU_A
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x741 --txid 0x742 --ll-dl 64 --name ECU_B
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x757 --txid 0x75F --ll-dl 8  --name ECU_C
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x731 --TxId 0x732 --LinkLayerDataLength 64 --Name ECU_A
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x741 --TxId 0x742 --LinkLayerDataLength 64 --Name ECU_B
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x757 --TxId 0x75F --LinkLayerDataLength 8  --Name ECU_C
 ```
 
 **步骤 3 — 发送请求并观察 `CanDump` 输出：**

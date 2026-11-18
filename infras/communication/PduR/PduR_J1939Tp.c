@@ -29,9 +29,9 @@ void PduR_J1939TpTxConfirmation(PduIdType id, Std_ReturnType result) {
 }
 
 BufReq_ReturnType PduR_J1939TpStartOfReception(PduIdType id, const PduInfoType *info,
-                                               PduLengthType TpSduLength,
+                                               PduLengthType tpSduLength,
                                                PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id, info, TpSduLength, bufferSizePtr);
+  return PduR_StartOfReception(id, info, tpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_J1939TpCopyRxData(PduIdType id, const PduInfoType *info,
@@ -39,6 +39,6 @@ BufReq_ReturnType PduR_J1939TpCopyRxData(PduIdType id, const PduInfoType *info,
   return PduR_CopyRxData(id, info, bufferSizePtr);
 }
 
-Std_ReturnType PduR_J1939TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
-  return PduR_TpTransmit(TxPduId, PduInfoPtr);
+Std_ReturnType PduR_J1939TpTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
+  return PduR_TpTransmit(txPduId, pduInfoPtr);
 }

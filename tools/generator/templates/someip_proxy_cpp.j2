@@ -27,8 +27,8 @@ namespace {{ service_name }} {
 class {{ service_name }}Manager {
 public:
   {{ service_name }}Manager() {
-{% for eg in service.get('event-groups', []) %}
-    m_eventGroupInfoMap[SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }}] = {
+{% for eg in Service.get('EventGroups', []) %}
+    m_eventGroupInfoMap[SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['Name']) }}] = {
       0,
       SubscriptionState::kNotSubscribed,
     };
@@ -38,36 +38,36 @@ public:
   ~{{ service_name }}Manager() {
   }
 
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-  void Register(events::{{ event['name'] }} *h{{ event['name'] }}) {
+  void Register(events::{{ event['Name'] }} *h{{ event['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (nullptr == m_h{{ event['name'] }}) {
-      m_h{{ event['name'] }} = h{{ event['name'] }};
+    if (nullptr == m_h{{ event['Name'] }}) {
+      m_h{{ event['Name'] }} = h{{ event['Name'] }};
     } else {
-      throw std::runtime_error("{{ event['name'] }} already registerred");
+      throw std::runtime_error("{{ event['Name'] }} already registerred");
     }
   }
 
-  void UnRegister(events::{{ event['name'] }} *h{{ event['name'] }}) {
+  void UnRegister(events::{{ event['Name'] }} *h{{ event['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (h{{ event['name'] }} == m_h{{ event['name'] }}) {
-      m_h{{ event['name'] }} = nullptr;
+    if (h{{ event['Name'] }} == m_h{{ event['Name'] }}) {
+      m_h{{ event['Name'] }} = nullptr;
     } else {
-      throw std::runtime_error("incorrect {{ event['name'] }} when do unregister");
+      throw std::runtime_error("incorrect {{ event['Name'] }} when do unregister");
     }
   }
   
-  void On{{ event['name'] }}(const events::{{ event['name'] }}::SampleType &sample) {
-    if (nullptr != m_h{{ event['name'] }}) {
-      m_h{{ event['name'] }}->OnEvent(sample);
+  void On{{ event['Name'] }}(const events::{{ event['Name'] }}::SampleType &sample) {
+    if (nullptr != m_h{{ event['Name'] }}) {
+      m_h{{ event['Name'] }}->OnEvent(sample);
     }
   }
 
-  void On{{ event['name'] }}SubscribeAck(bool isSubscribe) {
-    if (nullptr != m_h{{ event['name'] }}) {
-      m_h{{ event['name'] }}->OnSubscribeAck(isSubscribe);
+  void On{{ event['Name'] }}SubscribeAck(bool isSubscribe) {
+    if (nullptr != m_h{{ event['Name'] }}) {
+      m_h{{ event['Name'] }}->OnSubscribeAck(isSubscribe);
     }
   }
 
@@ -75,106 +75,61 @@ public:
 {% endfor %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-  void Register(fields::{{ field['name'] }} *h{{ field['name'] }}) {
+{% for field in Service.get('Fields', []) %}
+  void Register(fields::{{ field['Name'] }} *h{{ field['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (nullptr == m_h{{ field['name'] }}) {
-      m_h{{ field['name'] }} = h{{ field['name'] }};
+    if (nullptr == m_h{{ field['Name'] }}) {
+      m_h{{ field['Name'] }} = h{{ field['Name'] }};
     } else {
-      throw std::runtime_error("{{ field['name'] }} already registerred");
+      throw std::runtime_error("{{ field['Name'] }} already registerred");
     }
   }
 
-  void UnRegister(fields::{{ field['name'] }} *h{{ field['name'] }}) {
+  void UnRegister(fields::{{ field['Name'] }} *h{{ field['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (h{{ field['name'] }} == m_h{{ field['name'] }}) {
-      m_h{{ field['name'] }} = nullptr;
+    if (h{{ field['Name'] }} == m_h{{ field['Name'] }}) {
+      m_h{{ field['Name'] }} = nullptr;
     } else {
-      throw std::runtime_error("incorrect {{ field['name'] }} when do unregister");
+      throw std::runtime_error("incorrect {{ field['Name'] }} when do unregister");
     }
   }
 
-{% if 'get' in field %}
-  Std_ReturnType OnGet{{ field['name'] }}Response(uint32_t requestId, SomeIp_MessageType* res) {
+{% if 'Get' in field %}
+  Std_ReturnType OnGet{{ field['Name'] }}Response(uint32_t requestId, SomeIp_MessageType* res) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnGetResponse(requestId, res);
-    } else {
-      ret = E_NOT_OK;
-    }
-    return ret;
-  }
-
-  Std_ReturnType OnGet{{ field['name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
-    Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnGetError(requestId, ercd);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnGetResponse(requestId, res);
     } else {
       ret = E_NOT_OK;
     }
     return ret;
   }
 
-{% if field.get('tp', False) %}
-  Std_ReturnType OnGet{{ field['name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  Std_ReturnType OnGet{{ field['Name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnGetTpCopyRxData(requestId, msg);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnGetError(requestId, ercd);
     } else {
       ret = E_NOT_OK;
     }
     return ret;
   }
 
-  Std_ReturnType OnGet{{ field['name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+{% if field.get('Tp', False) %}
+  Std_ReturnType OnGet{{ field['Name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnGetTpCopyTxData(requestId, msg);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnGetTpCopyRxData(requestId, msg);
     } else {
       ret = E_NOT_OK;
     }
     return ret;
   }
 
-{% endif %}
-{% endif %}
-
-{% if 'set' in field %}
-  Std_ReturnType OnSet{{ field['name'] }}Response(uint32_t requestId, SomeIp_MessageType* res) {
+  Std_ReturnType OnGet{{ field['Name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnSetResponse(requestId, res);
-    } else {
-      ret = E_NOT_OK;
-    }
-    return ret;
-  }
-
-  Std_ReturnType OnSet{{ field['name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
-    Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnSetError(requestId, ercd);
-    } else {
-      ret = E_NOT_OK;
-    }
-    return ret;
-  }
-
-{% if field.get('tp', False) %}
-  Std_ReturnType OnSet{{ field['name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-    Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnSetTpCopyRxData(requestId, msg);
-    } else {
-      ret = E_NOT_OK;
-    }
-    return ret;
-  }
-
-  Std_ReturnType OnSet{{ field['name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-    Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnSetTpCopyTxData(requestId, msg);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnGetTpCopyTxData(requestId, msg);
     } else {
       ret = E_NOT_OK;
     }
@@ -184,32 +139,77 @@ public:
 {% endif %}
 {% endif %}
 
-{% if 'event' in field %}
-  Std_ReturnType On{{ field['name'] }}Notification(uint32_t requestId, SomeIp_MessageType* evt) {
+{% if 'Set' in field %}
+  Std_ReturnType OnSet{{ field['Name'] }}Response(uint32_t requestId, SomeIp_MessageType* res) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      m_h{{ field['name'] }}->OnNotification(requestId, evt);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnSetResponse(requestId, res);
     } else {
       ret = E_NOT_OK;
     }
     return ret;
   }
 
-  Std_ReturnType On{{ field['name'] }}SubscribeAck(boolean isSubscribe) {
+  Std_ReturnType OnSet{{ field['Name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      m_h{{ field['name'] }}->OnSubscribeAck(isSubscribe);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnSetError(requestId, ercd);
     } else {
       ret = E_NOT_OK;
     }
     return ret;
   }
 
-{% if field.get('tp', False) %}
-  Std_ReturnType On{{ field['name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+{% if field.get('Tp', False) %}
+  Std_ReturnType OnSet{{ field['Name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
     Std_ReturnType ret = E_OK;
-    if (nullptr != m_h{{ field['name'] }}) {
-      ret = m_h{{ field['name'] }}->OnTpCopyRxData(requestId, msg);
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnSetTpCopyRxData(requestId, msg);
+    } else {
+      ret = E_NOT_OK;
+    }
+    return ret;
+  }
+
+  Std_ReturnType OnSet{{ field['Name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnSetTpCopyTxData(requestId, msg);
+    } else {
+      ret = E_NOT_OK;
+    }
+    return ret;
+  }
+
+{% endif %}
+{% endif %}
+
+{% if 'Event' in field %}
+  Std_ReturnType On{{ field['Name'] }}Notification(uint32_t requestId, SomeIp_MessageType* evt) {
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{{ field['Name'] }}) {
+      m_h{{ field['Name'] }}->OnNotification(requestId, evt);
+    } else {
+      ret = E_NOT_OK;
+    }
+    return ret;
+  }
+
+  Std_ReturnType On{{ field['Name'] }}SubscribeAck(boolean isSubscribe) {
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{{ field['Name'] }}) {
+      m_h{{ field['Name'] }}->OnSubscribeAck(isSubscribe);
+    } else {
+      ret = E_NOT_OK;
+    }
+    return ret;
+  }
+
+{% if field.get('Tp', False) %}
+  Std_ReturnType On{{ field['Name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+    Std_ReturnType ret = E_OK;
+    if (nullptr != m_h{{ field['Name'] }}) {
+      ret = m_h{{ field['Name'] }}->OnTpCopyRxData(requestId, msg);
     } else {
       ret = E_NOT_OK;
     }
@@ -221,31 +221,31 @@ public:
 
 {% endfor %}
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-  void Register(methods::{{ method['name'] }} *h{{ method['name'] }}) {
+  void Register(methods::{{ method['Name'] }} *h{{ method['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (nullptr == m_h{{ method['name'] }}) {
-      m_h{{ method['name'] }} = h{{ method['name'] }};
+    if (nullptr == m_h{{ method['Name'] }}) {
+      m_h{{ method['Name'] }} = h{{ method['Name'] }};
     } else {
-      throw std::runtime_error("{{ method['name'] }} already registerred");
+      throw std::runtime_error("{{ method['Name'] }} already registerred");
     }
   }
 
-  void UnRegister(methods::{{ method['name'] }} *h{{ method['name'] }}) {
+  void UnRegister(methods::{{ method['Name'] }} *h{{ method['Name'] }}) {
     std::lock_guard<std::mutex> lck(m_lock);
-    if (h{{ method['name'] }} == m_h{{ method['name'] }}) {
-      m_h{{ method['name'] }} = nullptr;
+    if (h{{ method['Name'] }} == m_h{{ method['Name'] }}) {
+      m_h{{ method['Name'] }} = nullptr;
     } else {
-      throw std::runtime_error("incorrect {{ method['name'] }} when do unregister");
+      throw std::runtime_error("incorrect {{ method['Name'] }} when do unregister");
     }
   }
 
-  Std_ReturnType On{{ method['name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
+  Std_ReturnType On{{ method['Name'] }}Error(uint32_t requestId, Std_ReturnType ercd) {
     Std_ReturnType ret = E_OK;
 
-    if (nullptr != m_h{{ method['name'] }}) {
-      m_h{{ method['name'] }}->OnError(requestId, ercd);
+    if (nullptr != m_h{{ method['Name'] }}) {
+      m_h{{ method['Name'] }}->OnError(requestId, ercd);
     } else {
       ret = E_NOT_OK;
     }
@@ -253,12 +253,12 @@ public:
     return ret;
   }
 
-{% if method.get('tp', False) %}
-Std_ReturnType On{{ method['name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg){
+{% if method.get('Tp', False) %}
+Std_ReturnType On{{ method['Name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg){
     Std_ReturnType ret = E_OK;
 
-    if (nullptr != m_h{{ method['name'] }}) {
-      m_h{{ method['name'] }}->OnTpCopyRxData(requestId, msg);
+    if (nullptr != m_h{{ method['Name'] }}) {
+      m_h{{ method['Name'] }}->OnTpCopyRxData(requestId, msg);
     } else {
       ret = E_NOT_OK;
     }
@@ -266,11 +266,11 @@ Std_ReturnType On{{ method['name'] }}TpCopyRxData(uint32_t requestId, SomeIp_TpM
     return ret;
   }
 
-Std_ReturnType On{{ method['name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg){
+Std_ReturnType On{{ method['Name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg){
   Std_ReturnType ret = E_OK;
 
-  if (nullptr != m_h{{ method['name'] }}) {
-    m_h{{ method['name'] }}->OnTpCopyTxData(requestId, msg);
+  if (nullptr != m_h{{ method['Name'] }}) {
+    m_h{{ method['Name'] }}->OnTpCopyTxData(requestId, msg);
   } else {
     ret = E_NOT_OK;
   }
@@ -279,11 +279,11 @@ Std_ReturnType On{{ method['name'] }}TpCopyTxData(uint32_t requestId, SomeIp_TpM
 }
 {% endif %}
 
-  Std_ReturnType On{{ method['name'] }}Response(uint32_t requestId, SomeIp_MessageType *res) {
+  Std_ReturnType On{{ method['Name'] }}Response(uint32_t requestId, SomeIp_MessageType *res) {
     Std_ReturnType ret = E_OK;
 
-    if (nullptr != m_h{{ method['name'] }}) {
-      m_h{{ method['name'] }}->OnResponse(requestId, res);
+    if (nullptr != m_h{{ method['Name'] }}) {
+      m_h{{ method['Name'] }}->OnResponse(requestId, res);
     } else {
       ret = E_NOT_OK;
     }
@@ -388,21 +388,21 @@ private:
   std::mutex m_lock;
   std::unordered_map<uint16_t, EventGroupInfo> m_eventGroupInfoMap;
 
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-  events::{{ event['name'] }} *m_h{{ event['name'] }} = nullptr;
+  events::{{ event['Name'] }} *m_h{{ event['Name'] }} = nullptr;
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-  fields::{{ field['name'] }} *m_h{{ field['name'] }} = nullptr;
+{% for field in Service.get('Fields', []) %}
+  fields::{{ field['Name'] }} *m_h{{ field['Name'] }} = nullptr;
 {% endfor %}
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-  methods::{{ method['name'] }} *m_h{{ method['name'] }} = nullptr;
+  methods::{{ method['Name'] }} *m_h{{ method['Name'] }} = nullptr;
 {% endif %}
 {% endfor %}
 
@@ -428,23 +428,23 @@ std::shared_ptr<{{ service_name }}Manager> {{ service_name }}Manager::GetInstanc
 }
 
 namespace events {
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
 
-{{ event['name'] }}::{{ event['name'] }}() {
+{{ event['Name'] }}::{{ event['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->Register(this);
 }
 
-{{ event['name'] }}::~{{ event['name'] }}() {
+{{ event['Name'] }}::~{{ event['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->UnRegister(this);
 }
 
-Result<void> {{ event['name'] }}::Subscribe(size_t maxSampleCount) {
+Result<void> {{ event['Name'] }}::Subscribe(size_t maxSampleCount) {
   Result<void> rslt(0);
   Std_ReturnType ret;
 
-  ret = {{ service_name }}Manager::GetInstance()->Subscribe(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }});
+  ret = {{ service_name }}Manager::GetInstance()->Subscribe(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['Name']) }});
   if (E_OK == ret) {
     m_maxSampleCount = maxSampleCount;
   } else {
@@ -453,17 +453,17 @@ Result<void> {{ event['name'] }}::Subscribe(size_t maxSampleCount) {
   return rslt;
 }
 
-void {{ event['name'] }}::Unsubscribe() {
+void {{ event['Name'] }}::Unsubscribe() {
   (void){{ service_name }}Manager::GetInstance()->Unsubscribe(
-    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }});
+    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['Name']) }});
 }
 
-SubscriptionState {{ event['name'] }}::GetSubscriptionState() const {
+SubscriptionState {{ event['Name'] }}::GetSubscriptionState() const {
   return {{ service_name }}Manager::GetInstance()->GetSubscriptionState(
-    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }});
+    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(eg['Name']) }});
 }
 
-void {{ event['name'] }}::OnEvent(const SampleType &sample) {
+void {{ event['Name'] }}::OnEvent(const SampleType &sample) {
   SamplePtr<SampleType> samplePtr(new SampleType);
   *samplePtr = sample;
   m_lastNSamples.push_back(std::move(samplePtr));
@@ -475,7 +475,7 @@ void {{ event['name'] }}::OnEvent(const SampleType &sample) {
   }
 }
 
-void {{ event['name'] }}::OnSubscribeAck(bool isSubscribe) {
+void {{ event['Name'] }}::OnSubscribeAck(bool isSubscribe) {
   if (nullptr != m_stateChgHandler) {
     if (true == isSubscribe) {
       m_stateChgHandler(SubscriptionState::kSubscribed);
@@ -491,24 +491,24 @@ void {{ event['name'] }}::OnSubscribeAck(bool isSubscribe) {
 } // namespace events
 
 namespace fields {
-{% for field in service.get('fields', []) %}
+{% for field in Service.get('Fields', []) %}
 
-{{ field['name'] }}::{{ field['name'] }}() {
+{{ field['Name'] }}::{{ field['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->Register(this);
 }
 
-{{ field['name'] }}::~{{ field['name'] }}() {
+{{ field['Name'] }}::~{{ field['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->UnRegister(this);
 }
 
-{% if 'get' in field %}
+{% if 'Get' in field %}
 
-ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Get() {
+ara::core::Future<{{ field['Name'] }}::FieldType> {{ field['Name'] }}::Get() {
   ara::core::Future<FieldType> future;
   if (nullptr == m_promiseGet) {
     m_promiseGet = std::make_shared<Promise<FieldType>>();
     future = m_promiseGet->get_future();
-    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_GET_{{ toMacro(field['name']) }} << 16) + 0;
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_GET_{{ toMacro(field['Name']) }} << 16) + 0;
     Std_ReturnType ret = SomeIp_Request(requestId, nullptr, 0);
     if (E_OK != ret) {
       m_promiseGet->SetError(ret);
@@ -522,19 +522,19 @@ ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Get() {
   return future;
 }
 
-Std_ReturnType {{ field['name'] }}::OnGetResponse(uint32_t requestId, SomeIp_MessageType* res) {
+Std_ReturnType {{ field['Name'] }}::OnGetResponse(uint32_t requestId, SomeIp_MessageType* res) {
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
   
-{% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+{% if field.get('Get', {}).get('UseE2E', false) and 'E2E-RX' in field['Get'] %}
   /* Check E2E protection */
-  ret = E2E_P{{ field['get']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['get']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_GET_RX, res->data, res->length);
+  ret = E2E_P{{ field['Get']['E2E-RX']['Profile'][1:] }}Check(E2E_CHECK_P{{ field['Get']['E2E-RX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['Name']) }}_GET_RX, res->Data, res->Length);
   if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
     ret = E_OK;
 {% endif %}
     if (nullptr != m_promiseGet) {
-      int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'get') }};
-      serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_fieldGet') }};
+      int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'Get') }};
+      serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->Data + e2eOffset', 'res->Length - e2eOffset', 'm_fieldGet') }};
       if (serializedSize > 0) {
         m_promiseGet->set_value(m_fieldGet);
       } else {
@@ -545,9 +545,9 @@ Std_ReturnType {{ field['name'] }}::OnGetResponse(uint32_t requestId, SomeIp_Mes
     } else {
       ret = E_NOT_OK;
     }
-{% if field.get('get', {}).get('useE2E', false) and 'E2E-RX' in field['get'] %}
+{% if field.get('Get', {}).get('UseE2E', false) and 'E2E-RX' in field['Get'] %}
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Get{{ field['name'] }}, ercd=0x%x\n", ret));
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Get{{ field['Name'] }}, ercd=0x%x\n", ret));
     if (nullptr != m_promiseGet) {
       m_promiseGet->SetError(ret);
       m_promiseGet = nullptr;
@@ -557,7 +557,7 @@ Std_ReturnType {{ field['name'] }}::OnGetResponse(uint32_t requestId, SomeIp_Mes
   return ret;
 }
 
-Std_ReturnType {{ field['name'] }}::OnGetError(uint32_t requestId, Std_ReturnType ercd) {
+Std_ReturnType {{ field['Name'] }}::OnGetError(uint32_t requestId, Std_ReturnType ercd) {
   Std_ReturnType ret = E_OK;
   if (nullptr != m_promiseGet) {
     m_promiseGet->SetError(ercd);
@@ -568,14 +568,14 @@ Std_ReturnType {{ field['name'] }}::OnGetError(uint32_t requestId, Std_ReturnTyp
   return ret;
 }
 
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
 
-Std_ReturnType {{ field['name'] }}::OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ field['Name'] }}::OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_responseGet)) {
-    memcpy(&m_responseGet[msg->offset], msg->data, msg->length);
-    if (false == msg->moreSegmentsFlag) {
-      msg->data = m_responseGet;
+  if ((NULL != msg) && ((msg->Offset + msg->Length)) <= sizeof(m_responseGet)) {
+    memcpy(&m_responseGet[msg->Offset], msg->Data, msg->Length);
+    if (false == msg->MoreSegmentsFlag) {
+      msg->Data = m_responseGet;
     }
   } else {
     ret = E_NOT_OK;
@@ -583,7 +583,7 @@ Std_ReturnType {{ field['name'] }}::OnGetTpCopyRxData(uint32_t requestId, SomeIp
   return ret;
 }
 
-Std_ReturnType {{ field['name'] }}::OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ field['Name'] }}::OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_NOT_OK;
   /* never used for get */
   return ret;
@@ -592,36 +592,36 @@ Std_ReturnType {{ field['name'] }}::OnGetTpCopyTxData(uint32_t requestId, SomeIp
 {% endif %}
 {% endif %}
 
-{% if 'set' in field %}
+{% if 'Set' in field %}
 
-ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Set(const {{ field['name'] }}::FieldType& value) {
+ara::core::Future<{{ field['Name'] }}::FieldType> {{ field['Name'] }}::Set(const {{ field['Name'] }}::FieldType& value) {
   ara::core::Future<FieldType> future;
   int32_t serializedSize;
-  if ((nullptr == m_promiseSet){% if field.get('tp', False) %} && (false == m_requestSetInUse){% endif %}) {
+  if ((nullptr == m_promiseSet){% if field.get('Tp', False) %} && (false == m_requestSetInUse){% endif %}) {
     m_promiseSet = std::make_shared<Promise<FieldType>>();
     future = m_promiseSet->get_future();
     int32_t encodeOffset = 20;
-{% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
-    encodeOffset += {{ GetE2EOffset(field, 'TX', 'set') }};
+{% if field.get('Set', {}).get('UseE2E', false) and 'E2E-TX' in field['Set'] %}
+    encodeOffset += {{ GetE2EOffset(field, 'TX', 'Set') }};
 {% endif %}
     serializedSize = {{ SomeIpXfEncode(field, allStructs, '&m_requestSet[encodeOffset]', 'sizeof(m_requestSet)-encodeOffset', 'value') }};
     if (serializedSize > 0) {
       Std_ReturnType ret = E_OK;
-{% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+{% if field.get('Set', {}).get('UseE2E', false) and 'E2E-TX' in field['Set'] %}
       /* Apply E2E protection */
-      ret = E2E_P{{ field['set']['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ field['set']['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_SET_TX, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
+      ret = E2E_P{{ field['Set']['E2E-TX']['Profile'][1:] }}Protect(E2E_PROTECT_P{{ field['Set']['E2E-TX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['Name']) }}_SET_TX, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'Set') }});
       if (E_OK == ret) {
 {% endif %}
-      uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_SET_{{ toMacro(field['name']) }} << 16) + 0;
-      ret = SomeIp_Request(requestId, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'set') }});
-{% if field.get('set', {}).get('useE2E', false) and 'E2E-TX' in field['set'] %}
+      uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_SET_{{ toMacro(field['Name']) }} << 16) + 0;
+      ret = SomeIp_Request(requestId, &m_requestSet[20], serializedSize + {{ GetE2EOverhead(field, 'TX', 'Set') }});
+{% if field.get('Set', {}).get('UseE2E', false) and 'E2E-TX' in field['Set'] %}
       }
 {% endif %}
       if (E_OK != ret) {
         m_promiseSet->SetError(ret);
         m_promiseSet = nullptr;
       } else {
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
         if (serializedSize > SOMEIP_SF_MAX) {
           m_requestSetInUse = true;
         }
@@ -639,19 +639,19 @@ ara::core::Future<{{ field['name'] }}::FieldType> {{ field['name'] }}::Set(const
   return future;
 }
 
-Std_ReturnType {{ field['name'] }}::OnSetResponse(uint32_t requestId, SomeIp_MessageType* res) {
+Std_ReturnType {{ field['Name'] }}::OnSetResponse(uint32_t requestId, SomeIp_MessageType* res) {
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
   
-  {% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+  {% if field.get('Set', {}).get('UseE2E', false) and 'E2E-RX' in field['Set'] %}
   /* Check E2E protection */
-  ret = E2E_P{{ field['set']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['set']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_SET_RX, res->data, res->length);
+  ret = E2E_P{{ field['Set']['E2E-RX']['Profile'][1:] }}Check(E2E_CHECK_P{{ field['Set']['E2E-RX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['Name']) }}_SET_RX, res->Data, res->Length);
   if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
     ret = E_OK;
   {% endif %}
     if (nullptr != m_promiseSet) {
-      int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'set') }};
-      serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_fieldSet') }};
+      int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'Set') }};
+      serializedSize = {{ SomeIpXfDecode(field, allStructs, 'res->Data + e2eOffset', 'res->Length - e2eOffset', 'm_fieldSet') }};
       if (serializedSize > 0) {
         m_promiseSet->set_value(m_fieldSet);
       } else {
@@ -659,15 +659,15 @@ Std_ReturnType {{ field['name'] }}::OnSetResponse(uint32_t requestId, SomeIp_Mes
         m_promiseSet->SetError(-EINVAL);
       }
       m_promiseSet = nullptr;
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
       m_requestSetInUse = false;
 {% endif %}
     } else {
       ret = E_NOT_OK;
     }
-{% if field.get('set', {}).get('useE2E', false) and 'E2E-RX' in field['set'] %}
+{% if field.get('Set', {}).get('UseE2E', false) and 'E2E-RX' in field['Set'] %}
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Set{{ field['name'] }}, ercd=0x%x\n", ret));
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for Set{{ field['Name'] }}, ercd=0x%x\n", ret));
     if (nullptr != m_promiseSet) {
       m_promiseSet->SetError(ret);
       m_promiseSet = nullptr;
@@ -677,12 +677,12 @@ Std_ReturnType {{ field['name'] }}::OnSetResponse(uint32_t requestId, SomeIp_Mes
   return ret;
 }
 
-Std_ReturnType {{ field['name'] }}::OnSetError(uint32_t requestId, Std_ReturnType ercd) {
+Std_ReturnType {{ field['Name'] }}::OnSetError(uint32_t requestId, Std_ReturnType ercd) {
   Std_ReturnType ret = E_OK;
   if (nullptr != m_promiseSet) {
     m_promiseSet->SetError(ercd);
     m_promiseSet = nullptr;
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
     m_requestSetInUse = false;
 {% endif %}
   } else {
@@ -691,14 +691,14 @@ Std_ReturnType {{ field['name'] }}::OnSetError(uint32_t requestId, Std_ReturnTyp
   return ret;
 }
 
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
 
-Std_ReturnType {{ field['name'] }}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ field['Name'] }}::OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_responseSet)) {
-    memcpy(&m_responseSet[msg->offset], msg->data, msg->length);
-    if (false == msg->moreSegmentsFlag) {
-      msg->data = m_responseSet;
+  if ((NULL != msg) && ((msg->Offset + msg->Length)) <= sizeof(m_responseSet)) {
+    memcpy(&m_responseSet[msg->Offset], msg->Data, msg->Length);
+    if (false == msg->MoreSegmentsFlag) {
+      msg->Data = m_responseSet;
     }
   } else {
     ret = E_NOT_OK;
@@ -706,11 +706,11 @@ Std_ReturnType {{ field['name'] }}::OnSetTpCopyRxData(uint32_t requestId, SomeIp
   return ret;
 }
 
-Std_ReturnType {{ field['name'] }}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ field['Name'] }}::OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length + 20)) <= sizeof(m_requestSet)) {
-    msg->data = &m_requestSet[msg->offset + 20];
-    if (false == msg->moreSegmentsFlag) {
+  if ((NULL != msg) && ((msg->Offset + msg->Length + 20)) <= sizeof(m_requestSet)) {
+    msg->Data = &m_requestSet[msg->Offset + 20];
+    if (false == msg->MoreSegmentsFlag) {
       m_requestSetInUse = false;
     }
   } else {
@@ -723,13 +723,13 @@ Std_ReturnType {{ field['name'] }}::OnSetTpCopyTxData(uint32_t requestId, SomeIp
 {% endif %}
 {% endif %}
 
-{% if 'event' in field %}
+{% if 'Event' in field %}
 
-ara::core::Result<void> {{ field['name'] }}::Subscribe(size_t maxSampleCount) {
+ara::core::Result<void> {{ field['Name'] }}::Subscribe(size_t maxSampleCount) {
   Result<void> rslt(0);
   Std_ReturnType ret;
 
-  ret = {{ service_name }}Manager::GetInstance()->Subscribe(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }});
+  ret = {{ service_name }}Manager::GetInstance()->Subscribe(SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['Event']['GroupName']) }});
   if (E_OK == ret) {
     m_maxSampleCount = maxSampleCount;
   } else {
@@ -738,17 +738,17 @@ ara::core::Result<void> {{ field['name'] }}::Subscribe(size_t maxSampleCount) {
   return rslt;
 }
 
-void {{ field['name'] }}::Unsubscribe() {
+void {{ field['Name'] }}::Unsubscribe() {
   (void){{ service_name }}Manager::GetInstance()->Unsubscribe(
-    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }});
+    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['Event']['GroupName']) }});
 }
 
-SubscriptionState {{ field['name'] }}::GetSubscriptionState() const {
+SubscriptionState {{ field['Name'] }}::GetSubscriptionState() const {
   return {{ service_name }}Manager::GetInstance()->GetSubscriptionState(
-    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['event']['groupName']) }});
+    SD_CONSUMED_EVENT_GROUP_{{ toMacro(service_name) }}_{{ toMacro(field['Event']['GroupName']) }});
 }
 
-void {{ field['name'] }}::OnSubscribeAck(bool isSubscribe) {
+void {{ field['Name'] }}::OnSubscribeAck(bool isSubscribe) {
   if (nullptr != m_stateChgHandler) {
     if (true == isSubscribe) {
       m_stateChgHandler(SubscriptionState::kSubscribed);
@@ -758,37 +758,37 @@ void {{ field['name'] }}::OnSubscribeAck(bool isSubscribe) {
   }
 }
 
-ara::core::Result<void> {{ field['name'] }}::SetReceiveHandler(ara::com::EventReceiveHandler handler) {
+ara::core::Result<void> {{ field['Name'] }}::SetReceiveHandler(ara::com::EventReceiveHandler handler) {
   m_evtRxHandler = handler;
   return ara::core::Result<void>(0);
 }
 
-ara::core::Result<void> {{ field['name'] }}::UnsetReceiveHandler() {
+ara::core::Result<void> {{ field['Name'] }}::UnsetReceiveHandler() {
   m_evtRxHandler = nullptr;
   return ara::core::Result<void>(0);
 }
 
-ara::core::Result<void> {{ field['name'] }}::SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler) {
+ara::core::Result<void> {{ field['Name'] }}::SetSubscriptionStateChangeHandler(ara::com::SubscriptionStateChangeHandler handler) {
   m_stateChgHandler = handler;
   return ara::core::Result<void>(0);
 }
 
-void {{ field['name'] }}::UnsetSubscriptionStateChangeHandler() {
+void {{ field['Name'] }}::UnsetSubscriptionStateChangeHandler() {
   m_stateChgHandler = nullptr;
 }
 
-void {{ field['name'] }}::OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
+void {{ field['Name'] }}::OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
   int32_t serializedSize;
   Std_ReturnType ret = E_OK;
   
-{% if field.get('event', {}).get('useE2E', false) and 'E2E-RX' in field['event'] %}
+{% if field.get('Event', {}).get('UseE2E', false) and 'E2E-RX' in field['Event'] %}
   /* Check E2E protection */
-  ret = E2E_P{{ field['event']['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ field['event']['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['name']) }}_EVENT_RX, evt->data, evt->length);
+  ret = E2E_P{{ field['Event']['E2E-RX']['Profile'][1:] }}Check(E2E_CHECK_P{{ field['Event']['E2E-RX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(field['Name']) }}_EVENT_RX, evt->Data, evt->Length);
   if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
 {% endif %}
     SamplePtr<FieldType> samplePtr(new FieldType);
-    int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'event') }};
-    serializedSize = {{ SomeIpXfDecode(field, allStructs, 'evt->data + e2eOffset', 'evt->length - e2eOffset', '(*samplePtr)') }};
+    int32_t e2eOffset = {{ GetE2EOffset(field, 'RX', 'Event') }};
+    serializedSize = {{ SomeIpXfDecode(field, allStructs, 'evt->Data + e2eOffset', 'evt->Length - e2eOffset', '(*samplePtr)') }};
     if (serializedSize > 0) {
       m_lastNSamples.push_back(std::move(samplePtr));
       if (m_lastNSamples.size() > m_maxSampleCount) {
@@ -798,21 +798,21 @@ void {{ field['name'] }}::OnNotification(uint32_t requestId, SomeIp_MessageType*
         m_evtRxHandler();
       }
     }
-{% if field.get('event', {}).get('useE2E', false) and 'E2E-RX' in field['event'] %}
+{% if field.get('Event', {}).get('UseE2E', false) and 'E2E-RX' in field['Event'] %}
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ field['name'] }} event, ercd=0x%x\n", ret));
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ field['Name'] }} event, ercd=0x%x\n", ret));
   }
 {% endif %}
 }
 
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
 
-Std_ReturnType {{ field['name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ field['Name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(m_payload))) {
-    memcpy(&m_payload[msg->offset], msg->data, msg->length);
-    if (FALSE == msg->moreSegmentsFlag) {
-      msg->data = m_payload;
+  if ((NULL != msg) && ((msg->Offset + msg->Length) <= sizeof(m_payload))) {
+    memcpy(&m_payload[msg->Offset], msg->Data, msg->Length);
+    if (FALSE == msg->MoreSegmentsFlag) {
+      msg->Data = m_payload;
     }
   } else {
     ret = E_NOT_OK;
@@ -827,18 +827,18 @@ Std_ReturnType {{ field['name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_Tp
 } // namespace fields
 
 namespace methods {
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
 
-{% if method.get('tp', False) %}
+{% if method.get('Tp', False) %}
 
-Std_ReturnType {{ method['name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ method['Name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-{% if method.get('return', 'void') != 'void' %}
-  if ((NULL != msg) && ((msg->offset + msg->length)) <= sizeof(m_response)) {
-    memcpy(&m_response[msg->offset], msg->data, msg->length);
-    if (false == msg->moreSegmentsFlag) {
-      msg->data = m_response;
+{% if method.get('Return', 'void') != 'void' %}
+  if ((NULL != msg) && ((msg->Offset + msg->Length)) <= sizeof(m_response)) {
+    memcpy(&m_response[msg->Offset], msg->Data, msg->Length);
+    if (false == msg->MoreSegmentsFlag) {
+      msg->Data = m_response;
     }
   } else {
     ret = E_NOT_OK;
@@ -849,11 +849,11 @@ Std_ReturnType {{ method['name'] }}::OnTpCopyRxData(uint32_t requestId, SomeIp_T
   return ret;
 }
 
-Std_ReturnType {{ method['name'] }}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType {{ method['Name'] }}::OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
-  if ((NULL != msg) && ((msg->offset + msg->length + 20) <= sizeof(m_request))) {
-    msg->data = &m_request[msg->offset + 20];
-    if (false == msg->moreSegmentsFlag) {
+  if ((NULL != msg) && ((msg->Offset + msg->Length + 20) <= sizeof(m_request))) {
+    msg->Data = &m_request[msg->Offset + 20];
+    if (false == msg->MoreSegmentsFlag) {
       m_requestInUse = false;
     }
   } else {
@@ -864,28 +864,28 @@ Std_ReturnType {{ method['name'] }}::OnTpCopyTxData(uint32_t requestId, SomeIp_T
 }
 {% endif %}
 
-{% if method.get('return', 'void') != 'void' %}
-ara::core::Future<{{ method['name'] }}::{{ toMethodTypeName(method.get('return', 'void'), method) }}> {{ method['name'] }}::operator()({{ GetArgsList(method, cfg) }}) {
+{% if method.get('Return', 'void') != 'void' %}
+ara::core::Future<{{ method['Name'] }}::{{ toMethodTypeName(method.get('Return', 'void'), method) }}> {{ method['Name'] }}::operator()({{ GetArgsList(method, cfg) }}) {
 {% else %}
-ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> {{ method['name'] }}::operator()({{ GetArgsList(method, cfg) }}) {
+ara::core::Future<{{ toMethodTypeName(method.get('Return', 'void'), method) }}> {{ method['Name'] }}::operator()({{ GetArgsList(method, cfg) }}) {
 {% endif %}
-{% if method.get('tp', False) %}
-  ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> future;
+{% if method.get('Tp', False) %}
+  ara::core::Future<{{ toMethodTypeName(method.get('Return', 'void'), method) }}> future;
   int32_t offset = 0;
   int32_t serializedSize;
   if ((false == m_requestInUse) && (nullptr == m_promise)) {
-    m_promise = std::make_shared<ara::core::Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}>>();
+    m_promise = std::make_shared<ara::core::Promise<{{ toMethodTypeName(method.get('Return', 'void'), method) }}>>();
     future = m_promise->get_future();
-    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['Name']) }} << 16) + 0;
     int32_t encodeOffset = 20;
-{% if method.get('useE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
     encodeOffset += {{ GetE2EOffset(method, 'TX') }};
 {% endif %}
-{% if 'args' in method %}
-{% set args = GetArgs(cfg, method['args']) %}
+{% if 'Args' in method %}
+{% set args = GetArgs(cfg, method['Args']) %}
 {% for arg in args %}
     if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + encodeOffset))) {
-      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['name']) }};
+      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['Name']) }};
       if (serializedSize > 0) {
         offset += serializedSize;
       } else {
@@ -896,13 +896,13 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
 {% endif %}
     if (offset >= 0) {
       Std_ReturnType ret = E_OK;
-{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method %}
       /* Apply E2E protection */
-      ret = E2E_P{{ method['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      ret = E2E_P{{ method['E2E-TX']['Profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['Name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
       if (E_OK == ret) {
 {% endif %}
         ret = SomeIp_Request(requestId, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
-{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method %}
       }
 {% endif %}
       if (E_OK != ret) {
@@ -918,31 +918,31 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
       m_promise = nullptr;
     }
   } else {
-    Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}> promise;
+    Promise<{{ toMethodTypeName(method.get('Return', 'void'), method) }}> promise;
     future = promise.get_future();
     promise.SetError(-EBUSY);
   }
 
   return future;
 {% else %}
-  m_promise = std::make_shared<ara::core::Promise<{{ method.get('return', 'void') }}>>();
-  ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> future = m_promise->get_future();
+  m_promise = std::make_shared<ara::core::Promise<{{ method.get('Return', 'void') }}>>();
+  ara::core::Future<{{ toMethodTypeName(method.get('Return', 'void'), method) }}> future = m_promise->get_future();
   int32_t offset = 0;
   int32_t serializedSize;
 
   if (nullptr == m_promise) {
-    m_promise = std::make_shared<ara::core::Promise<{{ method.get('return', 'void') }}>>();
+    m_promise = std::make_shared<ara::core::Promise<{{ method.get('Return', 'void') }}>>();
     future = m_promise->get_future();
-    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }} << 16) + 0;
+    uint32_t requestId = ((uint32_t)SOMEIP_TX_METHOD_{{ toMacro(service_name) }}_{{ toMacro(method['Name']) }} << 16) + 0;
     int32_t encodeOffset = 20;
-{% if method.get('useE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method and method['E2E-TX'].get('Offset', 0) == 0 %}
     encodeOffset += {{ GetE2EOverhead(method, 'TX') }};
 {% endif %}
-{% if 'args' in method %}
-{% set args = GetArgs(cfg, method['args']) %}
+{% if 'Args' in method %}
+{% set args = GetArgs(cfg, method['Args']) %}
 {% for arg in args %}
     if ((offset >= 0) && ((int32_t)sizeof(m_request) > (offset + encodeOffset))) {
-      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['name']) }};
+      serializedSize = {{ SomeIpXfEncode(arg, allStructs, '&m_request[offset + encodeOffset]', 'sizeof(m_request) - offset - encodeOffset', arg['Name']) }};
       if (serializedSize > 0) {
         offset += serializedSize;
       } else {
@@ -953,13 +953,13 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
 {% endif %}
     if (offset >= 0) {
       Std_ReturnType ret = E_OK;
-{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method %}
       /* Apply E2E protection */
-      ret = E2E_P{{ method['E2E-TX']['profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
+      ret = E2E_P{{ method['E2E-TX']['Profile'][1:] }}Protect(E2E_PROTECT_P{{ method['E2E-TX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['Name']) }}_TX, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
       if (E_OK == ret) {
 {% endif %}
         ret = SomeIp_Request(requestId, &m_request[20], offset + {{ GetE2EOverhead(method, 'TX') }});
-{% if method.get('useE2E', false) and 'E2E-TX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-TX' in method %}
       }
 {% endif %}
       if (E_OK != ret) {
@@ -971,7 +971,7 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
       m_promise = nullptr;
     }
   } else {
-    Promise<{{ toMethodTypeName(method.get('return', 'void'), method) }}> promise;
+    Promise<{{ toMethodTypeName(method.get('Return', 'void'), method) }}> promise;
     future = promise.get_future();
     promise.SetError(-EBUSY);
   }
@@ -980,42 +980,42 @@ ara::core::Future<{{ toMethodTypeName(method.get('return', 'void'), method) }}> 
 {% endif %}
 }
 
-{{ method['name'] }}::{{ method['name'] }}() {
+{{ method['Name'] }}::{{ method['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->Register(this);
 }
 
-{{ method['name'] }}::~{{ method['name'] }}() {
+{{ method['Name'] }}::~{{ method['Name'] }}() {
   {{ service_name }}Manager::GetInstance()->UnRegister(this);
 }
 
-Std_ReturnType {{ method['name'] }}::OnError(uint32_t requestId, Std_ReturnType ercd) {
+Std_ReturnType {{ method['Name'] }}::OnError(uint32_t requestId, Std_ReturnType ercd) {
   if (nullptr != m_promise) {
     m_promise->SetError(ercd);
     m_promise = nullptr;
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("no promise for {{ method['name'] }} error %d\n", ercd));
+    ASLOG({{ toMacro(service_name) }}_E, ("no promise for {{ method['Name'] }} error %d\n", ercd));
   }
   return E_OK;
 }
 
-Std_ReturnType {{ method['name'] }}::OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
+Std_ReturnType {{ method['Name'] }}::OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
   Std_ReturnType ret = E_OK;
   
-{% if method.get('useE2E', false) and 'E2E-RX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-RX' in method %}
   /* Check E2E protection */
-  ret = E2E_P{{ method['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ method['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['name']) }}_RX, res->data, res->length);
+  ret = E2E_P{{ method['E2E-RX']['Profile'][1:] }}Check(E2E_CHECK_P{{ method['E2E-RX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(method['Name']) }}_RX, res->Data, res->Length);
   if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
 {% endif %}
   if (nullptr != m_promise) {
-{% if method.get('return', 'void') != 'void' %}
+{% if method.get('Return', 'void') != 'void' %}
     int32_t serializedSize;
     int32_t e2eOffset = {{ GetE2EOverhead(method, 'RX') }};
     serializedSize =
-      {{ SomeIpXfDecode(method.get('return', 'void'), allStructs, 'res->data + e2eOffset', 'res->length - e2eOffset', 'm_' ~ toMethodTypeName(method.get('return', 'void'), method)) }};
+      {{ SomeIpXfDecode(method.get('Return', 'void'), allStructs, 'res->Data + e2eOffset', 'res->Length - e2eOffset', 'm_' ~ toMethodTypeName(method.get('Return', 'void'), method)) }};
     if (serializedSize > 0) {
-      m_promise->set_value(m_{{ toMethodTypeName(method.get('return', 'void'), method) }});
+      m_promise->set_value(m_{{ toMethodTypeName(method.get('Return', 'void'), method) }});
     } else {
-      ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ method['name'] }} response {{ toMethodTypeName(method.get('return', 'void'), method) }}\n"));
+      ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ method['Name'] }} response {{ toMethodTypeName(method.get('Return', 'void'), method) }}\n"));
       m_promise->SetError(-EINVAL);
       ret = E_NOT_OK;
     }
@@ -1025,11 +1025,11 @@ Std_ReturnType {{ method['name'] }}::OnResponse(uint32_t requestId, SomeIp_Messa
 {% endif %}
     m_promise = nullptr;
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("no promise for {{ method['name'] }} response\n"));
+    ASLOG({{ toMacro(service_name) }}_E, ("no promise for {{ method['Name'] }} response\n"));
   }
-{% if method.get('useE2E', false) and 'E2E-RX' in method %}
+{% if method.get('UseE2E', false) and 'E2E-RX' in method %}
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ method['name'] }}, ercd=0x%x\n", ret));
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ method['Name'] }}, ercd=0x%x\n", ret));
     if (nullptr != m_promise) {
       m_promise->SetError(ret);
       m_promise = nullptr;
@@ -1072,46 +1072,46 @@ void SomeIp_{{ service_name }}_OnAvailability(boolean isAvailable) {
   {{ service_name }}Manager::GetInstance()->OnAvailability(isAvailable);
 }
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
-  ASLOG({{ toMacro(service_name) }}, ("{{ method['name'] }} OnResponse %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
-                        res->length, res->data[0], res->data[1], res->data[2], res->data[3]));
-  return {{ service_name }}Manager::GetInstance()->On{{ method['name'] }}Response(requestId, res);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType *res) {
+  ASLOG({{ toMacro(service_name) }}, ("{{ method['Name'] }} OnResponse %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
+                        res->Length, res->Data[0], res->Data[1], res->Data[2], res->Data[3]));
+  return {{ service_name }}Manager::GetInstance()->On{{ method['Name'] }}Response(requestId, res);
 }
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
-  ASLOG({{ toMacro(service_name) }}, ("{{ method['name'] }} OnError %X: %d\n", requestId, ercd));
-  return {{ service_name }}Manager::GetInstance()->On{{ method['name'] }}Error(requestId, ercd);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  ASLOG({{ toMacro(service_name) }}, ("{{ method['Name'] }} OnError %X: %d\n", requestId, ercd));
+  return {{ service_name }}Manager::GetInstance()->On{{ method['Name'] }}Error(requestId, ercd);
 }
 
-{% if method.get('tp', False) %}
+{% if method.get('Tp', False) %}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-    return {{ service_name }}Manager::GetInstance()->On{{ method['name'] }}TpCopyRxData(requestId, msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+    return {{ service_name }}Manager::GetInstance()->On{{ method['Name'] }}TpCopyRxData(requestId, msg);
 }
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->On{{ method['name'] }}TpCopyTxData(requestId, msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->On{{ method['Name'] }}TpCopyTxData(requestId, msg);
 }
 
 {% endif %}
 {% endif %}
 {% endfor %}
 
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-{% if event.get('tp', False) %}
+{% if event.get('Tp', False) %}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+Std_ReturnType SomeIp_{{ service_name }}_{{ eg['Name'] }}_{{ event['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
   Std_ReturnType ret = E_OK;
   static uint8_t payload[{{ GetTypePayloadSize(event, allStructs) }}];
-  if ((NULL != msg) && ((msg->offset + msg->length) <= sizeof(payload))) {
-    memcpy(&payload[msg->offset], msg->data, msg->length);
-    if (false == msg->moreSegmentsFlag) {
-      msg->data = (uint8_t *)payload;
+  if ((NULL != msg) && ((msg->Offset + msg->Length) <= sizeof(payload))) {
+    memcpy(&payload[msg->Offset], msg->Data, msg->Length);
+    if (false == msg->MoreSegmentsFlag) {
+      msg->Data = (uint8_t *)payload;
     }
   } else {
     ret = E_NOT_OK;
@@ -1121,35 +1121,35 @@ Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_On
 
 {% endif %}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_OnNotification(uint32_t requestId,
+Std_ReturnType SomeIp_{{ service_name }}_{{ eg['Name'] }}_{{ event['Name'] }}_OnNotification(uint32_t requestId,
                                                                     SomeIp_MessageType *evt) {
 
   Std_ReturnType ret = E_OK;
   int32_t serializedSize;
-  static events::{{ event['name'] }}::SampleType sample;
+  static events::{{ event['Name'] }}::SampleType sample;
   ASLOG({{ toMacro(service_name) }},
-        ("{{ event['name'] }} OnNotification %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
-         evt->length, evt->data[0], evt->data[1], evt->data[2], evt->data[3]));
+        ("{{ event['Name'] }} OnNotification %X: len=%d, data=[%02X %02X %02X %02X ...]\n", requestId,
+         evt->Length, evt->Data[0], evt->Data[1], evt->Data[2], evt->Data[3]));
 
   int32_t e2eOffset = 0;
-{% if event.get('useE2E', false) and 'E2E-RX' in event %}
+{% if event.get('UseE2E', false) and 'E2E-RX' in event %}
   /* Check E2E protection */
-  ret = E2E_P{{ event['E2E-RX']['profile'][1:] }}Check(E2E_CHECK_P{{ event['E2E-RX']['profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(eg['name']) }}_{{ toMacro(event['name']) }}_RX, evt->data, evt->length);
+  ret = E2E_P{{ event['E2E-RX']['Profile'][1:] }}Check(E2E_CHECK_P{{ event['E2E-RX']['Profile'][1:] }}_{{ toMacro(service_name) }}_{{ toMacro(eg['Name']) }}_{{ toMacro(event['Name']) }}_RX, evt->Data, evt->Length);
   if (E_OK == ret || E2E_E_OK_SOME_LOST == ret) {
     ret = E_OK;
     e2eOffset = {{ GetE2EOffset(event, 'RX') }};
 {% endif %}
   serializedSize =
-    {{ SomeIpXfDecode(event, allStructs, 'evt->data + e2eOffset', 'evt->length - e2eOffset', 'sample') }};
+    {{ SomeIpXfDecode(event, allStructs, 'evt->Data + e2eOffset', 'evt->Length - e2eOffset', 'sample') }};
   if (serializedSize > 0) {
-    {{ service_name }}Manager::GetInstance()->On{{ event['name'] }}(sample);
+    {{ service_name }}Manager::GetInstance()->On{{ event['Name'] }}(sample);
   } else {
-      ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ event['name'] }}\n"));
+      ASLOG({{ toMacro(service_name) }}_E, ("malformed {{ event['Name'] }}\n"));
       ret = E_NOT_OK;
     }
-{% if event.get('useE2E', false) and 'E2E-RX' in event %}
+{% if event.get('UseE2E', false) and 'E2E-RX' in event %}
   } else {
-    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ event['name'] }}, ercd=0x%x\n", ret));
+    ASLOG({{ toMacro(service_name) }}_E, ("E2E check failed for {{ event['Name'] }}, ercd=0x%x\n", ret));
   }
 {% endif %}
 
@@ -1161,78 +1161,78 @@ Std_ReturnType SomeIp_{{ service_name }}_{{ eg['name'] }}_{{ event['name'] }}_On
 {% endfor %}
 
 {% set eventNotifyFncs = {} %}
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-{% if eg['name'] not in eventNotifyFncs %}
-{% set _ = eventNotifyFncs.__setitem__(eg['name'], []) %}
+{% if eg['Name'] not in eventNotifyFncs %}
+{% set _ = eventNotifyFncs.__setitem__(eg['Name'], []) %}
 {% endif %}
-{% set _ = eventNotifyFncs[eg['name']].append('  ' ~ service_name ~ 'Manager::GetInstance()->On' ~ event['name'] ~ 'SubscribeAck(isSubscribe);') %}
+{% set _ = eventNotifyFncs[eg['Name']].append('  ' ~ service_name ~ 'Manager::GetInstance()->On' ~ event['Name'] ~ 'SubscribeAck(isSubscribe);') %}
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-{% if 'get' in field %}
+{% for field in Service.get('Fields', []) %}
+{% if 'Get' in field %}
 
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
-  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['name'] }}Response(requestId, res);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
+  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['Name'] }}Response(requestId, res);
 }
 
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
-  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['name'] }}Error(requestId, ercd);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['Name'] }}Error(requestId, ercd);
 }
 
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
 
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['name'] }}TpCopyRxData(requestId, msg);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['Name'] }}TpCopyRxData(requestId, msg);
 }
 
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['name'] }}TpCopyTxData(requestId, msg);
-}
-
-{% endif %}
-{% endif %}
-
-{% if 'set' in field %}
-
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
-  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['name'] }}Response(requestId, res);
-}
-
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
-  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['name'] }}Error(requestId, ercd);
-}
-
-{% if field.get('tp', False) %}
-
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['name'] }}TpCopyRxData(requestId, msg);
-}
-
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['name'] }}TpCopyTxData(requestId, msg);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->OnGet{{ field['Name'] }}TpCopyTxData(requestId, msg);
 }
 
 {% endif %}
 {% endif %}
 
-{% if 'event' in field %}
-{% if field['event']['groupName'] not in eventNotifyFncs %}
-{% set _ = eventNotifyFncs.__setitem__(field['event']['groupName'], []) %}
-{% endif %}
-{% set _ = eventNotifyFncs[field['event']['groupName']].append('  ' ~ service_name ~ 'Manager::GetInstance()->On' ~ field['name'] ~ 'SubscribeAck(isSubscribe);') %}
+{% if 'Set' in field %}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
-  return {{ service_name }}Manager::GetInstance()->On{{ field['name'] }}Notification(requestId, evt);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res) {
+  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['Name'] }}Response(requestId, res);
 }
 
-{% if field.get('tp', False) %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd) {
+  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['Name'] }}Error(requestId, ercd);
+}
 
-Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
-  return {{ service_name }}Manager::GetInstance()->On{{ field['name'] }}TpCopyRxData(requestId, msg);
+{% if field.get('Tp', False) %}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['Name'] }}TpCopyRxData(requestId, msg);
+}
+
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->OnSet{{ field['Name'] }}TpCopyTxData(requestId, msg);
+}
+
+{% endif %}
+{% endif %}
+
+{% if 'Event' in field %}
+{% if field['Event']['GroupName'] not in eventNotifyFncs %}
+{% set _ = eventNotifyFncs.__setitem__(field['Event']['GroupName'], []) %}
+{% endif %}
+{% set _ = eventNotifyFncs[field['Event']['GroupName']].append('  ' ~ service_name ~ 'Manager::GetInstance()->On' ~ field['Name'] ~ 'SubscribeAck(isSubscribe);') %}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['Event']['GroupName'] }}_{{ field['Name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt) {
+  return {{ service_name }}Manager::GetInstance()->On{{ field['Name'] }}Notification(requestId, evt);
+}
+
+{% if field.get('Tp', False) %}
+
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['Event']['GroupName'] }}_{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg) {
+  return {{ service_name }}Manager::GetInstance()->On{{ field['Name'] }}TpCopyRxData(requestId, msg);
 }
 
 {% endif %}

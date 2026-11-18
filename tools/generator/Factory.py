@@ -9,35 +9,35 @@ __all__ = ["Gen"]
 
 
 def Gen_Factory(dir, cfg):
-    factoryName = cfg["name"]
+    factoryName = cfg["Name"]
     H = open("%s/%s_Factory.h" % (dir, factoryName), "w")
     GenHeader(H)
-    H.write("#ifndef _%s_FACTORY_H\n" % (factoryName.upper()))
-    H.write("#define _%s_FACTORY_H\n" % (factoryName.upper()))
+    H.write("#ifndef %s_FACTORY_H\n" % (factoryName.upper()))
+    H.write("#define %s_FACTORY_H\n" % (factoryName.upper()))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "factory.h"\n')
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    for id, event in enumerate(cfg.get("events", [])):
+    for id, event in enumerate(cfg.get("Events", [])):
         H.write("#define %s_EVENT_%s %su\n" % (toMacro(factoryName), event.upper(), id))
     H.write("\n")
 
-    for id, machine in enumerate(cfg["machines"]):
-        machineName = machine["name"]
+    for id, machine in enumerate(cfg["Machines"]):
+        machineName = machine["Name"]
         H.write("#define %s_MACHINE_%s %su\n" % (toMacro(factoryName), toMacro(machineName), id))
     H.write("\n")
 
-    for machine in cfg["machines"]:
-        machineName = machine["name"]
-        for id, nodeName in enumerate(machine["nodes"]):
+    for machine in cfg["Machines"]:
+        machineName = machine["Name"]
+        for id, nodeName in enumerate(machine["Nodes"]):
             H.write("#define %s_NODE_%s_%s %su\n" % (toMacro(factoryName), toMacro(machineName), toMacro(nodeName), id))
         H.write("\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    for machine in cfg["machines"]:
-        machineName = machine["name"]
-        for nodeName in machine["nodes"]:
+    for machine in cfg["Machines"]:
+        machineName = machine["Name"]
+        for nodeName in machine["Nodes"]:
             H.write("Std_ReturnType %s_%s_%s_Main(void);\n" % (factoryName, machineName, nodeName))
-            for event in cfg.get("events", []):
+            for event in cfg.get("Events", []):
                 H.write("Std_ReturnType %s_%s_%s_%s(void);\n" % (factoryName, machineName, nodeName, event))
             H.write("\n")
     H.write("void %s_FactoryStateNotification(uint8_t machineId, machine_state_t state);\n\n" % (factoryName))
@@ -45,7 +45,7 @@ def Gen_Factory(dir, cfg):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* _%s_FACTORY_H*/\n" % (factoryName.upper()))
+    H.write("#endif /* %s_FACTORY_H */\n" % (factoryName.upper()))
     H.close()
 
     C = open("%s/%s_Factory.c" % (dir, factoryName), "w")
@@ -56,22 +56,22 @@ def Gen_Factory(dir, cfg):
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    for machine in cfg["machines"]:
-        machineName = machine["name"]
-        for nodeName in machine["nodes"]:
-            if len(cfg.get("events", [])) == 0: continue
+    for machine in cfg["Machines"]:
+        machineName = machine["Name"]
+        for nodeName in machine["Nodes"]:
+            if len(cfg.get("Events", [])) == 0: continue
             C.write("static const factory_event_t %s_%s_%s_Events[] = {\n" % (factoryName, machineName, nodeName))
-            for event in cfg["events"]:
+            for event in cfg["Events"]:
                 C.write("  %s_%s_%s_%s,\n" % (factoryName, machineName, nodeName, event))
             C.write("};\n\n")
-    for machine in cfg["machines"]:
-        machineName = machine["name"]
+    for machine in cfg["Machines"]:
+        machineName = machine["Name"]
         C.write("static const machine_node_t %s_%s_Nodes[] = {\n" % (factoryName, machineName))
-        for nodeName in machine["nodes"]:
+        for nodeName in machine["Nodes"]:
             C.write("  {\n")
             C.write('    "%s",\n' % (nodeName))
             C.write("    %s_%s_%s_Main,\n" % (factoryName, machineName, nodeName))
-            if len(cfg.get("events", [])) == 0:
+            if len(cfg.get("Events", [])) == 0:
                 C.write("    NULL,\n")
                 C.write("    0,\n")
             else:
@@ -81,8 +81,8 @@ def Gen_Factory(dir, cfg):
         C.write("};\n\n")
 
     C.write("static const machine_t %s_FactoryMachines[] = {\n" % (factoryName))
-    for machine in cfg["machines"]:
-        machineName = machine["name"]
+    for machine in cfg["Machines"]:
+        machineName = machine["Name"]
         C.write("  {\n")
         C.write('    "%s",\n' % (machineName))
         C.write("    %s_%s_Nodes,\n" % (factoryName, machineName))

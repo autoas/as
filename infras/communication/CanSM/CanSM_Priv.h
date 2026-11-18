@@ -61,13 +61,13 @@ typedef struct {
   uint16_t BusOffTxEnsuredTimer;
   uint16_t TxRecoveryTimer;
   uint8_t BusOffCounter;
-  ComM_ModeType requestedMode;
+  ComM_ModeType RequestedMode;
   CanSM_BusStateType BusState;
   CanSM_BusSubStateType BusSubState;
-  boolean bBusOff;
-  boolean bTxTimeout;
-  boolean bStartWakeup;
-  boolean bStopWakeup;
+  boolean BusOff;
+  boolean TxTimeout;
+  boolean StartWakeup;
+  boolean StopWakeup;
 } CanSM_ChannelContextType;
 
 typedef struct {
@@ -87,9 +87,9 @@ typedef struct {
 } CanSM_NetworkConfigType;          /* @ECUC_CanSM_00338 */
 
 struct CanSM_Config_s {
-  const CanSM_NetworkConfigType *networks;
-  CanSM_ChannelContextType *contexts;
-  uint8_t numOfNetworks;
+  const CanSM_NetworkConfigType *Networks;
+  CanSM_ChannelContextType *Contexts;
+  uint8_t NumOfNetworks;
   uint8_t ModeRequestRepetitionMax; /* @ECUC_CanSM_00335 */
   uint16_t RequestRepetitionTime;   /* @ECUC_CanSM_00336 */
 };

@@ -64,36 +64,36 @@ def GenHeader(f):
 
 
 TypeInfoMap = {
-    "bool": {"size": 1, "IsArray": False, "ctype": "boolean"},
-    "string": {"size": 1, "IsArray": True, "variable_array": True, "ctype": "uint8_t"},
-    "uint8": {"size": 1, "IsArray": False, "ctype": "uint8_t"},
-    "int8": {"size": 1, "IsArray": False, "ctype": "int8_t"},
-    "uint16": {"size": 2, "IsArray": False, "ctype": "uint16_t"},
-    "int16": {"size": 2, "IsArray": False, "ctype": "int16_t"},
-    "uint32": {"size": 4, "IsArray": False, "ctype": "uint32_t"},
-    "int32": {"size": 4, "IsArray": False, "ctype": "int32_t"},
-    "uint64": {"size": 8, "IsArray": False, "ctype": "uint64_t"},
-    "int64": {"size": 8, "IsArray": False, "ctype": "uint64_t"},
-    "float": {"size": 4, "IsArray": False, "ctype": "float"},
-    "double": {"size": 8, "IsArray": False, "ctype": "double"},
-    "bool_n": {"size": 1, "IsArray": True, "ctype": "boolean"},
-    "uint8_n": {"size": 1, "IsArray": True, "ctype": "uint8_t"},
-    "int8_n": {"size": 1, "IsArray": True, "ctype": "int8_t"},
-    "uint16_n": {"size": 2, "IsArray": True, "ctype": "uint16_t"},
-    "int16_n": {"size": 2, "IsArray": True, "ctype": "int16_t"},
-    "uint32_n": {"size": 4, "IsArray": True, "ctype": "uint32_t"},
-    "int32_n": {"size": 4, "IsArray": True, "ctype": "int32_t"},
-    "uint64_n": {"size": 8, "IsArray": True, "ctype": "uint64_t"},
-    "int64_n": {"size": 8, "IsArray": True, "ctype": "int64_t"},
-    "float_n": {"size": 4, "IsArray": True, "ctype": "float"},
-    "double_n": {"size": 8, "IsArray": True, "ctype": "double"},
+    "bool": {"Size": 1, "IsArray": False, "ctype": "boolean"},
+    "string": {"Size": 1, "IsArray": True, "VariableArray": True, "ctype": "uint8_t"},
+    "uint8": {"Size": 1, "IsArray": False, "ctype": "uint8_t"},
+    "int8": {"Size": 1, "IsArray": False, "ctype": "int8_t"},
+    "uint16": {"Size": 2, "IsArray": False, "ctype": "uint16_t"},
+    "int16": {"Size": 2, "IsArray": False, "ctype": "int16_t"},
+    "uint32": {"Size": 4, "IsArray": False, "ctype": "uint32_t"},
+    "int32": {"Size": 4, "IsArray": False, "ctype": "int32_t"},
+    "uint64": {"Size": 8, "IsArray": False, "ctype": "uint64_t"},
+    "int64": {"Size": 8, "IsArray": False, "ctype": "uint64_t"},
+    "float": {"Size": 4, "IsArray": False, "ctype": "float"},
+    "double": {"Size": 8, "IsArray": False, "ctype": "double"},
+    "bool_n": {"Size": 1, "IsArray": True, "ctype": "boolean"},
+    "uint8_n": {"Size": 1, "IsArray": True, "ctype": "uint8_t"},
+    "int8_n": {"Size": 1, "IsArray": True, "ctype": "int8_t"},
+    "uint16_n": {"Size": 2, "IsArray": True, "ctype": "uint16_t"},
+    "int16_n": {"Size": 2, "IsArray": True, "ctype": "int16_t"},
+    "uint32_n": {"Size": 4, "IsArray": True, "ctype": "uint32_t"},
+    "int32_n": {"Size": 4, "IsArray": True, "ctype": "int32_t"},
+    "uint64_n": {"Size": 8, "IsArray": True, "ctype": "uint64_t"},
+    "int64_n": {"Size": 8, "IsArray": True, "ctype": "int64_t"},
+    "float_n": {"Size": 4, "IsArray": True, "ctype": "float"},
+    "double_n": {"Size": 8, "IsArray": True, "ctype": "double"},
 }
 
 
 def GetDataSize(data):
-    if data["type"] == "struct":
+    if data["Type"] == "struct":
         size = 0
-        for sd in data["data"]:
+        for sd in data["Data"]:
             size += GetDataSize(sd)
         return size
-    return TypeInfoMap[data["type"]]["size"] * data.get("size", 1) * data.get("repeat", 1)
+    return TypeInfoMap[data["Type"]]["Size"] * data.get("Size", 1) * data.get("Repeat", 1)

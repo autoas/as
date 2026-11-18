@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
   }
 
   length = SomeIpXf_EncodeStruct(buffer, sizeof(buffer), &display, &SomeIpXf_StructDisplayDef);
-  Log::hexdump(Logger::INFO, "display:", buffer, length);
+  Log::HexDump(Logger::INFO, "display:", buffer, length);
 
   length = SomeIpXf_DecodeStruct(buffer, (uint32_t)length, &display2, &SomeIpXf_StructDisplayDef);
 

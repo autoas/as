@@ -19,11 +19,11 @@
 #define AS_LOG_UDPNM 1
 
 #ifdef USE_UDPNM_CRITICAL
-#define nmEnterCritical() EnterCritical()
-#define nmExitCritical() ExitCritical();
+#define UdpNmEnterCritical() EnterCritical()
+#define UdpNmExitCritical() ExitCritical();
 #else
-#define nmEnterCritical()
-#define nmExitCritical()
+#define UdpNmEnterCritical()
+#define UdpNmExitCritical()
 #endif
 
 #define UDPNM_CONFIG (&UdpNm_Config)
@@ -39,34 +39,34 @@
 #define UDPNM_PN_ENABLED_MASK 0x100
 
 #ifdef _WIN32
-#define nmSetAlarm(Timer, v)                                                                       \
-  Std_TimerSet(&context->Alarm._##Timer, ((v) * 1000 * UDPNM_MAIN_FUNCTION_PERIOD))
-#define nmSingalAlarm(Timer)
-#define nmIsAlarmTimeout(Timer) Std_IsTimerTimeout(&context->Alarm._##Timer)
-#define nmIsAlarmStarted(Timer) Std_IsTimerStarted(&context->Alarm._##Timer)
-#define nmCancelAlarm(Timer) Std_TimerStop(&context->Alarm._##Timer)
+#define UdpNmSetAlarm(Timer, v)                                                                    \
+  Std_TimerSet(&context->Alarm.Timer, ((v) * 1000 * UDPNM_MAIN_FUNCTION_PERIOD))
+#define UdpNmSignalAlarm(Timer)
+#define UdpNmIsAlarmTimeout(Timer) Std_IsTimerTimeout(&context->Alarm.Timer)
+#define UdpNmIsAlarmStarted(Timer) Std_IsTimerStarted(&context->Alarm.Timer)
+#define UdpNmCancelAlarm(Timer) Std_TimerStop(&context->Alarm.Timer)
 #else
 /* Alarm Management */
-#define nmSetAlarm(Timer, v)                                                                       \
+#define UdpNmSetAlarm(Timer, v)                                                                    \
   do {                                                                                             \
-    context->Alarm._##Timer = 1 + (v);                                                             \
+    context->Alarm.Timer = 1 + (v);                                                                \
   } while (0)
 
 /* signal the alarm to process one step/tick forward */
-#define nmSingalAlarm(Timer)                                                                       \
+#define UdpNmSignalAlarm(Timer)                                                                    \
   do {                                                                                             \
-    if (context->Alarm._##Timer > 1) {                                                             \
-      (context->Alarm._##Timer)--;                                                                 \
+    if (context->Alarm.Timer > 1) {                                                                \
+      (context->Alarm.Timer)--;                                                                    \
     }                                                                                              \
   } while (0)
 
-#define nmIsAlarmTimeout(Timer) (1 == context->Alarm._##Timer)
+#define UdpNmIsAlarmTimeout(Timer) (1 == context->Alarm.Timer)
 
-#define nmIsAlarmStarted(Timer) (0 != context->Alarm._##Timer)
+#define UdpNmIsAlarmStarted(Timer) (0 != context->Alarm.Timer)
 
-#define nmCancelAlarm(Timer)                                                                       \
+#define UdpNmCancelAlarm(Timer)                                                                    \
   do {                                                                                             \
-    context->Alarm._##Timer = 0;                                                                   \
+    context->Alarm.Timer = 0;                                                                      \
   } while (0)
 #endif
 
@@ -80,320 +80,320 @@
 extern const UdpNm_ConfigType UdpNm_Config;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static void nmSendMessage(UdpNm_ChannelContextType *context, const UdpNm_ChannelConfigType *config,
-                          uint16_t reload) {
+static void UdpNm_SendMessage(UdpNm_ChannelContextType *context,
+                              const UdpNm_ChannelConfigType *config, uint16_t reload) {
   Std_ReturnType ret;
   PduInfoType pdu;
 
-  pdu.SduLength = sizeof(context->data);
-  pdu.SduDataPtr = context->data;
+  pdu.SduLength = sizeof(context->Data);
+  pdu.SduDataPtr = context->Data;
   pdu.MetaDataPtr = NULL;
-  if (0 == (context->flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+  if (0 == (context->Flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
     ret = SoAd_IfTransmit(config->TxPdu, &pdu);
     if (E_OK == ret) {
-      nmSetAlarm(TxTimeout, config->MsgTimeoutTime);
+      UdpNmSetAlarm(TxTimeout, config->MsgTimeoutTime);
       if (reload > 0) {
-        nmSetAlarm(Tx, reload);
+        UdpNmSetAlarm(Tx, reload);
       }
     } else {
       /* @SWS_UdpNm_00330 */
-      nmSetAlarm(Tx, 0);
+      UdpNmSetAlarm(Tx, 0);
     }
   }
 }
 
-static void nmEnterNetworkMode(UdpNm_ChannelContextType *context,
-                               const UdpNm_ChannelConfigType *config) {
-  context->state = NM_STATE_REPEAT_MESSAGE;
+static void UdpNm_EnterNetworkMode(UdpNm_ChannelContextType *context,
+                                   const UdpNm_ChannelConfigType *config) {
+  context->State = NM_STATE_REPEAT_MESSAGE;
   context->TxCounter = 0;
-  if ((context->flags & UDPNM_REQUEST_MASK) && (config->ImmediateNmTransmissions > 0)) {
+  if ((context->Flags & UDPNM_REQUEST_MASK) && (config->ImmediateNmTransmissions > 0)) {
     /* @SWS_UdpNm_00334 */
-    nmSendMessage(context, config, config->ImmediateNmCycleTime);
+    UdpNm_SendMessage(context, config, config->ImmediateNmCycleTime);
   } else {
     /* SWS_UdpNm_00005 */
-    nmSetAlarm(Tx, config->MsgCycleOffset);
+    UdpNmSetAlarm(Tx, config->MsgCycleOffset);
   }
-  nmSetAlarm(NMTimeout, config->NmTimeoutTime);
-  nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+  UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
+  UdpNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
 
-  nmEnterCritical();
-  context->flags &= ~(UDPNM_NM_PDU_RECEIVED_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK |
+  UdpNmEnterCritical();
+  context->Flags &= ~(UDPNM_NM_PDU_RECEIVED_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK |
                       UDPNM_REMOTE_SLEEP_IND_MASK | UDPNM_RX_INDICATION_REQUEST_MASK |
                       UDPNM_COORDINATOR_SLEEP_SYNC_MASK | UDPNM_PN_ENABLED_MASK);
-  nmExitCritical();
+  UdpNmExitCritical();
 
-  Nm_NetworkMode(config->nmNetworkHandle);
+  Nm_NetworkMode(config->NmNetworkHandle);
   ASLOG(UDPNM,
-        ("%d: Enter Repeat Message Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+        ("%d: Enter Repeat Message Mode, flags %02X\n", config->NmNetworkHandle, context->Flags));
 }
 
-static void nmRepeatMessageMain(UdpNm_ChannelContextType *context,
-                                const UdpNm_ChannelConfigType *config) {
+static void UdpNm_RepeatMessageMain(UdpNm_ChannelContextType *context,
+                                    const UdpNm_ChannelConfigType *config) {
   uint16_t reload = config->MsgCycleTime;
 
-  if (context->flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
-    nmEnterCritical();
-    context->flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
-    nmExitCritical();
+  if (context->Flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
+    UdpNmEnterCritical();
+    context->Flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
+    UdpNmExitCritical();
   }
 
-  if ((context->flags & UDPNM_REQUEST_MASK) && (config->ImmediateNmTransmissions > 0)) {
+  if ((context->Flags & UDPNM_REQUEST_MASK) && (config->ImmediateNmTransmissions > 0)) {
     /* @SWS_UdpNm_00334 */
     if (context->TxCounter < (config->ImmediateNmTransmissions - 1)) {
       reload = config->ImmediateNmCycleTime;
     }
   }
 
-  if (nmIsAlarmStarted(TxTimeout)) {
-    nmSingalAlarm(TxTimeout);
-    if (nmIsAlarmTimeout(TxTimeout)) {
-      nmCancelAlarm(TxTimeout);
-      Nm_TxTimeoutException(config->nmNetworkHandle);
+  if (UdpNmIsAlarmStarted(TxTimeout)) {
+    UdpNmSignalAlarm(TxTimeout);
+    if (UdpNmIsAlarmTimeout(TxTimeout)) {
+      UdpNmCancelAlarm(TxTimeout);
+      Nm_TxTimeoutException(config->NmNetworkHandle);
     }
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
-    }
-  } else {
-    nmSetAlarm(NMTimeout, config->NmTimeoutTime);
-  }
-
-  if (nmIsAlarmStarted(Tx)) {
-    nmSingalAlarm(Tx);
-    if (nmIsAlarmTimeout(Tx)) {
-      nmSendMessage(context, config, reload);
+  if (UdpNmIsAlarmStarted(NmTimeout)) {
+    UdpNmSignalAlarm(NmTimeout);
+    if (UdpNmIsAlarmTimeout(NmTimeout)) {
+      UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   } else {
-    nmSetAlarm(Tx, reload);
+    UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
   }
 
-  if (nmIsAlarmStarted(RepeatMessage)) {
-    nmSingalAlarm(RepeatMessage);
-    if (nmIsAlarmTimeout(RepeatMessage)) {
-      if (context->flags & UDPNM_REQUEST_MASK) {
-        context->state = NM_STATE_NORMAL_OPERATION;
+  if (UdpNmIsAlarmStarted(Tx)) {
+    UdpNmSignalAlarm(Tx);
+    if (UdpNmIsAlarmTimeout(Tx)) {
+      UdpNm_SendMessage(context, config, reload);
+    }
+  } else {
+    UdpNmSetAlarm(Tx, reload);
+  }
+
+  if (UdpNmIsAlarmStarted(RepeatMessage)) {
+    UdpNmSignalAlarm(RepeatMessage);
+    if (UdpNmIsAlarmTimeout(RepeatMessage)) {
+      if (context->Flags & UDPNM_REQUEST_MASK) {
+        context->State = NM_STATE_NORMAL_OPERATION;
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_UdpNm_00149, @SWS_UdpNm_00150 */
-        nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+        UdpNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
 #endif
-        ASLOG(UDPNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        ASLOG(UDPNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->NmNetworkHandle,
+                      context->Flags));
       } else {
-        context->state = NM_STATE_READY_SLEEP;
-        ASLOG(UDPNM, ("%d: Enter Ready Sleep Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        context->State = NM_STATE_READY_SLEEP;
+        ASLOG(UDPNM, ("%d: Enter Ready Sleep Mode, flags %02X\n", config->NmNetworkHandle,
+                      context->Flags));
       }
       if (config->PduCbvPosition < UDPNM_PDU_OFF) {
         /* @SWS_UdpNm_00107 */
-        nmEnterCritical();
-        context->data[config->PduCbvPosition] &= ~UDPNM_CBV_REPEAT_MESSAGE_REQUEST;
-        nmExitCritical();
+        UdpNmEnterCritical();
+        context->Data[config->PduCbvPosition] &= ~UDPNM_CBV_REPEAT_MESSAGE_REQUEST;
+        UdpNmExitCritical();
       }
     }
   } else {
-    nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+    UdpNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
   }
 }
 
-static void nmBusSleepMain(UdpNm_ChannelContextType *context,
-                           const UdpNm_ChannelConfigType *config) {
-  if (context->flags & (UDPNM_REQUEST_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK)) {
-    nmEnterNetworkMode(context, config);
+static void UdpNm_BusSleepMain(UdpNm_ChannelContextType *context,
+                               const UdpNm_ChannelConfigType *config) {
+  if (context->Flags & (UDPNM_REQUEST_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK)) {
+    UdpNm_EnterNetworkMode(context, config);
   } else {
-    if (context->flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
+    if (context->Flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
       /* @SWS_UdpNm_00127 */
-      nmEnterCritical();
-      context->flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
-      nmExitCritical();
-      Nm_NetworkStartIndication(config->nmNetworkHandle);
+      UdpNmEnterCritical();
+      context->Flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
+      UdpNmExitCritical();
+      Nm_NetworkStartIndication(config->NmNetworkHandle);
     }
   }
 }
 
-static void nmPrepareBusSleepMain(UdpNm_ChannelContextType *context,
-                                  const UdpNm_ChannelConfigType *config) {
-  if (context->flags & (UDPNM_REQUEST_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK |
+static void UdpNm_PrepareBusSleepMain(UdpNm_ChannelContextType *context,
+                                      const UdpNm_ChannelConfigType *config) {
+  if (context->Flags & (UDPNM_REQUEST_MASK | UDPNM_PASSIVE_STARTUP_REQUEST_MASK |
                         UDPNM_RX_INDICATION_REQUEST_MASK)) {
-    if (context->flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
-      nmEnterCritical();
-      context->flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
-      nmExitCritical();
+    if (context->Flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
+      UdpNmEnterCritical();
+      context->Flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
+      UdpNmExitCritical();
     }
-    nmEnterNetworkMode(context, config);
+    UdpNm_EnterNetworkMode(context, config);
   } else {
-    if (nmIsAlarmStarted(WaitBusSleep)) {
-      nmSingalAlarm(WaitBusSleep);
-      if (nmIsAlarmTimeout(WaitBusSleep)) {
-        context->state = NM_STATE_BUS_SLEEP;
+    if (UdpNmIsAlarmStarted(WaitBusSleep)) {
+      UdpNmSignalAlarm(WaitBusSleep);
+      if (UdpNmIsAlarmTimeout(WaitBusSleep)) {
+        context->State = NM_STATE_BUS_SLEEP;
         ASLOG(UDPNM,
-              ("%d: Enter Bus Sleep Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
-        Nm_BusSleepMode(config->nmNetworkHandle);
+              ("%d: Enter Bus Sleep Mode, flags %02X\n", config->NmNetworkHandle, context->Flags));
+        Nm_BusSleepMode(config->NmNetworkHandle);
       }
     } else {
-      nmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
+      UdpNmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
     }
   }
 }
 
-static void nmEnterRepeatMessageMode(UdpNm_ChannelContextType *context,
-                                     const UdpNm_ChannelConfigType *config) {
-  context->state = NM_STATE_REPEAT_MESSAGE;
+static void UdpNm_EnterRepeatMessageMode(UdpNm_ChannelContextType *context,
+                                         const UdpNm_ChannelConfigType *config) {
+  context->State = NM_STATE_REPEAT_MESSAGE;
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-  if (context->flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
+  if (context->Flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
     /* @SWS_UdpNm_00152 */
-    Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+    Nm_RemoteSleepCancellation(config->NmNetworkHandle);
   }
 #endif
-  nmEnterCritical();
-  context->flags &= ~(UDPNM_REPEAT_MESSAGE_REQUEST_MASK | UDPNM_REMOTE_SLEEP_IND_MASK);
-  nmExitCritical();
+  UdpNmEnterCritical();
+  context->Flags &= ~(UDPNM_REPEAT_MESSAGE_REQUEST_MASK | UDPNM_REMOTE_SLEEP_IND_MASK);
+  UdpNmExitCritical();
   ASLOG(UDPNM,
-        ("%d: Enter Repeat Message Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+        ("%d: Enter Repeat Message Mode, flags %02X\n", config->NmNetworkHandle, context->Flags));
   /* @SWS_UdpNm_00005 */
-  nmSetAlarm(Tx, config->MsgCycleOffset);
-  nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+  UdpNmSetAlarm(Tx, config->MsgCycleOffset);
+  UdpNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
 }
 
-static void nmReadySleepMain(UdpNm_ChannelContextType *context,
-                             const UdpNm_ChannelConfigType *config) {
-  if (context->flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
-    nmEnterCritical();
-    context->flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
-    nmExitCritical();
+static void UdpNm_ReadySleepMain(UdpNm_ChannelContextType *context,
+                                 const UdpNm_ChannelConfigType *config) {
+  if (context->Flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
+    UdpNmEnterCritical();
+    context->Flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
+    UdpNmExitCritical();
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-    if (context->flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
-      nmEnterCritical();
-      context->flags &= ~UDPNM_REMOTE_SLEEP_IND_MASK;
-      nmExitCritical();
+    if (context->Flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
+      UdpNmEnterCritical();
+      context->Flags &= ~UDPNM_REMOTE_SLEEP_IND_MASK;
+      UdpNmExitCritical();
       /* @SWS_UdpNm_00151 */
-      Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+      Nm_RemoteSleepCancellation(config->NmNetworkHandle);
     }
 #endif
   }
 
-  if (context->flags & UDPNM_REPEAT_MESSAGE_REQUEST_MASK) {
-    nmEnterRepeatMessageMode(context, config);
-  } else if (context->flags & UDPNM_REQUEST_MASK) {
-    context->state = NM_STATE_NORMAL_OPERATION;
+  if (context->Flags & UDPNM_REPEAT_MESSAGE_REQUEST_MASK) {
+    UdpNm_EnterRepeatMessageMode(context, config);
+  } else if (context->Flags & UDPNM_REQUEST_MASK) {
+    context->State = NM_STATE_NORMAL_OPERATION;
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_UdpNm_00149, @SWS_UdpNm_00150 */
-    nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+    UdpNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
 #endif
-    nmSendMessage(context, config, config->MsgCycleTime); /* @SWS_UdpNm_00006 */
-    ASLOG(UDPNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->nmNetworkHandle,
-                  context->flags));
+    UdpNm_SendMessage(context, config, config->MsgCycleTime); /* @SWS_UdpNm_00006 */
+    ASLOG(UDPNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->NmNetworkHandle,
+                  context->Flags));
   } else {
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (context->flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK) {
-      nmCancelAlarm(NMTimeout); /* @SWS_UdpNm_00174 */
+  if (UdpNmIsAlarmStarted(NmTimeout)) {
+    UdpNmSignalAlarm(NmTimeout);
+    if (context->Flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK) {
+      UdpNmCancelAlarm(NmTimeout); /* @SWS_UdpNm_00174 */
     }
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      if (NM_STATE_READY_SLEEP == context->state) {
-        nmCancelAlarm(NMTimeout);
-        nmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
-        context->state = NM_STATE_PREPARE_BUS_SLEEP;
+    if (UdpNmIsAlarmTimeout(NmTimeout)) {
+      if (NM_STATE_READY_SLEEP == context->State) {
+        UdpNmCancelAlarm(NmTimeout);
+        UdpNmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
+        context->State = NM_STATE_PREPARE_BUS_SLEEP;
         if ((config->ActiveWakeupBitEnabled) && (config->PduCbvPosition < UDPNM_PDU_OFF)) {
-          context->data[config->PduCbvPosition] &= ~UDPNM_CBV_ACTIVE_WAKEUP; /* @SWS_UdpNm_00367 */
+          context->Data[config->PduCbvPosition] &= ~UDPNM_CBV_ACTIVE_WAKEUP; /* @SWS_UdpNm_00367 */
         }
-        Nm_PrepareBusSleepMode(config->nmNetworkHandle);
-        ASLOG(UDPNM, ("%d: Enter Prepare Bus Sleep Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        Nm_PrepareBusSleepMode(config->NmNetworkHandle);
+        ASLOG(UDPNM, ("%d: Enter Prepare Bus Sleep Mode, flags %02X\n", config->NmNetworkHandle,
+                      context->Flags));
       } else {
-        nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+        UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
       }
     }
   } else {
-    if (0 == (context->flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+    if (0 == (context->Flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
       /* @SWS_CanNm_00178, @SWS_CanNm_00179 */
       ASLOG(ERROR, ("UDPNM NMTimeout not started\n"));
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+      UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   }
 }
 
-static void nmNetworkNormalOperationMain(UdpNm_ChannelContextType *context,
-                                         const UdpNm_ChannelConfigType *config) {
-  if (nmIsAlarmStarted(TxTimeout)) {
-    nmSingalAlarm(TxTimeout);
-    if (nmIsAlarmTimeout(TxTimeout)) {
-      nmCancelAlarm(TxTimeout);
-      Nm_TxTimeoutException(config->nmNetworkHandle);
+static void UdpNm_NetworkNormalOperationMain(UdpNm_ChannelContextType *context,
+                                             const UdpNm_ChannelConfigType *config) {
+  if (UdpNmIsAlarmStarted(TxTimeout)) {
+    UdpNmSignalAlarm(TxTimeout);
+    if (UdpNmIsAlarmTimeout(TxTimeout)) {
+      UdpNmCancelAlarm(TxTimeout);
+      Nm_TxTimeoutException(config->NmNetworkHandle);
     }
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+  if (UdpNmIsAlarmStarted(NmTimeout)) {
+    UdpNmSignalAlarm(NmTimeout);
+    if (UdpNmIsAlarmTimeout(NmTimeout)) {
+      UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   } else {
-    nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
   }
 
-  if (context->flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
-    nmEnterCritical();
-    context->flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
-    nmExitCritical();
+  if (context->Flags & UDPNM_RX_INDICATION_REQUEST_MASK) {
+    UdpNmEnterCritical();
+    context->Flags &= ~UDPNM_RX_INDICATION_REQUEST_MASK;
+    UdpNmExitCritical();
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-    nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
-    if (context->flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
-      nmEnterCritical();
-      context->flags &= ~UDPNM_REMOTE_SLEEP_IND_MASK;
-      nmExitCritical();
+    UdpNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+    if (context->Flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
+      UdpNmEnterCritical();
+      context->Flags &= ~UDPNM_REMOTE_SLEEP_IND_MASK;
+      UdpNmExitCritical();
       /* @SWS_UdpNm_00151 */
-      Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+      Nm_RemoteSleepCancellation(config->NmNetworkHandle);
     }
 #endif
   }
 
-  if (nmIsAlarmStarted(Tx)) {
-    nmSingalAlarm(Tx);
-    if (nmIsAlarmTimeout(Tx)) {
-      nmSendMessage(context, config, config->MsgCycleTime);
+  if (UdpNmIsAlarmStarted(Tx)) {
+    UdpNmSignalAlarm(Tx);
+    if (UdpNmIsAlarmTimeout(Tx)) {
+      UdpNm_SendMessage(context, config, config->MsgCycleTime);
     }
   } else {
-    nmSetAlarm(Tx, config->MsgCycleTime);
+    UdpNmSetAlarm(Tx, config->MsgCycleTime);
   }
 
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_UdpNm_00149, @SWS_UdpNm_00150 */
-  if (nmIsAlarmStarted(RemoteSleepInd)) {
-    nmSingalAlarm(RemoteSleepInd);
-    if (nmIsAlarmTimeout(RemoteSleepInd)) {
-      nmCancelAlarm(RemoteSleepInd);
-      if (0 == (context->flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+  if (UdpNmIsAlarmStarted(RemoteSleepInd)) {
+    UdpNmSignalAlarm(RemoteSleepInd);
+    if (UdpNmIsAlarmTimeout(RemoteSleepInd)) {
+      UdpNmCancelAlarm(RemoteSleepInd);
+      if (0 == (context->Flags & UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
         /* @00175 */
-        Nm_RemoteSleepIndication(config->nmNetworkHandle);
-        nmEnterCritical();
-        context->flags |= UDPNM_REMOTE_SLEEP_IND_MASK;
-        nmExitCritical();
+        Nm_RemoteSleepIndication(config->NmNetworkHandle);
+        UdpNmEnterCritical();
+        context->Flags |= UDPNM_REMOTE_SLEEP_IND_MASK;
+        UdpNmExitCritical();
       }
     }
   }
 #endif
 
-  if (context->flags & UDPNM_REPEAT_MESSAGE_REQUEST_MASK) {
-    nmEnterRepeatMessageMode(context, config);
-  } else if (0 == (context->flags & UDPNM_REQUEST_MASK)) {
-    context->state = NM_STATE_READY_SLEEP;
+  if (context->Flags & UDPNM_REPEAT_MESSAGE_REQUEST_MASK) {
+    UdpNm_EnterRepeatMessageMode(context, config);
+  } else if (0 == (context->Flags & UDPNM_REQUEST_MASK)) {
+    context->State = NM_STATE_READY_SLEEP;
     ASLOG(UDPNM,
-          ("%d: Enter Ready Sleep Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+          ("%d: Enter Ready Sleep Mode, flags %02X\n", config->NmNetworkHandle, context->Flags));
   } else {
   }
 }
 
 #ifdef UDPNM_GLOBAL_PN_SUPPORT
-static Std_ReturnType nmRxFilter(UdpNm_ChannelContextType *context,
-                                 const UdpNm_ChannelConfigType *config,
-                                 const PduInfoType *PduInfoPtr) {
+static Std_ReturnType UdpNm_RxFilter(UdpNm_ChannelContextType *context,
+                                     const UdpNm_ChannelConfigType *config,
+                                     const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_OK;
   int i;
-  if (context->flags & UDPNM_PN_ENABLED_MASK) {
+  if (context->Flags & UDPNM_PN_ENABLED_MASK) {
     if (0 ==
-        (PduInfoPtr->SduDataPtr[config->PduCbvPosition] & UDPNM_CBV_PARTIAL_NETWORK_INFORMATION)) {
+        (pduInfoPtr->SduDataPtr[config->PduCbvPosition] & UDPNM_CBV_PARTIAL_NETWORK_INFORMATION)) {
       if (config->AllNmMessagesKeepAwake) { /* @SWS_UdpNm_00329 */
         ret = E_OK;
       } else {
@@ -405,7 +405,7 @@ static Std_ReturnType nmRxFilter(UdpNm_ChannelContextType *context,
       ret = E_NOT_OK;
       for (i = 0; i < config->PnInfoLength; i++) {
         /* @SWS_UdpNm_00338, @SWS_UdpNm_00339 */
-        if (PduInfoPtr->SduDataPtr[config->PnInfoOffset + i] & config->PnFilterMaskByte[i]) {
+        if (pduInfoPtr->SduDataPtr[config->PnInfoOffset + i] & config->PnFilterMaskByte[i]) {
           ret = E_OK;
           break;
         }
@@ -425,21 +425,21 @@ void UdpNm_Init(const UdpNm_ConfigType *udpnmConfigPtr) {
   const UdpNm_ChannelConfigType *config;
   (void)udpnmConfigPtr;
 
-  for (i = 0; i < UDPNM_CONFIG->numOfChannels; i++) {
+  for (i = 0; i < UDPNM_CONFIG->NumOfChannels; i++) {
     context = &UDPNM_CONFIG->ChannelContexts[i];
     config = &UDPNM_CONFIG->ChannelConfigs[i];
-    context->state = NM_STATE_BUS_SLEEP; /* @SWS_UdpNm_00141 */
-    context->flags = 0;                  /* @SWS_UdpNm_00143 */
-    memset(context->rxPdu, 0xFF, sizeof(context->rxPdu));
-    memset(context->data, 0xFF, sizeof(context->data)); /* @SWS_UdpNm_00025 */
+    context->State = NM_STATE_BUS_SLEEP; /* @SWS_UdpNm_00141 */
+    context->Flags = 0;                  /* @SWS_UdpNm_00143 */
+    memset(context->RxPdu, 0xFF, sizeof(context->RxPdu));
+    memset(context->Data, 0xFF, sizeof(context->Data)); /* @SWS_UdpNm_00025 */
     if (config->PduNidPosition < UDPNM_PDU_OFF) {
-      context->data[config->PduNidPosition] = config->NodeId; /* @SWS_UdpNm_00013 */
+      context->Data[config->PduNidPosition] = config->NodeId; /* @SWS_UdpNm_00013 */
     }
     if (config->PduCbvPosition < UDPNM_PDU_OFF) {
-      context->data[config->PduCbvPosition] = 0x00; /* @SWS_UdpNm_00085 */
+      context->Data[config->PduCbvPosition] = 0x00; /* @SWS_UdpNm_00085 */
       if (config->PnEnabled) {                      /* @SWS_UdpNm_00332 */
-        context->data[config->PduCbvPosition] |= UDPNM_CBV_PARTIAL_NETWORK_INFORMATION;
-        memcpy(&context->data[config->PnInfoOffset], config->PnFilterMaskByte,
+        context->Data[config->PduCbvPosition] |= UDPNM_CBV_PARTIAL_NETWORK_INFORMATION;
+        memcpy(&context->Data[config->PnInfoOffset], config->PnFilterMaskByte,
                config->PnInfoLength);
       }
     }
@@ -450,14 +450,14 @@ Std_ReturnType UdpNm_PassiveStartUp(NetworkHandleType nmChannelHandle) {
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
-    switch ((context->state)) {
+    switch ((context->State)) {
     case NM_STATE_BUS_SLEEP:
     case NM_STATE_PREPARE_BUS_SLEEP:
-      nmEnterCritical();
-      context->flags |= UDPNM_PASSIVE_STARTUP_REQUEST_MASK;
-      nmExitCritical();
+      UdpNmEnterCritical();
+      context->Flags |= UDPNM_PASSIVE_STARTUP_REQUEST_MASK;
+      UdpNmExitCritical();
       break;
     default:
       /* @SWS_UdpNm_00147 */
@@ -476,15 +476,15 @@ Std_ReturnType UdpNm_NetworkRequest(NetworkHandleType nmChannelHandle) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
-    nmEnterCritical();
-    context->flags |= UDPNM_REQUEST_MASK;
+    UdpNmEnterCritical();
+    context->Flags |= UDPNM_REQUEST_MASK;
     if ((config->ActiveWakeupBitEnabled) && (config->PduCbvPosition < UDPNM_PDU_OFF)) {
-      context->data[config->PduCbvPosition] |= UDPNM_CBV_ACTIVE_WAKEUP; /* @SWS_UdpNm_00366 */
+      context->Data[config->PduCbvPosition] |= UDPNM_CBV_ACTIVE_WAKEUP; /* @SWS_UdpNm_00366 */
     }
-    nmExitCritical();
+    UdpNmExitCritical();
   } else {
     ret = E_NOT_OK;
   }
@@ -496,11 +496,11 @@ Std_ReturnType UdpNm_NetworkRelease(NetworkHandleType nmChannelHandle) {
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
-    nmEnterCritical();
-    context->flags &= ~UDPNM_REQUEST_MASK;
-    nmExitCritical();
+    UdpNmEnterCritical();
+    context->Flags &= ~UDPNM_REQUEST_MASK;
+    UdpNmExitCritical();
   } else {
     ret = E_NOT_OK;
   }
@@ -513,21 +513,21 @@ Std_ReturnType UdpNm_RepeatMessageRequest(NetworkHandleType nmChannelHandle) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
-    switch (context->state) {
+    switch (context->State) {
     case NM_STATE_READY_SLEEP:
     case NM_STATE_NORMAL_OPERATION:
-      nmEnterCritical();
-      context->flags |= UDPNM_REPEAT_MESSAGE_REQUEST_MASK;
+      UdpNmEnterCritical();
+      context->Flags |= UDPNM_REPEAT_MESSAGE_REQUEST_MASK;
       /* @WS_UdpNm_00121, @SWS_UdpNm_00113 */
       if (config->NodeDetectionEnabled) {
         if (config->PduCbvPosition < UDPNM_PDU_OFF) {
-          context->data[config->PduCbvPosition] |= UDPNM_CBV_REPEAT_MESSAGE_REQUEST;
+          context->Data[config->PduCbvPosition] |= UDPNM_CBV_REPEAT_MESSAGE_REQUEST;
         }
       }
-      nmEnterCritical();
+      UdpNmEnterCritical();
       break;
     default:
       /* @SWS_UdpNm_00137 */
@@ -545,20 +545,20 @@ Std_ReturnType UdpNm_DisableCommunication(NetworkHandleType nmChannelHandle) {
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     /* @SWS_UdpNm_00170 */
-    nmEnterCritical();
-    context->flags |= UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK;
-    nmEnterCritical();
+    UdpNmEnterCritical();
+    context->Flags |= UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK;
+    UdpNmEnterCritical();
     /* could see codes that check UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK in the MainFunction,
      * That is because that Alarm operation is not atomic, so the codes that added to check
      * UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK is a workaroud and which is not good but it
      * satisfied the requirement */
-    nmCancelAlarm(Tx);        /* @SWS_UdpNm_00173 */
-    nmCancelAlarm(NMTimeout); /* @SWS_UdpNm_00174 */
+    UdpNmCancelAlarm(Tx);        /* @SWS_UdpNm_00173 */
+    UdpNmCancelAlarm(NmTimeout); /* @SWS_UdpNm_00174 */
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-    nmCancelAlarm(RemoteSleepInd); /* @SWS_UdpNm_00175 */
+    UdpNmCancelAlarm(RemoteSleepInd); /* @SWS_UdpNm_00175 */
 #endif
   } else {
     ret = E_NOT_OK;
@@ -572,16 +572,16 @@ Std_ReturnType UdpNm_EnableCommunication(NetworkHandleType nmChannelHandle) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
-    nmEnterCritical();
-    context->flags &= ~UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK;
-    nmEnterCritical();
-    nmSetAlarm(Tx, 0);                            /* @SWS_UdpNm_00178 */
-    nmSetAlarm(NMTimeout, config->NmTimeoutTime); /* @SWS_UdpNm_00179 */
+    UdpNmEnterCritical();
+    context->Flags &= ~UDPNM_DISABLE_COMMUNICATION_REQUEST_MASK;
+    UdpNmEnterCritical();
+    UdpNmSetAlarm(Tx, 0);                            /* @SWS_UdpNm_00178 */
+    UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime); /* @SWS_UdpNm_00179 */
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-    nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime); /* @SWS_UdpNm_00180 */
+    UdpNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime); /* @SWS_UdpNm_00180 */
 #endif
   } else {
     ret = E_NOT_OK;
@@ -590,90 +590,90 @@ Std_ReturnType UdpNm_EnableCommunication(NetworkHandleType nmChannelHandle) {
   return ret;
 }
 
-void UdpNm_SoAdIfTxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
+void UdpNm_SoAdIfTxConfirmation(PduIdType txPduId, Std_ReturnType result) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
-  if (TxPduId < UDPNM_CONFIG->numOfChannels) {
-    context = &UDPNM_CONFIG->ChannelContexts[TxPduId];
-    config = &UDPNM_CONFIG->ChannelConfigs[TxPduId];
+  if (txPduId < UDPNM_CONFIG->NumOfChannels) {
+    context = &UDPNM_CONFIG->ChannelContexts[txPduId];
+    config = &UDPNM_CONFIG->ChannelConfigs[txPduId];
     if (E_OK == result) {
       if (context->TxCounter < 0xFF) {
         context->TxCounter++;
       }
-      nmCancelAlarm(TxTimeout);
+      UdpNmCancelAlarm(TxTimeout);
 
-      if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-          (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-        nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+      if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+          (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+        UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
       }
     } else {
       /* @SWS_UdpNm_00379 */
-      Nm_TxTimeoutException(config->nmNetworkHandle);
+      Nm_TxTimeoutException(config->NmNetworkHandle);
     }
   } else {
-    ASLOG(ERROR, ("UdpNm_TxConfirmation with invalid TxPduId %d\n", TxPduId));
+    ASLOG(ERROR, ("UdpNm_TxConfirmation with invalid txPduId %d\n", txPduId));
   }
 }
 
-void UdpNm_SoAdIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void UdpNm_SoAdIfRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
   uint8_t flags = UDPNM_RX_INDICATION_REQUEST_MASK | UDPNM_NM_PDU_RECEIVED_MASK;
   Std_ReturnType ret = E_NOT_OK;
-  if (RxPduId < UDPNM_CONFIG->numOfChannels) {
-    context = &UDPNM_CONFIG->ChannelContexts[RxPduId];
-    config = &UDPNM_CONFIG->ChannelConfigs[RxPduId];
+  if (rxPduId < UDPNM_CONFIG->NumOfChannels) {
+    context = &UDPNM_CONFIG->ChannelContexts[rxPduId];
+    config = &UDPNM_CONFIG->ChannelConfigs[rxPduId];
 #ifdef UDPNM_GLOBAL_PN_SUPPORT
-    ret = nmRxFilter(context, config, PduInfoPtr);
+    ret = UdpNm_RxFilter(context, config, pduInfoPtr);
 #else
     ret = E_OK;
 #endif
   } else {
-    ASLOG(ERROR, ("UdpNm_RxIndication with invalid RxPduId %d\n", RxPduId));
+    ASLOG(ERROR, ("UdpNm_RxIndication with invalid RxPduId %d\n", rxPduId));
   }
   if (E_OK == ret) {
     /* @SWS_UdpNm_00035 */
-    memcpy(context->rxPdu, PduInfoPtr->SduDataPtr, sizeof(context->rxPdu));
+    memcpy(context->RxPdu, pduInfoPtr->SduDataPtr, sizeof(context->RxPdu));
     if (config->PduCbvPosition < UDPNM_PDU_OFF) {
-      if (context->rxPdu[config->PduCbvPosition] & UDPNM_CBV_REPEAT_MESSAGE_REQUEST) {
+      if (context->RxPdu[config->PduCbvPosition] & UDPNM_CBV_REPEAT_MESSAGE_REQUEST) {
         if (config->NodeDetectionEnabled) {
           /* @SWS_UdpNm_00119, @SWS_UdpNm_00111 */
-          if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-              (NM_STATE_READY_SLEEP == context->state)) {
+          if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+              (NM_STATE_READY_SLEEP == context->State)) {
             flags |= UDPNM_REPEAT_MESSAGE_REQUEST_MASK;
           }
         }
         /* @SWS_UdpNm_00014 */
         if (config->RepeatMsgIndEnabled && config->NodeDetectionEnabled) {
-          Nm_RepeatMessageIndication(config->nmNetworkHandle);
+          Nm_RepeatMessageIndication(config->NmNetworkHandle);
         }
       }
 #ifdef UDPNM_COORDINATOR_SYNC_SUPPORT
-      if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-          (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-        if (context->rxPdu[config->PduCbvPosition] & UDPNM_CBV_NM_COORDINATOR_SLEEP) {
+      if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+          (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+        if (context->RxPdu[config->PduCbvPosition] & UDPNM_CBV_NM_COORDINATOR_SLEEP) {
           /* @SWS_UdpNm_00364 */
-          if (0 == (context->flags & UDPNM_COORDINATOR_SLEEP_SYNC_MASK)) {
+          if (0 == (context->Flags & UDPNM_COORDINATOR_SLEEP_SYNC_MASK)) {
             flags |= UDPNM_COORDINATOR_SLEEP_SYNC_MASK;
-            Nm_CoordReadyToSleepIndication(config->nmNetworkHandle);
+            Nm_CoordReadyToSleepIndication(config->NmNetworkHandle);
           }
-        } else if (context->flags & UDPNM_COORDINATOR_SLEEP_SYNC_MASK) {
+        } else if (context->Flags & UDPNM_COORDINATOR_SLEEP_SYNC_MASK) {
           /* @SWS_UdpNm_00320 */
-          Nm_CoordReadyToSleepCancellation(config->nmNetworkHandle);
-          nmEnterCritical();
-          context->flags &= ~UDPNM_COORDINATOR_SLEEP_SYNC_MASK;
-          nmExitCritical();
+          Nm_CoordReadyToSleepCancellation(config->NmNetworkHandle);
+          UdpNmEnterCritical();
+          context->Flags &= ~UDPNM_COORDINATOR_SLEEP_SYNC_MASK;
+          UdpNmExitCritical();
         }
       }
 #endif
     }
-    if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-        (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+        (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+      UdpNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
-    nmEnterCritical();
-    context->flags |= flags;
-    nmExitCritical();
+    UdpNmEnterCritical();
+    context->Flags |= flags;
+    UdpNmExitCritical();
   }
 }
 
@@ -682,7 +682,7 @@ Std_ReturnType UdpNm_GetLocalNodeIdentifier(NetworkHandleType nmChannelHandle,
   Std_ReturnType ret = E_OK;
   const UdpNm_ChannelConfigType *config;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmNodeIdPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmNodeIdPtr)) {
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
     *nmNodeIdPtr = config->NodeId;
   } else {
@@ -698,12 +698,12 @@ Std_ReturnType UdpNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_
   const UdpNm_ChannelConfigType *config;
   uint8_t nodeId = UDPNM_INVALID_NODE_ID;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmNodeIdPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmNodeIdPtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
     /* @SWS_UdpNm_00132 */
     if (config->PduNidPosition < UDPNM_PDU_OFF) {
-      nodeId = context->rxPdu[config->PduNidPosition];
+      nodeId = context->RxPdu[config->PduNidPosition];
     }
     if (UDPNM_INVALID_NODE_ID == nodeId) {
       ret = E_NOT_OK;
@@ -725,7 +725,7 @@ Std_ReturnType UdpNm_SetUserData(NetworkHandleType nmChannelHandle, const uint8_
   uint8_t userDataLength = UDPNM_PDU_LENGTH;
   int i, j = 0;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmUserDataPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmUserDataPtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PduNidPosition != UDPNM_PDU_OFF) {
@@ -746,7 +746,7 @@ Std_ReturnType UdpNm_SetUserData(NetworkHandleType nmChannelHandle, const uint8_
 #endif
     for (i = 0; i < UDPNM_PDU_LENGTH; i++) {
       if (0 == (notUserDataMask & (1 << i))) {
-        context->data[i] = nmUserDataPtr[j];
+        context->Data[i] = nmUserDataPtr[j];
         j++;
       }
     }
@@ -765,7 +765,7 @@ Std_ReturnType UdpNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmU
   uint8_t userDataLength = UDPNM_PDU_LENGTH;
   int i, j = 0;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmUserDataPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmUserDataPtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PduNidPosition != UDPNM_PDU_OFF) {
@@ -786,7 +786,7 @@ Std_ReturnType UdpNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmU
 #endif
     for (i = 0; i < UDPNM_PDU_LENGTH; i++) {
       if (0 == (notUserDataMask & (1 << i))) {
-        nmUserDataPtr[j] = context->data[i];
+        nmUserDataPtr[j] = context->Data[i];
         j++;
       }
     }
@@ -801,10 +801,10 @@ Std_ReturnType UdpNm_GetPduData(NetworkHandleType nmChannelHandle, uint8_t *nmPd
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmPduDataPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmPduDataPtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
-    if (context->flags & UDPNM_NM_PDU_RECEIVED_MASK) {
-      memcpy(nmPduDataPtr, &context->rxPdu, UDPNM_PDU_LENGTH);
+    if (context->Flags & UDPNM_NM_PDU_RECEIVED_MASK) {
+      memcpy(nmPduDataPtr, &context->RxPdu, UDPNM_PDU_LENGTH);
     } else {
       ret = E_NOT_OK;
     }
@@ -820,11 +820,11 @@ Std_ReturnType UdpNm_GetState(NetworkHandleType nmChannelHandle, Nm_StateType *n
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (NULL != nmStatePtr) &&
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (NULL != nmStatePtr) &&
       (NULL != nmModePtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
-    *nmStatePtr = context->state;
-    switch (context->state) {
+    *nmStatePtr = context->State;
+    switch (context->State) {
     case NM_STATE_BUS_SLEEP:
       *nmModePtr = NM_MODE_BUS_SLEEP;
       break;
@@ -846,15 +846,15 @@ Std_ReturnType UdpNm_GetState(NetworkHandleType nmChannelHandle, Nm_StateType *n
 void UdpNm_ConfirmPnAvailability(NetworkHandleType nmChannelHandle) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
     if (config->PnEnabled) {
-      ASLOG(UDPNM, ("%d: confirm PN, flags %X\n", nmChannelHandle, context->flags));
+      ASLOG(UDPNM, ("%d: confirm PN, flags %X\n", nmChannelHandle, context->Flags));
       /* @00404 */
-      nmEnterCritical();
-      context->flags |= UDPNM_PN_ENABLED_MASK;
-      nmExitCritical();
+      UdpNmEnterCritical();
+      context->Flags |= UDPNM_PN_ENABLED_MASK;
+      UdpNmExitCritical();
     }
   }
 }
@@ -866,23 +866,23 @@ Std_ReturnType UdpNm_SetSleepReadyBit(NetworkHandleType nmChannelHandle, boolean
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
 
-  if (nmChannelHandle < UDPNM_CONFIG->numOfChannels) {
+  if (nmChannelHandle < UDPNM_CONFIG->NumOfChannels) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
     config = &UDPNM_CONFIG->ChannelConfigs[nmChannelHandle];
-    nmEnterCritical();
+    UdpNmEnterCritical();
     if (config->PduCbvPosition < UDPNM_PDU_OFF) {
       /* @00342 */
       if (nmSleepReadyBit) {
-        context->data[config->PduCbvPosition] |= UDPNM_CBV_NM_COORDINATOR_SLEEP;
+        context->Data[config->PduCbvPosition] |= UDPNM_CBV_NM_COORDINATOR_SLEEP;
       } else {
-        context->data[config->PduCbvPosition] &= ~UDPNM_CBV_NM_COORDINATOR_SLEEP;
+        context->Data[config->PduCbvPosition] &= ~UDPNM_CBV_NM_COORDINATOR_SLEEP;
       }
     } else {
       ret = E_NOT_OK;
     }
-    nmEnterCritical();
+    UdpNmEnterCritical();
     if (E_OK == ret) {
-      nmSendMessage(context, config, 0);
+      UdpNm_SendMessage(context, config, 0);
     }
   } else {
     ret = E_NOT_OK;
@@ -898,11 +898,11 @@ Std_ReturnType UdpNm_CheckRemoteSleepIndication(NetworkHandleType nmChannelHandl
   Std_ReturnType ret = E_OK;
   UdpNm_ChannelContextType *context;
 
-  if ((nmChannelHandle < UDPNM_CONFIG->numOfChannels) && (nmRemoteSleepIndPtr)) {
+  if ((nmChannelHandle < UDPNM_CONFIG->NumOfChannels) && (nmRemoteSleepIndPtr)) {
     context = &UDPNM_CONFIG->ChannelContexts[nmChannelHandle];
-    switch (context->state) {
+    switch (context->State) {
     case NM_STATE_NORMAL_OPERATION:
-      if (context->flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
+      if (context->Flags & UDPNM_REMOTE_SLEEP_IND_MASK) {
         *nmRemoteSleepIndPtr = TRUE;
       } else {
         *nmRemoteSleepIndPtr = FALSE;
@@ -926,24 +926,24 @@ void UdpNm_MainFunction(void) {
   UdpNm_ChannelContextType *context;
   const UdpNm_ChannelConfigType *config;
 
-  for (i = 0; i < UDPNM_CONFIG->numOfChannels; i++) {
+  for (i = 0; i < UDPNM_CONFIG->NumOfChannels; i++) {
     context = &UDPNM_CONFIG->ChannelContexts[i];
     config = &UDPNM_CONFIG->ChannelConfigs[i];
-    switch (context->state) {
+    switch (context->State) {
     case NM_STATE_BUS_SLEEP:
-      nmBusSleepMain(context, config);
+      UdpNm_BusSleepMain(context, config);
       break;
     case NM_STATE_PREPARE_BUS_SLEEP:
-      nmPrepareBusSleepMain(context, config);
+      UdpNm_PrepareBusSleepMain(context, config);
       break;
     case NM_STATE_READY_SLEEP:
-      nmReadySleepMain(context, config);
+      UdpNm_ReadySleepMain(context, config);
       break;
     case NM_STATE_REPEAT_MESSAGE:
-      nmRepeatMessageMain(context, config);
+      UdpNm_RepeatMessageMain(context, config);
       break;
     case NM_STATE_NORMAL_OPERATION:
-      nmNetworkNormalOperationMain(context, config);
+      UdpNm_NetworkNormalOperationMain(context, config);
       break;
     default:
       break;
@@ -951,21 +951,20 @@ void UdpNm_MainFunction(void) {
   }
 }
 
-BufReq_ReturnType UdpNm_SoAdStartOfReception(PduIdType RxPduId, const PduInfoType *info,
-                                             PduLengthType TpSduLength,
+BufReq_ReturnType UdpNm_SoAdStartOfReception(PduIdType rxPduId, const PduInfoType *info,
+                                             PduLengthType tpSduLength,
                                              PduLengthType *bufferSizePtr) {
   BufReq_ReturnType bufReq = BUFREQ_OK;
-  UdpNm_SoAdIfRxIndication(RxPduId, info);
+  UdpNm_SoAdIfRxIndication(rxPduId, info);
   return bufReq;
 }
-
 
 void UdpNm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x09, UDPNM_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_UDPNM;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_UDPNM;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

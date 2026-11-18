@@ -1,6 +1,6 @@
 {
-  "class": "CanTp",
-  "channels": [
-    { "name": "CAN_BL", "RxPduId": "CAN_BL_TX", "TxPduId": "CAN_BL_RX", "LL_DL": 64 }
+  "Class": "CanTp",
+  "Channels": [
+    { "Name": "CAN_BL", "RxPduId": "CAN_BL_TX", "TxPduId": "CAN_BL_RX", "LinkLayerDataLength": 64 }
   ]
 }

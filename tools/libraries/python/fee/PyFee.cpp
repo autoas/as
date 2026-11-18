@@ -91,8 +91,8 @@ template <typename To, typename Ti> To get(py::dict &kwargs, std::string key, To
 }
 
 bool PyFee_Erase(py::kwargs kwargs) {
-  uint32_t address = get<uint32_t, py::int_>(kwargs, "address", 0);
-  uint32_t size = get<uint32_t, py::int_>(kwargs, "size", 1024 * 1024);
+  uint32_t address = get<uint32_t, py::int_>(kwargs, "Address", 0);
+  uint32_t size = get<uint32_t, py::int_>(kwargs, "Size", 1024 * 1024);
   int nLoops = 10;
   Std_ReturnType r = E_FLS_PENDING;
 
@@ -107,7 +107,7 @@ bool PyFee_Erase(py::kwargs kwargs) {
 
 bool PyFee_Config(py::dict blocks, py::kwargs kwargs) {
   uint32_t pageSize = get<uint32_t, py::int_>(kwargs, "pageSize", 8);
-  uint32_t sectorSize = get<uint32_t, py::int_>(kwargs, "sectorSize", 512);
+  uint32_t sectorSize = get<uint32_t, py::int_>(kwargs, "SectorSize", 512);
   uint32_t blockSize = get<uint32_t, py::int_>(kwargs, "blockSize", 64 * 1024);
   uint32_t bankSize = get<uint32_t, py::int_>(kwargs, "bankSize", 2);
   uint32_t scratchSize = get<uint32_t, py::int_>(kwargs, "scratchSize", 512);
@@ -323,10 +323,10 @@ py::object PyFee_AdminInfo() {
   Fee_AdminInfoType adminInfo;
   Fee_GetAdminInfo(&adminInfo);
   py::dict d;
-  d["erasedNumber"] = adminInfo.erasedNumber;
-  d["adminFreeAddr"] = adminInfo.adminFreeAddr;
-  d["dataFreeAddr"] = adminInfo.dataFreeAddr;
-  d["curWrokingBank"] = adminInfo.curWrokingBank;
+  d["erasedNumber"] = adminInfo.ErasedNumber;
+  d["adminFreeAddr"] = adminInfo.AdminFreeAddr;
+  d["dataFreeAddr"] = adminInfo.DataFreeAddr;
+  d["curWrokingBank"] = adminInfo.CurWorkingBank;
   return d;
 }
 
@@ -356,8 +356,8 @@ py::object PyFee_Read(std::string name, bool blocking = true) {
   return r;
 }
 
-PYBIND11_MODULE(PyFee, m) {
-  Log::setName("PyFee");
+PYBIND11_MODULE(pyFee, m) {
+  Log::SetName("PyFee");
 
   m.doc() = "pybind11 PyFee library";
   m.def("erase", &PyFee_Erase, "\tErase Flash\n");
@@ -372,11 +372,11 @@ PYBIND11_MODULE(PyFee, m) {
         "\tdo schedule until idel or do schedule nLoops if nLoops > 0\n"
         "\treturn True if Fee state idle else False\n",
         py::arg("nLoops") = 0);
-  m.def("write", &PyFee_Write, "\twrite data of block <name> to fee\n", py::arg("name"),
-        py::arg("data"), py::arg("blocking") = true);
-  m.def("read", &PyFee_Read, "\tread data of block <name> from fee\n", py::arg("name"),
+  m.def("Write", &PyFee_Write, "\twrite data of block <name> to fee\n", py::arg("Name"),
+        py::arg("Data"), py::arg("blocking") = true);
+  m.def("Read", &PyFee_Read, "\tread data of block <name> from fee\n", py::arg("Name"),
         py::arg("blocking") = true);
-  m.def("result", &PyFee_Result, "get job result\n");
+  m.def("Result", &PyFee_Result, "get job result\n");
   m.def("img", &PyFee_Image, "read/write image raw\n", py::arg("raw") = py::bytes());
   m.def("admin_info", &PyFee_AdminInfo, "read the admin info\n");
 }

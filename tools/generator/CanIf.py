@@ -13,10 +13,10 @@ __all__ = ["Gen"]
 
 def Gen_CanIf(cfg, dir):
     modules = []
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         for pdu in network["RxPdus"] + network["TxPdus"]:
-            if pdu["up"] not in modules:
-                modules.append(pdu["up"])
+            if pdu["Up"] not in modules:
+                modules.append(pdu["Up"])
     H = open("%s/CanIf_Cfg.h" % (dir), "w")
     GenHeader(H)
     H.write("#ifndef CANIF_CFG_H\n")
@@ -24,27 +24,27 @@ def Gen_CanIf(cfg, dir):
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     ID = 0
-    for network in cfg["networks"]:
-        H.write("#define CANIF_CHL_%s %su\n" % (network["name"], ID))
+    for network in cfg["Networks"]:
+        H.write("#define CANIF_CHL_%s %su\n" % (network["Name"], ID))
         ID += 1
     H.write("\n")
     ID = 0
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         for pdu in network["RxPdus"]:
-            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
+            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["Name"], ID, network["Name"], toNum(pdu["Id"])))
             ID += 1
     H.write("\n")
     ID = 0
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         for pdu in network["TxPdus"]:
-            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["name"], ID, network["name"], toNum(pdu["id"])))
+            H.write("#define CANIF_%s %su /* %s id=0x%x */\n" % (pdu["Name"], ID, network["Name"], toNum(pdu["Id"])))
             ID += 1
     H.write("#ifndef CANIF_MAIN_FUNCTION_PERIOD\n")
     H.write("#define CANIF_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define CANIF_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + CANIF_MAIN_FUNCTION_PERIOD - 1u) / CANIF_MAIN_FUNCTION_PERIOD)\n\n")
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         if network.get("TxTimeout", 100):
             H.write("#define CANIF_USE_TX_TIMEOUT\n\n")
             break
@@ -93,90 +93,90 @@ def Gen_CanIf(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     rxinds = []
     txinds = []
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         for pdu in network["RxPdus"]:
-            if pdu["up"][:4] == "User" and pdu["up"] not in rxinds:
-                rxinds.append(pdu["up"])
-                C.write("void %s_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);\n" % (pdu["up"]))
-    for netId, network in enumerate(cfg["networks"]):
+            if pdu["Up"][:4] == "User" and pdu["Up"] not in rxinds:
+                rxinds.append(pdu["Up"])
+                C.write("void %s_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);\n" % (pdu["Up"]))
+    for netId, network in enumerate(cfg["Networks"]):
         for pdu in network["TxPdus"]:
-            if pdu["up"][:4] == "User" and pdu["up"] not in txinds:
-                txinds.append(pdu["up"])
-                C.write("void %s_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);\n" % (pdu["up"]))
+            if pdu["Up"][:4] == "User" and pdu["Up"] not in txinds:
+                txinds.append(pdu["Up"])
+                C.write("void %s_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);\n" % (pdu["Up"]))
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         if len(network["RxPdus"]) == 0:
             continue
-        C.write("static const CanIf_RxPduType CanIf_RxPdus_%s[] = {\n" % (network["name"]))
+        C.write("static const CanIf_RxPduType CanIf_RxPdus_%s[] = {\n" % (network["Name"]))
         for pdu in network["RxPdus"]:
             for pdu_ in network["RxPdus"]:
                 if pdu_ == pdu:
                     break
-                canid = toNum(pdu["id"]) & 0x1FFFFFFF
-                mask = toNum(pdu.get("mask", "0xFFFFFFFF")) & 0x1FFFFFFF
-                canid_ = toNum(pdu_["id"]) & 0x1FFFFFFF
-                mask_ = toNum(pdu_.get("mask", "0xFFFFFFFF")) & 0x1FFFFFFF
+                canid = toNum(pdu["Id"]) & 0x1FFFFFFF
+                mask = toNum(pdu.get("Mask", "0xFFFFFFFF")) & 0x1FFFFFFF
+                canid_ = toNum(pdu_["Id"]) & 0x1FFFFFFF
+                mask_ = toNum(pdu_.get("Mask", "0xFFFFFFFF")) & 0x1FFFFFFF
                 if (canid & mask_) == (canid_ & mask_):
                     raise Exception(f"Duplicate Rx Pdus: {pdu} vs {pdu_}")
                 if (canid & mask) == (canid_ & mask):
                     raise Exception(f"Duplicate Rx Pdus: {pdu} vs {pdu_}")
             C.write("  {\n")
-            if pdu["up"] in ["PduR", "Xcp"]:
-                C.write("    %s_CanIfRxIndication,\n" % (pdu["up"]))
+            if pdu["Up"] in ["PduR", "Xcp"]:
+                C.write("    %s_CanIfRxIndication,\n" % (pdu["Up"]))
             else:
-                C.write("    %s_RxIndication,\n" % (pdu["up"]))
-            if pdu["up"] in ["OsekNm", "CanNm", "CanTSyn", "Xcp"]:
+                C.write("    %s_RxIndication,\n" % (pdu["Up"]))
+            if pdu["Up"] in ["OsekNm", "CanNm", "CanTSyn", "Xcp"]:
                 C.write("    %s, /* NetId */\n" % (netId))
-            elif pdu["up"][:4] == "User":
-                C.write("    CANIF_%s, /* rxPduId */\n" % (pdu["name"]))
+            elif pdu["Up"][:4] == "User":
+                C.write("    CANIF_%s, /* RxPduId */\n" % (pdu["Name"]))
             else:
-                C.write("    %s_%s,\n" % (pdu["up"].upper(), pdu["name"]))
-            C.write("    0x%x, /* canid */\n" % (toNum(pdu["id"]) & 0x1FFFFFFF))
-            C.write("    0x%x, /* mask */\n" % (toNum(pdu.get("mask", "0xFFFFFFFF")) & 0x1FFFFFFF))
-            C.write("    %s, /* hoh */\n" % (pdu.get("hoh", 0)))
+                C.write("    %s_%s,\n" % (pdu["Up"].upper(), pdu["Name"]))
+            C.write("    0x%x, /* CanId */\n" % (toNum(pdu["Id"]) & 0x1FFFFFFF))
+            C.write("    0x%x, /* Mask */\n" % (toNum(pdu.get("Mask", "0xFFFFFFFF")) & 0x1FFFFFFF))
+            C.write("    %s, /* Hoh */\n" % (pdu.get("Hoh", 0)))
             C.write("  },\n")
         C.write("};\n\n")
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         for pdu in network["TxPdus"]:
-            if pdu.get("dynamic", False):
-                C.write("static Can_IdType canidOf%s = %s;\n" % (pdu["name"], pdu["id"]))
+            if pdu.get("Dynamic", False):
+                C.write("static Can_IdType canidOf%s = %s;\n" % (pdu["Name"], pdu["Id"]))
     C.write("static const CanIf_TxPduType CanIf_TxPdus[] = {\n")
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         for pdu in network["TxPdus"]:
             C.write("  {\n")
-            if pdu["up"] in ["PduR", "Xcp"]:
-                C.write("    %s_CanIfTxConfirmation,\n" % (pdu["up"]))
+            if pdu["Up"] in ["PduR", "Xcp"]:
+                C.write("    %s_CanIfTxConfirmation,\n" % (pdu["Up"]))
             else:
-                C.write("    %s_TxConfirmation,\n" % (pdu["up"]))
-            if pdu["up"] in ["OsekNm", "CanNm", "CanTSyn", "Xcp"]:
+                C.write("    %s_TxConfirmation,\n" % (pdu["Up"]))
+            if pdu["Up"] in ["OsekNm", "CanNm", "CanTSyn", "Xcp"]:
                 C.write("    %s, /* NetId */\n" % (netId))
-            elif pdu["up"][:4] == "User":
-                C.write("    CANIF_%s, /* txPduId */\n" % (pdu["name"]))
+            elif pdu["Up"][:4] == "User":
+                C.write("    CANIF_%s, /* TxPduId */\n" % (pdu["Name"]))
             else:
-                C.write("    %s_%s,\n" % (pdu["up"].upper(), pdu["name"]))
-            C.write("    0x%x, /* canid */\n" % (toNum(pdu["id"])))
-            if pdu.get("dynamic", False):
-                C.write("    &canidOf%s, /* p_canid */\n" % (pdu["name"]))
+                C.write("    %s_%s,\n" % (pdu["Up"].upper(), pdu["Name"]))
+            C.write("    0x%x, /* CanId */\n" % (toNum(pdu["Id"])))
+            if pdu.get("Dynamic", False):
+                C.write("    &canidOf%s, /* CanIdPtr */\n" % (pdu["Name"]))
             else:
-                C.write("    NULL, /* p_canid */\n")
-            C.write("    %s, /* hoh */\n" % (pdu.get("hoh", 0)))
+                C.write("    NULL, /* CanIdPtr */\n")
+            C.write("    %s, /* Hoh */\n" % (pdu.get("Hoh", 0)))
             C.write("    %s, /* ControllerId */\n" % (netId))
             C.write("    #if CANIF_TX_PACKET_POOL_SIZE > 0\n")
-            C.write("    %s, /* bUseTxPool */\n" % (str(pdu.get("UseTxPool", False)).upper()))
+            C.write("    %s, /* UseTxPool */\n" % (str(pdu.get("UseTxPool", False)).upper()))
             C.write("    #endif\n")
             C.write("  },\n")
     C.write("};\n\n")
-    C.write("static CanIf_CtrlContextType CanIf_CtrlContexts[%s];\n" % (len(cfg["networks"])))
+    C.write("static CanIf_CtrlContextType CanIf_CtrlContexts[%s];\n" % (len(cfg["Networks"])))
 
     C.write("static const CanIf_CtrlConfigType CanIf_CtrlConfigs[] = {\n")
-    for netId, network in enumerate(cfg["networks"]):
+    for netId, network in enumerate(cfg["Networks"]):
         C.write("  {\n")
         if len(network["RxPdus"]) == 0:
             C.write("    NULL,\n")
             C.write("    0u,\n")
         else:
-            C.write("    CanIf_RxPdus_%s,\n" % (network["name"]))
-            C.write("    ARRAY_SIZE(CanIf_RxPdus_%s),\n" % (network["name"]))
+            C.write("    CanIf_RxPdus_%s,\n" % (network["Name"]))
+            C.write("    ARRAY_SIZE(CanIf_RxPdus_%s),\n" % (network["Name"]))
         C.write("    #if defined(CANIF_USE_TX_TIMEOUT) && defined(USE_CANSM)\n")
         C.write("    CANIF_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (network.get("TxTimeout", 100)))
         C.write("    #endif\n")
@@ -197,49 +197,49 @@ def Gen_CanIf(cfg, dir):
 
 def extract(cfg, dir):
     cfg_ = dict(cfg)
-    cfg_["networks"] = []
+    cfg_["Networks"] = []
     bNew = False
     hrh = 0
     hth = 0
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         E2E = network.get("E2E", [])
         NumHrh = network.get("NumHrh", 1)
         NumHth = network.get("NumHth", 1)
-        ignore = network.get("ignore", [])
-        if "dbc" in network:
+        ignore = network.get("Ignore", [])
+        if "Dbc" in network:
             network_ = dict(network)
-            path = network["dbc"]
-            del network_["dbc"]
-            me = network["me"]
-            name = network["name"]
+            path = network["Dbc"]
+            del network_["Dbc"]
+            me = network["Me"]
+            name = network["Name"]
             if not os.path.isfile(path):
                 path = os.path.abspath(os.path.join(dir, "..", path))
             if not os.path.isfile(path):
                 raise Exception("File %s not exists" % (path))
             messages = get_messages(path)
             for msg in messages:
-                if msg["name"] in ignore:
+                if msg["Name"] in ignore:
                     continue
-                rn = "%s_%s" % (name, toMacro(msg["name"]))
+                rn = "%s_%s" % (name, toMacro(msg["Name"]))
                 rn = rn.upper()
-                if msg["node"] == me:
+                if msg["Node"] == me:
                     if "TX" not in rn:
                         rn += "_TX"
                     kl = "TxPdus"
-                    UseTxPool = msg["name"] in E2E
-                    pdu = {"name": rn, "id": msg["id"], "hoh": hth, "up": "PduR", "UseTxPool": UseTxPool}
+                    UseTxPool = msg["Name"] in E2E
+                    pdu = {"Name": rn, "Id": msg["Id"], "Hoh": hth, "Up": "PduR", "UseTxPool": UseTxPool}
                 else:
                     if "RX" not in rn:
                         rn += "_RX"
                     kl = "RxPdus"
-                    pdu = {"name": rn, "id": msg["id"], "hoh": hrh, "up": "PduR"}
+                    pdu = {"Name": rn, "Id": msg["Id"], "Hoh": hrh, "Up": "PduR"}
                 if kl not in network_:
                     network_[kl] = []
                 network_[kl].append(pdu)
-            cfg_["networks"].append(network_)
+            cfg_["Networks"].append(network_)
             bNew = True
         else:
-            cfg_["networks"].append(network)
+            cfg_["Networks"].append(network)
         hrh += NumHrh
         hth += NumHth
     if bNew:
@@ -247,21 +247,21 @@ def extract(cfg, dir):
             json.dump(cfg_, f, indent=2)
     hrh = 0
     hth = 0
-    for network in cfg_["networks"]:
+    for network in cfg_["Networks"]:
         NumHrh = network.get("NumHrh", 1)
         NumHth = network.get("NumHth", 1)
-        network["RxPdus"].sort(key=lambda x: toNum(x["id"]) & 0x1FFFFFFF)
-        network["TxPdus"].sort(key=lambda x: toNum(x["id"]) & 0x1FFFFFFF)
+        network["RxPdus"].sort(key=lambda x: toNum(x["Id"]) & 0x1FFFFFFF)
+        network["TxPdus"].sort(key=lambda x: toNum(x["Id"]) & 0x1FFFFFFF)
         for pdu in network["RxPdus"]:
-            hh = pdu.get("hoh", hrh)
+            hh = pdu.get("Hoh", hrh)
             if hh < hrh or hh > (hrh + NumHrh):
                 raise Exception("Invalid hoh for: %s" % (pdu))
-            pdu["hoh"] = hh
+            pdu["Hoh"] = hh
         for pdu in network["TxPdus"]:
-            hh = pdu.get("hoh", hth)
+            hh = pdu.get("Hoh", hth)
             if hh < hth or hh > (hth + NumHth):
                 raise Exception("Invalid hoh for: %s" % (pdu))
-            pdu["hoh"] = hh
+            pdu["Hoh"] = hh
         hrh += NumHrh
         hth += NumHth
     return cfg_

@@ -32,8 +32,8 @@ static const E2E_ConfigType *e2eConfig = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(E2E_USE_PROTECT_P11) || defined(E2E_USE_CHECK_P11)
 /* @PRS_E2E_00634 */
-static uint8_t ComputeP11Crc(const E2E_Profile11ConfigType *config, uint8_t *data,
-                             uint16_t length) {
+static uint8_t E2E_ComputeP11Crc(const E2E_Profile11ConfigType *config, uint8_t *data,
+                                 uint16_t length) {
   uint8_t tmp;
   uint8_t crc = 0xFFu;
   uint8_t Counter;
@@ -85,8 +85,8 @@ static uint8_t ComputeP11Crc(const E2E_Profile11ConfigType *config, uint8_t *dat
 
 #if defined(E2E_USE_PROTECT_P22) || defined(E2E_USE_CHECK_P22)
 /* @PRS_E2E_00531 */
-static uint8_t ComputeP22Crc(const E2E_Profile22ConfigType *config, uint8_t *data,
-                             uint16_t length) {
+static uint8_t E2E_ComputeP22Crc(const E2E_Profile22ConfigType *config, uint8_t *data,
+                                 uint16_t length) {
   uint8_t crc = 0x00u;
   uint8_t Counter;
 
@@ -108,8 +108,8 @@ static uint8_t ComputeP22Crc(const E2E_Profile22ConfigType *config, uint8_t *dat
 
 #if defined(E2E_USE_PROTECT_P05) || defined(E2E_USE_CHECK_P05)
 /* @PRS_E2E_00621 */
-static uint16_t ComputeP05Crc(const E2E_Profile05ConfigType *config, uint8_t *data,
-                              uint16_t length) {
+static uint16_t E2E_ComputeP05Crc(const E2E_Profile05ConfigType *config, uint8_t *data,
+                                  uint16_t length) {
   uint16_t crc = 0xFFFFu;
   uint8_t tmp;
   uint16_t offset = config->Offset >> 3;
@@ -143,45 +143,45 @@ void E2E_Init(const E2E_ConfigType *config) {
   (void)config;
 #endif
 #ifdef E2E_USE_PROTECT_P11
-  for (i = 0; i < E2E_CONFIG->numOfProtectP11; i++) { /* @PRS_E2E_00504 */
-    E2E_CONFIG->ProtectP11Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfProtectP11; i++) { /* @PRS_E2E_00504 */
+    E2E_CONFIG->ProtectP11Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_CHECK_P11
-  for (i = 0; i < E2E_CONFIG->numOfCheckP11; i++) { /* @PRS_E2E_00504 */
-    E2E_CONFIG->CheckP11Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfCheckP11; i++) { /* @PRS_E2E_00504 */
+    E2E_CONFIG->CheckP11Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_PROTECT_P22
-  for (i = 0; i < E2E_CONFIG->numOfProtectP22; i++) { /* @PRS_E2E_00523 */
-    E2E_CONFIG->ProtectP22Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfProtectP22; i++) { /* @PRS_E2E_00523 */
+    E2E_CONFIG->ProtectP22Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_CHECK_P22
-  for (i = 0; i < E2E_CONFIG->numOfCheckP22; i++) {
-    E2E_CONFIG->CheckP22Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfCheckP22; i++) {
+    E2E_CONFIG->CheckP22Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_PROTECT_P44
-  for (i = 0; i < E2E_CONFIG->numOfProtectP44; i++) {
-    E2E_CONFIG->ProtectP44Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfProtectP44; i++) {
+    E2E_CONFIG->ProtectP44Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_CHECK_P44
-  for (i = 0; i < E2E_CONFIG->numOfCheckP44; i++) {
-    E2E_CONFIG->CheckP44Configs[i].context->Counter = 0u;
-    E2E_CONFIG->CheckP44Configs[i].context->bSynced = FALSE;
+  for (i = 0; i < E2E_CONFIG->NumOfCheckP44; i++) {
+    E2E_CONFIG->CheckP44Configs[i].Context->Counter = 0u;
+    E2E_CONFIG->CheckP44Configs[i].Context->Synced = FALSE;
   }
 #endif
 #ifdef E2E_USE_PROTECT_P05
-  for (i = 0; i < E2E_CONFIG->numOfProtectP05; i++) {
-    E2E_CONFIG->ProtectP05Configs[i].context->Counter = 0u;
+  for (i = 0; i < E2E_CONFIG->NumOfProtectP05; i++) {
+    E2E_CONFIG->ProtectP05Configs[i].Context->Counter = 0u;
   }
 #endif
 #ifdef E2E_USE_CHECK_P05
-  for (i = 0; i < E2E_CONFIG->numOfCheckP05; i++) {
-    E2E_CONFIG->CheckP05Configs[i].context->Counter = 0u;
-    E2E_CONFIG->CheckP05Configs[i].context->bSynced = FALSE;
+  for (i = 0; i < E2E_CONFIG->NumOfCheckP05; i++) {
+    E2E_CONFIG->CheckP05Configs[i].Context->Counter = 0u;
+    E2E_CONFIG->CheckP05Configs[i].Context->Synced = FALSE;
   }
 #endif
 }
@@ -191,7 +191,7 @@ Std_ReturnType E2E_P11Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   Std_ReturnType ret = E_NOT_OK;
   const E2E_ProtectProfile11ConfigType *config;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x11, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfProtectP11, 0x11, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfProtectP11, 0x11, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 2u), 0x11, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->ProtectP11Configs[profileId];
 
@@ -203,22 +203,22 @@ Std_ReturnType E2E_P11Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
 
   /* @PRS_E2E_00512 */
   data[config->P11.CounterOffset >> 3] &= ~(0xFu << (config->P11.CounterOffset & 0x7u));
-  data[config->P11.CounterOffset >> 3] |= (config->context->Counter & 0xFu)
+  data[config->P11.CounterOffset >> 3] |= (config->Context->Counter & 0xFu)
                                           << (config->P11.CounterOffset & 0x7u);
 
   /* @PRS_E2E_00514 */
-  data[config->P11.CRCOffset >> 3] = ComputeP11Crc(&config->P11, data, length);
+  data[config->P11.CRCOffset >> 3] = E2E_ComputeP11Crc(&config->P11, data, length);
 
   ASHEXDUMP(E2E,
             ("[%u]: P11 crc=0x%x DataId=0x%x Mode=%u Counter=%u", profileId,
              data[config->P11.CRCOffset >> 3], config->P11.DataID, config->P11.DataIDMode,
-             config->context->Counter),
+             config->Context->Counter),
             data, length);
 
   /* @PRS_E2E_00515 */
-  config->context->Counter++;
-  if (config->context->Counter > 0x0E) {
-    config->context->Counter = 0;
+  config->Context->Counter++;
+  if (config->Context->Counter > 0x0E) {
+    config->Context->Counter = 0;
   }
   ret = E_OK;
   return ret;
@@ -235,14 +235,14 @@ Std_ReturnType E2E_P11Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   uint8_t crc;
   uint8_t deltaCounter;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x12, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfCheckP11, 0x12, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfCheckP11, 0x12, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 2u), 0x12, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->CheckP11Configs[profileId];
 
   ASHEXDUMP(E2E,
             ("[%u]: P11 crc=0x%x DataId=0x%x Mode=%u Counter=%u", profileId,
              data[config->P11.CRCOffset >> 3], config->P11.DataID, config->P11.DataIDMode,
-             config->context->Counter),
+             config->Context->Counter),
             data, length);
 
   if (E2E_P11_DATAID_NIBBLE == config->P11.DataIDMode) { /* @PRS_E2E_00582 */
@@ -259,7 +259,7 @@ Std_ReturnType E2E_P11Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   if (E_OK == ret) {
     /* @PRS_E2E_00519 */
     ReceivedCrc = data[config->P11.CRCOffset >> 3];
-    crc = ComputeP11Crc(&config->P11, data, length);
+    crc = E2E_ComputeP11Crc(&config->P11, data, length);
     if (crc != ReceivedCrc) {
       ret = E2E_E_WRONG_CRC;
       ASLOG(E2EE, ("[%u] P11 Wrong Crc %x != %x\n", profileId, crc, ReceivedCrc));
@@ -269,11 +269,11 @@ Std_ReturnType E2E_P11Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   if (E_OK == ret) {
     ReceivedCounter =
       (data[config->P11.CounterOffset >> 3] >> (config->P11.CounterOffset & 0x07u)) & 0x0Fu;
-    if (0u == (config->context->Counter & E2E_CHECK_DONE_ONCE)) {
+    if (0u == (config->Context->Counter & E2E_CHECK_DONE_ONCE)) {
       deltaCounter = 1;
     } else {
       /* @PRS_E2E_00518 */
-      deltaCounter = config->context->Counter & 0xFu; /* Get Last Counter */
+      deltaCounter = config->Context->Counter & 0xFu; /* Get Last Counter */
       if (ReceivedCounter > 0xEu) {
         ret = E_NOT_OK;
         ASLOG(E2EE, ("[%u] P11 Counter %u invalid\n", profileId, ReceivedCounter));
@@ -301,9 +301,9 @@ Std_ReturnType E2E_P11Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
     } else {
       ret = E2E_E_WRONG_SEQUENCE;
       ASLOG(E2EE, ("[%u] P11 wrong sequence %u: %x %x\n", profileId, deltaCounter, ReceivedCounter,
-                   config->context->Counter));
+                   config->Context->Counter));
     }
-    config->context->Counter = ReceivedCounter | E2E_CHECK_DONE_ONCE;
+    config->Context->Counter = ReceivedCounter | E2E_CHECK_DONE_ONCE;
   }
 
   return ret;
@@ -315,23 +315,23 @@ Std_ReturnType E2E_P22Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   Std_ReturnType ret = E_NOT_OK;
   const E2E_ProtectProfile22ConfigType *config;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x22, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfProtectP11, 0x22, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfProtectP11, 0x22, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 2u), 0x22, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->ProtectP22Configs[profileId];
 
   /* @PRS_E2E_00533: intend no % 16 operation */
-  config->context->Counter++;
+  config->Context->Counter++;
 
   /* @PRS_E2E_00530 */
   data[(config->P22.Offset >> 3) + 1] &= 0xF0u;
-  data[(config->P22.Offset >> 3) + 1] |= config->context->Counter & 0xFu;
+  data[(config->P22.Offset >> 3) + 1] |= config->Context->Counter & 0xFu;
 
   /* @PRS_E2E_00514 */
-  data[config->P22.Offset >> 3] = ComputeP22Crc(&config->P22, data, length);
+  data[config->P22.Offset >> 3] = E2E_ComputeP22Crc(&config->P22, data, length);
 
   ASHEXDUMP(E2E,
             ("[%u]: P22 crc=0x%x Counter=%u", profileId, data[config->P22.Offset >> 3],
-             config->context->Counter),
+             config->Context->Counter),
             data, length);
 
   ret = E_OK;
@@ -348,13 +348,13 @@ Std_ReturnType E2E_P22Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   uint8_t crc;
   uint8_t deltaCounter;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x23, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfCheckP22, 0x23, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfCheckP22, 0x23, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 2u), 0x23, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->CheckP22Configs[profileId];
 
   /* @PRS_E2E_00539 */
   ReceivedCrc = data[config->P22.Offset >> 3];
-  crc = ComputeP22Crc(&config->P22, data, length);
+  crc = E2E_ComputeP22Crc(&config->P22, data, length);
   if (crc != ReceivedCrc) {
     ret = E2E_E_WRONG_CRC;
     ASLOG(E2EE, ("[%u] P22 Wrong Crc %x != %x\n", profileId, crc, ReceivedCrc));
@@ -362,11 +362,11 @@ Std_ReturnType E2E_P22Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
 
   if (E_OK == ret) {
     ReceivedCounter = data[(config->P22.Offset >> 3) + 1] & 0x0Fu;
-    if (0u == (config->context->Counter & E2E_CHECK_DONE_ONCE)) {
+    if (0u == (config->Context->Counter & E2E_CHECK_DONE_ONCE)) {
       deltaCounter = 1;
     } else {
       /* @PRS_E2E_00518 */
-      deltaCounter = config->context->Counter & 0xFu; /* Get Last Counter */
+      deltaCounter = config->Context->Counter & 0xFu; /* Get Last Counter */
       if (ReceivedCounter >= deltaCounter) {
         deltaCounter = ReceivedCounter - deltaCounter;
       } else {
@@ -391,10 +391,10 @@ Std_ReturnType E2E_P22Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
     } else {
       ret = E2E_E_WRONG_SEQUENCE;
       ASLOG(E2EE, ("[%u] P22 wrong sequence %u: %x %x\n", profileId, deltaCounter, ReceivedCounter,
-                   config->context->Counter));
+                   config->Context->Counter));
     }
 
-    config->context->Counter = ReceivedCounter | E2E_CHECK_DONE_ONCE;
+    config->Context->Counter = ReceivedCounter | E2E_CHECK_DONE_ONCE;
   }
 
   return ret;
@@ -408,7 +408,7 @@ Std_ReturnType E2E_P44Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   uint16_t offset;
   uint32_t crc = 0u;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x44, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfProtectP44, 0x44, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfProtectP44, 0x44, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 12u), 0x44, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->ProtectP44Configs[profileId];
 
@@ -417,8 +417,8 @@ Std_ReturnType E2E_P44Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   data[offset + 0u] = (length >> 8) & 0xFFu;
   data[offset + 1u] = length & 0xFFu;
 
-  data[offset + 2u] = (config->context->Counter >> 8) & 0xFFu;
-  data[offset + 3u] = config->context->Counter & 0xFFu;
+  data[offset + 2u] = (config->Context->Counter >> 8) & 0xFFu;
+  data[offset + 3u] = config->Context->Counter & 0xFFu;
 
   data[offset + 4u] = (config->P44.DataID >> 24) & 0xFFu;
   data[offset + 5u] = (config->P44.DataID >> 16) & 0xFFu;
@@ -434,10 +434,10 @@ Std_ReturnType E2E_P44Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   data[offset + 9u] = (crc >> 16) & 0xFFu;
   data[offset + 10u] = (crc >> 8) & 0xFFu;
   data[offset + 11u] = crc & 0xFFu;
-  ASHEXDUMP(E2E, ("[%u]: P44 crc=0x%x Counter=%u", profileId, crc, config->context->Counter), data,
+  ASHEXDUMP(E2E, ("[%u]: P44 crc=0x%x Counter=%u", profileId, crc, config->Context->Counter), data,
             length);
 
-  config->context->Counter++;
+  config->Context->Counter++;
   ret = E_OK;
   return ret;
 }
@@ -455,7 +455,7 @@ Std_ReturnType E2E_P44Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   const E2E_CheckProfile44ConfigType *config;
   uint16_t deltaCounter;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x45, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfCheckP44, 0x45, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfCheckP44, 0x45, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 12u), 0x45, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->CheckP44Configs[profileId];
 
@@ -490,11 +490,11 @@ Std_ReturnType E2E_P44Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   }
 
   if (E_OK == ret) {
-    if (FALSE == config->context->bSynced) {
+    if (FALSE == config->Context->Synced) {
       deltaCounter = 1;
     } else {
       /* @PRS_E2E_00518 */
-      deltaCounter = config->context->Counter; /* Get Last Counter */
+      deltaCounter = config->Context->Counter; /* Get Last Counter */
       if (ReceivedCounter >= deltaCounter) {
         deltaCounter = ReceivedCounter - deltaCounter;
       } else {
@@ -519,10 +519,10 @@ Std_ReturnType E2E_P44Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
     } else {
       ret = E2E_E_WRONG_SEQUENCE;
       ASLOG(E2EE, ("[%u] P44 wrong sequence %u: %x %x\n", profileId, deltaCounter, ReceivedCounter,
-                   config->context->Counter));
+                   config->Context->Counter));
     }
-    config->context->Counter = ReceivedCounter;
-    config->context->bSynced = TRUE;
+    config->Context->Counter = ReceivedCounter;
+    config->Context->Synced = TRUE;
   }
 
   return ret;
@@ -536,21 +536,21 @@ Std_ReturnType E2E_P05Protect(E2E_ProfileIdType profileId, uint8_t *data, uint16
   uint16_t offset;
   uint16_t crc = 0u;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x05, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfProtectP05, 0x05, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfProtectP05, 0x05, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 3u), 0x05, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->ProtectP05Configs[profileId];
 
   offset = config->P05.Offset >> 3;
 
-  data[offset + 2u] = config->context->Counter;
+  data[offset + 2u] = config->Context->Counter;
 
-  crc = ComputeP05Crc(&config->P05, data, length);
+  crc = E2E_ComputeP05Crc(&config->P05, data, length);
   data[offset + 0u] = (crc >> 8) & 0xFFu;
   data[offset + 1u] = crc & 0xFFu;
-  ASHEXDUMP(E2E, ("[%u]: P05 crc=0x%x Counter=%u", profileId, crc, config->context->Counter), data,
+  ASHEXDUMP(E2E, ("[%u]: P05 crc=0x%x Counter=%u", profileId, crc, config->Context->Counter), data,
             length);
 
-  config->context->Counter++;
+  config->Context->Counter++;
   ret = E_OK;
   return ret;
 }
@@ -566,14 +566,14 @@ Std_ReturnType E2E_P05Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
   uint8_t deltaCounter;
   uint16_t offset;
   DET_VALIDATE(NULL != E2E_CONFIG, 0x15, E2E_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(profileId < E2E_CONFIG->numOfCheckP05, 0x15, E2E_E_PARAM_ID, return E_NOT_OK);
+  DET_VALIDATE(profileId < E2E_CONFIG->NumOfCheckP05, 0x15, E2E_E_PARAM_ID, return E_NOT_OK);
   DET_VALIDATE((NULL != data) && (length > 3u), 0x15, E2E_E_PARAM_POINTER, return E_NOT_OK);
   config = &E2E_CONFIG->CheckP05Configs[profileId];
 
   offset = config->P05.Offset >> 3;
 
   ReceivedCrc = ((uint16_t)data[offset] << 8) + data[offset + 1u];
-  crc = ComputeP05Crc(&config->P05, data, length);
+  crc = E2E_ComputeP05Crc(&config->P05, data, length);
   if (crc != ReceivedCrc) {
     ret = E2E_E_WRONG_CRC;
     ASLOG(E2EE, ("[%u] P05 Wrong Crc %x != %x\n", profileId, crc, ReceivedCrc));
@@ -581,10 +581,10 @@ Std_ReturnType E2E_P05Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
 
   if (E_OK == ret) {
     ReceivedCounter = data[offset + 2u];
-    if (FALSE == config->context->bSynced) {
+    if (FALSE == config->Context->Synced) {
       deltaCounter = 1u;
     } else {
-      deltaCounter = config->context->Counter; /* Get Last Counter */
+      deltaCounter = config->Context->Counter; /* Get Last Counter */
       if (ReceivedCounter >= deltaCounter) {
         deltaCounter = ReceivedCounter - deltaCounter;
       } else {
@@ -609,11 +609,11 @@ Std_ReturnType E2E_P05Check(E2E_ProfileIdType profileId, uint8_t *data, uint16_t
     } else {
       ret = E2E_E_WRONG_SEQUENCE;
       ASLOG(E2EE, ("[%u] P05 wrong sequence %u: %x %x\n", profileId, deltaCounter, ReceivedCounter,
-                   config->context->Counter));
+                   config->Context->Counter));
     }
 
-    config->context->Counter = ReceivedCounter;
-    config->context->bSynced = TRUE;
+    config->Context->Counter = ReceivedCounter;
+    config->Context->Synced = TRUE;
   }
 
   return ret;

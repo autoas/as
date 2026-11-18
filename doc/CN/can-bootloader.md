@@ -38,7 +38,16 @@ MCU 中的 loader 是一个 UDS（统一诊断服务）服务器，响应诊断�
 
 ## QEMU Versatilepb bootloader 实验
 
-下面以 QEMU Versatilepb 虚拟机为例，介绍这三个工程的样子，以及一次完整升级的流程。该平台已经集成在本仓库中（[app/platform/qemu](../../app/platform/qemu)），无需额外下载。
+下面以 QEMU Versatilepb 虚拟机为例，介绍这三个工程的样子，以及一次完整升级的流程。平台本身来自独立仓库——`app/platform/qemu` 是 `autoas/qemu` 的克隆，被 `app/platform/.gitignore` 忽略，所以刚 clone 的 ssas 里没有这个目录，需要先克隆到该位置（Windows 下即 `app\platform\qemu`）：
+
+```sh
+git clone git@github.com:autoas/qemu.git app/platform/qemu
+# Gitee 镜像——国内通常快很多
+git clone git@gitee.com:autoas/qemu.git app/platform/qemu
+# 没有 SSH key 就用 https://github.com/autoas/qemu.git 或 https://gitee.com/autoas/qemu.git
+```
+
+目录就位后，`scons` 会自动注册 QEMU 各平台与 `Versatilepb*` 系列应用。
 
 首先参考[开发环境搭建](./build-env-setup.md)准备好编译环境，双击工程目录下的 Console.bat 启动 ConEmu 终端。
 
@@ -49,7 +58,7 @@ D:\repository\as>scons --app=CanBridge
 D:\repository\as>scons --app=CanDump
 
 # 设置 CAN FD 模式，单帧数据最长 64 字节
-D:\repository\as>set LL_DL=64
+D:\repository\as>set CANTP_LINK_LAYER_DATA_LENGTH=64
 D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbFlashDriver
 # 首次编译需要下载 gcc-arm-none-eabi，时间较长
 D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp

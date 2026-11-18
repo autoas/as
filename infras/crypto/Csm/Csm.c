@@ -40,7 +40,7 @@ void Csm_Init(const Csm_ConfigType *configPtr) {
   (void)configPtr;
 #endif
 
-  for (i = 0; i < CSM_CONFIG->numOfMacGen; i++) {
+  for (i = 0; i < CSM_CONFIG->NumOfMacGen; i++) {
     mg = &CSM_CONFIG->MacGenerateConfigs[i];
     mg->Primitive->DeinitFnc(mg->AlgorithmContext); /* Safe to do Deinit before Init */
     ret = mg->Primitive->InitFnc(mg->AlgorithmContext, mg->AlgorithmKey, mg->AlgorithmKeyLength);
@@ -60,11 +60,11 @@ Std_ReturnType Csm_MacGenerate(uint32_t jobId, Crypto_OperationModeType mode,
   DET_VALIDATE((NULL != dataPtr) && (dataLength > 0), 0x60, CSM_E_PARAM_POINTER, return E_NOT_OK);
   DET_VALIDATE((NULL != macPtr) && (NULL != macLengthPtr) && (*macLengthPtr > 0), 0x60,
                CSM_E_PARAM_POINTER, return E_NOT_OK);
-  DET_VALIDATE(jobId < CSM_CONFIG->numOfJobs, 0x60, CSM_E_PARAM_HANDLE, return E_NOT_OK);
+  DET_VALIDATE(jobId < CSM_CONFIG->NumOfJobs, 0x60, CSM_E_PARAM_HANDLE, return E_NOT_OK);
   jobCfg = &CSM_CONFIG->JobConfigs[jobId];
-  DET_VALIDATE(CRYPTO_MAC_GENERATE == jobCfg->serviceType, 0x60, CSM_E_SERVICE_TYPE,
+  DET_VALIDATE(CRYPTO_MAC_GENERATE == jobCfg->ServiceType, 0x60, CSM_E_SERVICE_TYPE,
                return E_NOT_OK);
-  DET_VALIDATE(jobCfg->AlgoRef < CSM_CONFIG->numOfMacGen, 0x60, CSM_E_SERVICE_TYPE,
+  DET_VALIDATE(jobCfg->AlgoRef < CSM_CONFIG->NumOfMacGen, 0x60, CSM_E_SERVICE_TYPE,
                return E_NOT_OK);
   mg = &CSM_CONFIG->MacGenerateConfigs[jobCfg->AlgoRef];
   switch (mode) {
@@ -96,11 +96,11 @@ Std_ReturnType Csm_MacVerify(uint32_t jobId, Crypto_OperationModeType mode, cons
   DET_VALIDATE(NULL != CSM_CONFIG, 0x61, CSM_E_UNINIT, return E_NOT_OK);
   DET_VALIDATE((NULL != dataPtr) && (dataLength > 0), 0x61, CSM_E_PARAM_POINTER, return E_NOT_OK);
   DET_VALIDATE((NULL != macPtr) && (macLength > 0), 0x61, CSM_E_PARAM_POINTER, return E_NOT_OK);
-  DET_VALIDATE(jobId < CSM_CONFIG->numOfJobs, 0x61, CSM_E_PARAM_HANDLE, return E_NOT_OK);
+  DET_VALIDATE(jobId < CSM_CONFIG->NumOfJobs, 0x61, CSM_E_PARAM_HANDLE, return E_NOT_OK);
   jobCfg = &CSM_CONFIG->JobConfigs[jobId];
-  DET_VALIDATE(CRYPTO_MAC_GENERATE == jobCfg->serviceType, 0x61, CSM_E_SERVICE_TYPE,
+  DET_VALIDATE(CRYPTO_MAC_GENERATE == jobCfg->ServiceType, 0x61, CSM_E_SERVICE_TYPE,
                return E_NOT_OK);
-  DET_VALIDATE(jobCfg->AlgoRef < CSM_CONFIG->numOfMacGen, 0x61, CSM_E_SERVICE_TYPE,
+  DET_VALIDATE(jobCfg->AlgoRef < CSM_CONFIG->NumOfMacGen, 0x61, CSM_E_SERVICE_TYPE,
                return E_NOT_OK);
   mg = &CSM_CONFIG->MacGenerateConfigs[jobCfg->AlgoRef];
   DET_VALIDATE((NULL != mg->MacBuf) && (macLength == mg->AlgorithmKeyLength), 0x61,

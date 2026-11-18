@@ -29,7 +29,7 @@ RB_PUSH_FAST(TraceEvent, Std_TraceEventType)
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 #if TRACE_CAN_DLC > 8
-static const uint8_t lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48, 64};
+static const uint8_t lLinkLayerDataLengths[] = {8, 12, 16, 20, 24, 32, 48, 64};
 #else
 #define Std_TraceGetDlc(sz) sz
 #endif
@@ -39,9 +39,9 @@ static PduLengthType Std_TraceGetDlc(PduLengthType len) {
   PduLengthType dl = len;
   int i;
   if (len > 8) {
-    for (i = 0; i < ARRAY_SIZE(lLL_DLs); i++) {
-      if (len <= lLL_DLs[i]) {
-        dl = lLL_DLs[i];
+    for (i = 0; i < ARRAY_SIZE(lLinkLayerDataLengths); i++) {
+      if (len <= lLinkLayerDataLengths[i]) {
+        dl = lLinkLayerDataLengths[i];
         break;
       }
     }

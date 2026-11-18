@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __BIT_ARRAY_HPP__
-#define __BIT_ARRAY_HPP__
+#ifndef BITARRAY_HPP
+#define BITARRAY_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <vector>
 #include <stdexcept>
@@ -29,23 +29,23 @@ public:
   ~BitArray();
 
 public:
-  void put(uint32_t u32, uint8_t nBits);
-  uint32_t get(uint8_t nBits);
-  void clear(void);
+  void Put(uint32_t u32, uint8_t nBits);
+  uint32_t Get(uint8_t nBits);
+  void Clear(void);
 
-  std::vector<uint8_t> &bytes(void);
+  std::vector<uint8_t> &Bytes(void);
 
-  uint32_t left(); /* bits left not get */
-  std::vector<uint8_t> left_bytes(void);
-  void drop(uint32_t nBits); /* consume nBits */
+  uint32_t Left(); /* bits left not get */
+  std::vector<uint8_t> LeftBytes(void);
+  void Drop(uint32_t nBits); /* consume nBits */
 
 private:
-  uint32_t pos();
+  uint32_t Pos();
 
 private:
   std::vector<uint8_t> m_Buffer;
   Endian m_Endian;
-  uint32_t m_nBits;
+  uint32_t m_BitCount;
   uint32_t m_Capability;
 };
 /* ================================ [ DECLARES  ] ============================================== */
@@ -53,4 +53,4 @@ private:
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace as */
-#endif /* __BIT_ARRAY_HPP__ */
+#endif /* BITARRAY_HPP */

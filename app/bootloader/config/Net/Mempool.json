@@ -1,9 +1,9 @@
 {
-  "class": "MemCluster",
-  "name" : "Net",
-  "clusters": [
-    { "name": "large", "size": 4096, "number": 2 },
-    { "name": "middle", "size": 1420, "number": 4 },
-    { "name": "small", "size": 128, "number": 8 }
+  "Class": "MemCluster",
+  "Name" : "Net",
+  "Clusters": [
+    { "Name": "large", "Size": 4096, "Number": 2 },
+    { "Name": "middle", "Size": 1420, "Number": 4 },
+    { "Name": "small", "Size": 128, "Number": 8 }
   ]
 }

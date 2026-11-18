@@ -4,8 +4,8 @@
  *
  * ref: nm253
  */
-#ifndef _OSEK_NM_PRIV_H
-#define _OSEK_NM_PRIV_H
+#ifndef OSEKNM_PRIV_H
+#define OSEKNM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "OsekNm.h"
 #ifdef _WIN32
@@ -19,8 +19,7 @@
 #define OSEKNM_MERKER_STABLE ((uint8_t)0x01)
 #define OSEKNM_MERKER_LIMPHOME ((uint8_t)0x02)
 /* ================================ [ TYPES     ] ============================================== */
-typedef enum
-{
+typedef enum {
   OSEKNM_STATE_OFF = 0,
   OSEKNM_STATE_NORMAL,
   OSEKNM_STATE_NORMAL_PREPARE_SLEEP,
@@ -33,16 +32,16 @@ typedef enum
 } OsekNm_StateType;
 
 typedef struct {
-  uint16_t _TTx;
-  uint16_t _TTyp;
-  uint16_t _TMax;
-  uint16_t _TError;
-  uint16_t _TWbs;
+  uint16_t TTx;
+  uint16_t TTyp;
+  uint16_t TMax;
+  uint16_t TError;
+  uint16_t TWbs;
   uint16_t NodeMask;
   OsekNm_NodeIdType NodeId;
-  uint8_t rx_limit;
-  uint8_t tx_limit;
-  PduIdType txPduId;
+  uint8_t RxLimit;
+  uint8_t TxLimit;
+  PduIdType TxPduId;
 } OsekNm_ChannelConfigType;
 
 typedef uint8_t OsekNm_NetworkStatusType;
@@ -54,35 +53,35 @@ typedef uint16_t OsekNm_TimerType;
 #endif
 
 typedef struct {
-  OsekNm_StateType nmState;
-  OsekNm_PduType nmTxPdu;
+  OsekNm_StateType NmState;
+  OsekNm_PduType NmTxPdu;
   struct {
-    OsekNm_TimerType _TTx;
-    OsekNm_TimerType _TTyp;
-    OsekNm_TimerType _TMax;
-    OsekNm_TimerType _TError;
-    OsekNm_TimerType _TWbs;
+    OsekNm_TimerType TTx;
+    OsekNm_TimerType TTyp;
+    OsekNm_TimerType TMax;
+    OsekNm_TimerType TError;
+    OsekNm_TimerType TWbs;
   } Alarm;
   struct {
     OsekNm_NetworkStatusType SMask;
     OsekNm_NetworkStatusType NetworkStatus;
-  } nmStatus;
-  uint8_t nmMerker;
-  uint8_t nmRxCount;
-  uint8_t nmTxCount;
-  OsekNm_ModeNameType requestMode;
-  boolean bRequestOn;
-  boolean bWakeupSignal;
+  } Status;
+  uint8_t NmMerker;
+  uint8_t NmRxCount;
+  uint8_t NmTxCount;
+  OsekNm_ModeNameType RequestMode;
+  boolean RequestOn;
+  boolean WakeupSignal;
 } OsekNm_ChannelContextType;
 
 struct OsekNm_Config_s {
-  const OsekNm_ChannelConfigType *channelConfigs;
-  OsekNm_ChannelContextType *channelContexts;
-  uint8_t numOfChannels;
+  const OsekNm_ChannelConfigType *ChannelConfigs;
+  OsekNm_ChannelContextType *ChannelContexts;
+  uint8_t NumOfChannels;
 };
 
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _OSEK_NM_PRIV_H */
+#endif /* OSEKNM_PRIV_H */

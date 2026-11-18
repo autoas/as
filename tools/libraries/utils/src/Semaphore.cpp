@@ -44,7 +44,7 @@ Semaphore::~Semaphore() {
   }
 }
 
-int Semaphore::wait(uint32_t timeoutMs) {
+int Semaphore::Wait(uint32_t timeoutMs) {
   int ret = 0;
 #if defined(_WIN32)
   if (UINT32_MAX == timeoutMs) { /* wait forever */
@@ -69,7 +69,7 @@ int Semaphore::wait(uint32_t timeoutMs) {
   return ret;
 }
 
-int Semaphore::post() {
+int Semaphore::Post() {
   int ret = 0;
 #if defined(_WIN32)
   ret = ReleaseSemaphore((HANDLE)m_Sem, 1, NULL);

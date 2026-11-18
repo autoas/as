@@ -14,23 +14,23 @@ extern "C" {
 #define SREC_MAX_BLK 32
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  uint8_t *data;
-  uint32_t address;
-  size_t offset;
-  size_t length;
-} sblk_t;
+  uint8_t *Data;
+  uint32_t Address;
+  size_t Offset;
+  size_t Length;
+} Srec_BlockType;
 
 typedef struct {
-  uint8_t *data;
-  sblk_t blks[SREC_MAX_BLK];
-  size_t numOfBlks;
-  size_t totalSize;
+  uint8_t *Data;
+  Srec_BlockType Blks[SREC_MAX_BLK];
+  size_t NumOfBlks;
+  size_t TotalSize;
   enum {
     SREC_SRECORD,
     SREC_IHEX,
-    SREAC_BIN
-  } type;
-} srec_t;
+    SREC_BIN
+  } Type;
+} Srec_FileType;
 
 typedef enum {
   /* sign method v1: all sections conbined as 1 section with padding 0xFF and calculate the crc of
@@ -45,18 +45,18 @@ typedef enum {
   SREC_SIGN_CRC16_V3,
   SREC_SIGN_CRC32_V3,
   SREC_SIGN_MAX
-} srec_sign_type_t;
+} Srec_SignType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-srec_t *srec_open(const char *path);
-int srec_sign(const char *path, size_t total, srec_sign_type_t signType);
-void srec_print(srec_t *srec);
-uint32_t srec_range(srec_t *srec, uint32_t *length);
-void srec_close(srec_t *srec);
+Srec_FileType *Srec_Open(const char *path);
+int Srec_Sign(const char *path, size_t total, Srec_SignType signType);
+void Srec_Print(Srec_FileType *srec);
+uint32_t Srec_Range(Srec_FileType *srec, uint32_t *length);
+void Srec_Close(Srec_FileType *srec);
 
-srec_t *ihex_open(const char *path);
+Srec_FileType *IHex_Open(const char *path);
 #ifdef __cplusplus
 }
 #endif

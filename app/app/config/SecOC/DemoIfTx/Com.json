@@ -1,22 +1,22 @@
 {
-  "class": "Com",
-  "networks": [
+  "Class": "Com",
+  "Networks": [
     {
-      "name": "CAN0",
-      "network": "CAN",
-      "device": "simulator_v2",
-      "port": 0,
-      "baudrate": 500000,
-      "me": "AS",
-      "enable_message_tx_callout": true,
-      "messages": [
+      "Name": "CAN0",
+      "Network": "CAN",
+      "Device": "simulator_v2",
+      "Port": 0,
+      "Baudrate": 500000,
+      "Me": "AS",
+      "EnableMessageTxCallout": true,
+      "Messages": [
         {
-          "name": "SECOC_MSG", "id": "0x99", "dlc": 36,
-          "node": "AS", "CycleTime": 1000,
-          "signals": [
-            { "name": "VehicleConfig", "start": 7, "size": 288, "endian": "big",
+          "Name": "SECOC_MSG", "Id": "0x99", "Dlc": 36,
+          "Node": "AS", "CycleTime": 1000,
+          "Signals": [
+            { "Name": "VehicleConfig", "Start": 7, "Size": 288, "Endian": "big",
               "InitialValue": "[i for i in range(32)]",
-              "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "Other"] }
+              "Sign": "+", "Factor": 1, "Offset": 0, "Min": 0, "Max": 0, "Node": [ "Other"] }
           ]
         }
       ]

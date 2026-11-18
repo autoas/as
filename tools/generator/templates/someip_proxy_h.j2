@@ -23,102 +23,102 @@ extern "C" {
 Std_ReturnType {{ service_name }}_FindService(void);
 Std_ReturnType {{ service_name }}_StopFindService(void);
 
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-void {{ service_name }}_Subscribe{{ event['name'] }}Ack(boolean isSubscribe);
-Std_ReturnType {{ service_name }}_Subscribe{{ event['name'] }}(void);
-boolean {{ service_name }}_Get{{ event['name'] }}SubscriptionState(void);
-void {{ service_name }}_Unsubscribe{{ event['name'] }}(void);
-void {{ service_name }}_{{ event['name'] }}(const {{ GetArgTypeC(event, allStructs) }} sample);
+void {{ service_name }}_Subscribe{{ event['Name'] }}Ack(boolean isSubscribe);
+Std_ReturnType {{ service_name }}_Subscribe{{ event['Name'] }}(void);
+boolean {{ service_name }}_Get{{ event['Name'] }}SubscriptionState(void);
+void {{ service_name }}_Unsubscribe{{ event['Name'] }}(void);
+void {{ service_name }}_{{ event['Name'] }}(const {{ GetArgTypeC(event, allStructs) }} sample);
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-{% if 'event' in field %}
-void {{ service_name }}_Subscribe{{ field['name'] }}Ack(boolean isSubscribe);
-Std_ReturnType {{ service_name }}_Subscribe{{ field['name'] }}(void);
-boolean {{ service_name }}_Get{{ field['name'] }}SubscriptionState(void);
-void {{ service_name }}_{{ field['name'] }}({{ GetArgTypeC(field, allStructs) }} field);
-void {{ service_name }}_Unsubscribe{{ field['name'] }}(void);
+{% for field in Service.get('Fields', []) %}
+{% if 'Event' in field %}
+void {{ service_name }}_Subscribe{{ field['Name'] }}Ack(boolean isSubscribe);
+Std_ReturnType {{ service_name }}_Subscribe{{ field['Name'] }}(void);
+boolean {{ service_name }}_Get{{ field['Name'] }}SubscriptionState(void);
+void {{ service_name }}_{{ field['Name'] }}({{ GetArgTypeC(field, allStructs) }} field);
+void {{ service_name }}_Unsubscribe{{ field['Name'] }}(void);
 {% endif %}
-{% if 'get' in field %}
-Std_ReturnType {{ service_name }}_Get{{ field['name'] }}(void);
-void {{ service_name }}_Get{{ field['name'] }}_Return(Std_ReturnType ercd, {{ GetArgTypeC(field, allStructs) }} field);
+{% if 'Get' in field %}
+Std_ReturnType {{ service_name }}_Get{{ field['Name'] }}(void);
+void {{ service_name }}_Get{{ field['Name'] }}_Return(Std_ReturnType ercd, {{ GetArgTypeC(field, allStructs) }} field);
 {% endif %}
-{% if 'set' in field %}
-Std_ReturnType {{ service_name }}_Set{{ field['name'] }}(const {{ GetArgTypeC(field, allStructs) }} value);
-void {{ service_name }}_Set{{ field['name'] }}_Return(Std_ReturnType ercd, const {{ GetArgTypeC(field, allStructs) }} value);
+{% if 'Set' in field %}
+Std_ReturnType {{ service_name }}_Set{{ field['Name'] }}(const {{ GetArgTypeC(field, allStructs) }} value);
+void {{ service_name }}_Set{{ field['Name'] }}_Return(Std_ReturnType ercd, const {{ GetArgTypeC(field, allStructs) }} value);
 {% endif %}
 
 {% endfor %}
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-{% set ReturnType = method.get('return', 'void') %}
+{% set ReturnType = method.get('Return', 'void') %}
 {% set Args = [] %}
 {% set ArgsR = ["Std_ReturnType ercd"] %}
-{% if 'args' in method %}
-{% set args = GetArgs(cfg, method['args']) %}
+{% if 'Args' in method %}
+{% set args = GetArgs(cfg, method['Args']) %}
 {% for arg in args %}
-{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['name']) %}
+{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['Name']) %}
 {% endfor %}
 {% endif %}
 {% if ReturnType != 'void' %}
 {% set _ = ArgsR.append('const ' ~ GetArgTypeC(ReturnType, allStructs) ~ ' ' ~ ReturnType) %}
 {% endif %}
-Std_ReturnType {{ service_name }}_{{ method['name'] }}({{ Args | join(', ') }});
-void {{ service_name }}_{{ method['name'] }}_Return({{ ArgsR | join(', ') }});
+Std_ReturnType {{ service_name }}_{{ method['Name'] }}({{ Args | join(', ') }});
+void {{ service_name }}_{{ method['Name'] }}_Return({{ ArgsR | join(', ') }});
 {% endif %}
 {% endfor %}
 
 void SomeIp_{{ service_name }}_OnAvailability(boolean isAvailable);
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
-{% if method.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if method.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 {% endfor %}
 
-{% for egroup in service.get('event-groups', []) %}
-void SomeIp_{{ service_name }}_{{ egroup['name'] }}_OnSubscribeAck(boolean isSubscribe);
-{% for event in egroup['events'] %}
+{% for egroup in Service.get('EventGroups', []) %}
+void SomeIp_{{ service_name }}_{{ egroup['Name'] }}_OnSubscribeAck(boolean isSubscribe);
+{% for event in egroup['Events'] %}
 {% if 'for' not in event %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['name'] }}_{{ event['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
-{% if event.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['name'] }}_{{ event['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['Name'] }}_{{ event['Name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
+{% if event.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['Name'] }}_{{ event['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-{% if 'get' in field %}
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
-{% if field.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% for field in Service.get('Fields', []) %}
+{% if 'Get' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 
-{% if 'set' in field %}
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
-{% if field.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% if 'Set' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnResponse(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnError(uint32_t requestId, Std_ReturnType ercd);
+{% if field.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 
-{% if 'event' in field %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
-{% if field.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ field['event']['groupName'] }}_{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% if 'Event' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['Event']['GroupName'] }}_{{ field['Name'] }}_OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
+{% if field.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ field['Event']['GroupName'] }}_{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 {% endfor %}

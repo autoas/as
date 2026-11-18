@@ -57,14 +57,14 @@ extern const Fls_ConfigType Fls_Config;
 /* ================================ [ DATAS     ] ============================================== */
 static Fls_ContextType Fls_Context;
 /* ================================ [ LOCALS    ] ============================================== */
-static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType TargetAddress) {
+static const Fls_SectorType *Fls_GetSectorByAddress(Fls_AddressType targetAddress) {
   uint16_t i = 0;
   const Fls_SectorType *sector = NULL;
   const Fls_ConfigType *config = FLS_CONFIG;
 
   for (i = 0; i < config->numOfSectors; i++) {
-    if ((TargetAddress >= config->SectorList[i].SectorStartAddress) &&
-        (TargetAddress <= config->SectorList[i].SectorEndAddress)) {
+    if ((targetAddress >= config->SectorList[i].SectorStartAddress) &&
+        (targetAddress <= config->SectorList[i].SectorEndAddress)) {
       sector = &config->SectorList[i];
       break;
     }
@@ -97,14 +97,14 @@ static Std_ReturnType Fls_IsOffsetFineInSector(const Fls_SectorType *sector, Fls
   return r;
 }
 
-static Std_ReturnType Fls_IsAddressLengthFine(Fls_AddressType TargetAddress, Fls_LengthType Length,
+static Std_ReturnType Fls_IsAddressLengthFine(Fls_AddressType targetAddress, Fls_LengthType length,
                                               Fls_CheckType check) {
   Std_ReturnType r = E_NOT_OK;
-  const Fls_SectorType *start = Fls_GetSectorByAddress(TargetAddress);
+  const Fls_SectorType *start = Fls_GetSectorByAddress(targetAddress);
   const Fls_SectorType *end = NULL;
 
   if (NULL != start) {
-    end = Fls_GetSectorByAddress(TargetAddress + Length);
+    end = Fls_GetSectorByAddress(targetAddress + length);
   }
 
   if (NULL != end) {
@@ -112,11 +112,11 @@ static Std_ReturnType Fls_IsAddressLengthFine(Fls_AddressType TargetAddress, Fls
   }
 
   if (E_OK == r) {
-    r = Fls_IsOffsetFineInSector(start, TargetAddress - start->SectorStartAddress, check);
+    r = Fls_IsOffsetFineInSector(start, targetAddress - start->SectorStartAddress, check);
   }
 
   if (E_OK == r) {
-    r = Fls_IsOffsetFineInSector(end, TargetAddress + Length - end->SectorStartAddress, check);
+    r = Fls_IsOffsetFineInSector(end, targetAddress + length - end->SectorStartAddress, check);
   }
 
   return r;
@@ -254,22 +254,22 @@ static void Fls_DoJob(Fls_AddressType address, uint8_t *data, Fls_LengthType len
   Fls_DoJobPostUpdate(address, data, length, off, jobType, r);
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Fls_Init(const Fls_ConfigType *ConfigPtr) {
+void Fls_Init(const Fls_ConfigType *configPtr) {
   const Fls_ConfigType *config = FLS_CONFIG;
   Fls_ContextType *context = &Fls_Context;
 
-  (void)ConfigPtr;
+  (void)configPtr;
 
   Fls_AcInit();
   context->state = FLS_IDLE;
   context->mode = config->defaultMode;
 }
 
-Std_ReturnType Fls_Erase(Fls_AddressType TargetAddress, Fls_LengthType Length) {
+Std_ReturnType Fls_Erase(Fls_AddressType targetAddress, Fls_LengthType length) {
   Fls_ContextType *context = &Fls_Context;
   Std_ReturnType r = E_OK;
 
-  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_ERASE_CHECK), 0x01,
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(targetAddress, length, FLS_ERASE_CHECK), 0x01,
                FLS_E_PARAM_ADDRESS, return E_NOT_OK);
 
   EnterCritical();
@@ -282,23 +282,23 @@ Std_ReturnType Fls_Erase(Fls_AddressType TargetAddress, Fls_LengthType Length) {
 
   if (E_OK == r) {
     context->data = NULL;
-    context->address = TargetAddress;
-    context->length = Length;
+    context->address = targetAddress;
+    context->length = length;
     context->offset = 0;
   }
 
   return r;
 }
 
-Std_ReturnType Fls_Write(Fls_AddressType TargetAddress, const uint8_t *SourceAddressPtr,
-                         Fls_LengthType Length) {
+Std_ReturnType Fls_Write(Fls_AddressType targetAddress, const uint8_t *sourceAddressPtr,
+                         Fls_LengthType length) {
   Fls_ContextType *context = &Fls_Context;
   Std_ReturnType r = E_OK;
 
-  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_WRITE_CHECK), 0x02,
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(targetAddress, length, FLS_WRITE_CHECK), 0x02,
                FLS_E_PARAM_ADDRESS, return E_NOT_OK);
 
-  DET_VALIDATE(NULL != SourceAddressPtr, 0x02, FLS_E_PARAM_POINTER, return E_NOT_OK);
+  DET_VALIDATE(NULL != sourceAddressPtr, 0x02, FLS_E_PARAM_POINTER, return E_NOT_OK);
 
   EnterCritical();
   if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
@@ -309,9 +309,9 @@ Std_ReturnType Fls_Write(Fls_AddressType TargetAddress, const uint8_t *SourceAdd
   ExitCritical();
 
   if (E_OK == r) {
-    context->data = (uint8_t *)SourceAddressPtr;
-    context->address = TargetAddress;
-    context->length = Length;
+    context->data = (uint8_t *)sourceAddressPtr;
+    context->address = targetAddress;
+    context->length = length;
     context->offset = 0;
   }
 
@@ -376,15 +376,15 @@ MemIf_JobResultType Fls_GetJobResult(void) {
   return result;
 }
 
-Std_ReturnType Fls_Read(Fls_AddressType SourceAddress, uint8_t *TargetAddressPtr,
-                        Fls_LengthType Length) {
+Std_ReturnType Fls_Read(Fls_AddressType sourceAddress, uint8_t *targetAddressPtr,
+                        Fls_LengthType length) {
   Fls_ContextType *context = &Fls_Context;
   Std_ReturnType r = E_OK;
 
-  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK), 0x07,
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(sourceAddress, length, FLS_READ_CHECK), 0x07,
                FLS_E_PARAM_ADDRESS, return E_NOT_OK);
 
-  DET_VALIDATE(NULL != TargetAddressPtr, 0x07, FLS_E_PARAM_POINTER, return E_NOT_OK);
+  DET_VALIDATE(NULL != targetAddressPtr, 0x07, FLS_E_PARAM_POINTER, return E_NOT_OK);
 
   EnterCritical();
   if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
@@ -395,23 +395,23 @@ Std_ReturnType Fls_Read(Fls_AddressType SourceAddress, uint8_t *TargetAddressPtr
   ExitCritical();
 
   if (E_OK == r) {
-    context->data = TargetAddressPtr;
-    context->address = SourceAddress;
-    context->length = Length;
+    context->data = targetAddressPtr;
+    context->address = sourceAddress;
+    context->length = length;
     context->offset = 0;
   }
 
   return r;
 }
-Std_ReturnType Fls_Compare(Fls_AddressType SourceAddress, const uint8_t *TargetAddressPtr,
-                           Fls_LengthType Length) {
+Std_ReturnType Fls_Compare(Fls_AddressType sourceAddress, const uint8_t *targetAddressPtr,
+                           Fls_LengthType length) {
   Fls_ContextType *context = &Fls_Context;
   Std_ReturnType r = E_OK;
 
-  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(SourceAddress, Length, FLS_READ_CHECK), 0x08,
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(sourceAddress, length, FLS_READ_CHECK), 0x08,
                FLS_E_PARAM_ADDRESS, return E_NOT_OK);
 
-  DET_VALIDATE(NULL != TargetAddressPtr, 0x08, FLS_E_PARAM_POINTER, return E_NOT_OK);
+  DET_VALIDATE(NULL != targetAddressPtr, 0x08, FLS_E_PARAM_POINTER, return E_NOT_OK);
 
   EnterCritical();
   if (FLS_PENDING != (FLS_STATE_MASK & context->state)) {
@@ -422,26 +422,26 @@ Std_ReturnType Fls_Compare(Fls_AddressType SourceAddress, const uint8_t *TargetA
   ExitCritical();
 
   if (E_OK == r) {
-    context->data = (uint8_t *)TargetAddressPtr;
-    context->address = SourceAddress;
-    context->length = Length;
+    context->data = (uint8_t *)targetAddressPtr;
+    context->address = sourceAddress;
+    context->length = length;
     context->offset = 0;
   }
 
   return r;
 }
 
-void Fls_SetMode(MemIf_ModeType Mode) {
+void Fls_SetMode(MemIf_ModeType mode) {
   Fls_ContextType *context = &Fls_Context;
 
-  context->mode = Mode;
+  context->mode = mode;
 }
 
-Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Length) {
+Std_ReturnType Fls_BlankCheck(Fls_AddressType targetAddress, Fls_LengthType length) {
   Fls_ContextType *context = &Fls_Context;
   Std_ReturnType r = E_OK;
 
-  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(TargetAddress, Length, FLS_READ_CHECK), 0x0A,
+  DET_VALIDATE(E_OK == Fls_IsAddressLengthFine(targetAddress, length, FLS_READ_CHECK), 0x0A,
                FLS_E_PARAM_ADDRESS, return E_NOT_OK);
 
   EnterCritical();
@@ -454,8 +454,8 @@ Std_ReturnType Fls_BlankCheck(Fls_AddressType TargetAddress, Fls_LengthType Leng
 
   if (E_OK == r) {
     context->data = NULL;
-    context->address = TargetAddress;
-    context->length = Length;
+    context->address = targetAddress;
+    context->length = length;
     context->offset = 0;
   }
 
@@ -496,9 +496,9 @@ void Fls_MainFunction(void) {
 void Fls_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x10, FLS_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_FLS;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 1;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_FLS;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 1;
 }

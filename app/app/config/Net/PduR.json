@@ -1,54 +1,57 @@
 {
-  "class": "PduR",
-  "routines" : [
+  "Class": "PduR",
+  "Routines" : [
     {
-      "name": "P2P_RX",
-      "from": "DoIP",
-      "to": "Dcm"
+      "Name": "P2P_RX",
+      "From": "DoIP",
+      "To": "Dcm"
     },
     {
-      "name": "P2P_TX",
-      "from": "Dcm",
-      "to": "DoIP"
+      "Name": "P2P_TX",
+      "From": "Dcm",
+      "To": "DoIP"
     },
     {
-      "name": "GW_P2P_RX",
-      "from": "DoIP",
-      "to": "CanTp"
+      "Name": "GW_P2P_RX",
+      "From": "DoIP",
+      "To": "CanTp"
     },
     {
-      "name": "GW_P2P_TX",
-      "from": "CanTp",
-      "to": "DoIP"
+      "Name": "GW_P2P_TX",
+      "From": "CanTp",
+      "To": "DoIP"
     },
     {
-      "name": "GW_P2A_RX",
-      "from": "DoIP",
-      "to": "CanTp",
-      "dest": "GW_P2A0_RX",
-      "destinations": [{ "to": "CanTp", "name": "GW_P2A1_RX" }],
-      "DestBuffer": "P2A"
+      "Name": "GW_P2A_RX",
+      "From": "DoIP",
+      "To": "CanTp",
+      "Dest": "GW_P2A0_RX",
+      "Destinations": [{ "To": "CanTp", "Name": "GW_P2A1_RX" }],
+      "DestBuffer": "P2A",
+      "UseDest": true,
+      "UseDestBuffer": true,
+      "DestBufferType": "shared"
     },
     {
-      "name": "GW_P2A0_TX",
-      "from": "CanTp",
-      "to": "DoIP"
+      "Name": "GW_P2A0_TX",
+      "From": "CanTp",
+      "To": "DoIP"
     },
     {
-      "name": "GW_P2A1_TX",
-      "from": "CanTp",
-      "to": "DoIP"
+      "Name": "GW_P2A1_TX",
+      "From": "CanTp",
+      "To": "DoIP"
     },
     {
-      "name": "MIRROR_TX",
-      "from": "Mirror",
-      "to": "CanIf"
+      "Name": "MIRROR_TX",
+      "From": "Mirror",
+      "To": "CanIf"
     }
   ],
-  "buffers": [ {"name": "P2A", "size": 4096} ],
-  "memory": [
-    { "name": "large", "size": 4096, "number": 2 },
-    { "name": "middle", "size": 1400, "number": 8 },
-    { "name": "small", "size": 128, "number": 32 }
+  "Buffers": [ {"Name": "P2A", "Size": 4096} ],
+  "Memory": [
+    { "Name": "large", "Size": 4096, "Number": 2 },
+    { "Name": "middle", "Size": 1400, "Number": 8 },
+    { "Name": "small", "Size": 128, "Number": 32 }
   ]
 }

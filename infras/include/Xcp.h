@@ -98,31 +98,31 @@ typedef uint8_t Xcp_OpStatusType;
 typedef uint8_t Xcp_NegativeResponseCodeType;
 
 typedef struct {
-  uint8_t *reqData;
-  uint8_t *resData;
-  Xcp_MsgLenType reqDataLen;
-  Xcp_MsgLenType resDataLen;
-  Xcp_MsgLenType resMaxDataLen;
-  Xcp_OpStatusType opStatus;
+  uint8_t *ReqData;
+  uint8_t *ResData;
+  Xcp_MsgLenType ReqDataLen;
+  Xcp_MsgLenType ResDataLen;
+  Xcp_MsgLenType ResMaxDataLen;
+  Xcp_OpStatusType OpStatus;
 } Xcp_MsgContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Xcp_00803 */
-void Xcp_Init(const Xcp_ConfigType *ConfigPtr);
+void Xcp_Init(const Xcp_ConfigType *configPtr);
 
 /* @SWS_Xcp_00813 */
-void Xcp_CanIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void Xcp_CanIfRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_Xcp_00814 */
-void Xcp_CanIfTxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void Xcp_CanIfTxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_Xcp_00835 */
-Std_ReturnType Xcp_CanIfTriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr);
+Std_ReturnType Xcp_CanIfTriggerTransmit(PduIdType txPduId, PduInfoType *pduInfoPtr);
 
 /* @SWS_Xcp_00844 */
-void Xcp_SetTransmissionMode(NetworkHandleType Channel, Xcp_TransmissionModeType Mode);
+void Xcp_SetTransmissionMode(NetworkHandleType channel, Xcp_TransmissionModeType mode);
 
 /* @SWS_Xcp_00823 */
 void Xcp_MainFunction(void);

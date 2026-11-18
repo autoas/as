@@ -17,26 +17,26 @@ def Calcaulte_Crc16(data):
 
 
 def GetName(node):
-    return node["name"]
+    return node["Name"]
 
 
 def GenTypes(H, cfg):
     def CollectFunctions(data, functions):
         for sd in data:
-            if sd["type"] == "struct":
-                CollectFunctions(sd["data"], functions)
-            elif sd["type"] == "function" and "value" in sd:
-                func_name = sd["value"]
+            if sd["Type"] == "struct":
+                CollectFunctions(sd["Data"], functions)
+            elif sd["Type"] == "function" and "Value" in sd:
+                func_name = sd["Value"]
                 if func_name and func_name != "NULL" and func_name not in functions:
                     functions[func_name] = sd
 
     all_functions = {}
-    for block in cfg["blocks"]:
-        CollectFunctions(block["data"], all_functions)
+    for block in cfg["Blocks"]:
+        CollectFunctions(block["Data"], all_functions)
 
     for func_name, func_info in all_functions.items():
-        ret_type = func_info.get("return", "void")
-        args = ", ".join(func_info.get("args", []))
+        ret_type = func_info.get("Return", "void")
+        args = ", ".join(func_info.get("Args", []))
         H.write("extern %s %s(%s);\n" % (ret_type, func_name, args))
     if all_functions:
         H.write("\n")
@@ -44,51 +44,51 @@ def GenTypes(H, cfg):
     def GenStructDef(name, data, all_structs, fnc_types):
         struct_def = ""
         for sd in data:
-            if sd["type"] == "struct":
+            if sd["Type"] == "struct":
                 nested_name = GetName(sd)
                 if nested_name not in all_structs:
-                    all_structs[nested_name] = sd["data"]
-                    struct_def += GenStructDef(nested_name, sd["data"], all_structs, fnc_types)
+                    all_structs[nested_name] = sd["Data"]
+                    struct_def += GenStructDef(nested_name, sd["Data"], all_structs, fnc_types)
 
         struct_def += "typedef struct {\n"
         for sd in data:
-            if sd["type"] == "struct":
+            if sd["Type"] == "struct":
                 cstr = "  RoD_%sType %s;\n" % (GetName(sd), GetName(sd))
                 struct_def += cstr
-            elif sd["type"] == "function":
-                ret_type = sd.get("return", "void")
-                func_name = sd.get("value", "")
+            elif sd["Type"] == "function":
+                ret_type = sd.get("Return", "void")
+                func_name = sd.get("Value", "")
                 if func_name:
                     fnc_type_name = "%sFncType" % func_name
                     if fnc_type_name not in fnc_types:
                         fnc_types[fnc_type_name] = True
-                        H.write("typedef %s (*%s)(%s);\n\n" % (ret_type, fnc_type_name, ", ".join(sd.get("args", []))))
+                        H.write("typedef %s (*%s)(%s);\n\n" % (ret_type, fnc_type_name, ", ".join(sd.get("Args", []))))
                     struct_def += "  %s %s;\n" % (fnc_type_name, GetName(sd))
                 else:
-                    func_type = "%s (*%s)(%s);\n" % (ret_type, GetName(sd), ", ".join(sd.get("args", [])))
+                    func_type = "%s (*%s)(%s);\n" % (ret_type, GetName(sd), ", ".join(sd.get("Args", [])))
                     struct_def += "  " + func_type
             else:
-                dinfo = TypeInfoMap[sd["type"]]
+                dinfo = TypeInfoMap[sd["Type"]]
                 cstr = "  %s %s" % (dinfo["ctype"], GetName(sd))
                 if dinfo["IsArray"]:
-                    cstr += "[%s]" % (sd.get("size", 1))
+                    cstr += "[%s]" % (sd.get("Size", 1))
                 cstr += ";\n"
                 struct_def += cstr
         struct_def += "} RoD_%sType;\n\n" % (name)
         return struct_def
 
-    for block in cfg["blocks"]:
+    for block in cfg["Blocks"]:
         all_structs = {}
         fnc_types = {}
-        struct_def = GenStructDef(GetName(block), block["data"], all_structs, fnc_types)
+        struct_def = GenStructDef(GetName(block), block["Data"], all_structs, fnc_types)
         H.write(struct_def)
 
 
 def PlaceToRaw(raw, value, type, data_node, endian):
     if type == "struct":
-        for sd in data_node["data"]:
-            sv = sd.get("value", 0)
-            PlaceToRaw(raw, sv, sd["type"], sd, endian)
+        for sd in data_node["Data"]:
+            sv = sd.get("Value", 0)
+            PlaceToRaw(raw, sv, sd["Type"], sd, endian)
     elif type == "function":
         if not value or value == "NULL":
             raw.extend([0, 0, 0, 0])
@@ -108,90 +108,90 @@ def PlaceToRaw(raw, value, type, data_node, endian):
 
 def GenStructInit(data_node):
     cstr = "{ "
-    for i, sd in enumerate(data_node["data"]):
-        if sd["type"] == "struct":
+    for i, sd in enumerate(data_node["Data"]):
+        if sd["Type"] == "struct":
             cstr += GenStructInit(sd)
-        elif sd["type"] == "function":
-            func_name = sd.get("value", "NULL")
+        elif sd["Type"] == "function":
+            func_name = sd.get("Value", "NULL")
             cstr += func_name
         else:
-            value = sd.get("value", 0)
+            value = sd.get("Value", 0)
             if type(value) == str:
                 value = eval(value)
             if type(value) in [list, tuple]:
                 cstr += "{" + ", ".join(str(v) for v in value) + "}"
             else:
                 cstr += str(value)
-        if i < len(data_node["data"]) - 1:
+        if i < len(data_node["Data"]) - 1:
             cstr += ", "
     cstr += " }"
     return cstr
 
 
 def GenConstants(C, cfg):
-    endian = cfg.get("enidan", "little")
-    for block in cfg["blocks"]:
-        name = block["name"]
+    endian = cfg.get("Enidan", "little")
+    for block in cfg["Blocks"]:
+        name = block["Name"]
         cstr = "static CONSTANT(RoD_%sType, ROD_CONST) RoD_%s = { " % (name, name)
         raw = []
 
-        for i, data in enumerate(block["data"]):
-            if data["type"] == "struct":
+        for i, data in enumerate(block["Data"]):
+            if data["Type"] == "struct":
                 struct_init = GenStructInit(data)
                 cstr += struct_init
                 PlaceToRaw(raw, None, "struct", data, endian)
-            elif data["type"] == "function":
-                func_name = data.get("value", "NULL")
+            elif data["Type"] == "function":
+                func_name = data.get("Value", "NULL")
                 cstr += func_name
                 if not func_name or func_name == "NULL":
                     raw.extend([0, 0, 0, 0])
-            elif data["type"] == "string":
-                value = data["value"]
+            elif data["Type"] == "string":
+                value = data["Value"]
                 cstr += '"%s"' % (value)
                 for c in value:
                     raw.append(ord(c))
                 n = len(value)
-                while n < data.get("size", 1):
+                while n < data.get("Size", 1):
                     raw.append(0)
                     n = n + 1
             else:
-                value = data.get("value", 0)
+                value = data.get("Value", 0)
                 if type(value) == str:
                     value = eval(value)
                 cstr += str(value).replace("[", "{").replace("]", "}")
 
                 if type(value) in [list, tuple]:
                     for v in value:
-                        PlaceToRaw(raw, v, data["type"], data, endian)
+                        PlaceToRaw(raw, v, data["Type"], data, endian)
                     n = len(value)
-                    while n < data.get("size", 1):
-                        PlaceToRaw(raw, 0, data["type"], data, endian)
+                    while n < data.get("Size", 1):
+                        PlaceToRaw(raw, 0, data["Type"], data, endian)
                         n = n + 1
                 else:
-                    PlaceToRaw(raw, value, data["type"], data, endian)
+                    PlaceToRaw(raw, value, data["Type"], data, endian)
 
-            if i < len(block["data"]) - 1:
+            if i < len(block["Data"]) - 1:
                 cstr += ", "
 
-        if "crc" not in block:
-            block["crc"] = Calcaulte_Crc16(raw)
+        if "Crc" not in block:
+            block["Crc"] = Calcaulte_Crc16(raw)
         else:
-            block["crc"] = toNum(block["crc"])
+            block["Crc"] = toNum(block["Crc"])
         cstr += "};\n\n"
         C.write(cstr)
 
 
 def Gen_RoD(cfg, dir):
-    H = open("%s/RoD_%sCfg.h" % (dir, cfg["name"]), "w")
+    H = open("%s/RoD_%sCfg.h" % (dir, cfg["Name"]), "w")
     GenHeader(H)
-    H.write("#ifndef ROD_%s_CFG_H\n" % (cfg["name"].upper()))
-    H.write("#define ROD_%s_CFG_H\n" % (cfg["name"].upper()))
+    H.write("#ifndef ROD_%s_CFG_H\n" % (cfg["Name"].upper()))
+    H.write("#define ROD_%s_CFG_H\n" % (cfg["Name"].upper()))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "Std_Types.h"\n')
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     Number = 0
-    for block in cfg["blocks"]:
-        name = block["name"]
+    for block in cfg["Blocks"]:
+        name = block["Name"]
         H.write("#define ROD_NUMBER_%s %s\n" % (name, Number))
         Number += 1
     H.write("\n")
@@ -207,42 +207,42 @@ def Gen_RoD(cfg, dir):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* ROD_%s_CFG_H */\n" % (cfg["name"].upper()))
+    H.write("#endif /* ROD_%s_CFG_H */\n" % (cfg["Name"].upper()))
     H.close()
 
-    C = open("%s/RoD_%sCfg.c" % (dir, cfg["name"]), "w")
+    C = open("%s/RoD_%sCfg.c" % (dir, cfg["Name"]), "w")
     GenHeader(C)
     C.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     C.write('#include "RoD.h"\n')
-    C.write('#include "RoD_%sCfg.h"\n' % (cfg["name"]))
+    C.write('#include "RoD_%sCfg.h"\n' % (cfg["Name"]))
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    C.write("#define ROD_%s_START_SEC_CONST\n" % (cfg["name"].upper()))
-    C.write('#include "RoD_%s_MemMap.h"\n' % (cfg["name"]))
+    C.write("#define ROD_%s_START_SEC_CONST\n" % (cfg["Name"].upper()))
+    C.write('#include "RoD_%s_MemMap.h"\n' % (cfg["Name"]))
     GenConstants(C, cfg)
-    C.write("static CONSTANT(RoD_DataType, ROD_CONST) RoD_%sDatas[] = {\n" % (cfg["name"]))
-    for block in cfg["blocks"]:
-        name = block["name"]
-        crc = block["crc"]
+    C.write("static CONSTANT(RoD_DataType, ROD_CONST) RoD_%sDatas[] = {\n" % (cfg["Name"]))
+    for block in cfg["Blocks"]:
+        name = block["Name"]
+        crc = block["Crc"]
         invCrc = ~crc & 0xFFFF
         C.write("  { &RoD_%s, sizeof(RoD_%s), 0x%04X, 0x%04X },\n" % (name, name, crc, invCrc))
     C.write("};\n\n")
-    C.write("#define ROD_%s_STOP_SEC_CONST\n" % (cfg["name"].upper()))
-    C.write('#include "RoD_%s_MemMap.h"\n' % (cfg["name"]))
+    C.write("#define ROD_%s_STOP_SEC_CONST\n" % (cfg["Name"].upper()))
+    C.write('#include "RoD_%s_MemMap.h"\n' % (cfg["Name"]))
 
-    C.write("#define ROD_%s_ENTRY_START_SEC_CONST\n" % (cfg["name"].upper()))
-    C.write('#include "RoD_%s_Entry_MemMap.h"\n' % (cfg["name"]))
-    C.write("CONSTANT(RoD_ConfigType, ROD_CONST_ENTRY) RoD_%sConfig = {\n" % (cfg["name"]))
-    C.write("  RoD_%sDatas,\n" % (cfg["name"]))
+    C.write("#define ROD_%s_ENTRY_START_SEC_CONST\n" % (cfg["Name"].upper()))
+    C.write('#include "RoD_%s_Entry_MemMap.h"\n' % (cfg["Name"]))
+    C.write("CONSTANT(RoD_ConfigType, ROD_CONST_ENTRY) RoD_%sConfig = {\n" % (cfg["Name"]))
+    C.write("  RoD_%sDatas,\n" % (cfg["Name"]))
     C.write("  ROD_MAGIC_NUMBER,\n")
     C.write("  ~ROD_MAGIC_NUMBER,\n")
-    C.write("  ARRAY_SIZE(RoD_%sDatas),\n" % (cfg["name"]))
-    C.write("  (uint16_t)~ARRAY_SIZE(RoD_%sDatas),\n" % (cfg["name"]))
+    C.write("  ARRAY_SIZE(RoD_%sDatas),\n" % (cfg["Name"]))
+    C.write("  (uint16_t)~ARRAY_SIZE(RoD_%sDatas),\n" % (cfg["Name"]))
     C.write("};\n\n")
-    C.write("#define ROD_%s_ENTRY_STOP_SEC_CONST\n" % (cfg["name"].upper()))
-    C.write('#include "RoD_%s_Entry_MemMap.h"\n' % (cfg["name"]))
+    C.write("#define ROD_%s_ENTRY_STOP_SEC_CONST\n" % (cfg["Name"].upper()))
+    C.write('#include "RoD_%s_Entry_MemMap.h"\n' % (cfg["Name"]))
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     C.close()
@@ -250,24 +250,24 @@ def Gen_RoD(cfg, dir):
 
 def UpdateAppVersion(blk):
     now = time.localtime(time.time())
-    for data in blk["data"]:
-        if data["name"] == "year":
-            data["value"] = now.tm_year
-        if data["name"] == "month":
-            data["value"] = now.tm_mon
-        if data["name"] == "day":
-            data["value"] = now.tm_mday
-        if data["name"] == "hour":
-            data["value"] = now.tm_hour
-        if data["name"] == "minute":
-            data["value"] = now.tm_min
-        if data["name"] == "second":
-            data["value"] = now.tm_sec
+    for data in blk["Data"]:
+        if data["Name"] == "year":
+            data["Value"] = now.tm_year
+        if data["Name"] == "month":
+            data["Value"] = now.tm_mon
+        if data["Name"] == "day":
+            data["Value"] = now.tm_mday
+        if data["Name"] == "hour":
+            data["Value"] = now.tm_hour
+        if data["Name"] == "minute":
+            data["Value"] = now.tm_min
+        if data["Name"] == "second":
+            data["Value"] = now.tm_sec
 
 
 def post(cfg, dir):
-    for blk in cfg["blocks"]:
-        if blk["name"] == "AppVersion":
+    for blk in cfg["Blocks"]:
+        if blk["Name"] == "AppVersion":
             UpdateAppVersion(blk)
     with open("%s/RoD.json" % (dir), "w") as f:
         json.dump(cfg, f, indent=2)
@@ -280,6 +280,6 @@ def Gen(cfg):
         cfg = json.load(f)
     post(cfg, dir)
     Gen_RoD(cfg, dir)
-    GenMemMap("RoD_%s" % (cfg["name"]), dir)
-    GenMemMap("RoD_%s_Entry" % (cfg["name"]), dir)
-    return ["%s/RoD_%sCfg.c" % (dir, cfg["name"])]
+    GenMemMap("RoD_%s" % (cfg["Name"]), dir)
+    GenMemMap("RoD_%s_Entry" % (cfg["Name"]), dir)
+    return ["%s/RoD_%sCfg.c" % (dir, cfg["Name"])]

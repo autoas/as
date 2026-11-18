@@ -48,7 +48,7 @@ static int TLS_NetSend(void *ctx, const unsigned char *buf, size_t len) {
   PduInfo.SduDataPtr = (uint8_t *)buf;
   PduInfo.SduLength = (PduLengthType)len;
 
-  ASHEXDUMP(TLS, ("%s send:", server->name), buf, len);
+  ASHEXDUMP(TLS, ("%s send:", server->Name), buf, len);
   ret = SoAd_IfTransmit(server->TxPduId, &PduInfo);
   if (E_OK == ret) {
     rc = (int)len;
@@ -71,7 +71,7 @@ static int TLS_NetRecv(void *ctx, unsigned char *buf, size_t len) {
   if (0 == rc) {
     rc = MBEDTLS_ERR_SSL_WANT_READ;
   } else {
-    ASHEXDUMP(TLS, ("%s recv:", server->name), buf, rc);
+    ASHEXDUMP(TLS, ("%s recv:", server->Name), buf, rc);
   }
 
   return rc;
@@ -80,15 +80,15 @@ static int TLS_NetRecv(void *ctx, unsigned char *buf, size_t len) {
 static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   Std_ReturnType ret = E_OK;
   int rc;
-  mbedtls_ssl_init(&server->context->ssl);
-  mbedtls_ssl_config_init(&server->context->conf);
+  mbedtls_ssl_init(&server->Context->Ssl);
+  mbedtls_ssl_config_init(&server->Context->Conf);
 #if defined(MBEDTLS_SSL_CACHE_C)
-  mbedtls_ssl_cache_init(&server->context->cache);
+  mbedtls_ssl_cache_init(&server->Context->Cache);
 #endif
-  mbedtls_x509_crt_init(&server->context->srvcert);
-  mbedtls_pk_init(&server->context->pkey);
-  mbedtls_entropy_init(&server->context->entropy);
-  mbedtls_ctr_drbg_init(&server->context->ctr_drbg);
+  mbedtls_x509_crt_init(&server->Context->Srvcert);
+  mbedtls_pk_init(&server->Context->Pkey);
+  mbedtls_entropy_init(&server->Context->Entropy);
+  mbedtls_ctr_drbg_init(&server->Context->Ctr_drbg);
 
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
   {
@@ -108,13 +108,13 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
     ret = SoAd_TakeControl(server->SoConId);
   }
 
-  ASLOG(TLS, ("Init TLS %s\n", server->name));
+  ASLOG(TLS, ("Init TLS %s\n", server->Name));
   /*1. Seed the RNG*/
   if (E_OK == ret) {
     ASPRINT(TLS, (". Seeding the random number generator..."));
-    rc = mbedtls_ctr_drbg_seed(&server->context->ctr_drbg, mbedtls_entropy_func,
-                               &server->context->entropy, (const unsigned char *)server->name,
-                               strlen(server->name));
+    rc = mbedtls_ctr_drbg_seed(&server->Context->Ctr_drbg, mbedtls_entropy_func,
+                               &server->Context->Entropy, (const unsigned char *)server->Name,
+                               strlen(server->Name));
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", rc));
       ret = E_NOT_OK;
@@ -126,7 +126,7 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   /* 2. Load the certificates and private RSA key */
   if (E_OK == ret) {
     ASPRINT(TLS, (". Loading the server cert. and key..."));
-    rc = mbedtls_x509_crt_parse(&server->context->srvcert,
+    rc = mbedtls_x509_crt_parse(&server->Context->Srvcert,
                                 (const unsigned char *)server->ServerCerts, server->ServerCertsLen);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  !  mbedtls_x509_crt_parse server cert returned %d\n", rc));
@@ -135,7 +135,7 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   }
 
   if (E_OK == ret) {
-    rc = mbedtls_x509_crt_parse(&server->context->srvcert, (const unsigned char *)server->CasCerts,
+    rc = mbedtls_x509_crt_parse(&server->Context->Srvcert, (const unsigned char *)server->CasCerts,
                                 server->CasCertsLen);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  !  mbedtls_x509_crt_parse cas cert returned %d\n", rc));
@@ -144,9 +144,9 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   }
 
   if (E_OK == ret) {
-    rc = mbedtls_pk_parse_key(&server->context->pkey, (const unsigned char *)server->ServerKey,
+    rc = mbedtls_pk_parse_key(&server->Context->Pkey, (const unsigned char *)server->ServerKey,
                               server->ServerKeyLen, NULL, 0, mbedtls_ctr_drbg_random,
-                              &server->context->ctr_drbg);
+                              &server->Context->Ctr_drbg);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  !  mbedtls_pk_parse_key returned %d\n", rc));
       ret = E_NOT_OK;
@@ -157,7 +157,7 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
 
   if (E_OK == ret) {
     ASPRINT(TLS, (". Setting up the SSL data...."));
-    rc = mbedtls_ssl_config_defaults(&server->context->conf, MBEDTLS_SSL_IS_SERVER,
+    rc = mbedtls_ssl_config_defaults(&server->Context->Conf, MBEDTLS_SSL_IS_SERVER,
                                      MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  !  mbedtls_ssl_config_defaults returned %d\n", rc));
@@ -166,20 +166,20 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   }
 
   if (E_OK == ret) {
-    mbedtls_ssl_conf_rng(&server->context->conf, mbedtls_ctr_drbg_random,
-                         &server->context->ctr_drbg);
-    mbedtls_ssl_conf_dbg(&server->context->conf, TLS_Debug, NULL);
+    mbedtls_ssl_conf_rng(&server->Context->Conf, mbedtls_ctr_drbg_random,
+                         &server->Context->Ctr_drbg);
+    mbedtls_ssl_conf_dbg(&server->Context->Conf, TLS_Debug, NULL);
 
 #if defined(MBEDTLS_SSL_CACHE_C)
-    mbedtls_ssl_conf_session_cache(&server->context->conf, &server->context->cache,
+    mbedtls_ssl_conf_session_cache(&server->Context->Conf, &server->Context->Cache,
                                    mbedtls_ssl_cache_get, mbedtls_ssl_cache_set);
 #endif
 
-    mbedtls_ssl_conf_ca_chain(&server->context->conf, server->context->srvcert.next, NULL);
+    mbedtls_ssl_conf_ca_chain(&server->Context->Conf, server->Context->Srvcert.next, NULL);
   }
   if (E_OK == ret) {
-    rc = mbedtls_ssl_conf_own_cert(&server->context->conf, &server->context->srvcert,
-                                   &server->context->pkey);
+    rc = mbedtls_ssl_conf_own_cert(&server->Context->Conf, &server->Context->Srvcert,
+                                   &server->Context->Pkey);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  ! mbedtls_ssl_conf_own_cert returned %d\n\n", rc));
       ret = E_NOT_OK;
@@ -187,7 +187,7 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   }
 
   if (E_OK == ret) {
-    rc = mbedtls_ssl_setup(&server->context->ssl, &server->context->conf);
+    rc = mbedtls_ssl_setup(&server->Context->Ssl, &server->Context->Conf);
     if (rc != 0) {
       ASPRINT(TLS, (" failed\n  ! mbedtls_ssl_setup returned %d\n\n", rc));
       ret = E_NOT_OK;
@@ -197,10 +197,10 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
   }
 
   if (E_OK == ret) {
-    mbedtls_ssl_session_reset(&server->context->ssl);
-    mbedtls_ssl_set_bio(&server->context->ssl, (void *)server, TLS_NetSend, TLS_NetRecv, NULL);
-    server->context->data = NULL;
-    server->context->length = 0;
+    mbedtls_ssl_session_reset(&server->Context->Ssl);
+    mbedtls_ssl_set_bio(&server->Context->Ssl, (void *)server, TLS_NetSend, TLS_NetRecv, NULL);
+    server->Context->Data = NULL;
+    server->Context->Length = 0;
   }
 
   return ret;
@@ -208,34 +208,34 @@ static Std_ReturnType TLS_ServerInit(const TLS_ServerConfigType *server) {
 
 static void TLS_ServerSwitchOnline(const TLS_ServerConfigType *server) {
   Std_ReturnType ret;
-  if (TLS_SERVER_IDLE == server->context->state) {
+  if (TLS_SERVER_IDLE == server->Context->State) {
     ret = TLS_ServerInit(server);
     if (E_OK == ret) {
-      ASLOG(TLS, ("Server %s connected\n", server->name));
-      server->context->state = TLS_SERVER_HANDSHAKE;
+      ASLOG(TLS, ("Server %s connected\n", server->Name));
+      server->Context->State = TLS_SERVER_HANDSHAKE;
     }
   } else {
-    ASLOG(TLSE, ("Server %s in wrong state %u, reset\n", server->name, server->context->state));
-    mbedtls_ssl_session_reset(&server->context->ssl);
-    server->context->state = TLS_SERVER_HANDSHAKE;
+    ASLOG(TLSE, ("Server %s in wrong state %u, reset\n", server->Name, server->Context->State));
+    mbedtls_ssl_session_reset(&server->Context->Ssl);
+    server->Context->State = TLS_SERVER_HANDSHAKE;
   }
 }
 
 static void TLS_ServerDeinit(const TLS_ServerConfigType *server) {
-  mbedtls_x509_crt_free(&server->context->srvcert);
-  mbedtls_pk_free(&server->context->pkey);
-  mbedtls_ssl_free(&server->context->ssl);
-  mbedtls_ssl_config_free(&server->context->conf);
+  mbedtls_x509_crt_free(&server->Context->Srvcert);
+  mbedtls_pk_free(&server->Context->Pkey);
+  mbedtls_ssl_free(&server->Context->Ssl);
+  mbedtls_ssl_config_free(&server->Context->Conf);
 #if defined(MBEDTLS_SSL_CACHE_C)
-  mbedtls_ssl_cache_free(&server->context->cache);
+  mbedtls_ssl_cache_free(&server->Context->Cache);
 #endif
-  mbedtls_ctr_drbg_free(&server->context->ctr_drbg);
-  mbedtls_entropy_free(&server->context->entropy);
-  server->context->state = TLS_SERVER_IDLE;
+  mbedtls_ctr_drbg_free(&server->Context->Ctr_drbg);
+  mbedtls_entropy_free(&server->Context->Entropy);
+  server->Context->State = TLS_SERVER_IDLE;
 }
 
-static void TLS_ServerSoConModeChg(const TLS_ServerConfigType *server, SoAd_SoConModeType Mode) {
-  if (SOAD_SOCON_ONLINE == Mode) {
+static void TLS_ServerSoConModeChg(const TLS_ServerConfigType *server, SoAd_SoConModeType mode) {
+  if (SOAD_SOCON_ONLINE == mode) {
     TLS_ServerSwitchOnline(server);
   } else {
     TLS_ServerDeinit(server);
@@ -245,13 +245,13 @@ static void TLS_ServerSoConModeChg(const TLS_ServerConfigType *server, SoAd_SoCo
 static void TLS_ServerHandShake(const TLS_ServerConfigType *server) {
   int rc;
 
-  rc = mbedtls_ssl_handshake(&server->context->ssl);
+  rc = mbedtls_ssl_handshake(&server->Context->Ssl);
   if (0 == rc) {
     server->SoConModeChgNotification(server->SoConId, SOAD_SOCON_ONLINE);
-    server->context->state = TLS_SERVER_READY;
+    server->Context->State = TLS_SERVER_READY;
   } else if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE)) {
     ASLOG(TLSE, ("mbedtls_ssl_handshake returned %d\n", rc));
-    server->context->state = TLS_SERVER_DEAD;
+    server->Context->State = TLS_SERVER_DEAD;
     (void)SoAd_CloseSoCon(server->SoConId, TRUE);
     TLS_ServerDeinit(server);
   } else {
@@ -269,11 +269,11 @@ static void TLS_ServerRecvStart(const TLS_ServerConfigType *server) {
   uint8_t header[TLS_HEADER_MAX_LEN];
   TcpIp_SockAddrType RemoteAddr;
 
-  (void)mbedtls_ssl_read(&server->context->ssl, NULL, 0);
-  rxLen = mbedtls_ssl_get_bytes_avail(&server->context->ssl);
-  if (server->headerLen > 0) {
-    if (rxLen >= server->headerLen) {
-      rxLen = server->headerLen;
+  (void)mbedtls_ssl_read(&server->Context->Ssl, NULL, 0);
+  rxLen = mbedtls_ssl_get_bytes_avail(&server->Context->Ssl);
+  if (server->HeaderLen > 0) {
+    if (rxLen >= server->HeaderLen) {
+      rxLen = server->HeaderLen;
       data = header;
     } else {
       rxLen = 0; /* not enough data */
@@ -287,34 +287,34 @@ static void TLS_ServerRecvStart(const TLS_ServerConfigType *server) {
     if (NULL != data) {
       ret = E_OK;
     } else {
-      ASLOG(TLSE, ("%s: Failed to malloc for %d\n", server->name, rxLen));
+      ASLOG(TLSE, ("%s: Failed to malloc for %d\n", server->Name, rxLen));
     }
   } else {
     ret = E_OK;
   }
 
   if (E_OK == ret) {
-    rc = mbedtls_ssl_read(&server->context->ssl, data, rxLen);
+    rc = mbedtls_ssl_read(&server->Context->Ssl, data, rxLen);
     if (rc >= 0) {
       if (rc > 0) {
-        ASLOG(TLS, ("%s: read %d bytes\n", server->name, rc));
+        ASLOG(TLS, ("%s: read %d bytes\n", server->Name, rc));
         PduInfo.SduDataPtr = data;
         PduInfo.SduLength = rc;
         PduInfo.MetaDataPtr = (uint8_t *)&RemoteAddr;
         (void)SoAd_GetRemoteAddr(server->SoConId, &RemoteAddr);
-        if (server->headerLen > 0) {
+        if (server->HeaderLen > 0) {
           ret = server->IF->HeaderIndication(server->RxPduId, &PduInfo, &length);
           if (E_OK == ret) {
             if (length > 0) { /* the length of left bytes need to be recived */
-              server->context->length = length;
-              server->context->offset = server->headerLen;
-              server->context->data = Net_MemAlloc((uint32_t)server->headerLen + length);
+              server->Context->Length = length;
+              server->Context->Offset = server->HeaderLen;
+              server->Context->Data = Net_MemAlloc((uint32_t)server->HeaderLen + length);
               /* allow allocation failed thus the further rx logic to drop data */
-              if (NULL == server->context->data) {
-                ASLOG(TLSE, ("%s: allocate %u rx buffer failed\n", server->name,
-                             (uint32_t)server->headerLen + length));
+              if (NULL == server->Context->Data) {
+                ASLOG(TLSE, ("%s: allocate %u rx buffer failed\n", server->Name,
+                             (uint32_t)server->HeaderLen + length));
               } else {
-                (void)memcpy(server->context->data, data, rc);
+                (void)memcpy(server->Context->Data, data, rc);
               }
             } else {
               server->IF->RxIndication(server->RxPduId, &PduInfo);
@@ -324,11 +324,11 @@ static void TLS_ServerRecvStart(const TLS_ServerConfigType *server) {
           server->IF->RxIndication(server->RxPduId, &PduInfo);
         }
       } else {
-        ASLOG(TLSE, ("%s: recv with 0 bytes\n", server->name));
+        ASLOG(TLSE, ("%s: recv with 0 bytes\n", server->Name));
       }
     } else if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE)) {
       ASLOG(TLSE, ("mbedtls_ssl_read returned %d\n", rc));
-      server->context->state = TLS_SERVER_DEAD;
+      server->Context->State = TLS_SERVER_DEAD;
       (void)SoAd_CloseSoCon(server->SoConId, TRUE);
       TLS_ServerDeinit(server);
       server->SoConModeChgNotification(server->SoConId, SOAD_SOCON_OFFLINE);
@@ -350,54 +350,54 @@ static void TLS_ServerRecvLeft(const TLS_ServerConfigType *server) {
   uint8_t cache[TLS_LOCAL_DATA_MAX_SIZE];
   TcpIp_SockAddrType RemoteAddr;
 
-  rxLen = mbedtls_ssl_get_bytes_avail(&server->context->ssl);
+  rxLen = mbedtls_ssl_get_bytes_avail(&server->Context->Ssl);
   if (rxLen > 0) {
-    if (rxLen > server->context->length) {
-      rxLen = server->context->length;
+    if (rxLen > server->Context->Length) {
+      rxLen = server->Context->Length;
     }
-    if (NULL != server->context->data) {
-      data = &server->context->data[server->context->offset];
+    if (NULL != server->Context->Data) {
+      data = &server->Context->Data[server->Context->Offset];
     } else {
       data = cache;
       if (rxLen > TLS_LOCAL_DATA_MAX_SIZE) {
         rxLen = TLS_LOCAL_DATA_MAX_SIZE;
       }
-      ASLOG(TLSE, ("%s: drop %u bytes\n", server->name, rxLen));
+      ASLOG(TLSE, ("%s: drop %u bytes\n", server->Name, rxLen));
     }
     ret = E_OK;
   }
   if (E_OK == ret) {
-    rc = mbedtls_ssl_read(&server->context->ssl, data, rxLen);
+    rc = mbedtls_ssl_read(&server->Context->Ssl, data, rxLen);
     if (rc >= 0) {
       if (rc > 0) {
-        server->context->offset += rc;
-        if (server->context->length > rc) {
-          server->context->length -= rc;
+        server->Context->Offset += rc;
+        if (server->Context->Length > rc) {
+          server->Context->Length -= rc;
         } else {
-          server->context->length = 0;
+          server->Context->Length = 0;
         }
       }
-      if ((0 == server->context->length) && (NULL != server->context->data)) {
-        ASLOG(TLS, ("%s: read %d bytes\n", server->name, rxLen));
-        PduInfo.SduDataPtr = server->context->data;
-        PduInfo.SduLength = server->context->offset;
+      if ((0 == server->Context->Length) && (NULL != server->Context->Data)) {
+        ASLOG(TLS, ("%s: read %d bytes\n", server->Name, rxLen));
+        PduInfo.SduDataPtr = server->Context->Data;
+        PduInfo.SduLength = server->Context->Offset;
         PduInfo.MetaDataPtr = (uint8_t *)&RemoteAddr;
         (void)SoAd_GetRemoteAddr(server->SoConId, &RemoteAddr);
         server->IF->RxIndication(server->RxPduId, &PduInfo);
-        if (NULL != server->context->data) {
-          Net_MemFree(server->context->data);
-          server->context->data = NULL;
+        if (NULL != server->Context->Data) {
+          Net_MemFree(server->Context->Data);
+          server->Context->Data = NULL;
         }
       }
     } else if ((rc != MBEDTLS_ERR_SSL_WANT_READ) && (rc != MBEDTLS_ERR_SSL_WANT_WRITE)) {
       ASLOG(TLSE, ("mbedtls_ssl_read returned %d\n", rc));
-      server->context->state = TLS_SERVER_DEAD;
+      server->Context->State = TLS_SERVER_DEAD;
       (void)SoAd_CloseSoCon(server->SoConId, TRUE);
       TLS_ServerDeinit(server);
       server->SoConModeChgNotification(server->SoConId, SOAD_SOCON_OFFLINE);
-      if (NULL != server->context->data) {
-        Net_MemFree(server->context->data);
-        server->context->data = NULL;
+      if (NULL != server->Context->Data) {
+        Net_MemFree(server->Context->Data);
+        server->Context->Data = NULL;
       }
     } else {
       /* OK */
@@ -407,7 +407,7 @@ static void TLS_ServerRecvLeft(const TLS_ServerConfigType *server) {
 
 static void TLS_ServerReady(const TLS_ServerConfigType *server) {
 
-  if (0 == server->context->length) {
+  if (0 == server->Context->Length) {
     TLS_ServerRecvStart(server);
   } else {
     TLS_ServerRecvLeft(server);
@@ -415,7 +415,7 @@ static void TLS_ServerReady(const TLS_ServerConfigType *server) {
 }
 
 static void TLS_ServerMainFunction(const TLS_ServerConfigType *server) {
-  switch (server->context->state) {
+  switch (server->Context->State) {
   case TLS_SERVER_HANDSHAKE:
     TLS_ServerHandShake(server);
     break;
@@ -427,13 +427,13 @@ static void TLS_ServerMainFunction(const TLS_ServerConfigType *server) {
   }
 }
 
-static Std_ReturnType TLS_ServerTransmit(uint16_t serverIdx, const PduInfoType *PduInfoPtr) {
+static Std_ReturnType TLS_ServerTransmit(uint16_t serverIdx, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_NOT_OK;
   int rc;
-  const TLS_ServerConfigType *server = &TLS_CONFIG->servers[serverIdx];
-  if (TLS_SERVER_READY == server->context->state) {
-    rc = mbedtls_ssl_write(&server->context->ssl, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
-    if (rc == PduInfoPtr->SduLength) {
+  const TLS_ServerConfigType *server = &TLS_CONFIG->Servers[serverIdx];
+  if (TLS_SERVER_READY == server->Context->State) {
+    rc = mbedtls_ssl_write(&server->Context->Ssl, pduInfoPtr->SduDataPtr, pduInfoPtr->SduLength);
+    if (rc == pduInfoPtr->SduLength) {
       ret = E_OK;
     }
   }
@@ -452,33 +452,33 @@ void TLS_Init(const TLS_ConfigType *config) {
   (void)config;
 #endif
 
-  for (i = 0; i < TLS_CONFIG->numOfServers; i++) {
-    (void)memset(TLS_CONFIG->servers[i].context, 0, sizeof(TLS_ServerContextType));
+  for (i = 0; i < TLS_CONFIG->NumOfServers; i++) {
+    (void)memset(TLS_CONFIG->Servers[i].Context, 0, sizeof(TLS_ServerContextType));
   }
 }
 
-void TLS_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode) {
+void TLS_SoConModeChg(SoAd_SoConIdType soConId, SoAd_SoConModeType mode) {
   uint16_t i;
-  ASLOG(TLS, ("SoConId %u SoCon Mode %u\n", SoConId, Mode));
-  for (i = 0; i < TLS_CONFIG->numOfServers; i++) {
-    if (SoConId == TLS_CONFIG->servers[i].SoConId) {
-      TLS_ServerSoConModeChg(&TLS_CONFIG->servers[i], Mode);
+  ASLOG(TLS, ("SoConId %u SoCon mode %u\n", soConId, mode));
+  for (i = 0; i < TLS_CONFIG->NumOfServers; i++) {
+    if (soConId == TLS_CONFIG->Servers[i].SoConId) {
+      TLS_ServerSoConModeChg(&TLS_CONFIG->Servers[i], mode);
     }
   }
 }
 
 void TLS_MainFunction(void) {
   uint16_t i;
-  for (i = 0; i < TLS_CONFIG->numOfServers; i++) {
-    TLS_ServerMainFunction(&TLS_CONFIG->servers[i]);
+  for (i = 0; i < TLS_CONFIG->NumOfServers; i++) {
+    TLS_ServerMainFunction(&TLS_CONFIG->Servers[i]);
   }
 }
 
-Std_ReturnType TLS_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType TLS_IfTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_NOT_OK;
-  if (TxPduId < TLS_CONFIG->numOfTxPduIds) {
-    if (TRUE == TLS_CONFIG->TxPduIds[TxPduId].bServer) {
-      ret = TLS_ServerTransmit(TLS_CONFIG->TxPduIds[TxPduId].idx, PduInfoPtr);
+  if (txPduId < TLS_CONFIG->NumOfTxPduIds) {
+    if (TRUE == TLS_CONFIG->TxPduIds[txPduId].Server) {
+      ret = TLS_ServerTransmit(TLS_CONFIG->TxPduIds[txPduId].Idx, pduInfoPtr);
     }
   }
   return ret;

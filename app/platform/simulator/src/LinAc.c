@@ -145,7 +145,7 @@ Std_ReturnType LinAc_Init(uint8_t Controller, const Lin_ChannelConfigType *confi
   context = &config->context->acCtx;
   if (context->fd < 0) {
     snprintf(option, sizeof(option), "%u", config->baudrate);
-    fd = dev_open(config->device, option);
+    fd = Dev_Open(config->device, option);
     if (fd >= 0) {
       context->fd = fd;
       context->state = LIN_STATE_ONLINE;
@@ -168,7 +168,7 @@ Std_ReturnType LinAc_DeInit(uint8_t Controller, const Lin_ChannelConfigType *con
 
   fd = context->fd;
   if (fd >= 0) {
-    dev_close(fd);
+    Dev_Close(fd);
     context->fd = -1;
     ret = E_OK;
   } else {
@@ -252,7 +252,7 @@ Std_ReturnType Lin_SendFrame(uint8_t Channel, const Lin_PduType *PduInfoPtr) {
 
     if (E_OK == ercd) {
       ASLOG(LIN, ("%d TX: %c %02X @ %u us\n", Channel, data[0], data[1], (uint32_t)Std_GetTime()));
-      r = dev_write(fd, data, len);
+      r = Dev_Write(fd, data, len);
       if (len != r) {
         ercd = E_NOT_OK;
       } else {
@@ -320,7 +320,7 @@ void Lin_MainFunction_Read(void) {
     fd = context->fd;
     if (fd < 0)
       continue;
-    size = dev_read(fd, data, sizeof(data));
+    size = Dev_Read(fd, data, sizeof(data));
     if ((2 == size) && (LIN_TYPE_HEADER == data[0])) {
       context->frame.type = LIN_TYPE_HEADER;
       context->frame.pid = data[1];
@@ -332,7 +332,7 @@ void Lin_MainFunction_Read(void) {
         if (LIN_FRAMERESPONSE_TX == linPdu.Drc) {
           data[0] = LIN_TYPE_DATA;
           Lin_GetData(&linPdu, &data[1], &data[1 + linPdu.Dl]);
-          r = dev_write(fd, data, linPdu.Dl + 2);
+          r = Dev_Write(fd, data, linPdu.Dl + 2);
           if ((linPdu.Dl + 2) != r) {
             ASLOG(LINE, ("failed to slave response %x\n", linPdu.Pid));
           } else {
@@ -400,7 +400,7 @@ void Lin_MainFunction_Read(void) {
         if (LIN_FRAMERESPONSE_TX == linPdu.Drc) {
           data[0] = LIN_TYPE_DATA;
           Lin_GetData(&linPdu, &data[1], &data[1 + linPdu.Dl]);
-          r = dev_write(fd, data, linPdu.Dl + 2);
+          r = Dev_Write(fd, data, linPdu.Dl + 2);
           if ((linPdu.Dl + 2) != r) {
             ASLOG(LINE, ("failed to slave response %x\n", linPdu.Pid));
           } else {

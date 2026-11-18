@@ -9,4 +9,7 @@ class LibraryDet(Library):
     def config(self):
         self.include = CWD
         self.CPPPATH = ["$INFRAS"]
+        if IsBuildForHost(self.GetCompiler()):
+            # ASLOG() of Std_Debug.h resolves the log levels at runtime
+            self.LIBS = ["Utils"]
         self.source = objs

@@ -86,13 +86,13 @@ Arguments (see [main.py](../../tools/json.editor/main.py)):
 The whole UI is generated from `schema.json`; adding a module only requires adding a schema entry, no Python code. Each property maps to a widget by type.
 
 ### 4.2 Cross-module references (`enumref`)
-A field can reference values defined in another module. For example a Dcm service's `sessions` field uses `"enumref": "/Dcm/sessions:name"`, so the dropdown always lists the session names currently defined in the Dcm module. References are refreshed every second.
+A field can reference values defined in another module. For example a Dcm service's `Sessions` field uses `"enumref": "/Dcm/Sessions:Name"`, so the dropdown always lists the session names currently defined in the Dcm module. References are refreshed every second.
 
-### 4.3 Conditional visibility (`enabled`)
+### 4.3 Conditional visibility (`Enabled`)
 Fields can be shown or hidden with an expression using the `${path}` template syntax:
 
 ```json
-"enabled": "'${../use_dbc}' == 'True'"
+"Enabled": "'${../use_dbc}' == 'True'"
 ```
 
 Supported path forms: `${/Module/path}` (absolute), `${../field}` (parent), `${field}` (same object). Operators: `==`, `!=`, `in`, `and`, `or`, `not`.
@@ -130,7 +130,7 @@ flowchart LR
     B -.->|"optional"| E["AI Validate<br/>(Ctrl+V)"]
 ```
 
-**Open** (`Ctrl+O`): loads a combined JSON file (`jse.json`) containing every module as one array, matching each entry's `class` to a schema `title`.
+**Open** (`Ctrl+O`): loads a combined JSON file (`jse.json`) containing every module as one array, matching each entry's `Class` to a schema `title`.
 
 **Load** (`Ctrl+L`): loads a single-module JSON file; **Load Directory** (`Ctrl+D`) loads every `*.json` in a folder (e.g. an `app/<platform>/config/` tree).
 
@@ -147,8 +147,8 @@ flowchart LR
 | Default | `default` | `"default": 100` |
 | Numeric format | `format` | `"hex"` or `"dec"` |
 | Fixed choices | `enum` | `"enum": ["CAN", "CANFD", "LIN"]` |
-| Cross-ref choices | `enumref` | `"enumref": "/Dcm/sessions:name"` |
-| Conditional visibility | `enabled` | `"'${../use_dbc}' == 'True'"` |
+| Cross-ref choices | `enumref` | `"enumref": "/Dcm/Sessions:Name"` |
+| Conditional visibility | `Enabled` | `"'${../use_dbc}' == 'True'"` |
 | Named choice + auto-fill | `map`, `friends` | fills sibling fields on selection |
 | Schema extension on select | `map` with `extend: true` | merges the `extends` block |
 | Field ordering | `orders` | `["name", "Driver", "Action"]` |
@@ -156,7 +156,7 @@ flowchart LR
 
 ## 7. Troubleshooting
 
-- **A field is missing**: check its `enabled` expression - it may depend on another field's value.
+- **A field is missing**: check its `Enabled` expression - it may depend on another field's value.
 - **An `enumref` dropdown is empty**: the referenced module (e.g. `Dcm`) is not loaded; use **Load** or **Load Directory** to open it.
 - **Generate produces no files**: ensure at least one module is loaded and the JSON was saved; `Generate()` only regenerates modules whose hash changed (force via the GUI's Generate action which passes `force=True`).
 - **AI validation fails**: check `.spark/settings.json` for a valid `api_key`, `base_url`, and `model`; the agent requires an OpenAI-compatible endpoint.

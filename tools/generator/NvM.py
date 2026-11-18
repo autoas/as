@@ -10,54 +10,54 @@ __all__ = ["Gen"]
 
 
 def GetName(node):
-    if node["name"][-2:] == "{}":
-        return node["name"][:-2]
-    return node["name"]
+    if node["Name"][-2:] == "{}":
+        return node["Name"][:-2]
+    return node["Name"]
 
 
 def GetBlockSize(block):
     size = 0
-    for data in block["data"]:
-        size += GetDataSize(data) * block.get("size", 1)
+    for data in block["Data"]:
+        size += GetDataSize(data) * block.get("Size", 1)
     return size
 
 
 def GetMaxDataSize(cfg):
     maxSize = 0
-    for block in cfg["blocks"]:
+    for block in cfg["Blocks"]:
         size = 0
-        for data in block["data"]:
-            size += TypeInfoMap[data["type"]]["size"] * data.get("size", 1) * data.get("repeat", 1)
+        for data in block["Data"]:
+            size += TypeInfoMap[data["Type"]]["Size"] * data.get("Size", 1) * data.get("Repeat", 1)
         if size > maxSize:
             maxSize = size
     return maxSize
 
 
 def GenTypes(H, cfg):
-    for block in cfg["blocks"]:
+    for block in cfg["Blocks"]:
         H.write("typedef struct {\n")
-        for data in block["data"]:
-            dinfo = TypeInfoMap[data["type"]]
+        for data in block["Data"]:
+            dinfo = TypeInfoMap[data["Type"]]
             cstr = "  %s %s" % (dinfo["ctype"], GetName(data))
-            if data["name"][-2:] == "{}":
-                cstr += "[%s]" % (data["repeat"])
+            if data["Name"][-2:] == "{}":
+                cstr += "[%s]" % (data["Repeat"])
             if dinfo["IsArray"]:
-                cstr += "[%s]" % (data["size"])
+                cstr += "[%s]" % (data["Size"])
             cstr += ";\n"
             H.write(cstr)
         H.write("} %sType;\n\n" % (GetName(block)))
 
 
 def GenConstants(C, cfg, module):
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(1, repeat):
-            name = block["name"].format(i)
-            C.write("#define %s_Rom %s_Rom\n" % (name, block["name"].format(0)))
-        name = block["name"].format(0)
+            name = block["Name"].format(i)
+            C.write("#define %s_Rom %s_Rom\n" % (name, block["Name"].format(0)))
+        name = block["Name"].format(0)
         cstr = "static CONSTANT(%sType, %s_CONST) %s_Rom = { " % (GetName(block), module, name)
-        for data in block["data"]:
-            dft = data["default"]
+        for data in block["Data"]:
+            dft = data["Default"]
             if type(dft) == str:
                 cstr += "%s, " % (str(eval(dft)).replace("[", "{").replace("]", "}"))
             else:
@@ -69,8 +69,8 @@ def GenConstants(C, cfg, module):
 def Gen_Ea(cfg, dir):
     H = open("%s/Ea_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef _EA_CFG_H\n")
-    H.write("#define _EA_CFG_H\n")
+    H.write("#ifndef EA_CFG_H\n")
+    H.write("#define EA_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("#ifndef EA_PAGE_SIZE\n")
@@ -81,10 +81,10 @@ def Gen_Ea(cfg, dir):
     H.write("#endif\n\n")
     H.write("#define EA_MAX_DATA_SIZE %d\n\n" % (GetMaxDataSize(cfg)))
     Number = 1
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             H.write("#define EA_NUMBER_%s %s\n" % (name, Number))
             Number += 1
     H.write("#ifndef EA_CONST\n")
@@ -96,7 +96,7 @@ def Gen_Ea(cfg, dir):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* _EA_CFG_H */\n")
+    H.write("#endif /* EA_CFG_H */\n")
     H.close()
 
     C = open("%s/Ea_Cfg.c" % (dir), "w")
@@ -116,10 +116,10 @@ def Gen_Ea(cfg, dir):
     C.write("static CONSTANT(Ea_BlockConfigType, EA_CONST) Ea_BlockConfigs[] = {\n")
     Cnt = 0
     Address = 0
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             size = GetBlockSize(block)
             NumberOfWriteCycles = block.get("NumberOfWriteCycles", 10000000)
             C.write("  { EA_NUMBER_%s, %s, %s+2, %s },\n" % (name, Address, size, NumberOfWriteCycles))
@@ -149,10 +149,10 @@ def Gen_Fee(cfg, dir):
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     H.write("#define FEE_MAX_DATA_SIZE %d\n\n" % (GetMaxDataSize(cfg)))
     Number = 1
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             H.write("#define FEE_NUMBER_%s %s\n" % (name, Number))
             Number += 1
     H.write("#ifndef FEE_CONST\n")
@@ -176,7 +176,7 @@ def Gen_Fee(cfg, dir):
     C.write('#include "Fee_Cfg.h"\n')
     C.write('#include "Fee_Priv.h"\n')
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    banks = cfg.get("banks", [])
+    banks = cfg.get("Banks", [])
     if len(banks) == 0:
         C.write("#ifndef FLS_BANK0_ADDRESS\n")
         C.write("#define FLS_BANK0_ADDRESS 0\n")
@@ -220,10 +220,10 @@ def Gen_Fee(cfg, dir):
     GenConstants(C, cfg, "FEE")
     C.write("static CONSTANT(Fee_BlockConfigType, FEE_CONST) Fee_BlockConfigs[] = {\n")
     Cnt = 0
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             size = GetBlockSize(block)
             NumberOfWriteCycles = block.get("NumberOfWriteCycles", 10000000)
             C.write("  { FEE_NUMBER_%s, %s, %s, (const uint8_t*)&%s_Rom },\n" % (name, size, NumberOfWriteCycles, name))
@@ -237,9 +237,9 @@ def Gen_Fee(cfg, dir):
         C.write("  {FLS_BANK1_ADDRESS, FLS_BANK1_ADDRESS + FLS_BANK1_SIZE},\n")
     else:
         for bank in banks:
-            addr = toNum(bank["address"])
-            size = toNum(bank["size"])
-            for i in range(bank.get("repeat", 1)):
+            addr = toNum(bank["Address"])
+            size = toNum(bank["Size"])
+            for i in range(bank.get("Repeat", 1)):
                 C.write("  {0x%x, 0x%x},\n" % (addr + i * size, addr + (i + 1) * size))
     C.write("};\n\n")
 
@@ -273,7 +273,7 @@ def Gen_NvM(cfg, dir):
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "Std_Types.h"\n')
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    target = os.getenv("NVM_TARGET", cfg.get("target", "Ea"))
+    target = os.getenv("NVM_TARGET", cfg.get("Target", "Ea"))
     if target != "Fee":
         H.write("#define NVM_BLOCK_USE_CRC\n")
     else:
@@ -281,13 +281,13 @@ def Gen_NvM(cfg, dir):
     H.write("#define NVM_BLOCK_USE_STATUS\n")
     H.write("#define MEMIF_ZERO_COST_%s\n" % (target.upper()))
     Number = 2
-    NvMTestInfo = {"blocks": []}
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    NvMTestInfo = {"Blocks": []}
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             H.write("#define NVM_BLOCKID_%s %s\n" % (name, Number))
-            NvMTestInfo["blocks"].append({"name": name, "number": Number, "size": GetBlockSize(block)})
+            NvMTestInfo["Blocks"].append({"Name": name, "Number": Number, "Size": GetBlockSize(block)})
             Number += 1
     with open("%s/NvMTest.json" % (dir), "w") as f:
         json.dump(NvMTestInfo, f, indent=2)
@@ -324,17 +324,17 @@ def Gen_NvM(cfg, dir):
     C.write('#include "NvM_MemMap.h"\n')
     if target != "Fee":
         GenConstants(C, cfg, "NVM")
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             C.write("%sType %s_Ram;\n" % (GetName(block), name))
     C.write("static CONSTANT(NvM_BlockDescriptorType, NVM_CONST) NvM_BlockDescriptors[] = {\n")
     Number = 1
-    for block in cfg["blocks"]:
-        repeat = block.get("repeat", 1)
+    for block in cfg["Blocks"]:
+        repeat = block.get("Repeat", 1)
         for i in range(repeat):
-            name = block["name"].format(i)
+            name = block["Name"].format(i)
             if target != "Fee":
                 C.write(
                     "  { &%s_Ram, %s, sizeof(%sType), NVM_CRC16, &%s_Rom },\n" % (name, Number, GetName(block), name)
@@ -374,7 +374,7 @@ def Gen(cfg):
     os.makedirs(dir, exist_ok=True)
     with open(cfg) as f:
         cfg = json.load(f)
-    target = os.getenv("NVM_TARGET", cfg.get("target", "Ea"))
+    target = os.getenv("NVM_TARGET", cfg.get("Target", "Ea"))
     if target == "Fee":
         Gen_Fee(cfg, dir)
         GenMemMap("Fee", dir)

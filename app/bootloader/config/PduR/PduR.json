@@ -1,25 +1,25 @@
 {
-  "class": "PduR",
-  "routines" : [
+  "Class": "PduR",
+  "Routines" : [
     {
-      "name": "P2P_RX",
-      "from": "CanTp",
-      "to": "Dcm"
+      "Name": "P2P_RX",
+      "From": "CanTp",
+      "To": "Dcm"
     },
     {
-      "name": "P2P_TX",
-      "from": "Dcm",
-      "to": "CanTp"
+      "Name": "P2P_TX",
+      "From": "Dcm",
+      "To": "CanTp"
     },
     {
-      "name": "P2A_RX",
-      "from": "CanTp",
-      "to": "Dcm"
+      "Name": "P2A_RX",
+      "From": "CanTp",
+      "To": "Dcm"
     },
     {
-      "name": "P2A_TX",
-      "from": "Dcm",
-      "to": "CanTp"
+      "Name": "P2A_TX",
+      "From": "Dcm",
+      "To": "CanTp"
     }
   ]
 }

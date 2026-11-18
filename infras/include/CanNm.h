@@ -5,8 +5,8 @@
  * ref:
  * https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CANNetworkManagement.pdf
  */
-#ifndef _CANNM_H
-#define _CANNM_H
+#ifndef CANNM_H
+#define CANNM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
@@ -55,7 +55,7 @@ Std_ReturnType CanNm_SetUserData(NetworkHandleType nmChannelHandle, const uint8_
 Std_ReturnType CanNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmUserDataPtr);
 
 /* @SWS_CanNm_00331 */
-Std_ReturnType CanNm_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType CanNm_Transmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_CanNm_00219 */
 Std_ReturnType CanNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_t *nmNodeIdPtr);
@@ -83,16 +83,16 @@ Std_ReturnType CanNm_CheckRemoteSleepIndication(NetworkHandleType nmChannelHandl
 Std_ReturnType CanNm_SetSleepReadyBit(NetworkHandleType nmChannelHandle, boolean nmSleepReadyBit);
 
 /* @SWS_CanNm_00228 */
-void CanNm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void CanNm_TxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_CanNm_00231 */
-void CanNm_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void CanNm_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_CanNm_00334 */
 void CanNm_ConfirmPnAvailability(NetworkHandleType nmChannelHandle);
 
 /* @SWS_CanNm_91001 */
-Std_ReturnType CanNm_TriggerTransmit(PduIdType TxPduId, PduInfoType *PduInfoPtr);
+Std_ReturnType CanNm_TriggerTransmit(PduIdType txPduId, PduInfoType *pduInfoPtr);
 
 /* @SWS_CanNm_00234 */
 void CanNm_MainFunction(void);
@@ -102,4 +102,4 @@ void CanNm_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _CANNM_H */
+#endif /* CANNM_H */

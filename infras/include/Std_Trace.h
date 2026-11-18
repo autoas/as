@@ -5,8 +5,8 @@
  * ref: about:tracing
  *      https://blog.csdn.net/u011331731/article/details/108354605
  */
-#ifndef __STD_TRACE_H__
-#define __STD_TRACE_H__
+#ifndef STD_TRACE_H
+#define STD_TRACE_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #include "ringbuffer.h"
@@ -37,4 +37,4 @@ void Std_TraceMain(const Std_TraceAreaType *area);
 #ifdef __cplusplus
 }
 #endif
-#endif /* __STD_TRACE_H__ */
+#endif /* STD_TRACE_H */

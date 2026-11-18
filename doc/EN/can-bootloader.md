@@ -38,7 +38,16 @@ A bootloader project normally consists of three build targets:
 
 ## Lab: QEMU Versatilepb Bootloader Demo
 
-The following lab uses the QEMU Versatilepb virtual machine to walk through the three targets and a complete update cycle. The platform is already integrated in this repository under [app/platform/qemu](../../app/platform/qemu), so no extra download is needed.
+The following lab uses the QEMU Versatilepb virtual machine to walk through the three targets and a complete update cycle. The platform itself comes from a separate repository — `app/platform/qemu` is a clone of `autoas/qemu` and is excluded by `app/platform/.gitignore`, so a fresh checkout does not contain it. Clone it into `app/platform/qemu` (`app\platform\qemu` on Windows) first:
+
+```sh
+git clone git@github.com:autoas/qemu.git app/platform/qemu
+# Gitee mirror - usually much faster from China
+git clone git@gitee.com:autoas/qemu.git app/platform/qemu
+# no SSH key? use https://github.com/autoas/qemu.git or https://gitee.com/autoas/qemu.git
+```
+
+Once the directory is in place `scons` registers the QEMU platforms and the `Versatilepb*` applications automatically.
 
 First set up the toolchain as described in [Build environment setup](./build-env-setup.md), then double-click Console.bat in the project root to open the ConEmu terminal.
 
@@ -49,7 +58,7 @@ D:\repository\as>scons --app=CanBridge
 D:\repository\as>scons --app=CanDump
 
 # enable CAN FD mode, up to 64 data bytes per frame
-D:\repository\as>set LL_DL=64
+D:\repository\as>set CANTP_LINK_LAYER_DATA_LENGTH=64
 D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbFlashDriver
 # the first build downloads gcc-arm-none-eabi and takes a while
 D:\repository\as>scons --cpl=QemuVersatilepbGCC --app=VersatilepbCanApp

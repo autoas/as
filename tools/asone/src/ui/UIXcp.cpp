@@ -2,7 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023-2024 Parai Wang <parai@foxmail->xcp>
  */
-/* ================================ { INCLUDES  ] ============================================== */
+/* ================================ [ INCLUDES  ] ============================================== */
 #include "UIXcp.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -34,14 +34,14 @@
 using namespace std::chrono_literals;
 
 using namespace as;
-/* ================================ { MACROS    ] ============================================== */
+/* ================================ [ MACROS    ] ============================================== */
 #define XCP_PID_CMD_CAL_DOWNLOAD 0xF0
 #define XCP_PID_CMD_PGM_PROGRAM 0xD0
-/* ================================ { TYPES     ] ============================================== */
-/* ================================ { DECLARES  ] ============================================== */
-/* ================================ { DATAS     ] ============================================== */
-/* ================================ { LOCALS    ] ============================================== */
-static std::string format(const uint8_t *data, int len) {
+/* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
+/* ================================ [ DATAS     ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
+static std::string Xcp_Format(const uint8_t *data, int len) {
   static const std::map<uint8_t, std::string> nrcMap = {
     {0x00, "Command processor synchronisation"},
     {0x10, "Command was not executed"},
@@ -83,37 +83,37 @@ static std::string format(const uint8_t *data, int len) {
   return ss.str();
 }
 
-static std::string format(std::vector<uint8_t> data) {
-  return format(data.data(), (int)data.size());
+static std::string Xcp_Format(std::vector<uint8_t> data) {
+  return Xcp_Format(data.data(), (int)data.size());
 }
-/* ================================ { FUNCTIONS ] ============================================== */
+/* ================================ [ FUNCTIONS ] ============================================== */
 class Xcp {
 public:
   Xcp(json &js) {
-    auto protocol = get<std::string>(js, "protocol", "CAN");
-    auto device = get<std::string>(js, "device", "simulator_v2");
-    uint32_t port = get<uint32_t>(js, "port", 0);
-    uint32_t baudrate = get<uint32_t>(js, "baudrate", 500000);
-    m_LL_DL = get<uint32_t>(js, "LL_DL", 8);
+    auto protocol = JsonGet<std::string>(js, "Protocol", "CAN");
+    auto device = JsonGet<std::string>(js, "Device", "simulator_v2");
+    uint32_t port = JsonGet<uint32_t>(js, "Port", 0);
+    uint32_t baudrate = JsonGet<uint32_t>(js, "Baudrate", 500000);
+    m_LinkLayerDataLength = JsonGet<uint32_t>(js, "LinkLayerDataLength", 8);
 
-    m_rxid = get2<uint32_t>(js, "rxid", m_rxid);
-    m_txid = get2<uint32_t>(js, "txid", m_txid);
+    m_Rxid = JsonGetInt<uint32_t>(js, "RxId", m_Rxid);
+    m_Txid = JsonGetInt<uint32_t>(js, "TxId", m_Txid);
 
     if (protocol == "CAN") {
-      m_busid = can_open(device.c_str(), port, baudrate);
+      m_Busid = CanL_Open(device.c_str(), port, baudrate);
     } else {
       throw std::runtime_error("invalid protocol " + protocol);
     }
 
-    if (m_busid < 0) {
+    if (m_Busid < 0) {
       throw std::runtime_error("failed to create xcp");
     }
 
     LOG(INFO, "XCP create: %s:%s:%d txid=0x%x rxid=0x%x\n", protocol.c_str(), device.c_str(), port,
-        m_txid, m_rxid);
+        m_Txid, m_Rxid);
   }
 
-  void empty_rx_queue() {
+  void EmptyRxQueue() {
     uint8_t data[64];
     uint32_t canid;
     uint8_t dlc;
@@ -121,16 +121,16 @@ public:
 
     std::unique_lock<std::mutex> lck(m_Lock);
     while (true == r) {
-      canid = m_rxid;
+      canid = m_Rxid;
       dlc = sizeof(data);
-      r = can_read(m_busid, &canid, &dlc, data);
+      r = CanL_Read(m_Busid, &canid, &dlc, data);
       if (true == r) {
-        LOG(INFO, "Xcp not handled response: %s\n", format(data, (int)dlc).c_str());
+        LOG(INFO, "Xcp not handled response: %s\n", Xcp_Format(data, (int)dlc).c_str());
       }
     }
   }
 
-  int receive(std::vector<uint8_t> &res) {
+  int Receive(std::vector<uint8_t> &res) {
     int ret = 0;
     std::unique_lock<std::mutex> lck(m_Lock);
     uint8_t data[64];
@@ -143,11 +143,11 @@ public:
     res.clear();
 
     while (0 == ret) {
-      canid = m_rxid;
+      canid = m_Rxid;
       dlc = sizeof(data);
-      r = can_read(m_busid, &canid, &dlc, data);
+      r = CanL_Read(m_Busid, &canid, &dlc, data);
       if (true == r) {
-        LOG(INFO, "Xcp response: %s\n", format(data, (int)dlc).c_str());
+        LOG(INFO, "Xcp response: %s\n", Xcp_Format(data, (int)dlc).c_str());
         for (int i = 0; i < (int)dlc; i++) {
           res.push_back(data[i]);
         }
@@ -170,7 +170,7 @@ public:
     return ret;
   }
 
-  int transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res) {
+  int Transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res) {
     int ret = 0;
     std::unique_lock<std::mutex> lck(m_Lock);
     uint8_t data[64];
@@ -181,8 +181,8 @@ public:
     if (res.data() != req.data()) {
       res.clear();
     }
-    LOG(INFO, "Xcp request: %s\n", format(req).c_str());
-    r = can_write(m_busid, m_txid, (uint8_t)req.size(), req.data());
+    LOG(INFO, "Xcp request: %s\n", Xcp_Format(req).c_str());
+    r = CanL_Write(m_Busid, m_Txid, (uint8_t)req.size(), req.data());
     if (true != r) {
       ret = EFAULT;
     }
@@ -196,11 +196,11 @@ public:
     Std_TimerStart(&timer);
 
     while (0 == ret) {
-      canid = m_rxid;
+      canid = m_Rxid;
       dlc = sizeof(data);
-      r = can_read(m_busid, &canid, &dlc, data);
+      r = CanL_Read(m_Busid, &canid, &dlc, data);
       if (true == r) {
-        LOG(INFO, "Xcp response: %s\n", format(data, (int)dlc).c_str());
+        LOG(INFO, "Xcp response: %s\n", Xcp_Format(data, (int)dlc).c_str());
         for (int i = 0; i < (int)dlc; i++) {
           res.push_back(data[i]);
         }
@@ -224,66 +224,66 @@ public:
   }
 
   ~Xcp() {
-    if (m_busid >= 0) {
-      can_close(m_busid);
+    if (m_Busid >= 0) {
+      CanL_Close(m_Busid);
     }
   }
 
   int BusId() {
-    return m_busid;
+    return m_Busid;
   }
 
   uint32_t RxId() {
-    return m_rxid;
+    return m_Rxid;
   }
 
   uint32_t TxId() {
-    return m_txid;
+    return m_Txid;
   }
 
 private:
-  int m_busid = -1;
-  uint32_t m_rxid = 0xFB0;
-  uint32_t m_txid = 0xFA0;
-  uint32_t m_LL_DL = 8;
+  int m_Busid = -1;
+  uint32_t m_Rxid = 0xFB0;
+  uint32_t m_Txid = 0xFA0;
+  uint32_t m_LinkLayerDataLength = 8;
 
   std::mutex m_Lock;
 };
 
 UIService::UIService(json &js, UIXcp *xcp)
-  : UIServiceBase(js["name"].get<std::string>(), xcp->luaScript()), m_Xcp(xcp) {
-  auto vbox = createUI(js);
+  : UIServiceBase(js["Name"].get<std::string>(), xcp->LuaScript()), m_Xcp(xcp) {
+  auto vbox = CreateUi(js);
   setLayout(vbox);
 
-  connect(m_btnEnter, SIGNAL(clicked()), this, SLOT(on_btnEnter_clicked()));
+  connect(m_BtnEnter, SIGNAL(clicked()), this, SLOT(on_btnEnter_clicked()));
 }
 
 void UIService::on_btnEnter_clicked(void) {
   BitArray TxBits(m_TxBitSize + 8);
-  TxBits.put(m_SID, 8);
+  TxBits.Put(m_SID, 8);
   for (auto &data : m_TxDatas) {
-    data->put(TxBits);
+    data->Put(TxBits);
   }
 
-  auto &req = TxBits.bytes();
+  auto &req = TxBits.Bytes();
   std::vector<uint8_t> res;
   int r = 0;
 
-  m_Xcp->empty_rx_queue();
+  m_Xcp->EmptyRxQueue();
 
   if ((XCP_PID_CMD_CAL_DOWNLOAD == m_SID) || (XCP_PID_CMD_PGM_PROGRAM == m_SID)) {
     if ((size_t)(req[1] + 2) == req.size()) {
-      r = m_Xcp->transmit(req, res);
+      r = m_Xcp->Transmit(req, res);
     } else {
       /* OK, depends on the download/program next to send the request */
       res.push_back(0xFF);
     }
   } else {
-    r = m_Xcp->transmit(req, res);
+    r = m_Xcp->Transmit(req, res);
   }
 
   if (r != 0) {
-    std::string msg = "error " + std::to_string(r) + " , response " + format(res);
+    std::string msg = "error " + std::to_string(r) + " , response " + Xcp_Format(res);
     QMessageBox::critical(this, "Error", tr(msg.c_str()));
   } else {
     auto N = ((m_RxBitSize + 15) / 8);
@@ -291,9 +291,9 @@ void UIService::on_btnEnter_clicked(void) {
       try {
         BitArray RxBits(&(res.data()[1]), res.size() - 1);
         for (auto &data : m_RxDatas) {
-          data->get(RxBits);
+          data->Get(RxBits);
         }
-        std::string msg = m_Name + " OK with response " + format(res);
+        std::string msg = m_Name + " OK with response " + Xcp_Format(res);
         QMessageBox::information(this, "Info", tr(msg.c_str()));
       } catch (const std::exception &e) {
         std::string text = "Exception for " + m_Name + ": ";
@@ -301,7 +301,7 @@ void UIService::on_btnEnter_clicked(void) {
         QMessageBox::critical(this, "Error", tr(text.c_str()));
       }
     } else {
-      std::string msg = "response " + format(res) + " for " + m_Name + " too short, expect " +
+      std::string msg = "response " + Xcp_Format(res) + " for " + m_Name + " too short, expect " +
                         std::to_string(N) + " bytes";
       QMessageBox::critical(this, "Error", tr(msg.c_str()));
     }
@@ -312,12 +312,12 @@ UIService::~UIService() {
 }
 
 UIMeasure::UIMeasure(json &js, UIXcp *xcp, BitArray::Endian endian)
-  : UIServiceBase(js["name"].get<std::string>(), xcp->luaScript()), m_Xcp(xcp), m_Endian(endian) {
-  m_Addr = js["addr"].get<uint32_t>();
-  for (auto &djs : js["datas"]) {
-    auto data = parseData(djs);
-    data->optional = false;
-    m_BitSize += data->bitSize * data->size;
+  : UIServiceBase(js["Name"].get<std::string>(), xcp->LuaScript()), m_Xcp(xcp), m_Endian(endian) {
+  m_Addr = js["Addr"].get<uint32_t>();
+  for (auto &djs : js["Datas"]) {
+    auto data = ParseData(djs);
+    data->Optional = false;
+    m_BitSize += data->BitSize * data->Size;
     m_Datas.push_back(data);
   }
 
@@ -327,13 +327,13 @@ UIMeasure::UIMeasure(json &js, UIXcp *xcp, BitArray::Endian endian)
   int col = 0;
   auto grid = new QGridLayout();
   for (auto &data : m_Datas) {
-    data->ui = new UIData(data);
-    if (data->visible) {
-      auto label = data->name + ":";
+    data->Ui = new UIData(data);
+    if (data->Visible) {
+      auto label = data->Name + ":";
       grid->addWidget(new QLabel(tr(label.c_str())), row, col);
-      grid->addWidget(data->ui, row, col + 1);
+      grid->addWidget(data->Ui, row, col + 1);
       col += 2;
-      if ((col >= 8) || (true == data->newline)) {
+      if ((col >= 8) || (true == data->Newline)) {
         row += 1;
         col = 0;
       }
@@ -344,17 +344,17 @@ UIMeasure::UIMeasure(json &js, UIXcp *xcp, BitArray::Endian endian)
     row += 1;
   }
 
-  m_btnRead = new QPushButton("Read");
-  m_btnRead->setMaximumWidth(100);
-  m_btnWrite = new QPushButton("Write");
-  m_btnWrite->setMaximumWidth(100);
-  grid->addWidget(m_btnRead, row, 0);
-  grid->addWidget(m_btnWrite, row, 1);
+  m_BtnRead = new QPushButton("Read");
+  m_BtnRead->setMaximumWidth(100);
+  m_BtnWrite = new QPushButton("Write");
+  m_BtnWrite->setMaximumWidth(100);
+  grid->addWidget(m_BtnRead, row, 0);
+  grid->addWidget(m_BtnWrite, row, 1);
   vbox->addLayout(grid);
 
   setLayout(vbox);
-  connect(m_btnRead, SIGNAL(clicked()), this, SLOT(on_btnRead_clicked()));
-  connect(m_btnWrite, SIGNAL(clicked()), this, SLOT(on_btnWrite_clicked()));
+  connect(m_BtnRead, SIGNAL(clicked()), this, SLOT(on_btnRead_clicked()));
+  connect(m_BtnWrite, SIGNAL(clicked()), this, SLOT(on_btnWrite_clicked()));
 }
 
 void UIMeasure::on_btnRead_clicked(void) {
@@ -363,7 +363,7 @@ void UIMeasure::on_btnRead_clicked(void) {
   uint32_t numoff = 0;
   std::vector<uint8_t> res;
 
-  m_Xcp->empty_rx_queue();
+  m_Xcp->EmptyRxQueue();
 
   while (numoff < number) {
     numsz = number - numoff;
@@ -371,19 +371,19 @@ void UIMeasure::on_btnRead_clicked(void) {
       numsz = 255;
     }
     BitArray TxBits(64, m_Endian);
-    TxBits.put(0xF4, 8);             /* Short Upload */
-    TxBits.put(numsz, 8);            /* Number */
-    TxBits.put(0, 8);                /* reserved */
-    TxBits.put(0, 8);                /* extension */
-    TxBits.put(m_Addr + numoff, 32); /* address */
+    TxBits.Put(0xF4, 8);             /* Short Upload */
+    TxBits.Put(numsz, 8);            /* Number */
+    TxBits.Put(0, 8);                /* reserved */
+    TxBits.Put(0, 8);                /* extension */
+    TxBits.Put(m_Addr + numoff, 32); /* address */
 
-    auto &req = TxBits.bytes();
+    auto &req = TxBits.Bytes();
     std::vector<uint8_t> res2;
     int r = 0;
 
-    r = m_Xcp->transmit(req, res2);
+    r = m_Xcp->Transmit(req, res2);
     if (r != 0) {
-      std::string msg = "error " + std::to_string(r) + " , response " + format(res);
+      std::string msg = "error " + std::to_string(r) + " , response " + Xcp_Format(res);
       QMessageBox::critical(this, "Error", tr(msg.c_str()));
       return;
     }
@@ -391,9 +391,9 @@ void UIMeasure::on_btnRead_clicked(void) {
       res.push_back(res2[i]);
     }
     while (res.size() < (numoff + numsz)) {
-      r = m_Xcp->receive(res2);
+      r = m_Xcp->Receive(res2);
       if (r != 0) {
-        std::string msg = "error " + std::to_string(r) + " , response " + format(res2);
+        std::string msg = "error " + std::to_string(r) + " , response " + Xcp_Format(res2);
         QMessageBox::critical(this, "Error", tr(msg.c_str()));
         return;
       }
@@ -409,7 +409,7 @@ void UIMeasure::on_btnRead_clicked(void) {
     try {
       BitArray RxBits(res.data(), res.size(), m_Endian);
       for (auto &data : m_Datas) {
-        data->get(RxBits);
+        data->Get(RxBits);
       }
       // std::string msg = m_Name + " OK with response " + format(res);
       // QMessageBox::information(this, "Info", tr(msg.c_str()));
@@ -419,7 +419,7 @@ void UIMeasure::on_btnRead_clicked(void) {
       QMessageBox::critical(this, "Error", tr(text.c_str()));
     }
   } else {
-    std::string msg = "response " + format(res) + " for " + m_Name + " too short, expect " +
+    std::string msg = "response " + Xcp_Format(res) + " for " + m_Name + " too short, expect " +
                       std::to_string(number) + " bytes";
     QMessageBox::critical(this, "Error", tr(msg.c_str()));
   }
@@ -428,9 +428,9 @@ void UIMeasure::on_btnRead_clicked(void) {
 void UIMeasure::on_btnWrite_clicked(void) {
   BitArray VarBits(m_BitSize, m_Endian);
   for (auto &data : m_Datas) {
-    data->put(VarBits);
+    data->Put(VarBits);
   }
-  auto &var = VarBits.bytes();
+  auto &var = VarBits.Bytes();
 
   uint32_t number = var.size();
   uint32_t numsz;
@@ -439,7 +439,7 @@ void UIMeasure::on_btnWrite_clicked(void) {
   int r = 0;
   std::vector<uint8_t> res;
 
-  m_Xcp->empty_rx_queue();
+  m_Xcp->EmptyRxQueue();
 
   while (numoff < number) {
     numsz = number - numoff;
@@ -447,60 +447,60 @@ void UIMeasure::on_btnWrite_clicked(void) {
       numsz = 255;
     }
     BitArray TxBits(64, m_Endian);
-    TxBits.put(0xF6, 8);             /* SET MTA */
-    TxBits.put(0, 16);               /* reserved */
-    TxBits.put(0, 8);                /* extension */
-    TxBits.put(m_Addr + numoff, 32); /* address */
+    TxBits.Put(0xF6, 8);             /* SET MTA */
+    TxBits.Put(0, 16);               /* reserved */
+    TxBits.Put(0, 8);                /* extension */
+    TxBits.Put(m_Addr + numoff, 32); /* address */
 
-    auto &req = TxBits.bytes();
+    auto &req = TxBits.Bytes();
 
-    r = m_Xcp->transmit(req, res);
+    r = m_Xcp->Transmit(req, res);
     if (r != 0) {
-      std::string msg = "error " + std::to_string(r) + " , response " + format(res);
+      std::string msg = "error " + std::to_string(r) + " , response " + Xcp_Format(res);
       QMessageBox::critical(this, "Error", tr(msg.c_str()));
       return;
     }
 
-    TxBits.clear();
-    TxBits.put(0xF0, 8);  /* Download */
-    TxBits.put(numsz, 8); /* Number */
+    TxBits.Clear();
+    TxBits.Put(0xF0, 8);  /* Download */
+    TxBits.Put(numsz, 8); /* Number */
     uint32_t doSz = numsz;
     if (doSz > 6) {
       doSz = 6;
     }
     for (uint32_t i = 0; i < doSz; i++) {
-      TxBits.put(var[numoff + i], 8);
+      TxBits.Put(var[numoff + i], 8);
     }
 
-    req = TxBits.bytes();
+    req = TxBits.Bytes();
     if (doSz >= numsz) {
-      r = m_Xcp->transmit(req, res);
+      r = m_Xcp->Transmit(req, res);
     } else {
       uint32_t offset = doSz;
-      r = m_Xcp->transmit(req, req);
+      r = m_Xcp->Transmit(req, req);
       while ((0 == r) && (offset < numsz)) {
         std::this_thread::sleep_for(20ms);
         doSz = numsz - offset;
         if (doSz > 6) {
           doSz = 6;
         }
-        TxBits.clear();
-        TxBits.put(0xEF, 8); /* Download Next */
-        TxBits.put(doSz, 8); /* Number */
+        TxBits.Clear();
+        TxBits.Put(0xEF, 8); /* Download Next */
+        TxBits.Put(doSz, 8); /* Number */
         for (size_t i = 0; i < doSz; i++) {
-          TxBits.put(var[numoff + i + offset], 8);
+          TxBits.Put(var[numoff + i + offset], 8);
         }
         offset += doSz;
-        auto &req = TxBits.bytes();
+        auto &req = TxBits.Bytes();
         if (offset >= numsz) {
-          r = m_Xcp->transmit(req, res);
+          r = m_Xcp->Transmit(req, res);
         } else {
-          r = m_Xcp->transmit(req, req);
+          r = m_Xcp->Transmit(req, req);
         }
       }
 
       if (r != 0) {
-        std::string msg = "error " + std::to_string(r) + " , response " + format(res);
+        std::string msg = "error " + std::to_string(r) + " , response " + Xcp_Format(res);
         QMessageBox::critical(this, "Error", tr(msg.c_str()));
         return;
       }
@@ -509,7 +509,7 @@ void UIMeasure::on_btnWrite_clicked(void) {
     numoff += numsz;
   }
 
-  std::string msg = m_Name + " download " + format(var) + " OK";
+  std::string msg = m_Name + " download " + Xcp_Format(var) + " OK";
   QMessageBox::information(this, "Info", tr(msg.c_str()));
 }
 
@@ -527,11 +527,11 @@ UIGroup::UIGroup(json &js, UIXcp *xcp, UITreeItem<UIXcp> *topItem, int tabIndex)
       LOG(INFO, "UIXcp add %s\n", name.c_str());
       if ("Services" == name) {
         for (auto &jss : service) {
-          auto name2 = jss["name"].get<std::string>();
+          auto name2 = jss["Name"].get<std::string>();
           auto wd = new UIService(jss, xcp);
           vbox->addWidget(wd);
           auto item = new UITreeItem<UIXcp>(name2, this, wd);
-          item->setTabIndex(tabIndex);
+          item->SetTabIndex(tabIndex);
           topItem->addChild(item);
         }
       }
@@ -552,11 +552,11 @@ UIGroup::UIGroup(json &js, UIXcp *xcp, UITreeItem<UIXcp> *topItem, int tabIndex,
   auto vbox = new QVBoxLayout();
 
   for (auto &var : js) {
-    auto name = var["name"].get<std::string>();
+    auto name = var["Name"].get<std::string>();
     auto wd = new UIMeasure(var, xcp, endian);
     vbox->addWidget(wd);
     auto item = new UITreeItem<UIXcp>(name, this, wd);
-    item->setTabIndex(tabIndex);
+    item->SetTabIndex(tabIndex);
     topItem->addChild(item);
   }
 
@@ -573,25 +573,25 @@ UIXcp::UIXcp() : QWidget() {
 
   auto grid = new QGridLayout();
   grid->addWidget(new QLabel("load XCP json:"), 0, 0);
-  m_leXcpJs = new QLineEdit();
-  m_leXcpJs->setReadOnly(true);
-  grid->addWidget(m_leXcpJs, 0, 1);
-  m_btnOpenXcpJs = new QPushButton("...");
-  grid->addWidget(m_btnOpenXcpJs, 0, 2);
+  m_LeXcpJs = new QLineEdit();
+  m_LeXcpJs->setReadOnly(true);
+  grid->addWidget(m_LeXcpJs, 0, 1);
+  m_BtnOpenXcpJs = new QPushButton("...");
+  grid->addWidget(m_BtnOpenXcpJs, 0, 2);
 
   grid->addWidget(new QLabel("load Ecu json:"), 1, 0);
-  m_leEcuJs = new QLineEdit();
-  m_leEcuJs->setReadOnly(true);
-  grid->addWidget(m_leEcuJs, 1, 1);
-  m_btnOpenEcuJs = new QPushButton("...");
-  grid->addWidget(m_btnOpenEcuJs, 1, 2);
+  m_LeEcuJs = new QLineEdit();
+  m_LeEcuJs->setReadOnly(true);
+  grid->addWidget(m_LeEcuJs, 1, 1);
+  m_BtnOpenEcuJs = new QPushButton("...");
+  grid->addWidget(m_BtnOpenEcuJs, 1, 2);
 
   grid->addWidget(new QLabel("target:"), 2, 0);
-  m_cmbxTarget = new QComboBox();
-  m_cmbxTarget->setEditable(true);
-  grid->addWidget(m_cmbxTarget, 2, 1);
-  m_btnStart = new QPushButton("start");
-  grid->addWidget(m_btnStart, 2, 2);
+  m_CmbxTarget = new QComboBox();
+  m_CmbxTarget->setEditable(true);
+  grid->addWidget(m_CmbxTarget, 2, 1);
+  m_BtnStart = new QPushButton("Start");
+  grid->addWidget(m_BtnStart, 2, 2);
 
   vbox->addLayout(grid);
 
@@ -599,16 +599,16 @@ UIXcp::UIXcp() : QWidget() {
   m_Tree = new QTreeWidget();
   m_Tree->setMaximumWidth(300);
   m_Tree->setHeaderLabel("Service");
-  m_tabWidget = new QTabWidget();
+  m_TabWidget = new QTabWidget();
   qSplitter->insertWidget(0, m_Tree);
-  qSplitter->insertWidget(1, m_tabWidget);
+  qSplitter->insertWidget(1, m_TabWidget);
 
   vbox->addWidget(qSplitter);
 
   setLayout(vbox);
-  connect(m_btnOpenXcpJs, SIGNAL(clicked()), this, SLOT(on_btnOpenXcpJs_clicked()));
-  connect(m_btnOpenEcuJs, SIGNAL(clicked()), this, SLOT(on_btnOpenEcuJs_clicked()));
-  connect(m_btnStart, SIGNAL(clicked()), this, SLOT(on_btnStart_clicked()));
+  connect(m_BtnOpenXcpJs, SIGNAL(clicked()), this, SLOT(on_btnOpenXcpJs_clicked()));
+  connect(m_BtnOpenEcuJs, SIGNAL(clicked()), this, SLOT(on_btnOpenEcuJs_clicked()));
+  connect(m_BtnStart, SIGNAL(clicked()), this, SLOT(on_btnStart_clicked()));
   connect(m_Tree, SIGNAL(itemSelectionChanged()), this, SLOT(on_Tree_itemSelectionChanged()));
 
   std::string defJs = "./xcp.json";
@@ -616,25 +616,25 @@ UIXcp::UIXcp() : QWidget() {
     defJs = "../../../../tools/asone/examples/xcp.json";
   }
 
-  auto r = load(defJs, m_Json);
+  auto r = Load(defJs, m_Json);
   if (r) {
-    auto target = m_Json["target"].dump();
-    m_cmbxTarget->addItem(tr(target.c_str()));
-    m_leXcpJs->setText(tr(defJs.c_str()));
+    auto target = m_Json["Target"].dump();
+    m_CmbxTarget->addItem(tr(target.c_str()));
+    m_LeXcpJs->setText(tr(defJs.c_str()));
   }
 
   defJs = "XcpEcu.Json";
-  r = load(defJs, m_EcuJson);
+  r = Load(defJs, m_EcuJson);
   if (r) {
-    m_leEcuJs->setText(tr(defJs.c_str()));
+    m_LeEcuJs->setText(tr(defJs.c_str()));
   }
 }
 
-bool UIXcp::loadScript(void) {
+bool UIXcp::LoadScript(void) {
   bool r = false;
-  auto luaScript = m_Dir + "/" + get<std::string>(m_Json, "lua", "");
+  auto LuaScript = m_Dir + "/" + JsonGet<std::string>(m_Json, "Lua", "");
   try {
-    m_Lua = std::make_shared<AsLuaScript>(luaScript);
+    m_Lua = std::make_shared<AsLuaScript>(LuaScript);
     r = true;
   } catch (const std::exception &e) {
     QString text = "Exception: ";
@@ -644,34 +644,34 @@ bool UIXcp::loadScript(void) {
   return r;
 }
 
-bool UIXcp::loadUI(void) {
+bool UIXcp::LoadUi(void) {
   bool r = true;
 
-  m_tabWidget->clear();
+  m_TabWidget->clear();
   m_Tree->clear();
 
-  if (false == m_Json.contains("groups")) {
+  if (false == m_Json.contains("Groups")) {
     QMessageBox::critical(this, "Error", tr("json was not loaded"));
     return false;
   }
 
-  r = loadScript();
+  r = LoadScript();
   if (false == r) {
     return r;
   }
 
-  for (auto &it : m_Json["groups"].items()) {
+  for (auto &it : m_Json["Groups"].items()) {
     auto name = it.key();
     auto group = it.value();
     auto item = new UITreeItem<UIXcp>(name);
-    item->setTabIndex(m_tabWidget->count());
-    m_tabWidget->addTab(new UIGroup(group, this, item, m_tabWidget->count()), tr(name.c_str()));
+    item->SetTabIndex(m_TabWidget->count());
+    m_TabWidget->addTab(new UIGroup(group, this, item, m_TabWidget->count()), tr(name.c_str()));
     m_Tree->addTopLevelItem(item);
   }
 
-  if (m_EcuJson.contains("xcp_vars")) {
-    auto elf = m_EcuJson["elf"].get<std::string>();
-    auto endianStr = m_EcuJson["endian"].get<std::string>();
+  if (m_EcuJson.contains("XcpVars")) {
+    auto elf = m_EcuJson["Elf"].get<std::string>();
+    auto endianStr = m_EcuJson["Endian"].get<std::string>();
     BitArray::Endian endian;
     if ("LITTLE" == endianStr) {
       endian = BitArray::Endian::LITTLE;
@@ -681,19 +681,19 @@ bool UIXcp::loadUI(void) {
     std::string appName = basename((char *)elf.c_str());
     auto ecuTree = new UITreeItem<UIXcp>(appName);
     m_Tree->addTopLevelItem(ecuTree);
-    for (auto &it : m_EcuJson["xcp_vars"].items()) {
+    for (auto &it : m_EcuJson["XcpVars"].items()) {
       auto fileName = it.key();
       auto vars = it.value();
       auto varsTree = new UITreeItem<UIXcp>(fileName);
-      varsTree->setTabIndex(m_tabWidget->count());
-      m_tabWidget->addTab(new UIGroup(vars, this, varsTree, m_tabWidget->count(), endian),
+      varsTree->SetTabIndex(m_TabWidget->count());
+      m_TabWidget->addTab(new UIGroup(vars, this, varsTree, m_TabWidget->count(), endian),
                           tr(fileName.c_str()));
       ecuTree->addChild(varsTree);
     }
   }
 
   try {
-    auto s = m_cmbxTarget->currentText().toStdString();
+    auto s = m_CmbxTarget->currentText().toStdString();
     auto tgt = json::parse(s);
     m_Xcp = std::make_shared<Xcp>(tgt);
   } catch (const std::exception &e) {
@@ -705,14 +705,14 @@ bool UIXcp::loadUI(void) {
 
   if (true == r) {
     /* do Lua xcp init */
-    lua_arg_t inArgs[3];
-    inArgs[0].type = LUA_ARG_TYPE_SINT32;
-    inArgs[0].s32 = m_Xcp->BusId();
-    inArgs[1].type = LUA_ARG_TYPE_UINT32;
-    inArgs[1].u32 = m_Xcp->TxId();
-    inArgs[2].type = LUA_ARG_TYPE_UINT32;
-    inArgs[2].u32 = m_Xcp->RxId();
-    auto ret = m_Lua->call("xcp_init", inArgs, 3, nullptr, 0);
+    Lua_ArgType inArgs[3];
+    inArgs[0].Type = LUA_ARG_TYPE_SINT32;
+    inArgs[0].S32 = m_Xcp->BusId();
+    inArgs[1].Type = LUA_ARG_TYPE_UINT32;
+    inArgs[1].U32 = m_Xcp->TxId();
+    inArgs[2].Type = LUA_ARG_TYPE_UINT32;
+    inArgs[2].U32 = m_Xcp->RxId();
+    auto ret = m_Lua->Call("xcp_init", inArgs, 3, nullptr, 0);
     if (0 != ret) {
       QMessageBox::critical(this, "Error", "Xcp Lua has no API xcp_init");
     }
@@ -721,7 +721,7 @@ bool UIXcp::loadUI(void) {
   return r;
 }
 
-bool UIXcp::load(std::string cfgPath, json &js) {
+bool UIXcp::Load(std::string cfgPath, json &js) {
   bool ret = true;
 
   FILE *fp = fopen(cfgPath.c_str(), "rb");
@@ -759,36 +759,36 @@ bool UIXcp::load(std::string cfgPath, json &js) {
 void UIXcp::on_btnOpenXcpJs_clicked(void) {
   auto fileName = QFileDialog::getOpenFileName(this, "XCP json config", "", "json config (*.json)");
 
-  auto r = load(fileName.toStdString(), m_Json);
+  auto r = Load(fileName.toStdString(), m_Json);
   if (r) {
-    auto target = m_Json["target"].dump();
-    m_cmbxTarget->addItem(tr(target.c_str()));
-    m_leXcpJs->setText(fileName);
+    auto target = m_Json["Target"].dump();
+    m_CmbxTarget->addItem(tr(target.c_str()));
+    m_LeXcpJs->setText(fileName);
   } else {
-    m_leXcpJs->setText("");
+    m_LeXcpJs->setText("");
   }
 }
 
 void UIXcp::on_btnOpenEcuJs_clicked(void) {
   auto fileName = QFileDialog::getOpenFileName(this, "Euc json config", "", "json config (*.json)");
-  auto r = load(fileName.toStdString(), m_EcuJson);
+  auto r = Load(fileName.toStdString(), m_EcuJson);
   if (r) {
-    m_leEcuJs->setText(fileName);
+    m_LeEcuJs->setText(fileName);
   } else {
-    m_leEcuJs->setText("");
+    m_LeEcuJs->setText("");
   }
 }
 
-void UIXcp::empty_rx_queue() {
+void UIXcp::EmptyRxQueue() {
   if (m_Xcp != nullptr) {
-    m_Xcp->empty_rx_queue();
+    m_Xcp->EmptyRxQueue();
   }
 }
 
-int UIXcp::transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res) {
+int UIXcp::Transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res) {
   int r = -1;
   if (m_Xcp != nullptr) {
-    r = m_Xcp->transmit(req, res);
+    r = m_Xcp->Transmit(req, res);
   } else {
     QMessageBox::critical(this, "Error", tr("xcp not created"));
   }
@@ -796,10 +796,10 @@ int UIXcp::transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res) {
   return r;
 }
 
-int UIXcp::receive(std::vector<uint8_t> &res) {
+int UIXcp::Receive(std::vector<uint8_t> &res) {
   int r = -1;
   if (m_Xcp != nullptr) {
-    r = m_Xcp->receive(res);
+    r = m_Xcp->Receive(res);
   } else {
     QMessageBox::critical(this, "Error", tr("xcp not created"));
   }
@@ -812,32 +812,32 @@ void UIXcp::timerEvent(QTimerEvent *event) {
 }
 
 void UIXcp::on_btnStart_clicked(void) {
-  if (m_btnStart->text().toStdString() == "start") {
-    auto r = loadUI();
+  if (m_BtnStart->text().toStdString() == "Start") {
+    auto r = LoadUi();
     if (r) {
-      m_btnStart->setText("stop");
+      m_BtnStart->setText("Stop");
     }
   } else {
-    m_tabWidget->clear();
+    m_TabWidget->clear();
     m_Xcp = nullptr;
-    m_btnStart->setText("start");
+    m_BtnStart->setText("Start");
   }
 }
 
 void UIXcp::on_Tree_itemSelectionChanged(void) {
   UITreeItem<UIXcp> *item = (UITreeItem<UIXcp> *)m_Tree->currentItem();
-  auto index = item->tabIndex();
+  auto index = item->TabIndex();
   if (-1 != index) {
-    m_tabWidget->setCurrentIndex(index);
-    auto uiGroup = item->group();
-    auto wd = item->service();
+    m_TabWidget->setCurrentIndex(index);
+    auto uiGroup = item->Group();
+    auto wd = item->Service();
     if (nullptr != uiGroup) {
       uiGroup->ensureWidgetVisible(wd);
     }
   }
 }
 
-QTreeWidget *UIXcp::tree(void) {
+QTreeWidget *UIXcp::Tree(void) {
   return m_Tree;
 }
 
@@ -852,10 +852,10 @@ int main(int argc, char *argv[]) {
   return a.exec();
 }
 
-extern "C" std::string name(void) {
+extern "C" std::string Name(void) {
   return "Xcp";
 }
 
-extern "C" QWidget *create(void) {
+extern "C" QWidget *Create(void) {
   return new UIXcp();
 }

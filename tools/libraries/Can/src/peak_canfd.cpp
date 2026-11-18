@@ -43,18 +43,18 @@ using namespace std::literals::chrono_literals;
 #define PEAK_CALL(sym) CAN_##sym
 #endif
 /* ================================ [ TYPES     ] ============================================== */
-struct Can_PeakHandle_s {
-  int busid;
-  uint32_t port;
-  uint32_t channel;
-  uint32_t baudrate;
+struct CanL_PeakHandleType {
+  int BusId;
+  uint32_t Port;
+  uint32_t Channel;
+  uint32_t Baudrate;
   uint64_t localTime;
   uint64_t devTime;
   std::mutex mutex;
-  std::thread rx_thread;
-  volatile bool terminated;
-  can_device_rx_notification_t rx_notification;
-  STAILQ_ENTRY(Can_PeakHandle_s) entry;
+  std::thread RxThread;
+  volatile bool Terminated;
+  CanL_DeviceRxNotificationType RxNotification;
+  STAILQ_ENTRY(CanL_PeakHandleType) entry;
 };
 
 typedef struct {
@@ -65,36 +65,36 @@ typedef struct {
   TPCANStatus (*CAN_Uninitialize)(TPCANHandle);
 } Peak_InterfaceType;
 
-struct Can_PeakHandleList_s {
-  bool initialized;
+struct CanL_PeakHandleListType {
+  bool Initialized;
   std::mutex mutex;
   Peak_InterfaceType IF;
-  STAILQ_HEAD(, Can_PeakHandle_s) head;
+  STAILQ_HEAD(, CanL_PeakHandleType) head;
 };
 
 typedef struct {
-  uint32_t baudrate;
+  uint32_t Baudrate;
   const char *bitrate;
 } Can_PeakBaudrate_t;
 /* ================================ [ DECLARES  ] ============================================== */
-static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
-                       can_device_rx_notification_t rx_notification);
-static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                       uint64_t timestamp);
-static void peak_close(uint32_t port);
-static void peak_read(uint32_t port);
-static void rx_daemon(struct Can_PeakHandle_s *handle);
+static bool CanL_PeakProbe(int busId, uint32_t port, uint32_t baudrate,
+                           CanL_DeviceRxNotificationType rxNotification);
+static bool CanL_PeakWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                           uint64_t timestamp);
+static void CanL_PeakClose(uint32_t port);
+static void CanL_PeakRead(uint32_t port);
+static void CanL_RxDaemon(struct CanL_PeakHandleType *handle);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Can_DeviceOpsType can_peakfd_ops = {
-  .name = "peakfd",
-  .probe = peak_probe,
-  .close = peak_close,
-  .write = peak_write,
-  .read = peak_read,
+extern "C" const CanL_DeviceOpsType CanL_PeakFdOps = {
+  .Name = "peakfd",
+  .Probe = CanL_PeakProbe,
+  .Close = CanL_PeakClose,
+  .Write = CanL_PeakWrite,
+  .Read = CanL_PeakRead,
 };
 
-static struct Can_PeakHandleList_s peakH = {
-  .initialized = false,
+static struct CanL_PeakHandleListType peakH = {
+  .Initialized = false,
 };
 
 static uint32_t peak_ports[] = {
@@ -106,13 +106,13 @@ static uint32_t peak_ports[] = {
  * https://docs.peak-system.com/API/PCAN-Basic.Net/html/eebb7d25-f978-60f2-54b8-5b126db9dff5.htm
  * https://docs.peak-system.com/API/PCAN-Basic.Net/html/63345c55-9c4f-4f59-a2c4-b200cf71ed3a.htm */
 static Can_PeakBaudrate_t peak_bauds[] = {
-  /* Norminal BitRate 1M, Sample Point 75%; Data BitRate 4M, Sample Point 80% */
+  /* Norminal BitRate 1M, Sample Point 75%; data BitRate 4M, Sample Point 80% */
   {1000 Kbps, "f_clock_mhz=80,nom_brp=10,nom_tseg1=5,nom_tseg2=2,nom_sjw=2,  "
               "data_brp=2,data_tseg1=2,data_tseg2=2,data_sjw=1"},
-  /* Norminal BitRate 500K, Sample Point 80%; Data BitRate 2M, Sample Point 80% */
+  /* Norminal BitRate 500K, Sample Point 80%; data BitRate 2M, Sample Point 80% */
   {500 Kbps, "f_clock_mhz=80,nom_brp=2,nom_tseg1=63,nom_tseg2=16,nom_sjw=16,"
              "data_brp=2,data_tseg1=15,data_tseg2=4,data_sjw=4"},
-  /* Norminal BitRate 500K, Sample Point 87.5%; Data BitRate 2M, Sample Point 83.3% */
+  /* Norminal BitRate 500K, Sample Point 87.5%; data BitRate 2M, Sample Point 83.3% */
   {500001, "f_clock_mhz=24,nom_brp=3,nom_tseg1=13,nom_tseg2=2,nom_sjw=2,"
            "data_brp=1,data_tseg1=9,data_tseg2=2,data_sjw=2"},
 };
@@ -120,7 +120,7 @@ static Can_PeakBaudrate_t peak_bauds[] = {
 /* https://docs.peak-system.com/API/PCAN-Basic.Net/html/826d5a95-5e1c-9dad-8d5b-2bf4ebb7e455.htm */
 static const uint8_t s_CanFdDLCs[] = {8, 12, 16, 20, 24, 32, 48, 64};
 /* ================================ [ LOCALS    ] ============================================== */
-static uint8_t getFdDLC(uint8_t len, uint8_t &rlen) {
+static uint8_t CanL_GetFdDlc(uint8_t len, uint8_t &rlen) {
   uint8_t dl = (uint8_t)len;
   size_t i;
   rlen = len;
@@ -138,12 +138,12 @@ static uint8_t getFdDLC(uint8_t len, uint8_t &rlen) {
   return dl;
 }
 
-static struct Can_PeakHandle_s *getHandle(uint32_t port) {
-  struct Can_PeakHandle_s *handle, *h;
+static struct CanL_PeakHandleType *CanL_GetHandle(uint32_t port) {
+  struct CanL_PeakHandleType *handle, *h;
   handle = NULL;
   std::lock_guard<std::mutex> lck(peakH.mutex);
   STAILQ_FOREACH(h, &peakH.head, entry) {
-    if (h->port == port) {
+    if (h->Port == port) {
       handle = h;
       break;
     }
@@ -153,7 +153,7 @@ static struct Can_PeakHandle_s *getHandle(uint32_t port) {
 /*
  * InOut: port, baudrate
  */
-static bool get_peak_param(uint32_t *port, uint32_t baudrate, const char **pBitrate) {
+static bool CanL_GetPeakParam(uint32_t *port, uint32_t baudrate, const char **pBitrate) {
   uint32_t i;
   bool rv = true;
 
@@ -164,7 +164,7 @@ static bool get_peak_param(uint32_t *port, uint32_t baudrate, const char **pBitr
   }
 
   for (i = 0; i < ARRAY_SIZE(peak_bauds); i++) {
-    if (baudrate == peak_bauds[i].baudrate) {
+    if (baudrate == peak_bauds[i].Baudrate) {
       *pBitrate = peak_bauds[i].bitrate;
       break;
     }
@@ -177,7 +177,7 @@ static bool get_peak_param(uint32_t *port, uint32_t baudrate, const char **pBitr
   return rv;
 }
 
-static bool openDriver(void) {
+static bool CanL_OpenDriver(void) {
   bool r = true;
 #ifdef USE_PEAK_DLL
   peakH.IF.dll = PAL_DlOpen("PCANBasic.dll");
@@ -201,31 +201,31 @@ static bool openDriver(void) {
   return r;
 }
 
-static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
-                       can_device_rx_notification_t rx_notification) {
+static bool CanL_PeakProbe(int busId, uint32_t port, uint32_t baudrate,
+                           CanL_DeviceRxNotificationType rxNotification) {
   bool rv = true;
-  struct Can_PeakHandle_s *handle;
+  struct CanL_PeakHandleType *handle;
   const char *peak_baud = NULL;
   uint32_t peak_port = port;
   TPCANStatus status;
 
-  if (false == peakH.initialized) {
-    rv = openDriver();
+  if (false == peakH.Initialized) {
+    rv = CanL_OpenDriver();
     if (false == rv) {
       return false;
     }
     STAILQ_INIT(&peakH.head);
 
-    peakH.initialized = true;
+    peakH.Initialized = true;
   }
 
-  handle = getHandle(port);
+  handle = CanL_GetHandle(port);
 
   if (handle) {
     ASLOG(WARN, ("CAN PEAK port=%d is already on-line, no need to probe it again!\n", port));
     rv = false;
   } else {
-    rv = get_peak_param(&peak_port, baudrate, &peak_baud);
+    rv = CanL_GetPeakParam(&peak_port, baudrate, &peak_baud);
     if (rv) {
       status = PEAK_CALL(InitializeFD)(peak_port, (TPCANBitrateFD)peak_baud);
 
@@ -237,17 +237,17 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
       }
     }
     if (rv) { /* open port OK */
-      handle = new struct Can_PeakHandle_s;
+      handle = new struct CanL_PeakHandleType;
       assert(handle);
-      handle->busid = busid;
-      handle->port = port;
-      handle->channel = peak_port;
-      handle->baudrate = baudrate;
-      handle->rx_notification = rx_notification;
+      handle->BusId = busId;
+      handle->Port = port;
+      handle->Channel = peak_port;
+      handle->Baudrate = baudrate;
+      handle->RxNotification = rxNotification;
       handle->localTime = 0;
       handle->devTime = 0;
-      handle->terminated = false;
-      handle->rx_thread = std::thread(rx_daemon, handle);
+      handle->Terminated = false;
+      handle->RxThread = std::thread(CanL_RxDaemon, handle);
       std::lock_guard<std::mutex> lck(peakH.mutex);
       STAILQ_INSERT_TAIL(&peakH.head, handle, entry);
     } else {
@@ -258,20 +258,20 @@ static bool peak_probe(int busid, uint32_t port, uint32_t baudrate,
   return rv;
 }
 
-static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                       uint64_t timestamp) {
+static bool CanL_PeakWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                           uint64_t timestamp) {
   bool rv = true;
   TPCANStatus status;
   TPCANMsgFD msg;
   uint8_t rlen;
-  struct Can_PeakHandle_s *handle = getHandle(port);
+  struct CanL_PeakHandleType *handle = CanL_GetHandle(port);
 
   (void)timestamp;
 
   if (handle != NULL) {
     msg.ID = canid & 0x7FFFFFFFUL;
-    msg.DLC = getFdDLC(dlc, rlen);
-    if (0 != (canid & CAN_ID_EXTENDED)) {
+    msg.DLC = CanL_GetFdDlc(dlc, rlen);
+    if (0 != (canid & CANL_ID_EXTENDED)) {
       msg.MSGTYPE = PCAN_MESSAGE_EXTENDED | PCAN_MESSAGE_FD;
     } else {
       msg.MSGTYPE = PCAN_MESSAGE_STANDARD | PCAN_MESSAGE_FD;
@@ -286,7 +286,7 @@ static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t
       msg.DATA[i] = 0;
     }
 
-    status = PEAK_CALL(WriteFD)(handle->channel, &msg);
+    status = PEAK_CALL(WriteFD)(handle->Channel, &msg);
     if (PCAN_ERROR_OK == status) {
       /* send OK */
     } else {
@@ -302,31 +302,31 @@ static bool peak_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t
   return rv;
 }
 
-static void peak_close(uint32_t port) {
-  struct Can_PeakHandle_s *handle = getHandle(port);
+static void CanL_PeakClose(uint32_t port) {
+  struct CanL_PeakHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
     std::lock_guard<std::mutex> lck(peakH.mutex);
-    handle->terminated = true;
-    if (handle->rx_thread.joinable()) {
-      handle->rx_thread.join();
+    handle->Terminated = true;
+    if (handle->RxThread.joinable()) {
+      handle->RxThread.join();
     }
-    (void)PEAK_CALL(Uninitialize)(handle->channel);
-    STAILQ_REMOVE(&peakH.head, handle, Can_PeakHandle_s, entry);
+    (void)PEAK_CALL(Uninitialize)(handle->Channel);
+    STAILQ_REMOVE(&peakH.head, handle, CanL_PeakHandleType, entry);
     delete handle;
   }
 }
 
-static void rx_notifiy(struct Can_PeakHandle_s *handle) {
+static void CanL_RxIndication(struct CanL_PeakHandleType *handle) {
   TPCANMsgFD msg;
   TPCANTimestampFD canTs = 0;
   TPCANStatus status;
   uint8_t rlen;
   do {
     std::lock_guard<std::mutex> lck(handle->mutex);
-    status = PEAK_CALL(ReadFD)(handle->channel, &msg, &canTs);
+    status = PEAK_CALL(ReadFD)(handle->Channel, &msg, &canTs);
     if (PCAN_ERROR_OK == status) {
-      if (can_is_perf_mode()) {
+      if (CanL_IsPerfMode()) {
         canTs = PAL_Timestamp();
       } else {
         if ((0 == handle->localTime) && (0 == handle->devTime)) {
@@ -343,27 +343,27 @@ static void rx_notifiy(struct Can_PeakHandle_s *handle) {
       } else {
         rlen = msg.DLC;
       }
-      handle->rx_notification(handle->busid, msg.ID, rlen, msg.DATA, canTs);
+      handle->RxNotification(handle->BusId, msg.ID, rlen, msg.DATA, canTs);
     } else if (PCAN_ERROR_QRCVEMPTY == status) {
 
     } else {
-      ASLOG(WARN, ("CAN PEAK port=%d read message failed: error=0x%lX!\n", handle->port, status));
+      ASLOG(WARN, ("CAN PEAK port=%d read message failed: error=0x%lX!\n", handle->Port, status));
     }
   } while (PCAN_ERROR_OK == status);
 }
 
-static void peak_read(uint32_t port) {
-  struct Can_PeakHandle_s *handle = getHandle(port);
+static void CanL_PeakRead(uint32_t port) {
+  struct CanL_PeakHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
-    rx_notifiy(handle);
+    CanL_RxIndication(handle);
   }
 }
 
-static void rx_daemon(struct Can_PeakHandle_s *handle) {
-  while (false == handle->terminated) {
-    rx_notifiy(handle);
-    if (false == can_is_perf_mode()) {
+static void CanL_RxDaemon(struct CanL_PeakHandleType *handle) {
+  while (false == handle->Terminated) {
+    CanL_RxIndication(handle);
+    if (false == CanL_IsPerfMode()) {
       std::this_thread::sleep_for(1ms);
     }
   }

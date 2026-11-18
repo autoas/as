@@ -23,7 +23,7 @@
 /* ================================ [ TYPES     ] ============================================== */
 
 struct can_msg_info {
-  can_frame_t frame;
+  CanL_FrameType frame;
   uint64_t count;
   std::chrono::high_resolution_clock::time_point start;
   float period;
@@ -41,18 +41,18 @@ struct Can_FilterList_s {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 static struct Can_FilterList_s *canFilterH = NULL;
-static std::map<uint32_t, can_msg_info> canMsgInfoMap;
+static std::map<uint32_t, can_msg_info> CanMsgInfoMap;
 static uint32_t canLastMsgNum = 0;
 static bool lStop = false;
 std::chrono::high_resolution_clock::time_point canLastShowTime =
   std::chrono::high_resolution_clock::now();
 /* ================================ [ LOCALS    ] ============================================== */
-static void sigint_handler(int sig) {
+static void SigintHandler(int sig) {
   (void)sig;
   lStop = true;
 }
 
-static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
+static void LogMsg(CanL_FrameType *frame, float rtim, uint64_t count = 0) {
   int bOut = FALSE;
   static float lastTime = -1;
   int nSame = 0;
@@ -67,7 +67,7 @@ static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
     bOut = TRUE;
   } else {
     STAILQ_FOREACH(filter, &canFilterH->head, entry) {
-      if ((frame->canid & filter->mask) == (filter->code & filter->mask)) {
+      if ((frame->CanId & filter->mask) == (filter->code & filter->mask)) {
         bOut = TRUE;
       }
     }
@@ -76,20 +76,20 @@ static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
   if (bOut) {
     int i;
     int dlc;
-    printf("canid=%08X,dlc=%02d,data=[", frame->canid, frame->dlc);
-    dlc = frame->dlc;
+    printf("canid=%08X,dlc=%02d,data=[", frame->CanId, frame->Dlc);
+    dlc = frame->Dlc;
     if (dlc < 8) {
       dlc = 8;
     }
 
     for (i = 0; i < dlc; i++) {
-      if ((i >= 8) && (frame->data[i] == frame->data[i - 1])) {
+      if ((i >= 8) && (frame->Data[i] == frame->Data[i - 1])) {
         nSame++;
       } else {
         if (nSame > 0) {
           printf("`%d,", nSame);
         } else {
-          printf("%02X,", frame->data[i]);
+          printf("%02X,", frame->Data[i]);
         }
         nSame = 0;
       }
@@ -104,12 +104,12 @@ static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
     printf("] [");
 
     for (i = 0; i < dlc; i++) {
-      if ((i >= 8) && (frame->data[i] == frame->data[i - 1])) {
+      if ((i >= 8) && (frame->Data[i] == frame->Data[i - 1])) {
         nSame++;
         continue;
       } else {
-        if (isprint(frame->data[i])) {
-          printf("%c", frame->data[i]);
+        if (isprint(frame->Data[i])) {
+          printf("%c", frame->Data[i]);
         } else {
           printf(".");
         }
@@ -132,9 +132,9 @@ static void log_msg(can_frame_t *frame, float rtim, uint64_t count = 0) {
   }
 }
 
-static void add_msg(can_frame_t *frame) {
-  auto it = canMsgInfoMap.find(frame->canid);
-  if (it != canMsgInfoMap.end()) {
+static void AddMsg(CanL_FrameType *frame) {
+  auto it = CanMsgInfoMap.find(frame->CanId);
+  if (it != CanMsgInfoMap.end()) {
     it->second.frame = *frame;
     it->second.count++;
     auto now = std::chrono::high_resolution_clock::now();
@@ -142,7 +142,7 @@ static void add_msg(can_frame_t *frame) {
       std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.start).count();
     it->second.period = (float)((double)elapsed / (it->second.count - 1));
   } else {
-    canMsgInfoMap[frame->canid] = {*frame, 1, std::chrono::high_resolution_clock::now(), 0};
+    CanMsgInfoMap[frame->CanId] = {*frame, 1, std::chrono::high_resolution_clock::now(), 0};
   }
 
   auto now = std::chrono::high_resolution_clock::now();
@@ -155,16 +155,16 @@ static void add_msg(can_frame_t *frame) {
       printf("\033[K");  /* clear this line */
     }
 
-    for (auto &it : canMsgInfoMap) {
+    for (auto &it : CanMsgInfoMap) {
       auto &frame = it.second.frame;
-      log_msg(&frame, it.second.period, it.second.count);
+      LogMsg(&frame, it.second.period, it.second.count);
     }
-    canLastMsgNum = canMsgInfoMap.size();
+    canLastMsgNum = CanMsgInfoMap.size();
     canLastShowTime = std::chrono::high_resolution_clock::now();
   }
 }
 
-static void arg_filter(char *s) {
+static void ArgFilter(char *s) {
   char *code;
   struct Can_Filter_s *filter = (struct Can_Filter_s *)malloc(sizeof(struct Can_Filter_s));
   assert(filter);
@@ -198,12 +198,12 @@ int main(int argc, char *argv[]) {
   int busid;
   int port = 0;
   int baudrate = 500000;
-  can_frame_t frame;
+  CanL_FrameType frame;
   bool rv;
   bool bPeriodMode = false;
 
-  signal(SIGINT, sigint_handler);
-  signal(SIGTERM, sigint_handler);
+  signal(SIGINT, SigintHandler);
+  signal(SIGTERM, SigintHandler);
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:f:hp:P")) != -1) {
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
       device = optarg;
       break;
     case 'f':
-      arg_filter(optarg);
+      ArgFilter(optarg);
       break;
     case 'h':
       usage(argv[0]);
@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  busid = can_open(device, (uint32_t)port, (uint32_t)baudrate);
+  busid = CanL_Open(device, (uint32_t)port, (uint32_t)baudrate);
   if (busid < 0) {
     return -2;
   }
@@ -246,21 +246,21 @@ int main(int argc, char *argv[]) {
 
   while (false == lStop) {
     do {
-      frame.canid = -1;
-      rv = can_read_v2(busid, &frame);
+      frame.CanId = -1;
+      rv = CanL_ReadV2(busid, &frame);
       if (true == rv) {
         if (bPeriodMode) {
-          add_msg(&frame);
+          AddMsg(&frame);
         } else {
-          float rtim = (float)((frame.timestamp - begin) / 1000000.0f);
-          log_msg(&frame, rtim);
+          float rtim = (float)((frame.Timestamp - begin) / 1000000.0f);
+          LogMsg(&frame, rtim);
         }
       }
     } while ((true == rv) && (false == lStop));
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
-  (void)can_close(busid);
+  (void)CanL_Close(busid);
 
   return 0;
 }

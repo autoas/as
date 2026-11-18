@@ -7,13 +7,23 @@ comments: true
 
 # AUTOSAR Bootloader（BL）模块配置说明
 
+> **一句话**：BL 是 SSAS 的 Bootloader：在 UDS（Dcm）与 Loader PC 工具的驱动下完成应用的校验、烧写与（可选的）A/B 分区切换，支持 V1/V2/V3 三种 CRC 签名格式、元数据与滚动计数器。
+
+| | |
+| --- | --- |
+| 模块 | `infras/diagnostic/BL` + `app/bootloader/config/BL/BL.json` |
+| 配置 | `BL.json` → `tools/generator/BL.py` → `GEN/BL_Cfg.c/.h` |
+| 上层 | Dcm 烧写例程 `0xFF00/0xFF01/0xFF02`（见 Dcm 文档） |
+| PC 工具 | `Loader`（`tools/libraries/loader`，S-record 签名见 `tools/libraries/srec`） |
+| 演示 | `CanBL`（CAN，主机）、`DoIPBL` / `VersatilepbDoIPBL`（DoIP），见 BL-DoIP / BL-DoIP-QEMU |
+
 ## 目录
 
 1. [配置示例](#1-配置示例)
-2. [通用配置（`general` 段）](#2-通用配置general-段)
+2. [通用配置（`General` 段）](#2-通用配置general-段)
    - [通用配置参数](#通用配置参数)
    - [取值要求说明](#取值要求说明)
-3. [内存布局（`memory` 段）](#3-内存布局memory-段)
+3. [内存布局（`Memory` 段）](#3-内存布局memory-段)
    - [内存区属性](#内存区属性)
    - [已定义的内存区](#已定义的内存区)
 4. [代码生成](#4-代码生成)
@@ -42,9 +52,9 @@ Bootloader（BL）模块负责 AUTOSAR ECU 中应用的加载、完整性校验�
 
 该 JSON 文件同时定义了通用配置与物理内存布局，由 `BL.py` 生成器读取并生成 `BL_Cfg.h` 与 `BL_Cfg.c`。
 
-## 2. 通用配置（`general` 段）
+## 2. 通用配置（`General` 段）
 
-`general` 段控制编译期功能开关与通信参数，所有条目都会直接映射为 `BL_Cfg.h` 中的 C 预处理宏。
+`General` 段控制编译期功能开关与通信参数，所有条目都会直接映射为 `BL_Cfg.h` 中的 C 预处理宏。
 
 ### 通用配置参数
 
@@ -93,17 +103,17 @@ Bootloader（BL）模块负责 AUTOSAR ECU 中应用的加载、完整性校验�
 - **可选（Optional）**：可省略，使用合理的默认值。
 - **条件（Conditional）**：仅在所引用的功能开关启用时才需要。
 
-## 3. 内存布局（`memory` 段）
+## 3. 内存布局（`Memory` 段）
 
-`memory` 段定义 bootloader 各组件的物理地址范围与属性。每个 flash bank 用三个关键属性描述：`address`、`size`、`sectorSize`。
+`Memory` 段定义 bootloader 各组件的物理地址范围与属性。每个 flash bank 用三个关键属性描述：`Address`、`Size`、`SectorSize`。
 
 ### 内存区属性
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
-| `address` | hex string | 内存区起始地址（如 `"0xA0040000"`），必须与 flash 页/扇区边界对齐。 |
-| `size` | string | 区域大小（字节）。可以是十进制数、十六进制字面量（如 `"0x10000"`）或算术表达式（如 `"0xA0300000-0xA0040000"`），由生成器在构建期求值。 |
-| `sectorSize` | integer | Flash 设备的擦除粒度（字节，如 `2048`），内部用于擦/写对齐与校验。 |
+| `Address` | hex string | 内存区起始地址（如 `"0xA0040000"`），必须与 flash 页/扇区边界对齐。 |
+| `Size` | string | 区域大小（字节）。可以是十进制数、十六进制字面量（如 `"0x10000"`）或算术表达式（如 `"0xA0300000-0xA0040000"`），由生成器在构建期求值。 |
+| `SectorSize` | integer | Flash 设备的擦除粒度（字节，如 `2048`），内部用于擦/写对齐与校验。 |
 
 ### 已定义的内存区
 
@@ -118,13 +128,13 @@ Bootloader（BL）模块负责 AUTOSAR ECU 中应用的加载、完整性校验�
 > 启用 `BL_USE_META` 时，元数据结构（fingerprint、meta、info、有效标志、备份）放在每个应用区（`FlashA`/`FlashB`）的**最后 2 个扇区**（通常情况下）。可用应用空间截止到 `(区域结束地址 - 2 个扇区)`，为这些结构预留。
 >
 > **扇区对齐**：\
-> 所有 flash 操作都遵循 `sectorSize`。生成器假定 `address` 与 `size` 都是 `sectorSize` 的整数倍。
+> 所有 flash 操作都遵循 `SectorSize`。生成器假定 `Address` 与 `Size` 都是 `SectorSize` 的整数倍。
 
 ## 4. 代码生成
 
 `BL.py` 脚本读取 BL.json 并生成：
 
-- `GEN/BL_Cfg.h`：包含 `general` 段的全部宏；
+- `GEN/BL_Cfg.h`：包含 `General` 段的全部宏；
 - `GEN/BL_Cfg.c`：定义内存布局数组（`blMemoryListA`、`blMemoryListB`）以及全局符号地址（如 `blAppMetaAddrA`）。
 
 ***

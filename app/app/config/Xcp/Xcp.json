@@ -1,20 +1,20 @@
 {
-  "class": "Xcp",
+  "Class": "Xcp",
   "EventChannels": [
-    {"name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
-    {"name": "500ms", "TimeCycle": 500 },
-    {"name": "1s", "TimeCycle": 1000 }
+    {"Name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
+    {"Name": "500ms", "TimeCycle": 500 },
+    {"Name": "1s", "TimeCycle": 1000 }
   ],
   "DaqList": {
     "StaticDaqList": [
-      { "name": "Daq0", "ODTs": [
-          { "name": "ODT0", "Entries": [
+      { "Name": "Daq0", "ODTs": [
+          { "Name": "ODT0", "Entries": [
               { "Address": 0, "Length": 1  },
               { "Address": 10, "Length": 1 },
               { "Address": 20, "Length": 1 } 
             ]
           },
-          { "name": "ODT1", "Entries": [
+          { "Name": "ODT1", "Entries": [
               { "Address": 30, "Length": 1 },
               { "Address": 40, "Length": 1 },
               { "Address": 50, "Length": 1 }
@@ -25,36 +25,36 @@
     ],
     "DynamicDaqList": { "DaqPoolSize": 2, "OdtPoolSize": 16, "OdtEntryPoolSize": 128 }
   },
-  "services": [
-    { "name": "Connect", "id": "0xFF", "API": "App_XcpGetConnectPermission" },
-    { "name": "GetStatus", "id": "0xFD" },
-    { "name": "GetSeed", "id": "0xF8", "API": "App_XcpGetSeed" },
-    { "name": "Unlock", "id": "0xF7", "API": "App_CompareKey" },
-    { "name": "SetMTA", "id": "0xF6" },
-    { "name": "Upload", "id": "0xF5" },
-    { "name": "ShortUpload", "id": "0xF4" },
-    { "name": "Download", "id": "0xF0" },
-    { "name": "DownloadNext", "id": "0xEF" },
-    { "name": "ProgramStart", "id": "0xD2", "API": "Xcp_GetProgramStartPermission" },
-    { "name": "ProgramClear", "id": "0xD1" },
-    { "name": "Program", "id": "0xD0" },
-    { "name": "ProgramNext", "id": "0xCA" },
-    { "name": "FreeDAQ", "id": "0xD6" },
-    { "name": "AllocDAQ", "id": "0xD5" },
-    { "name": "AllocODT", "id": "0xD4" },
-    { "name": "DAQ_ALLOC_ODT_ENTRY", "id": "0xD3" },
-    { "name": "ClearDAQList", "id": "0xE3" },
-    { "name": "SetDAQPtr", "id": "0xE2" },
-    { "name": "WriteDAQ", "id": "0xE1" },
-    { "name": "ReadDAQ", "id": "0xDB" },
-    { "name": "SetDAQListMode", "id": "0xE0" },
-    { "name": "StartStopDAQList", "id": "0xDE" },
-    { "name": "StartStopSynch", "id": "0xDD" },
-    { "name": "GetDAQProcessorInfo", "id": "0xDA" },
-    { "name": "GetDAQResolutionInfo", "id": "0xD9" },
-    { "name": "GetDAQListInfo", "id": "0xD8" },
-    { "name": "GetDAQEventInfo", "id": "0xD7" },
-    { "name": "ProgramReset", "id": "0xCF", "delay": "100", "API": "Xcp_GetProgramResetPermission" },
-    { "name": "Disconnect", "id": "0xFE", "API": "App_XcpDisconnecNotification" }
+  "Services": [
+    { "Name": "Connect", "Id": "0xFF", "API": "App_XcpGetConnectPermission" },
+    { "Name": "GetStatus", "Id": "0xFD" },
+    { "Name": "GetSeed", "Id": "0xF8", "API": "App_XcpGetSeed" },
+    { "Name": "Unlock", "Id": "0xF7", "API": "App_CompareKey" },
+    { "Name": "SetMTA", "Id": "0xF6" },
+    { "Name": "Upload", "Id": "0xF5" },
+    { "Name": "ShortUpload", "Id": "0xF4" },
+    { "Name": "Download", "Id": "0xF0" },
+    { "Name": "DownloadNext", "Id": "0xEF" },
+    { "Name": "ProgramStart", "Id": "0xD2", "API": "Xcp_GetProgramStartPermission" },
+    { "Name": "ProgramClear", "Id": "0xD1" },
+    { "Name": "Program", "Id": "0xD0" },
+    { "Name": "ProgramNext", "Id": "0xCA" },
+    { "Name": "FreeDAQ", "Id": "0xD6" },
+    { "Name": "AllocDAQ", "Id": "0xD5" },
+    { "Name": "AllocODT", "Id": "0xD4" },
+    { "Name": "DAQ_ALLOC_ODT_ENTRY", "Id": "0xD3" },
+    { "Name": "ClearDAQList", "Id": "0xE3" },
+    { "Name": "SetDAQPtr", "Id": "0xE2" },
+    { "Name": "WriteDAQ", "Id": "0xE1" },
+    { "Name": "ReadDAQ", "Id": "0xDB" },
+    { "Name": "SetDAQListMode", "Id": "0xE0" },
+    { "Name": "StartStopDAQList", "Id": "0xDE" },
+    { "Name": "StartStopSynch", "Id": "0xDD" },
+    { "Name": "GetDAQProcessorInfo", "Id": "0xDA" },
+    { "Name": "GetDAQResolutionInfo", "Id": "0xD9" },
+    { "Name": "GetDAQListInfo", "Id": "0xD8" },
+    { "Name": "GetDAQEventInfo", "Id": "0xD7" },
+    { "Name": "ProgramReset", "Id": "0xCF", "Delay": "100", "API": "Xcp_GetProgramResetPermission" },
+    { "Name": "Disconnect", "Id": "0xFE", "API": "App_XcpDisconnecNotification" }
   ]
 }

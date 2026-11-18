@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UIVIC_HPP__
-#define __UIVIC_HPP__
+#ifndef UIVIC_HPP
+#define UIVIC_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QGraphicsItem>
@@ -27,24 +27,24 @@ using namespace as;
 class VICPointer : public QGraphicsItem {
 public:
   struct Config {
-    int32_t x;      /* center position x */
-    int32_t y;      /* center position y */
-    int32_t offset; /* offset length of tail */
-    int32_t length; /* head and tail length */
-    int32_t tail_width;
-    int32_t head_width;
-    uint32_t color;
-    uint32_t start; /* software zero angle */
-    uint32_t range;
-    uint32_t is_clockwise; /* rotate directin */
+    int32_t X;      /* center position x */
+    int32_t Y;      /* center position y */
+    int32_t Offset; /* offset length of tail */
+    int32_t Length; /* head and tail length */
+    int32_t TailWidth;
+    int32_t HeadWidth;
+    uint32_t Color;
+    uint32_t Start; /* software zero angle */
+    uint32_t Range;
+    uint32_t IsClockwise; /* rotate directin */
   };
 
 public:
   explicit VICPointer(const Config &config, QGraphicsItem *parent = 0);
   explicit VICPointer(json &config, QGraphicsItem *parent = 0);
   ~VICPointer();
-  void setDegree(uint32_t degree);
-  std::string name() {
+  void SetDegree(uint32_t degree);
+  std::string Name() {
     return m_Name;
   }
 
@@ -61,17 +61,17 @@ private:
 class VICTelltale : public QGraphicsItem {
 public:
   struct Config {
-    int32_t x; /* top left position x */
-    int32_t y; /* top left position y */
-    std::string p;
+    int32_t X; /* top left position x */
+    int32_t Y; /* top left position y */
+    std::string P;
   };
 
 public:
   explicit VICTelltale(const Config &config, QGraphicsItem *parent = 0);
   explicit VICTelltale(json &config, QGraphicsItem *parent = 0);
   ~VICTelltale();
-  void setOn(bool on);
-  std::string name() {
+  void SetOn(bool on);
+  std::string Name() {
     return m_Name;
   }
 
@@ -91,7 +91,7 @@ class VICGraphicView : public QGraphicsView {
 public:
   explicit VICGraphicView(QWidget *parent = 0);
   ~VICGraphicView();
-  void loadJson(json &js);
+  void LoadJson(json &js);
 
 private:
   void drawBackground(QPainter *painter, const QRectF &rect);
@@ -124,12 +124,12 @@ private:
   void timerEvent(QTimerEvent *event);
 
 private:
-  bool load(std::string cfgPath);
+  bool Load(std::string cfgPath);
 
 private:
   VICGraphicView *m_VIC;
-  QLineEdit *m_leJson;
-  QPushButton *m_btnOpenJson;
+  QLineEdit *m_LeJson;
+  QPushButton *m_BtnOpenJson;
   json m_Json;
   std::chrono::high_resolution_clock::time_point m_Start;
 };
@@ -137,4 +137,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UIVIC_HPP__ */
+#endif /* UIVIC_HPP */

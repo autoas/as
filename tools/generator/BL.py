@@ -9,16 +9,16 @@ __all__ = ["Gen"]
 
 
 def Gen_BL(cfg, dir):
-    general = cfg.get("general", {})
-    memory = cfg.get("memory", {})
+    general = cfg.get("General", {})
+    memory = cfg.get("Memory", {})
 
     BL_USE_AB = general.get("BL_USE_AB", False)
     BL_USE_META = general.get("BL_USE_META", False)
     ROD_OFFSET = toNum(general.get("ROD_OFFSET", 0x800))
 
     fls_drv = memory.get("FlashDriver", {})
-    fls_low = toNum(fls_drv.get("address", 0))
-    fls_size = toNum(fls_drv.get("size", 2048))
+    fls_low = toNum(fls_drv.get("Address", 0))
+    fls_size = toNum(fls_drv.get("Size", 2048))
     fls_high = fls_low + fls_size
 
     flash = memory.get("Flash", [{}])
@@ -26,18 +26,18 @@ def Gen_BL(cfg, dir):
     flash_b = memory.get("FlashB", [{}])
     fee = memory.get("Fee", [])
 
-    app_a_base = toNum(flash_a[0].get("address", 0))
-    app_a_end = toNum(flash_a[-1].get("address", 0)) + toNum(flash_a[-1].get("size", 0))
-    app_a_sector_size = toNum(flash_a[-1].get("sectorSize", 512))
+    app_a_base = toNum(flash_a[0].get("Address", 0))
+    app_a_end = toNum(flash_a[-1].get("Address", 0)) + toNum(flash_a[-1].get("Size", 0))
+    app_a_sector_size = toNum(flash_a[-1].get("SectorSize", 512))
     app_a_finger_print_size = toNum(general.get("FINGER_PRINT_SIZE", app_a_sector_size // 4))
     app_a_meta_size = toNum(general.get("META_SIZE", app_a_sector_size // 4))
     app_a_info_size = toNum(general.get("APP_SECTION_INFO_SIZE", app_a_sector_size // 4))
     app_a_valid_flag_size = toNum(general.get("APP_VALID_FLAG_SIZE", app_a_sector_size // 4))
     app_a_meta_backup_size = app_a_finger_print_size + app_a_meta_size + app_a_info_size + app_a_valid_flag_size
 
-    app_b_base = toNum(flash_b[0].get("address", 0))
-    app_b_end = toNum(flash_b[-1].get("address", 0)) + toNum(flash_b[-1].get("size", 0))
-    app_b_sector_size = toNum(flash_b[-1].get("sectorSize", 512))
+    app_b_base = toNum(flash_b[0].get("Address", 0))
+    app_b_end = toNum(flash_b[-1].get("Address", 0)) + toNum(flash_b[-1].get("Size", 0))
+    app_b_sector_size = toNum(flash_b[-1].get("SectorSize", 512))
     app_b_finger_print_size = toNum(general.get("FINGER_PRINT_SIZE", app_b_sector_size // 4))
     app_b_meta_size = toNum(general.get("META_SIZE", app_b_sector_size // 4))
     app_b_info_size = toNum(general.get("APP_SECTION_INFO_SIZE", app_b_sector_size // 4))
@@ -223,14 +223,14 @@ def Gen_BL(cfg, dir):
     C.write("const BL_MemoryInfoType blMemoryListA[] = {\n")
     C.write(f" /* FLASH DRIVER */ {{0x{fls_low:08X}, 0x{fls_high:08X}, BL_FLSDRV_IDENTIFIER}},\n")
     for idx, bank in enumerate(flash_a):
-        bank_addr = toNum(bank.get("address", 0))
-        bank_size = toNum(bank.get("size", 0))
+        bank_addr = toNum(bank.get("Address", 0))
+        bank_size = toNum(bank.get("Size", 0))
         if idx == len(flash_a) - 1:
             bank_size -= app_a_meta_backup_size
         C.write(f" /* APPLICATION A */ {{0x{bank_addr:08X}, 0x{bank_addr + bank_size:08X}, BL_FLASH_IDENTIFIER}},\n")
     for bank in fee:
-        bank_addr = toNum(bank.get("address", 0))
-        bank_size = toNum(bank.get("size", 0))
+        bank_addr = toNum(bank.get("Address", 0))
+        bank_size = toNum(bank.get("Size", 0))
         C.write(f" /* FLASH FEE BANK */ {{0x{bank_addr:08X}, 0x{bank_addr + bank_size:08X}, BL_FEE_IDENTIFIER}},\n")
     C.write("};\n")
     C.write("const uint32_t blMemoryListASize = sizeof(blMemoryListA)/sizeof(blMemoryListA[0]);\n\n")
@@ -240,16 +240,16 @@ def Gen_BL(cfg, dir):
         C.write("const BL_MemoryInfoType blMemoryListB[] = {\n")
         C.write(f" /* FLASH DRIVER */ {{0x{fls_low:08X}, 0x{fls_high:08X}, BL_FLSDRV_IDENTIFIER}},\n")
         for bank in flash_b:
-            bank_addr = toNum(bank.get("address", 0))
-            bank_size = toNum(bank.get("size", 0))
+            bank_addr = toNum(bank.get("Address", 0))
+            bank_size = toNum(bank.get("Size", 0))
             if idx == len(flash_b) - 1:
                 bank_size -= app_a_meta_backup_size
             C.write(
                 f" /* APPLICATION B */ {{0x{bank_addr:08X}, 0x{bank_addr + bank_size:08X}, BL_FLASH_IDENTIFIER}},\n"
             )
         for bank in fee:
-            bank_addr = toNum(bank.get("address", 0))
-            bank_size = toNum(bank.get("size", 0))
+            bank_addr = toNum(bank.get("Address", 0))
+            bank_size = toNum(bank.get("Size", 0))
             C.write(f" /* FLASH FEE BANK */ {{0x{bank_addr:08X}, 0x{bank_addr + bank_size:08X}, BL_FEE_IDENTIFIER}},\n")
         C.write("};\n")
         C.write("const uint32_t blMemoryListBSize = sizeof(blMemoryListB)/sizeof(blMemoryListB[0]);\n\n")

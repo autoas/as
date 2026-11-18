@@ -40,10 +40,10 @@ def Gen_Nm(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("static const Nm_ChannelConfigType Nm_ChannelConfigs[] = {\n")
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         C.write("  {\n")
-        C.write("    NM_BUSNM_%s, /* ImmediateNmCycleTime */\n" % (network.get("type", "CANNM")))
-        C.write("    %s, /* handle */\n" % (idx))
+        C.write("    NM_BUSNM_%s, /* ImmediateNmCycleTime */\n" % (network.get("Type", "CANNM")))
+        C.write("    %s, /* Handle */\n" % (idx))
         C.write("    %s, /* ComMHandle */\n" % (idx))
         C.write("  },\n")
     C.write("};\n\n")

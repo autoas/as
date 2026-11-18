@@ -5,8 +5,8 @@
  * ref:
  * https://www.autosar.org/fileadmin/standards/R20-11/CP/AUTOSAR_SWS_SynchronizedTimeBaseManager.pdf
  */
-#ifndef __STB_M_H__
-#define __STB_M_H__
+#ifndef STBM_H
+#define STBM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -62,7 +62,7 @@ typedef struct {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_StbM_00052 */
-void StbM_Init(const StbM_ConfigType *ConfigPtr);
+void StbM_Init(const StbM_ConfigType *configPtr);
 
 /* @SWS_StbM_91006 */
 Std_ReturnType StbM_GetCurrentVirtualLocalTime(StbM_SynchronizedTimeBaseType timeBaseId,
@@ -95,4 +95,4 @@ Std_ReturnType StbM_GetOffset(StbM_SynchronizedTimeBaseType timeBaseId,
 
 /* @SWS_StbM_00347 */
 uint8_t StbM_GetTimeBaseUpdateCounter(StbM_SynchronizedTimeBaseType timeBaseId);
-#endif /* __STB_M_H__ */
+#endif /* STBM_H */

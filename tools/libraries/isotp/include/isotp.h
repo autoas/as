@@ -20,35 +20,35 @@ typedef enum {
   ISOTP_OVER_LIN,
   ISOTP_OVER_J1939TP,
   ISOTP_OVER_DOIP
-} isotp_protocol_t;
+} IsoTp_ProtocolType;
 
 typedef enum {
   ISOTP_CAN_V1 = 1,
   ISOTP_CAN_V2
-} isotp_can_version_t;
+} IsoTp_CanVersionType;
 
 typedef struct {
   uint32_t RxCanId;
   uint32_t TxCanId;
-  isotp_can_version_t version;
+  IsoTp_CanVersionType Version;
   uint8_t BlockSize;
   uint8_t STmin; /* ms */
-} isotp_can_param_t;
+} IsoTp_CanParamType;
 
 typedef struct {
-  uint32_t timeout; /* ms */
-  uint32_t delayUs; /* delay time between request and response for LIN */
+  uint32_t Timeout; /* ms */
+  uint32_t DelayUs; /* delay time between request and response for LIN */
   uint32_t RxId;
   uint32_t TxId;
-} isotp_lin_param_t;
+} IsoTp_LinParamType;
 
 typedef enum {
   ISOTP_J1939TP_PROTOCOL_BAM = 0,
   ISOTP_J1939TP_PROTOCOL_CMDT,
-} isotp_j1939tp_protocal_t;
+} IsoTp_J1939TpProtocolType;
 
 typedef struct {
-  isotp_j1939tp_protocal_t protocol;
+  IsoTp_J1939TpProtocolType Protocol;
   struct {
     uint32_t CM;
     uint32_t Direct;
@@ -69,40 +69,40 @@ typedef struct {
   uint16_t T3;
   uint16_t T4;
   uint8_t TxMaxPacketsPerBlock;
-} isotp_j1939tp_param_t;
+} IsoTp_J1939TpParamType;
 
 typedef struct {
-  uint16_t sourceAddress;
-  uint16_t targetAddress;
-  uint8_t activationType;
-} isotp_doip_param_t;
+  uint16_t SourceAddress;
+  uint16_t TargetAddress;
+  uint8_t ActivationType;
+} IsoTp_DoIpParamType;
 
 typedef struct {
-  char device[64];
-  int port;
-  uint32_t baudrate;
-  isotp_protocol_t protocol;
-  uint32_t ll_dl;
+  char Device[64];
+  int Port;
+  uint32_t Baudrate;
+  IsoTp_ProtocolType Protocol;
+  uint32_t LinkLayerDataLength;
   uint16_t N_TA; /* if 0xFFFF, means no target address used */
   union {
-    isotp_can_param_t CAN;
-    isotp_lin_param_t LIN;
-    isotp_j1939tp_param_t J1939TP;
-    isotp_doip_param_t DoIP;
+    IsoTp_CanParamType CAN;
+    IsoTp_LinParamType LIN;
+    IsoTp_J1939TpParamType J1939TP;
+    IsoTp_DoIpParamType DoIP;
   } U;
-} isotp_parameter_t;
+} IsoTp_ParameterType;
 
-typedef struct isotp_s isotp_t;
+typedef struct IsoTp_s IsoTp_Type;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-isotp_t *isotp_create(isotp_parameter_t *params);
-int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
+IsoTp_Type *IsoTp_Create(IsoTp_ParameterType *params);
+int IsoTp_Transmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize);
-int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
-int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);
-void isotp_destory(isotp_t *isotp);
+int IsoTp_Receive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize);
+int IsoTp_IoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size);
+void IsoTp_Destroy(IsoTp_Type *isotp);
 #ifdef __cplusplus
 }
 #endif

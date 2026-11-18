@@ -14,14 +14,14 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType PduR_ComTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
-  return PduR_Transmit(TxPduId, PduInfoPtr);
+Std_ReturnType PduR_ComTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
+  return PduR_Transmit(txPduId, pduInfoPtr);
 }
 
-void PduR_ComRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
-  PduR_RxIndication(RxPduId, PduInfoPtr);
+void PduR_ComRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
+  PduR_RxIndication(rxPduId, pduInfoPtr);
 }
 
-void PduR_ComTxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
-  PduR_TxConfirmation(TxPduId, result);
+void PduR_ComTxConfirmation(PduIdType txPduId, Std_ReturnType result) {
+  PduR_TxConfirmation(txPduId, result);
 }

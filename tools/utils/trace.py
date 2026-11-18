@@ -48,7 +48,7 @@ def process(binOrPath, args):
         with open(args.config) as f:
             cfg = json.load(f)
         for i in range(1, 13):
-            if (1 << i) > len(cfg["events"]):
+            if (1 << i) > len(cfg["Events"]):
                 nBits = i
                 break
         if args.max != None:
@@ -81,7 +81,7 @@ def process(binOrPath, args):
             elapsed = 1000000
         now = now + elapsed
         last = ts
-        name = cfg["events"][id]
+        name = cfg["Events"][id]
         ph = "I"
         if name[-2:] == "_B":
             name = name[:-2]
@@ -94,16 +94,16 @@ def process(binOrPath, args):
             if last_ph == ph and ph in ["B", "E"]:
                 # make things right is the related E and B is missing, so for any duration time is 0, there is someting wrong
                 if ph == "B":
-                    rt = {"name": cfg["area"], "ph": "E", "pid": "0", "tid": name, "ts": last_ts}
+                    rt = {"name": cfg["Area"], "ph": "E", "pid": "0", "tid": name, "ts": last_ts}
                     trs["traceEvents"].append(rt)
                 elif ph == "E":
-                    rt = {"name": cfg["area"], "ph": "B", "pid": "0", "tid": name, "ts": now}
+                    rt = {"name": cfg["Area"], "ph": "B", "pid": "0", "tid": name, "ts": now}
                     trs["traceEvents"].append(rt)
                 print("missing %s for %s" % (ph, name))
             if ph == "I" and now == last_ts:
                 now += 1 # for simulation, as CPU too fast, I event may come at the same time
         lastStatus[name] = {"ph": ph, "ts": now}
-        rt = {"name": cfg["area"], "ph": ph, "pid": "0", "tid": name, "ts": now, "args": {"ts": ts}}
+        rt = {"name": cfg["Area"], "ph": ph, "pid": "0", "tid": name, "ts": now, "args": {"ts": ts}}
         trs["traceEvents"].append(rt)
     with open(args.output, "w") as f:
         json.dump(trs, f)

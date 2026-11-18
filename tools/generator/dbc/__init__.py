@@ -1,14 +1,14 @@
 # SSAS - Simple Smart Automotive Software
 # Copyright (C) 2021 Parai Wang <parai@foxmail.com>
 
-__all__ = ["dbc"]
+__all__ = ["Dbc"]
 
 from . import ascyacc
 
 
 def get_period(p, msg):
     CycleTime, FirstTime = None, None
-    id = msg["id"]
+    id = msg["Id"]
     for ba in p.get("baList", []):
         if (ba[1] == '"GenMsgCycleTime"') and (ba[2] == "BO_"):
             if ba[3] == id:
@@ -20,7 +20,7 @@ def get_period(p, msg):
 
 
 def get_init(p, sig):
-    name = sig["name"]
+    name = sig["Name"]
     for ba in p.get("baList", []):
         if (ba[1] == '"GenSigStartValue"') and (ba[2] == "SG_"):
             if ba[4] == name:
@@ -29,7 +29,7 @@ def get_init(p, sig):
 
 
 def get_comment(p, sig):
-    name = sig["name"]
+    name = sig["Name"]
     for cm in p.get("cmList", []):
         if (cm[1] == "SG_") and (cm[3] == name):
             return cm[4]
@@ -37,7 +37,7 @@ def get_comment(p, sig):
 
 
 def post_process_period(p):
-    for msg in p["messages"]:
+    for msg in p["Messages"]:
         CycleTime, FirstTime = get_period(p, msg)
         if CycleTime != None:
             msg.update({"CycleTime": CycleTime})
@@ -45,22 +45,22 @@ def post_process_period(p):
             msg.update({"FirstTime": FirstTime})
 
 def post_process_init(p):
-    for msg in p["messages"]:
-        for sig in msg["signals"]:
+    for msg in p["Messages"]:
+        for sig in msg["Signals"]:
             init = get_init(p, sig)
             if init != None:
                 sig.update({"InitValue": init})
             comment = get_comment(p, sig)
             if comment != None:
-                sig.update({"comment": comment})
+                sig.update({"Comment": comment})
 
 
 def post_process_id_type(p):
-    for msg in p["messages"]:
-        id = msg["id"]
+    for msg in p["Messages"]:
+        id = msg["Id"]
         if id > 0x7FF:
             id |= 0x80000000
-            msg["id"] = id
+            msg["Id"] = id
 
 
 def parse(file):
@@ -77,4 +77,4 @@ def parse(file):
 
 def dbc(path):
     p = parse(path)
-    return p["messages"]
+    return p["Messages"]

@@ -7,7 +7,7 @@ __all__ = ["Gen_SomeIpSkeletonC"]
 
 def Gen_SomeIpSkeletonC(cfg, service, dir, source):
     allStructs = GetStructs(cfg)
-    service_name = service["name"]
+    service_name = service["Name"]
     source["%sSkeletonC" % (service_name)] = ["%s/%sSkeleton.c" % (dir, service_name)]
     
     # Create Jinja2 environment
@@ -37,9 +37,10 @@ def Gen_SomeIpSkeletonC(cfg, service, dir, source):
     import datetime
     context = {
         "cfg": cfg,
-        "service": service,
+        "Service": service,
         "service_name": service_name,
         "allStructs": allStructs,
+        "hasE2E": ServiceUsesE2E(service),
         "now": datetime.datetime.now()
     }
     

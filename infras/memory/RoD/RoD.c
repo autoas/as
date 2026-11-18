@@ -21,25 +21,25 @@ Std_ReturnType Rod_ReadData(const RoD_ConfigType *config, uint16_t dataId, const
   const RoD_DataType *dinfo;
   uint16_t crc;
 
-  if ((ROD_MAGIC_NUMBER == config->magic) && (config->magic == ((uint32_t)~config->invMagic)) &&
-      (config->numOfData == ((uint16_t)~config->invNumOfData)) && (dataId < config->numOfData)) {
-    dinfo = &config->datas[dataId];
-    if (dinfo->crc == ((uint16_t)~dinfo->invCrc)) {
-      crc = Crc_CalculateCRC16(dinfo->data, dinfo->size, 0xFFFF, TRUE);
-      if (crc == dinfo->crc) {
-        *pData = dinfo->data;
-        *size = dinfo->size;
+  if ((ROD_MAGIC_NUMBER == config->Magic) && (config->Magic == ((uint32_t)~config->InvMagic)) &&
+      (config->NumOfData == ((uint16_t)~config->InvNumOfData)) && (dataId < config->NumOfData)) {
+    dinfo = &config->Datas[dataId];
+    if (dinfo->Crc == ((uint16_t)~dinfo->InvCrc)) {
+      crc = Crc_CalculateCRC16(dinfo->Data, dinfo->Size, 0xFFFF, TRUE);
+      if (crc == dinfo->Crc) {
+        *pData = dinfo->Data;
+        *size = dinfo->Size;
         ret = E_OK;
-        ASLOG(ROD, ("[%" PRIu16 "] data %p size %" PRIu16 "\n", dataId, dinfo->data, dinfo->size));
+        ASLOG(ROD, ("[%" PRIu16 "] data %p size %" PRIu16 "\n", dataId, dinfo->Data, dinfo->Size));
       } else {
-        ASLOG(RODE, ("[%" PRIu16 "] CRC %" PRIx16 " != %" PRIx16 "\n", dataId, crc, dinfo->crc));
+        ASLOG(RODE, ("[%" PRIu16 "] CRC %" PRIx16 " != %" PRIx16 "\n", dataId, crc, dinfo->Crc));
       }
     }
   } else {
     ASLOG(RODE, ("[%" PRIu16 "] Addr=%p Magic = %08" PRIx8 " %08" PRIx8 " Number %04" PRIx16
                  " %04" PRIx16 "\n",
-                 dataId, config, config->magic, config->invMagic, config->numOfData,
-                 config->invNumOfData));
+                 dataId, config, config->Magic, config->InvMagic, config->NumOfData,
+                 config->InvNumOfData));
   }
 
   return ret;

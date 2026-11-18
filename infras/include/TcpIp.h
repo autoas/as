@@ -4,8 +4,8 @@
  *
  * ref: Specification of TCP/IP Stack AUTOSAR CP Release 4.4.0
  */
-#ifndef _TCPIP_H
-#define _TCPIP_H
+#ifndef TCPIP_H
+#define TCPIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #define STD_NO_ERRNO_H
 #include "Std_Types.h"
@@ -60,23 +60,23 @@ typedef enum {
 
 /* @SWS_TCPIP_00012 */
 typedef struct {
-  // TcpIp_DomainType dormain;
-  uint16_t port;
-  uint8_t addr[4]; /* NOTE: now only support IPv4 */
+  // TcpIp_DomainType Domain;
+  uint16_t Port;
+  uint8_t Addr[4]; /* NOTE: now only support IPv4 */
 } TcpIp_SockAddrType;
 
 /* @SWS_TCPIP_00013 */
 typedef struct {
-  TcpIp_DomainType dormain;
-  uint16_t port;
-  uint32_t addr[1]; /* IPv4 address in network byte order */
+  TcpIp_DomainType Domain;
+  uint16_t Port;
+  uint32_t Addr[1]; /* IPv4 address in network byte order */
 } TcpIp_SockAddrInetType;
 
 /* @SWS_TCPIP_00014 */
 typedef struct {
-  TcpIp_DomainType dormain;
-  uint16_t port;
-  uint32_t addr[4];
+  TcpIp_DomainType Domain;
+  uint16_t Port;
+  uint32_t Addr[4];
 } TcpIp_SockAddrInet6Type;
 
 /* @SWS_TCPIP_00065 */
@@ -96,60 +96,60 @@ typedef struct TcpIp_Config_s TcpIp_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_TCPIP_00002 */
-void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr);
+void TcpIp_Init(const TcpIp_ConfigType *configPtr);
 
-Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t ipv4Addr,
+Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *remoteAddrPtr, uint32_t ipv4Addr,
                                    uint16_t port);
 
 uint32_t TcpIp_InetAddr(const char *ip);
 
-Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
-                               uint8_t *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
+Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType localAddrId, TcpIp_SockAddrType *ipAddrPtr,
+                               uint8_t *netmaskPtr, TcpIp_SockAddrType *defaultRouterPtr);
 
-Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr);
+Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *addr);
 
 /* @SWS_TCPIP_00026 */
 void TcpIp_MainFunction(void);
 
 TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol);
 
-Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean nonBlocked);
+Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType socketId, boolean nonBlocked);
 
-Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType SocketId, uint32_t timeoutMs);
+Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType socketId, uint32_t timeoutMs);
 
 /* @SWS_TCPIP_00017 */
-Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort);
+Std_ReturnType TcpIp_Close(TcpIp_SocketIdType socketId, boolean abort);
 
 /* @SWS_TCPIP_00015 */
-Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId,
-                          uint16_t *PortPtr);
+Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType socketId, TcpIp_LocalAddrIdType localAddrId,
+                          uint16_t *portPtr);
 
-Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *ipv4Addr);
+Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *ipv4Addr);
 
-Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId);
+Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType socketId, TcpIp_LocalAddrIdType localAddrId);
 
 /* @SWS_TCPIP_00022 */
-Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
-                                const TcpIp_SockAddrType *RemoteAddrPtr);
+Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType socketId,
+                                const TcpIp_SockAddrType *remoteAddrPtr);
 
 /* @SWS_TCPIP_00023 */
-Std_ReturnType TcpIp_TcpListen(TcpIp_SocketIdType SocketId, uint16_t MaxChannels);
+Std_ReturnType TcpIp_TcpListen(TcpIp_SocketIdType socketId, uint16_t maxChannels);
 
-Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType SocketId, TcpIp_SocketIdType *AcceptSock,
-                               TcpIp_SockAddrType *RemoteAddrPtr);
+Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType socketId, TcpIp_SocketIdType *acceptSock,
+                               TcpIp_SockAddrType *remoteAddrPtr);
 
-Std_ReturnType TcpIp_IsTcpStatusOK(TcpIp_SocketIdType SocketId);
+Std_ReturnType TcpIp_IsTcpStatusOK(TcpIp_SocketIdType socketId);
 
-Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
-                          uint32_t *Length /* InOut */);
+Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType socketId, uint8_t *bufPtr,
+                          uint32_t *length /* InOut */);
 
-Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *RemoteAddrPtr,
-                              uint8_t *BufPtr, uint32_t *Length /* InOut */);
+Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *remoteAddrPtr,
+                              uint8_t *bufPtr, uint32_t *length /* InOut */);
 
-Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrType *RemoteAddrPtr,
-                            const uint8_t *BufPtr, uint32_t Length);
+Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType socketId, const TcpIp_SockAddrType *remoteAddrPtr,
+                            const uint8_t *bufPtr, uint32_t length);
 
-Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, uint32_t Length);
+Std_ReturnType TcpIp_Send(TcpIp_SocketIdType socketId, const uint8_t *bufPtr, uint32_t length);
 
 /*
  * Idel: The time (in seconds) the connection needs to remain idle before TCP starts sending
@@ -157,10 +157,10 @@ Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, ui
  * Interval: The time (in seconds) between individual keepalive probes.
  * Count: The maximum number of keepalive probes TCP should send before dropping the connection.
  **/
-Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, uint32_t Interval,
-                                  uint32_t Count);
+Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType socketId, uint32_t idel, uint32_t interval,
+                                  uint32_t count);
 
-uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId);
+uint16_t TcpIp_Tell(TcpIp_SocketIdType socketId);
 
 boolean TcpIp_IsLinkedUp(void);
 
@@ -169,4 +169,4 @@ void TcpIp_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _TCPIP_H */
+#endif /* TCPIP_H */

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef CANLIB_TYPES_H
-#define CANLIB_TYPES_H
+#ifndef CANLIB_TYPES_HPP
+#define CANLIB_TYPES_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #ifdef USE_STD_PRINTF
 #undef USE_STD_PRINTF
@@ -20,35 +20,35 @@
 #include <string>
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-typedef void (*can_device_rx_notification_t)(int busid, uint32_t canid, uint8_t dlc, uint8_t *data,
-                                             uint64_t timestamp);
-typedef bool (*can_device_probe_t)(int busid, uint32_t port, uint32_t baudrate,
-                                   can_device_rx_notification_t rx_notification);
-typedef bool (*can_device_write_t)(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                                   uint64_t timestamp);
-typedef bool (*can_device_reset_t)(uint32_t port);
-typedef void (*can_device_close_t)(uint32_t port);
-typedef void (*can_device_read_t)(uint32_t port);
+typedef void (*CanL_DeviceRxNotificationType)(int busId, uint32_t canId, uint8_t dlc, uint8_t *data,
+                                              uint64_t timestamp);
+typedef bool (*CanL_DeviceProbeType)(int busId, uint32_t port, uint32_t baudrate,
+                                     CanL_DeviceRxNotificationType rxNotification);
+typedef bool (*CanL_DeviceWriteType)(uint32_t port, uint32_t canId, uint8_t dlc,
+                                     const uint8_t *data, uint64_t timestamp);
+typedef bool (*CanL_DeviceResetType)(uint32_t port);
+typedef void (*CanL_DeviceCloseType)(uint32_t port);
+typedef void (*CanL_DeviceReadType)(uint32_t port);
 
 typedef struct {
-  std::string name;
-  can_device_probe_t probe;
-  can_device_close_t close;
-  can_device_write_t write;
-  can_device_reset_t reset;
-  can_device_read_t read;
-} Can_DeviceOpsType;
+  std::string Name;
+  CanL_DeviceProbeType Probe;
+  CanL_DeviceCloseType Close;
+  CanL_DeviceWriteType Write;
+  CanL_DeviceResetType Reset;
+  CanL_DeviceReadType Read;
+} CanL_DeviceOpsType;
 
 typedef struct {
-  std::string device_name;
-  int busid;
-  uint32_t port;
-  uint32_t baudrate;
-  const Can_DeviceOpsType *ops;
-} Can_DeviceType;
+  std::string DeviceName;
+  int BusId;
+  uint32_t Port;
+  uint32_t Baudrate;
+  const CanL_DeviceOpsType *Ops;
+} CanL_DeviceType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-bool can_is_perf_mode(void);
+bool CanL_IsPerfMode(void);
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* CANLIB_TYPES_H */
+#endif /* CANLIB_TYPES_HPP */

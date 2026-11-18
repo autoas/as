@@ -95,7 +95,7 @@ settings.set("llm.base_url", "https://api-inference.modelscope.cn/v1/")
 settings.set("llm.model", "Qwen/Qwen3.5-35B-A3B")
 
 agent = SparkAgent()
-config = [{"class": "Com", "networks": []}]
+config = [{"Class": "Com", "Networks": []}]
 agent.loadConfig(config)
 response = agent.chat("Load DBC file and configure COM stack")
 ```

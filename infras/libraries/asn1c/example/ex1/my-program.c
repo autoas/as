@@ -71,10 +71,10 @@ int encode() {
    */
   xer_fprint(stdout, &asn_DEF_MyTypes, myType);
 
-  size_t derLen = 4096;
   uint8_t derBuffer[1024];
 
-  asn_enc_rval_t ec = der_encode_to_buffer(&asn_DEF_MyTypes, myType, derBuffer, &derLen);
+  asn_enc_rval_t ec = der_encode_to_buffer(&asn_DEF_MyTypes, myType, derBuffer, sizeof(derBuffer));
+  size_t derLen = (size_t)ec.encoded;
 
   printf("encoded der len = %d, encoded=%d\n", (int)derLen, (int)ec.encoded);
   FILE *fp = fopen("MyTypes.der", "wb");
@@ -117,7 +117,7 @@ int decode(const char *filename) {
   /*
    * Decode the DER buffer.
    */
-  rval = ber_decode(0, &asn_DEF_MyTypes, &myType, buf, size);
+  rval = ber_decode(0, &asn_DEF_MyTypes, (void **)&myType, buf, size);
   assert(rval.code == RC_OK);
 
   /*

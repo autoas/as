@@ -15,17 +15,17 @@ using namespace as;
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  char device[CAN_DEVICE_NAME_SIZE];
-  int port;
-  int baudrate;
-  int busid;
-} LuaCan_t;
+  char Device[CAN_DEVICE_NAME_SIZE];
+  int Port;
+  int Baudrate;
+  int BusId;
+} LuaCan_Type;
 
-#define toLuaCan(L) ((LuaCan_t *)luaL_checkudata(L, 1, LUA_CAN_HANDLE))
+#define LuaCan_Check(L) ((LuaCan_Type *)luaL_checkudata(L, 1, LUA_CAN_HANDLE))
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static int LuaCan_open(lua_State *L) {
+static int LuaCan_Open(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (1 == n) {
     int isnum = FALSE;
@@ -33,11 +33,11 @@ static int LuaCan_open(lua_State *L) {
     if (FALSE == isnum) {
       return luaL_error(L, "invalid busid");
     }
-    LuaCan_t *luaCan = (LuaCan_t *)lua_newuserdatauv(L, sizeof(LuaCan_t), 0);
-    luaCan->device[0] = '\0';
-    luaCan->port = 0;
-    luaCan->baudrate = 0;
-    luaCan->busid = busid;
+    LuaCan_Type *luaCan = (LuaCan_Type *)lua_newuserdatauv(L, sizeof(LuaCan_Type), 0);
+    luaCan->Device[0] = '\0';
+    luaCan->Port = 0;
+    luaCan->Baudrate = 0;
+    luaCan->BusId = busid;
     (void)luaCan;
     luaL_setmetatable(L, LUA_CAN_HANDLE);
   } else if (3 == n) {
@@ -55,15 +55,15 @@ static int LuaCan_open(lua_State *L) {
     if (FALSE == isnum) {
       return luaL_error(L, "invalid baudrate");
     }
-    int busid = can_open(device, port, baudrate);
+    int busid = CanL_Open(device, port, baudrate);
     if (busid < 0) {
       return luaL_error(L, "open(%s, %d, %d) failed\n", device, port, baudrate);
     }
-    LuaCan_t *luaCan = (LuaCan_t *)lua_newuserdatauv(L, sizeof(LuaCan_t), 0);
-    strncpy(luaCan->device, device, sizeof(luaCan->device));
-    luaCan->port = port;
-    luaCan->baudrate = baudrate;
-    luaCan->busid = busid;
+    LuaCan_Type *luaCan = (LuaCan_Type *)lua_newuserdatauv(L, sizeof(LuaCan_Type), 0);
+    strncpy(luaCan->Device, device, sizeof(luaCan->Device));
+    luaCan->Port = port;
+    luaCan->Baudrate = baudrate;
+    luaCan->BusId = busid;
     (void)luaCan;
     luaL_setmetatable(L, LUA_CAN_HANDLE);
   } else {
@@ -73,45 +73,45 @@ static int LuaCan_open(lua_State *L) {
   return 1;
 }
 
-static const luaL_Reg s_LuaCanInferfaces[] = {
-  {"open", LuaCan_open},
+static const luaL_Reg s_LuaCanInterfaces[] = {
+  {"open", LuaCan_Open},
   {nullptr, nullptr},
 };
 
-static int LuaCan_gc(lua_State *L) {
-  LuaCan_t *luaCan = toLuaCan(L);
+static int LuaCan_Gc(lua_State *L) {
+  LuaCan_Type *luaCan = LuaCan_Check(L);
 
-  if ('\0' != luaCan->device[0]) {
-    can_close(luaCan->busid);
+  if ('\0' != luaCan->Device[0]) {
+    CanL_Close(luaCan->BusId);
   }
 
-  luaCan->busid = -1;
+  luaCan->BusId = -1;
 
   return 0;
 }
 
-static int LuaCan_tostring(lua_State *L) {
-  LuaCan_t *luaCan = toLuaCan(L);
-  if (luaCan->busid < 0)
+static int LuaCan_ToString(lua_State *L) {
+  LuaCan_Type *luaCan = LuaCan_Check(L);
+  if (luaCan->BusId < 0)
     lua_pushliteral(L, "LuaCan (closed)");
   else
-    lua_pushfstring(L, "LuaCan (%s, %d, %d) busid=%d", luaCan->device, luaCan->port,
-                    luaCan->baudrate, luaCan->busid);
+    lua_pushfstring(L, "LuaCan (%s, %d, %d) busid=%d", luaCan->Device, luaCan->Port,
+                    luaCan->Baudrate, luaCan->BusId);
   return 1;
 }
 /*
 ** metamethods for LuaCan handles
 */
-static const luaL_Reg LuaCan_metameth[] = {
+static const luaL_Reg s_LuaCanMetaMeth[] = {
   {"__index", NULL},               /* place holder */
-  {"__gc", LuaCan_gc},             /* clean up */
-  {"__close", LuaCan_gc},          /* close it */
-  {"__tostring", LuaCan_tostring}, /* check state */
+  {"__gc", LuaCan_Gc},             /* clean up */
+  {"__close", LuaCan_Gc},          /* close it */
+  {"__tostring", LuaCan_ToString}, /* check state */
   {NULL, NULL},
 };
 
-static int LuaCan_write(lua_State *L) {
-  LuaCan_t *luaCan = toLuaCan(L);
+static int LuaCan_Write(lua_State *L) {
+  LuaCan_Type *luaCan = LuaCan_Check(L);
   uint32_t canid;
   int r = 0;
   int isnum = FALSE;
@@ -136,7 +136,7 @@ static int LuaCan_write(lua_State *L) {
       return luaL_error(L, "invalid data");
     }
 
-    r = can_write(luaCan->busid, canid, (uint8_t)data.size(), data.data());
+    r = CanL_Write(luaCan->BusId, canid, (uint8_t)data.size(), data.data());
     if (TRUE != r) {
       return luaL_error(L, "can write failed");
     } else {
@@ -149,8 +149,8 @@ static int LuaCan_write(lua_State *L) {
   return 1;
 }
 
-static int LuaCan_read(lua_State *L) {
-  LuaCan_t *luaCan = toLuaCan(L);
+static int LuaCan_Read(lua_State *L) {
+  LuaCan_Type *luaCan = LuaCan_Check(L);
   uint32_t canid;
   uint8_t dlc;
   uint8_t data[64];
@@ -177,11 +177,11 @@ static int LuaCan_read(lua_State *L) {
     Std_TimerStart(&timer);
     do {
       dlc = sizeof(data);
-      r = can_read(luaCan->busid, &canid, &dlc, data);
+      r = CanL_Read(luaCan->BusId, &canid, &dlc, data);
       if (TRUE != r) {
         Std_Sleep(1000);
         dlc = sizeof(data);
-        r = can_read(luaCan->busid, &canid, &dlc, data);
+        r = CanL_Read(luaCan->BusId, &canid, &dlc, data);
       }
       if (TRUE != r) {
         if (Std_GetTimerElapsedTime(&timer) > timeoutUs) {
@@ -211,7 +211,7 @@ static int LuaCan_read(lua_State *L) {
   return 3;
 }
 
-static int LuaCan_sleep(lua_State *L) {
+static int LuaCan_Sleep(lua_State *L) {
   int isnum = FALSE;
   std_time_t timeoutUs = 0;
 
@@ -234,24 +234,24 @@ static int LuaCan_sleep(lua_State *L) {
 /*
 ** methods for LuaCan handles
 */
-static const luaL_Reg LuaCan_meth[] = {
-  {"write", LuaCan_write},
-  {"read", LuaCan_read},
-  {"sleep", LuaCan_sleep},
+static const luaL_Reg s_LuaCanMeth[] = {
+  {"write", LuaCan_Write},
+  {"read", LuaCan_Read},
+  {"sleep", LuaCan_Sleep},
   {NULL, NULL},
 };
 
-static void LuaCan_createmeta(lua_State *L) {
-  luaL_newmetatable(L, LUA_CAN_HANDLE); /* metatable for file handles */
-  luaL_setfuncs(L, LuaCan_metameth, 0); /* add metamethods to new metatable */
-  luaL_newlibtable(L, LuaCan_meth);     /* create method table */
-  luaL_setfuncs(L, LuaCan_meth, 0);     /* add file methods to method table */
-  lua_setfield(L, -2, "__index");       /* metatable.__index = method table */
-  lua_pop(L, 1);                        /* pop metatable */
+static void LuaCan_CreateMeta(lua_State *L) {
+  luaL_newmetatable(L, LUA_CAN_HANDLE);  /* metatable for file handles */
+  luaL_setfuncs(L, s_LuaCanMetaMeth, 0); /* add metamethods to new metatable */
+  luaL_newlibtable(L, s_LuaCanMeth);     /* create method table */
+  luaL_setfuncs(L, s_LuaCanMeth, 0);     /* add file methods to method table */
+  lua_setfield(L, -2, "__index");        /* metatable.__index = method table */
+  lua_pop(L, 1);                         /* pop metatable */
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 int lua_create_can(lua_State *L) {
-  luaL_newlib(L, s_LuaCanInferfaces);
-  LuaCan_createmeta(L);
+  luaL_newlib(L, s_LuaCanInterfaces);
+  LuaCan_CreateMeta(L);
   return 1;
 }

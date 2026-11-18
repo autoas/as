@@ -14,23 +14,23 @@
 /* ================================ [ FUNCTIONS ] ============================================== */
 int main(int argc, char *argv[]) {
   const char *path = argv[1];
-  odx_t *odx;
+  Odx_Type *odx;
 
-  odx = odx_open(path);
+  odx = Odx_Open(path);
   if (odx != NULL) {
-    for (size_t i = 0; i < odx->numOfMems; i++) {
-      odx_mem_t *mem = odx->mems[i];
-      printf("mem[%lld]: %s\n", i, mem->name);
-      for (size_t j = 0; j < mem->numOfBlocks; j++) {
-        odx_block_t *block = mem->blocks[j];
-        printf("  block[%lld]: %s size=%llu data = ", j, block->name, block->size);
-        for (size_t k = 0; (k < 8) && (k < block->size); k++) {
-          printf("%02X", block->data[k]);
+    for (size_t i = 0; i < odx->NumOfMems; i++) {
+      Odx_MemType *mem = odx->Mems[i];
+      printf("mem[%lld]: %s\n", i, mem->Name);
+      for (size_t j = 0; j < mem->NumOfBlocks; j++) {
+        Odx_BlockType *block = mem->Blocks[j];
+        printf("  block[%lld]: %s size=%llu data = ", j, block->Name, block->Size);
+        for (size_t k = 0; (k < 8) && (k < block->Size); k++) {
+          printf("%02X", block->Data[k]);
         }
         printf("\n");
       }
     }
-    odx_close(odx);
+    Odx_Close(odx);
   }
 
   return 0;

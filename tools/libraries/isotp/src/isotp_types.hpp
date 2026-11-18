@@ -23,32 +23,32 @@ using namespace std::literals::chrono_literals;
 #define AS_LOG_ISOTPI 2
 #define AS_LOG_ISOTPE 3
 /* ================================ [ TYPES     ] ============================================== */
-struct isotp_s {
+struct IsoTp_s {
   uint8_t Channel;
-  Std_TimerType timerErrorNotify;
-  uint32_t errorTimeout; /* in us */
+  Std_TimerType TimerErrorNotify;
+  uint32_t ErrorTimeout; /* in us */
   struct {
-    uint8_t *data;
-    size_t length;
-    size_t index;
-  } TX;
+    uint8_t *Data;
+    size_t Length;
+    size_t Index;
+  } Tx;
 
   struct {
-    uint8_t data[4096];
-    size_t length;
-    size_t index;
-    boolean bInUse;
-  } RX;
+    uint8_t Data[4096];
+    size_t Length;
+    size_t Index;
+    boolean IsInUse;
+  } Rx;
 
-  std::thread serverThread;
-  std::mutex mutex;
-  Semaphore sem;
+  std::thread ServerThread;
+  std::mutex Mutex;
+  Semaphore Sem;
 
-  volatile boolean running;
-  volatile int result;
+  volatile boolean Running;
+  volatile int Result;
 
-  isotp_parameter_t params;
-  void *priv;
+  IsoTp_ParameterType Params;
+  void *Priv;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

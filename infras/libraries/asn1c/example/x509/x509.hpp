@@ -21,16 +21,16 @@
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-class x509 {
+class X509 {
 public:
-  x509(std::string der); /* load x509 from *.der file */
-  ~x509();
+  X509(std::string der); /* load x509 from *.der file */
+  ~X509();
 
 public:
-  std::vector<uint8_t> public_key();
-  std::vector<uint8_t> signature();
+  std::vector<uint8_t> PublicKey();
+  std::vector<uint8_t> Signature();
 
-  std::vector<uint8_t> tbs_certificate();
+  std::vector<uint8_t> TbsCertificate();
 
 private:
   Certificate_t *m_Certificate = nullptr;

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef _MESSAGE_QUEUE_HPP_
-#define _MESSAGE_QUEUE_HPP_
+#ifndef MESSAGEQUEUE_HPP
+#define MESSAGEQUEUE_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <memory>
 #include <queue>
@@ -26,7 +26,7 @@ public:
   ~MessageQueue() {
   }
 
-  void put(T &msg) {
+  void Put(T &msg) {
     std::unique_lock<std::mutex> lck(m_Lock);
     m_Queue.push(msg);
     m_CondVar.notify_one();
@@ -37,11 +37,11 @@ public:
     }
   }
 
-  bool get(T &out, bool FIFO = true, uint32_t timeoutMs = 1000) {
+  bool Get(T &out, bool FIFO = true, uint32_t timeoutMs = 1000) {
     bool ret = true;
     std::unique_lock<std::mutex> lck(m_Lock);
     if (false == m_Queue.empty()) {
-      pop(out, FIFO);
+      Pop(out, FIFO);
     } else {
       if (0 == timeoutMs) {
         ret = false;
@@ -49,7 +49,7 @@ public:
         auto status = m_CondVar.wait_for(lck, std::chrono::milliseconds(timeoutMs));
         if (std::cv_status::timeout != status) {
           if (false == m_Queue.empty()) {
-            pop(out, FIFO);
+            Pop(out, FIFO);
           } else {
             ret = false;
             LOG(DEBUG, "%s: MessageQueue empty\n", m_Name.c_str());
@@ -64,12 +64,12 @@ public:
     return ret;
   }
 
-  size_t size(void) {
+  size_t Size(void) {
     std::unique_lock<std::mutex> lck(m_Lock);
     return m_Queue.size();
   }
 
-  void clear() {
+  void Clear(void) {
     std::unique_lock<std::mutex> lck(m_Lock);
     while (false == m_Queue.empty()) {
       m_Queue.pop();
@@ -77,12 +77,12 @@ public:
   }
 
 public:
-  static std::shared_ptr<MessageQueue<T>> add(std::string name, uint32_t capability = 0);
-  static std::shared_ptr<MessageQueue<T>> find(std::string name);
-  static std::vector<std::string> topics(void);
+  static std::shared_ptr<MessageQueue<T>> Add(std::string name, uint32_t capability = 0);
+  static std::shared_ptr<MessageQueue<T>> Find(std::string name);
+  static std::vector<std::string> Topics(void);
 
 private:
-  void pop(T &out, bool FIFO) {
+  void Pop(T &out, bool FIFO) {
     if (FIFO) {
       out = m_Queue.front();
       m_Queue.pop();
@@ -115,8 +115,8 @@ public:
   ~MessageBroker() {
   }
 
-  std::shared_ptr<MessageQueue<T>> create_subscriber(std::string subscriberName,
-                                                     uint32_t capability = 0) {
+  std::shared_ptr<MessageQueue<T>> CreateSubscriber(std::string subscriberName,
+                                                    uint32_t capability = 0) {
     std::shared_ptr<MessageQueue<T>> sub = nullptr;
     std::unique_lock<std::mutex> lck(m_Lock);
     auto it = m_MsgQueueMap.find(subscriberName);
@@ -130,7 +130,7 @@ public:
     return sub;
   }
 
-  void remove_subscriber(std::string subscriberName) {
+  void RemoveSubscriber(std::string subscriberName) {
     std::unique_lock<std::mutex> lck(m_Lock);
     auto it = m_MsgQueueMap.find(subscriberName);
     if (it != m_MsgQueueMap.end()) {
@@ -138,10 +138,10 @@ public:
     }
   }
 
-  void put(T &msg) {
+  void Put(T &msg) {
     std::unique_lock<std::mutex> lck(m_Lock);
     for (auto it : m_MsgQueueMap) {
-      it.second->put(msg);
+      it.second->Put(msg);
     }
   }
 
@@ -151,8 +151,8 @@ private:
   std::map<std::string, std::shared_ptr<MessageQueue<T>>> m_MsgQueueMap;
 
 public:
-  static std::shared_ptr<MessageBroker<T>> add(std::string name);
-  static std::vector<std::string> topics(void);
+  static std::shared_ptr<MessageBroker<T>> Add(std::string name);
+  static std::vector<std::string> Topics(void);
 
 private:
   static std::mutex s_MapLock;
@@ -167,10 +167,10 @@ public:
   ~MessagePublisher() {
   }
 
-  bool create(std::string topicName) {
+  bool Create(std::string topicName) {
     bool ret = true;
 
-    m_Broker = MessageBroker<T>::add(topicName);
+    m_Broker = MessageBroker<T>::Add(topicName);
     if (nullptr == m_Broker) {
       ret = false;
     }
@@ -178,8 +178,8 @@ public:
     return ret;
   }
 
-  void put(T &msg) {
-    m_Broker->put(msg);
+  void Put(T &msg) {
+    m_Broker->Put(msg);
   }
 
 private:
@@ -194,18 +194,18 @@ public:
 
   ~MessageSubscriber() {
     if (m_Sub != nullptr) {
-      m_Broker->remove_subscriber(m_Name);
+      m_Broker->RemoveSubscriber(m_Name);
     }
   }
 
-  bool create(std::string topicName, uint32_t capability = 0) {
+  bool Create(std::string topicName, uint32_t capability = 0) {
     bool ret = true;
 
-    m_Broker = MessageBroker<T>::add(topicName);
+    m_Broker = MessageBroker<T>::Add(topicName);
     if (nullptr == m_Broker) {
       ret = false;
     } else {
-      m_Sub = m_Broker->create_subscriber(m_Name, capability);
+      m_Sub = m_Broker->CreateSubscriber(m_Name, capability);
       if (nullptr == m_Sub) {
         ret = false;
       }
@@ -214,11 +214,11 @@ public:
     return ret;
   }
 
-  bool get(T &out, bool FIFO = true, uint32_t timeoutMs = 1000) {
+  bool Get(T &out, bool FIFO = true, uint32_t timeoutMs = 1000) {
     bool ret = true;
 
     if (nullptr != m_Sub) {
-      ret = m_Sub->get(out, FIFO, timeoutMs);
+      ret = m_Sub->Get(out, FIFO, timeoutMs);
     } else {
       ret = false;
     }
@@ -243,7 +243,7 @@ std::map<std::string, std::shared_ptr<MessageBroker<T>>> MessageBroker<T>::s_Bro
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 template <typename T>
-std::shared_ptr<MessageQueue<T>> MessageQueue<T>::add(std::string name, uint32_t capability) {
+std::shared_ptr<MessageQueue<T>> MessageQueue<T>::Add(std::string name, uint32_t capability) {
   std::shared_ptr<MessageQueue<T>> ptr = nullptr;
   std::unique_lock<std::mutex> lck(s_MapLock);
   auto it = s_MsgQueueMap.find(name);
@@ -258,7 +258,7 @@ std::shared_ptr<MessageQueue<T>> MessageQueue<T>::add(std::string name, uint32_t
   return ptr;
 }
 
-template <typename T> std::shared_ptr<MessageQueue<T>> MessageQueue<T>::find(std::string name) {
+template <typename T> std::shared_ptr<MessageQueue<T>> MessageQueue<T>::Find(std::string name) {
   std::shared_ptr<MessageQueue<T>> ptr = nullptr;
   std::unique_lock<std::mutex> lck(s_MapLock);
   auto it = s_MsgQueueMap.find(name);
@@ -270,7 +270,7 @@ template <typename T> std::shared_ptr<MessageQueue<T>> MessageQueue<T>::find(std
   return ptr;
 }
 
-template <typename T> std::vector<std::string> MessageQueue<T>::topics() {
+template <typename T> std::vector<std::string> MessageQueue<T>::Topics(void) {
   std::vector<std::string> ts;
   std::unique_lock<std::mutex> lck(s_MapLock);
   for (auto it : s_MsgQueueMap) {
@@ -280,7 +280,7 @@ template <typename T> std::vector<std::string> MessageQueue<T>::topics() {
 }
 
 template <typename T>
-std::shared_ptr<MessageBroker<T>> MessageBroker<T>::add(std::string topicName) {
+std::shared_ptr<MessageBroker<T>> MessageBroker<T>::Add(std::string topicName) {
   std::shared_ptr<MessageBroker<T>> ptr = nullptr;
   std::unique_lock<std::mutex> lck(s_MapLock);
   auto it = s_BrokerMap.find(topicName);
@@ -295,7 +295,7 @@ std::shared_ptr<MessageBroker<T>> MessageBroker<T>::add(std::string topicName) {
   return ptr;
 }
 
-template <typename T> std::vector<std::string> MessageBroker<T>::topics() {
+template <typename T> std::vector<std::string> MessageBroker<T>::Topics(void) {
   std::vector<std::string> ts;
   std::unique_lock<std::mutex> lck(s_MapLock);
   for (auto it : s_BrokerMap) {
@@ -304,4 +304,4 @@ template <typename T> std::vector<std::string> MessageBroker<T>::topics() {
   return ts;
 }
 } /* namespace as */
-#endif /* _MESSAGE_QUEUE_HPP_ */
+#endif /* MESSAGEQUEUE_HPP */

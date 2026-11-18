@@ -1,60 +1,55 @@
 {
-  "class": "Com",
+  "Class": "Com",
   "E2E": "../E2E/E2E.json",
-  "networks": [
+  "Networks": [
     {
-      "name": "CAN0",
-      "network": "CAN",
-      "device": "simulator_v2",
-      "port": 0,
-      "baudrate": 500000,
-      "me": "AS",
-      "groups": [
+      "Name": "CAN0",
+      "Network": "CAN",
+      "Device": "simulator_v2",
+      "Port": 0,
+      "Baudrate": 500000,
+      "Me": "AS",
+      "Groups": [
         {
-          "SystemTime": ["year", "month", "day", "hour", "minute", "second"]
+          "Name": "SystemTime", "Signals": ["year", "month", "day", "hour", "minute", "second"]
         }
       ],
-      "use_dbc": true,
-      "dbc": "CAN0.dbc",
-      "trigger": ["CanNmUserData"],
-      "messages": [
+      "UseDbc": true,
+      "Dbc": "CAN0.dbc",
+      "Trigger": ["CanNmUserData"],
+      "Messages": [
         {
-          "name": "SECOC_MSG0", "id": "0x99", "dlc": 36,
-          "node": "AS", "CycleTime": 1000,
-          "signals": [
-            { "name": "VehicleConfig", "start": 7, "size": 288, "endian": "big", "InitialValue": "[i for i in range(32)]",
-              "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "Other"] }
+          "Name": "SECOC_MSG0", "Id": "0x99", "Dlc": 36,
+          "Node": "AS", "CycleTime": 1000,
+          "Signals": [
+            { "Name": "VehicleConfig", "Start": 7, "Size": 288, "Endian": "big", "InitialValue": "[i for i in range(32)]",
+              "Sign": "+", "Factor": 1, "Offset": 0, "Min": 0, "Max": 0, "Node": [ "Other"] }
           ]
         },
         {
-          "name": "SECOC_MSG1", "id": "0x98", "dlc": 36,
-          "node": "Other",
-          "signals": [
-            { "name": "VehicleConfig2", "start": 7, "size": 288, "endian": "big",
-              "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 0, "node": [ "AS"] }
+          "Name": "SECOC_MSG1", "Id": "0x98", "Dlc": 36,
+          "Node": "Other",
+          "Signals": [
+            { "Name": "VehicleConfig2", "Start": 7, "Size": 288, "Endian": "big",
+              "Sign": "+", "Factor": 1, "Offset": 0, "Min": 0, "Max": 0, "Node": [ "AS"] }
           ]
         }
       ],
-      "enable_message_tx_callout": true,
-      "enable_message_rx_callout": true,
-      "E2E": [ { "name": "RxMsgAbsInfo", "profile": "P11" },
-               { "name": "TxMsgTime", "profile": "P11" } ]
+      "EnableMessageTxCallout": true,
+      "EnableMessageRxCallout": true,
+      "E2E": [ { "Name": "RxMsgAbsInfo", "Profile": "P11" },
+               { "Name": "TxMsgTime", "Profile": "P11" } ]
     },
     {
-      "name": "CAN1",
-      "network": "CAN",
-      "device": "simulator_v2",
-      "port": 1,
-      "baudrate": 500000,
-      "me": "AS",
-      "groups": [
-        {
-          "SystemTime_": ["year", "month", "day", "hour", "minute", "second"]
-        }
-      ],
-      "use_dbc": true,
-      "dbc": "CAN0.dbc",
-      "trigger": ["CanNmUserData"]
+      "Name": "CAN1",
+      "Network": "CAN",
+      "Device": "simulator_v2",
+      "Port": 1,
+      "Baudrate": 500000,
+      "Me": "AS",
+      "UseDbc": true,
+      "Dbc": "CAN0.dbc",
+      "Trigger": ["CanNmUserData"]
     }
   ]
 }

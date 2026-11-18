@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UI_TESTER_HPP__
-#define __UI_TESTER_HPP__
+#ifndef UITESTER_HPP
+#define UITESTER_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QTextEdit>
@@ -32,11 +32,11 @@ private:
   std::string GetCellValue(XLWorksheet &sheet, int row, int col);
 
 private:
-  QTextEdit *m_teInfo;
-  QLineEdit *m_leExcel;
-  QPushButton *m_btnOpenExcel;
-  QPushButton *m_btnStart;
-  QProgressBar *m_pgbProgress;
+  QTextEdit *m_TeInfo;
+  QLineEdit *m_LeExcel;
+  QPushButton *m_BtnOpenExcel;
+  QPushButton *m_BtnStart;
+  QProgressBar *m_PgbProgress;
 
   XLTester m_XLTester;
 };
@@ -44,4 +44,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UI_TESTER_HPP__ */
+#endif /* UITESTER_HPP */

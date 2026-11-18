@@ -76,7 +76,7 @@
 #define E_ACK (0xdeadacc0)
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  int port;
+  int Port;
   uint32_t delayUs; /* delay for each byte */
   UCHAR mOutBuffer[mCH341A_CMD_I2C_STM_MAX * mCH341A_CMD_I2C_PACKET_MAX];
   ULONG mOutLength;
@@ -96,19 +96,19 @@ typedef struct {
   BOOL (*CH341StreamI2C)(ULONG, ULONG, PVOID, ULONG, PVOID);
 } CH341_I2C_InterfaceType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int dev_ch341_i2c_open(const char *device, const char *option, void **param);
-static int dev_ch341_i2c_read(void *param, uint8_t *data, size_t size);
-static int dev_ch341_i2c_write(void *param, const uint8_t *data, size_t size);
-static void dev_ch341_i2c_close(void *param);
-static int dev_ch341_i2c_ioctl(void *param, int type, const void *data, size_t size);
+static int Dev_Ch341I2cOpen(const char *device, const char *option, void **param);
+static int Dev_Ch341I2cRead(void *param, uint8_t *data, size_t size);
+static int Dev_Ch341I2cWrite(void *param, const uint8_t *data, size_t size);
+static void Dev_Ch341I2cClose(void *param);
+static int Dev_Ch341I2cIoCtl(void *param, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Dev_DeviceOpsType ch341_i2c_dev_ops = {
-  .name = "CH341_I2C/",
-  .open = dev_ch341_i2c_open,
-  .read = dev_ch341_i2c_read,
-  .write = dev_ch341_i2c_write,
-  .ioctl = dev_ch341_i2c_ioctl,
-  .close = dev_ch341_i2c_close,
+extern "C" const Dev_DeviceOpsType Dev_Ch341I2cOps = {
+  .Name = "CH341_I2C/",
+  .Open = Dev_Ch341I2cOpen,
+  .Read = Dev_Ch341I2cRead,
+  .Write = Dev_Ch341I2cWrite,
+  .IoCtl = Dev_Ch341I2cIoCtl,
+  .Close = Dev_Ch341I2cClose,
 };
 
 static CH341_I2C_InterfaceType CH341_I2C_Interface = {
@@ -139,7 +139,7 @@ static int openDriver(void) {
   return r;
 }
 
-static int dev_ch341_i2c_open(const char *device, const char *option, void **param) {
+static int Dev_Ch341I2cOpen(const char *device, const char *option, void **param) {
   int baudrate, port;
   int r = 0;
   HANDLE handle;
@@ -192,7 +192,7 @@ static int dev_ch341_i2c_open(const char *device, const char *option, void **par
   if (0 == r) {
     *param = malloc(sizeof(Dev_CH341I2CParamType));
     memset(*param, 0, sizeof(Dev_CH341I2CParamType));
-    PPARAM(*param)->port = port;
+    PPARAM(*param)->Port = port;
     PPARAM(*param)->delayUs = 0;
     ASLOG(INFO, ("ch341_i2c open(%d, %d) OK\n", port, baudrate));
   }
@@ -200,20 +200,20 @@ static int dev_ch341_i2c_open(const char *device, const char *option, void **par
   return r;
 }
 
-static int dev_ch341_i2c_read(void *param, uint8_t *data, size_t size) {
+static int Dev_Ch341I2cRead(void *param, uint8_t *data, size_t size) {
   return -1;
 }
 
-static int dev_ch341_i2c_write(void *param, const uint8_t *data, size_t size) {
+static int Dev_Ch341I2cWrite(void *param, const uint8_t *data, size_t size) {
   return -1;
 }
 
-static void dev_ch341_i2c_close(void *param) {
-  CH341_CALL(CloseDevice)((ULONG)PPARAM(param)->port);
+static void Dev_Ch341I2cClose(void *param) {
+  CH341_CALL(CloseDevice)((ULONG)PPARAM(param)->Port);
   free(param);
 }
 
-static int i2c_add_streams(Dev_CH341I2CParamType *dev, UCHAR *streams, ULONG num) {
+static int Dev_I2cAddStreams(Dev_CH341I2CParamType *dev, UCHAR *streams, ULONG num) {
   int r = 0;
 
   ULONG lastPoint = 0;
@@ -244,13 +244,13 @@ static int i2c_add_streams(Dev_CH341I2CParamType *dev, UCHAR *streams, ULONG num
   return r;
 }
 
-static int i2c_start(Dev_CH341I2CParamType *dev) {
+static int Dev_I2cStart(Dev_CH341I2CParamType *dev) {
   int r = 0;
   UCHAR mBuffer[1] = {mCH341A_CMD_I2C_STM_STA};
 
-  r = i2c_add_streams(dev, mBuffer, 1);
+  r = Dev_I2cAddStreams(dev, mBuffer, 1);
 
-  ASLOG(CH341, ("i2c_start(%d) = %d\n", dev->port, r));
+  ASLOG(CH341, ("Dev_I2cStart(%d) = %d\n", dev->Port, r));
   return r;
 }
 
@@ -267,60 +267,60 @@ static int i2c_delayUs(Dev_CH341I2CParamType *dev, uint32_t delayUs) {
       mBuffer[0] = mCH341A_CMD_I2C_STM_MS | (mCH341A_CMD_I2C_STM_DLY & delay);
     }
 
-    r = i2c_add_streams(dev, mBuffer, 1);
+    r = Dev_I2cAddStreams(dev, mBuffer, 1);
 
-    ASLOG(CH341, ("i2c_delay(%d) = %d\n", dev->port, r));
+    ASLOG(CH341, ("Dev_I2cDelay(%d) = %d\n", dev->Port, r));
   }
 
   return r;
 }
 
-static int i2c_delay(Dev_CH341I2CParamType *dev) {
+static int Dev_I2cDelay(Dev_CH341I2CParamType *dev) {
   return i2c_delayUs(dev, dev->delayUs);
 }
 
-static int i2c_stop(Dev_CH341I2CParamType *dev) {
+static int Dev_I2cStop(Dev_CH341I2CParamType *dev) {
   int r = 0;
   UCHAR mBuffer[1] = {mCH341A_CMD_I2C_STM_STO};
 
-  r = i2c_add_streams(dev, mBuffer, 1);
+  r = Dev_I2cAddStreams(dev, mBuffer, 1);
 
-  ASLOG(CH341, ("i2c_stop(%d) = %d\n", dev->port, r));
+  ASLOG(CH341, ("Dev_I2cStop(%d) = %d\n", dev->Port, r));
   return r;
 }
 
-static int i2c_restart(Dev_CH341I2CParamType *dev) {
+static int Dev_I2cRestart(Dev_CH341I2CParamType *dev) {
   int r;
 
-  r = i2c_stop(dev);
+  r = Dev_I2cStop(dev);
   if (0 == r) {
     /* for some low performance MCU, give the slave some response time */
     r = i2c_delayUs(dev, 1000);
     if (0 == r) {
-      r = i2c_start(dev);
+      r = Dev_I2cStart(dev);
     }
   }
 
   return r;
 }
 
-static int i2c_writeb(Dev_CH341I2CParamType *dev, uint8_t byte) {
+static int Dev_I2cWriteb(Dev_CH341I2CParamType *dev, uint8_t byte) {
   int r = 0;
   /* only send one byte and returns an answer */
   UCHAR mBuffer[2] = {mCH341A_CMD_I2C_STM_OUT, byte};
 
-  r = i2c_add_streams(dev, mBuffer, 2);
+  r = Dev_I2cAddStreams(dev, mBuffer, 2);
 
   if (0 == r) {
-    r = i2c_delay(dev);
+    r = Dev_I2cDelay(dev);
   }
 
-  ASLOG(CH341, ("i2c_writeb(%d, %02X) = %d\n", dev->port, byte, r));
+  ASLOG(CH341, ("Dev_I2cWriteb(%d, %02X) = %d\n", dev->Port, byte, r));
 
   return r;
 }
 
-static int i2c_readb(Dev_CH341I2CParamType *dev, boolean noAck) {
+static int Dev_I2cReadb(Dev_CH341I2CParamType *dev, boolean noAck) {
   int r = 0;
   UCHAR mBuffer[1];
 
@@ -329,142 +329,142 @@ static int i2c_readb(Dev_CH341I2CParamType *dev, boolean noAck) {
   } else {
     mBuffer[0] = mCH341A_CMD_I2C_STM_IN | 1; /* send ack */
   }
-  r = i2c_add_streams(dev, mBuffer, 1);
+  r = Dev_I2cAddStreams(dev, mBuffer, 1);
 
   if (0 == r) {
-    r = i2c_delay(dev);
+    r = Dev_I2cDelay(dev);
   }
 
-  ASLOG(CH341, ("i2c_readb(%d) = %d, ack=%d\n", dev->port, r, noAck ? 1 : 0));
+  ASLOG(CH341, ("Dev_I2cReadb(%d) = %d, ack=%d\n", dev->Port, r, noAck ? 1 : 0));
 
   return r;
 }
 
-static int i2c_send_address(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cSendAddress(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
   uint8_t addr1;
 
   /* 7-bit addr */
-  addr1 = msg->addr << 1;
-  if (msg->flags & DEV_I2C_RD) {
+  addr1 = msg->Addr << 1;
+  if (msg->Flags & DEV_I2C_RD) {
     addr1 |= 1;
   }
 
-  r = i2c_writeb(dev, addr1);
+  r = Dev_I2cWriteb(dev, addr1);
 
   return r;
 }
 
-static int i2c_send_address_check(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cSendAddressCheck(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
-  uint16_t ignore_nack = msg->flags & DEV_I2C_IGNORE_NACK;
-  uint16_t no_write_ack = msg->flags & DEV_I2C_NO_WRITE_ACK;
+  uint16_t ignore_nack = msg->Flags & DEV_I2C_IGNORE_NACK;
+  uint16_t no_write_ack = msg->Flags & DEV_I2C_NO_WRITE_ACK;
   uint8_t ack = dev->mInBuffer[dev->mLength++];
   uint8_t addr1;
 
   /* 7-bit addr */
-  addr1 = msg->addr << 1;
-  if (msg->flags & DEV_I2C_RD) {
+  addr1 = msg->Addr << 1;
+  if (msg->Flags & DEV_I2C_RD) {
     addr1 |= 1;
   }
 
   if (0 == (ack & 0x80)) {
     /* has ack */
     if (0 != no_write_ack) {
-      ASLOG(ERROR, ("send addr = %X has ack(%X), flags=%X\n", addr1, ack, msg->flags));
+      ASLOG(ERROR, ("send addr = %X has ack(%X), flags=%X\n", addr1, ack, msg->Flags));
       r = -E_ACK; /* treate as NOK as has ACK */
     }
   } else if ((0 != ignore_nack) || (0 != no_write_ack)) {
     r = 0; /* treate as OK as ignore ACK or expect no write ack */
   } else {
-    ASLOG(ERROR, ("send addr = %X no ack(%X), flags=%X\n", addr1, ack, msg->flags));
+    ASLOG(ERROR, ("send addr = %X no ack(%X), flags=%X\n", addr1, ack, msg->Flags));
     r = -E_NO_ACK;
   }
 
-  ASLOG(CH341, ("send addr(%d) = %02X, ack=%02X\n", dev->port, addr1, ack));
+  ASLOG(CH341, ("send addr(%d) = %02X, ack=%02X\n", dev->Port, addr1, ack));
 
   return r;
 }
 
-static int i2c_recv_bytes(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cRecvBytes(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
   uint32_t i;
 
-  for (i = 0; (i < msg->len) && (0 == r); i++) {
-    r = i2c_readb(dev, (0 != (msg->flags & DEV_I2C_NO_READ_ACK)));
+  for (i = 0; (i < msg->Len) && (0 == r); i++) {
+    r = Dev_I2cReadb(dev, (0 != (msg->Flags & DEV_I2C_NO_READ_ACK)));
   }
 
   return r;
 }
 
-static int i2c_recv_bytes_check(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cRecvBytesCheck(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
   uint32_t i;
 
-  for (i = 0; (i < msg->len) && (0 == r); i++) {
-    msg->data[i] = dev->mInBuffer[dev->mLength++];
+  for (i = 0; (i < msg->Len) && (0 == r); i++) {
+    msg->Data[i] = dev->mInBuffer[dev->mLength++];
   }
 
   return r;
 }
 
-static int i2c_send_bytes(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cSendBytes(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
   uint32_t i;
 
-  for (i = 0; (i < msg->len) && (0 == r); i++) {
-    r = i2c_writeb(dev, msg->data[i]);
+  for (i = 0; (i < msg->Len) && (0 == r); i++) {
+    r = Dev_I2cWriteb(dev, msg->Data[i]);
   }
 
   return r;
 }
 
-static int i2c_send_bytes_check(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg) {
+static int Dev_I2cSendBytesCheck(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msg) {
   int r = 0;
   uint32_t i;
-  uint16_t ignore_nack = msg->flags & DEV_I2C_IGNORE_NACK;
-  uint16_t no_write_ack = msg->flags & DEV_I2C_NO_WRITE_ACK;
+  uint16_t ignore_nack = msg->Flags & DEV_I2C_IGNORE_NACK;
+  uint16_t no_write_ack = msg->Flags & DEV_I2C_NO_WRITE_ACK;
   uint8_t ack;
 
-  for (i = 0; (i < msg->len) && (0 == r); i++) {
+  for (i = 0; (i < msg->Len) && (0 == r); i++) {
     ack = dev->mInBuffer[dev->mLength++];
     if (0 == (ack & 0x80)) {
       /* has ack */
       if (0 != no_write_ack) {
         ASLOG(ERROR,
-              ("send data[%d] = %X has ack(%X), flags=%X\n", i, msg->data[i], ack, msg->flags));
+              ("send data[%d] = %X has ack(%X), flags=%X\n", i, msg->Data[i], ack, msg->Flags));
         r = -E_ACK; /* treate as NOK as has ACK */
       }
     } else if ((0 != ignore_nack) || (0 != no_write_ack)) {
       r = 0; /* treate as OK as ignore ACK or expect no write ack */
     } else {
-      ASLOG(ERROR, ("send data[%d] = %X no ack(%X), flags=%X\n", i, msg->data[i], ack, msg->flags));
+      ASLOG(ERROR, ("send data[%d] = %X no ack(%X), flags=%X\n", i, msg->Data[i], ack, msg->Flags));
       r = -E_NO_ACK;
     }
-    ASLOG(CH341, ("send byte(%d) = %02X, ack=%02X\n", dev->port, msg->data[i], ack));
+    ASLOG(CH341, ("send byte(%d) = %02X, ack=%02X\n", dev->Port, msg->Data[i], ack));
   }
 
   return r;
 }
 
-static int dev_ch341_i2c_transfer_check(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msgs,
+static int Dev_Ch341I2cTransferCheck(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msgs,
                                         uint32_t num, ULONG mInLen) {
   int r = 0;
   uint32_t i;
-  dev_i2c_msg_t *msg;
+  Dev_I2cMsgType *msg;
   dev->mLength = 0;
   for (i = 0; (i < num) && (0 == r); i++) {
     msg = &msgs[i];
-    if (0 == (msg->flags & DEV_I2C_NO_START)) {
+    if (0 == (msg->Flags & DEV_I2C_NO_START)) {
       if (0 == r) {
-        r = i2c_send_address_check(dev, msg);
+        r = Dev_I2cSendAddressCheck(dev, msg);
       }
     }
     if (0 == r) {
-      if (msg->flags & DEV_I2C_RD) {
-        r = i2c_recv_bytes_check(dev, msg);
+      if (msg->Flags & DEV_I2C_RD) {
+        r = Dev_I2cRecvBytesCheck(dev, msg);
       } else {
-        r = i2c_send_bytes_check(dev, msg);
+        r = Dev_I2cSendBytesCheck(dev, msg);
       }
     }
   }
@@ -478,7 +478,7 @@ static int dev_ch341_i2c_transfer_check(Dev_CH341I2CParamType *dev, dev_i2c_msg_
   return r;
 }
 
-static int i2c_stream_fix(Dev_CH341I2CParamType *dev) {
+static int Dev_I2cStreamFix(Dev_CH341I2CParamType *dev) {
   int r = 0;
   uint32_t lastStart;
   uint32_t lastLength;
@@ -566,10 +566,10 @@ static int i2c_stream_fix(Dev_CH341I2CParamType *dev) {
   return r;
 }
 
-static int dev_ch341_i2c_transfer(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msgs, uint32_t num) {
+static int Dev_Ch341I2cTransfer(Dev_CH341I2CParamType *dev, Dev_I2cMsgType *msgs, uint32_t num) {
   int r = 0;
   uint32_t i;
-  dev_i2c_msg_t *msg;
+  Dev_I2cMsgType *msg;
   ULONG mInLen = 0;
   ULONG mInLenTmp = 0;
   ULONG mLength = 0;
@@ -585,40 +585,40 @@ static int dev_ch341_i2c_transfer(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg
   dev->mOutBuffer[dev->mOutLength++] = mCH341A_CMD_I2C_STREAM;
   for (i = 0; (i < num) && (0 == r); i++) {
     msg = &msgs[i];
-    if (0 == (msg->flags & DEV_I2C_NO_START)) {
+    if (0 == (msg->Flags & DEV_I2C_NO_START)) {
       if (i > 0) {
-        r = i2c_restart(dev);
+        r = Dev_I2cRestart(dev);
       } else {
-        r = i2c_start(dev);
+        r = Dev_I2cStart(dev);
       }
       if (0 == r) {
-        r = i2c_send_address(dev, msg);
+        r = Dev_I2cSendAddress(dev, msg);
       }
     }
     if (0 == r) {
-      if (msg->flags & DEV_I2C_RD) {
-        r = i2c_recv_bytes(dev, msg);
+      if (msg->Flags & DEV_I2C_RD) {
+        r = Dev_I2cRecvBytes(dev, msg);
       } else {
-        r = i2c_send_bytes(dev, msg);
+        r = Dev_I2cSendBytes(dev, msg);
       }
     }
   }
 
   if (0 == r) { /* send stop bit */
-    if (0 == (msg->flags & DEV_I2C_NO_STOP)) {
-      r = i2c_stop(dev);
+    if (0 == (msg->Flags & DEV_I2C_NO_STOP)) {
+      r = Dev_I2cStop(dev);
     }
   }
 
   if (0 == r) {
     dev->mOutBuffer[dev->mOutLength++] = mCH341A_CMD_I2C_STM_END;
     dev->mOutPoints[dev->mOutNum++] = dev->mOutLength;
-    r = i2c_stream_fix(dev);
+    r = Dev_I2cStreamFix(dev);
   }
 
   if (0 == r) {
 #if AS_LOG_CH341I > 0
-    PRINTF("ch341_i2c(%d) request: [ ", dev->port);
+    PRINTF("ch341_i2c(%d) request: [ ", dev->Port);
     for (i = 0; i < dev->mOutLength; i++) {
       PRINTF("%02X ", dev->mOutBuffer[i]);
     }
@@ -627,33 +627,33 @@ static int dev_ch341_i2c_transfer(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg
     for (i = 0; i < dev->mOutNum; i++) {
       mLength = dev->mOutPoints[i] - lastPoint;
 #if AS_LOG_CH341 > 0
-      PRINTF("ch341_i2c(%d) packet %d: [ ", dev->port, i);
+      PRINTF("ch341_i2c(%d) packet %d: [ ", dev->Port, i);
       for (uint32_t j = 0; j < mLength; j++) {
         PRINTF("%02X ", dev->mOutBuffer[lastPoint + j]);
       }
       PRINTF("] @ %s\n", startTs);
 #endif
-      ret = CH341_CALL(WriteRead)((ULONG)dev->port, mLength, &dev->mOutBuffer[lastPoint],
+      ret = CH341_CALL(WriteRead)((ULONG)dev->Port, mLength, &dev->mOutBuffer[lastPoint],
                                   mCH341A_CMD_I2C_STM_MAX, 1, &mInLenTmp, &dev->mInBuffer[mInLen]);
       if (ret) {
         lastPoint = dev->mOutPoints[i];
         mInLen += mInLenTmp;
       } else {
         r = -__LINE__;
-        ASLOG(ERROR, ("ch341_i2c WriteRead(%d) failed for packet %d\n", dev->port, i));
+        ASLOG(ERROR, ("ch341_i2c WriteRead(%d) failed for packet %d\n", dev->Port, i));
       }
     }
 
     if (0 == r) {
 #if AS_LOG_CH341I > 0
       Std_GetDateTime(endTs, sizeof(endTs));
-      PRINTF("ch341_i2c(%d) respose: [ ", dev->port);
+      PRINTF("ch341_i2c(%d) respose: [ ", dev->Port);
       for (i = 0; i < mInLen; i++) {
         PRINTF("%02X ", dev->mInBuffer[i]);
       }
       PRINTF("] @ %s\n", endTs);
 #endif
-      r = dev_ch341_i2c_transfer_check(dev, msgs, num, mInLen);
+      r = Dev_Ch341I2cTransferCheck(dev, msgs, num, mInLen);
     }
   } else {
     ASLOG(ERROR, ("too much stream, r = %d\n", r));
@@ -662,7 +662,7 @@ static int dev_ch341_i2c_transfer(Dev_CH341I2CParamType *dev, dev_i2c_msg_t *msg
   return r;
 }
 
-static int dev_ch341_i2c_ioctl(void *param, int type, const void *data, size_t size) {
+static int Dev_Ch341I2cIoCtl(void *param, int type, const void *data, size_t size) {
   int r = -__LINE__;
   uint32_t num;
 
@@ -671,9 +671,9 @@ static int dev_ch341_i2c_ioctl(void *param, int type, const void *data, size_t s
     r = 0;
     break;
   case DEV_IOCTL_TRANSFER:
-    num = size / sizeof(dev_i2c_msg_t);
-    if ((data != nullptr) && (size == (num * sizeof(dev_i2c_msg_t)))) {
-      r = dev_ch341_i2c_transfer(PPARAM(param), (dev_i2c_msg_t *)data, num);
+    num = size / sizeof(Dev_I2cMsgType);
+    if ((data != nullptr) && (size == (num * sizeof(Dev_I2cMsgType)))) {
+      r = Dev_Ch341I2cTransfer(PPARAM(param), (Dev_I2cMsgType *)data, num);
     } else {
       r = -__LINE__;
     }
@@ -687,7 +687,7 @@ static int dev_ch341_i2c_ioctl(void *param, int type, const void *data, size_t s
       PPARAM(param)->delayUs = num; /* delay in ms */
       r = 0;
     } else {
-      ASLOG(ERROR, ("ch341_i2c(%d) delay %u is invalid\n", PPARAM(param)->port, num));
+      ASLOG(ERROR, ("ch341_i2c(%d) delay %u is invalid\n", PPARAM(param)->Port, num));
     }
     break;
   default:

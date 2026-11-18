@@ -37,41 +37,41 @@
 #endif
 
 /* see ISO 15765-2 2004 */
-#define N_PCI_MASK 0xF0u
-#define N_PCI_SF 0x00u
-#define N_PCI_FF 0x10u
-#define N_PCI_CF 0x20u
-#define N_PCI_FC 0x30u
-#define N_PCI_SF_DL 0x0Fu
+#define CANTP_N_PCI_MASK 0xF0u
+#define CANTP_N_PCI_SF 0x00u
+#define CANTP_N_PCI_FF 0x10u
+#define CANTP_N_PCI_CF 0x20u
+#define CANTP_N_PCI_FC 0x30u
+#define CANTP_N_PCI_SF_DL 0x0Fu
 /* Flow Control Status Mask */
-#define N_PCI_FS 0x0Fu
+#define CANTP_N_PCI_FS 0x0Fu
 /* Flow Control Status */
-#define N_PCI_CTS 0x00u
-#define N_PCI_WT 0x01u
-#define N_PCI_OVFLW 0x02u
+#define CANTP_N_PCI_CTS 0x00u
+#define CANTP_N_PCI_WT 0x01u
+#define CANTP_N_PCI_OVFLW 0x02u
 
-#define N_PCI_SN 0x0Fu
+#define CANTP_N_PCI_SN 0x0Fu
 
-#ifdef CANTP_FIX_LL_DL
-#define CanTp_GetDL(len, LL_DL) LL_DL
+#ifdef CANTP_FIX_LINK_LAYER_DATA_LENGTH
+#define CanTpGetDL(len, linkLayerDataLength) linkLayerDataLength
 #endif
 
 #ifdef USE_CANTP_CRITICAL
-#define tpEnterCritical() EnterCritical()
-#define tpExitCritical() ExitCritical();
+#define CanTpEnterCritical() EnterCritical()
+#define CanTpExitCritical() ExitCritical();
 #else
-#define tpEnterCritical()
-#define tpExitCritical()
+#define CanTpEnterCritical()
+#define CanTpExitCritical()
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 extern const CanTp_ConfigType CanTp_Config;
 
-static void CanTp_SendSF(PduIdType TxPduId);
+static void CanTp_SendSF(PduIdType txPduId);
 #ifndef CANTP_NO_FC
-static void CanTp_SendFC(PduIdType TxPduId, uint8_t FlowStatus);
+static void CanTp_SendFC(PduIdType txPduId, uint8_t flowStatus);
 #endif
-static void CanTp_SendCF(PduIdType TxPduId);
+static void CanTp_SendCF(PduIdType txPduId);
 /* ================================ [ DATAS     ] ============================================== */
 #ifdef CANTP_USE_PB_CONFIG
 static const CanTp_ConfigType *cantpConfig = NULL;
@@ -79,39 +79,39 @@ static const CanTp_ConfigType *cantpConfig = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
 static void CanTp_ResetToIdle(CanTp_ChannelContextType *context) {
   CanTpCancelAlarm();
-  context->state = CANTP_IDLE;
+  context->State = CANTP_IDLE;
   context->TpSduLength = 0;
 }
 
-#ifndef CANTP_FIX_LL_DL
-static PduLengthType CanTp_GetDL(PduLengthType len, PduLengthType LL_DL) {
-  PduLengthType dl = LL_DL;
+#ifndef CANTP_FIX_LINK_LAYER_DATA_LENGTH
+static PduLengthType CanTpGetDL(PduLengthType len, PduLengthType linkLayerDataLength) {
+  PduLengthType dataLength = linkLayerDataLength;
   uint32_t i;
-  const PduLengthType lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48};
+  const PduLengthType linkLayerDataLengths[] = {8, 12, 16, 20, 24, 32, 48};
 
-  for (i = 0; i < ARRAY_SIZE(lLL_DLs); i++) {
-    if (len <= lLL_DLs[i]) {
-      dl = lLL_DLs[i];
+  for (i = 0; i < ARRAY_SIZE(linkLayerDataLengths); i++) {
+    if (len <= linkLayerDataLengths[i]) {
+      dataLength = linkLayerDataLengths[i];
       break;
     }
   }
-  return dl;
+  return dataLength;
 }
 #endif
 
 static uint8_t CanTp_GetSFMaxLen(const CanTp_ChannelConfigType *config) {
   PduLengthType sfMaxLen;
-  if (config->LL_DL > 8u) {
+  if (config->LinkLayerDataLength > 8u) {
     if (CANTP_EXTENDED == config->AddressingFormat) {
-      sfMaxLen = config->LL_DL - 3u;
+      sfMaxLen = config->LinkLayerDataLength - 3u;
     } else {
-      sfMaxLen = config->LL_DL - 2u;
+      sfMaxLen = config->LinkLayerDataLength - 2u;
     }
   } else {
     if (CANTP_EXTENDED == config->AddressingFormat) {
-      sfMaxLen = config->LL_DL - 2u;
+      sfMaxLen = config->LinkLayerDataLength - 2u;
     } else {
-      sfMaxLen = config->LL_DL - 1u;
+      sfMaxLen = config->LinkLayerDataLength - 1u;
     }
   }
   return (uint8_t)sfMaxLen;
@@ -121,8 +121,8 @@ static BufReq_ReturnType CanTp_RxPreCheckState(CanTp_ChannelContextType *context
                                                const CanTp_ChannelConfigType *config) {
   BufReq_ReturnType bufReq = BUFREQ_OK;
 
-  if (context->state != CANTP_IDLE) {
-    switch (context->state) {
+  if (context->State != CANTP_IDLE) {
+    switch (context->State) {
     case CANTP_WAIT_CF:
     case CANTP_RESEND_FC_CTS:
     case CANTP_RESEND_FC_OVFLW:
@@ -142,43 +142,43 @@ static BufReq_ReturnType CanTp_RxPreCheckState(CanTp_ChannelContextType *context
   return bufReq;
 }
 
-static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
+static void CanTp_HandleSF(PduIdType rxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   BufReq_ReturnType bufReq;
   PduLengthType bufferSize;
   PduLengthType sfMaxLen;
   PduLengthType offset = 0;
   uint8_t dataLen = length;
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
   bufReq = CanTp_RxPreCheckState(context, config);
   if (BUFREQ_OK == bufReq) {
     sfMaxLen = CanTp_GetSFMaxLen(config);
 
-    PduInfo.SduLength = (PduLengthType)pci & N_PCI_SF_DL;
-    if ((0u == PduInfo.SduLength) && (config->LL_DL > 8u)) {
-      PduInfo.SduLength = data[0];
-      PduInfo.SduDataPtr = &data[1];
+    pduInfo.SduLength = (PduLengthType)pci & CANTP_N_PCI_SF_DL;
+    if ((0u == pduInfo.SduLength) && (config->LinkLayerDataLength > 8u)) {
+      pduInfo.SduLength = data[0];
+      pduInfo.SduDataPtr = &data[1];
       dataLen -= 1u;
     } else {
-      PduInfo.SduDataPtr = data;
+      pduInfo.SduDataPtr = data;
     }
-    PduInfo.MetaDataPtr = (uint8_t *)&offset;
+    pduInfo.MetaDataPtr = (uint8_t *)&offset;
   }
 
   if (BUFREQ_OK != bufReq) {
-    ASLOG(CANTPE, ("[%d]SF received in state %d!\n", RxPduId, context->state));
-  } else if ((PduInfo.SduLength <= sfMaxLen) && (PduInfo.SduLength > 0u) &&
-             (PduInfo.SduLength <= dataLen)) {
+    ASLOG(CANTPE, ("[%d]SF received in state %d!\n", rxPduId, context->State));
+  } else if ((pduInfo.SduLength <= sfMaxLen) && (pduInfo.SduLength > 0u) &&
+             (pduInfo.SduLength <= dataLen)) {
     bufReq =
-      PduR_CanTpStartOfReception(config->PduR_RxPduId, &PduInfo, PduInfo.SduLength, &bufferSize);
+      PduR_CanTpStartOfReception(config->PduR_RxPduId, &pduInfo, pduInfo.SduLength, &bufferSize);
 
     if (BUFREQ_OK == bufReq) {
-      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &PduInfo, &bufferSize);
+      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &pduInfo, &bufferSize);
       if (BUFREQ_OK != bufReq) {
         PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
       }
@@ -189,17 +189,17 @@ static void CanTp_HandleSF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
     }
 
     if (BUFREQ_OK != bufReq) {
-      ASLOG(CANTPE, ("[%d]SF received with buffer status %d!: SID=%x\n", RxPduId, bufReq,
-                     PduInfo.SduDataPtr[1]));
+      ASLOG(CANTPE, ("[%d]SF received with buffer status %d!: SID=%x\n", rxPduId, bufReq,
+                     pduInfo.SduDataPtr[1]));
     }
   } else {
-    ASLOG(CANTPE, ("[%d]SF received with invalid len: %d %d %d!\n", RxPduId, (int)PduInfo.SduLength,
+    ASLOG(CANTPE, ("[%d]SF received with invalid len: %d %d %d!\n", rxPduId, (int)pduInfo.SduLength,
                    (int)sfMaxLen, (int)length));
   }
 }
 
 #ifndef CANTP_NO_FC
-static void CanTp_SendFC(PduIdType RxPduId, uint8_t FlowStatus) {
+static void CanTp_SendFC(PduIdType rxPduId, uint8_t flowStatus) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
 #ifndef CANTP_USE_TRIGGER_TRANSMIT
@@ -208,53 +208,53 @@ static void CanTp_SendFC(PduIdType RxPduId, uint8_t FlowStatus) {
   uint8_t *data;
   uint8_t pos = 0;
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
-  data = config->data;
+  data = config->Data;
 
   if (CANTP_EXTENDED == config->AddressingFormat) {
     data[pos] = config->N_TA;
     pos++;
   }
 
-  data[pos] = N_PCI_FC | FlowStatus;
+  data[pos] = CANTP_N_PCI_FC | flowStatus;
   pos++;
   data[pos] = config->BS;
   pos++;
   data[pos] = config->STmin;
   pos++;
   while (pos < 8u) {
-    data[pos] = config->padding;
+    data[pos] = config->Padding;
     pos++;
   }
-  ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", RxPduId, 8,
+  ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", rxPduId, 8,
                  data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
   context->PduInfo.SduDataPtr = data;
   context->PduInfo.SduLength = 8;
 
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
   CanTpSetAlarm(config->N_As);
-  if (N_PCI_CTS == FlowStatus) {
-    context->state = CANTP_RESEND_FC_CTS;
+  if (CANTP_N_PCI_CTS == flowStatus) {
+    context->State = CANTP_RESEND_FC_CTS;
   } else {
-    context->state = CANTP_RESEND_FC_OVFLW;
+    context->State = CANTP_RESEND_FC_OVFLW;
   }
 #else
   r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
   if (E_OK == r) {
-    STD_TOPIC_ISOTP(RxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+    STD_TOPIC_ISOTP(rxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
                     context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
-    if (N_PCI_CTS == FlowStatus) {
+    if (CANTP_N_PCI_CTS == flowStatus) {
 #ifdef CANTP_USE_TX_CONFIRMATION
-      context->state = CANTP_WAIT_FC_CTS_TX_COMPLETED;
+      context->State = CANTP_WAIT_FC_CTS_TX_COMPLETED;
 #else
-      context->state = CANTP_WAIT_CF;
+      context->State = CANTP_WAIT_CF;
 #endif
       CanTpSetAlarm(config->N_Cr);
     } else {
 #ifdef CANTP_USE_TX_CONFIRMATION
-      context->state = CANTP_WAIT_FC_OVFLW_TX_COMPLETED;
+      context->State = CANTP_WAIT_FC_OVFLW_TX_COMPLETED;
 #else
       CanTp_ResetToIdle(context);
 #endif
@@ -262,65 +262,65 @@ static void CanTp_SendFC(PduIdType RxPduId, uint8_t FlowStatus) {
     context->BS = config->BS;
   } else {
     CanTpSetAlarm(config->N_As);
-    if (N_PCI_CTS == FlowStatus) {
-      context->state = CANTP_RESEND_FC_CTS;
+    if (CANTP_N_PCI_CTS == flowStatus) {
+      context->State = CANTP_RESEND_FC_CTS;
     } else {
-      context->state = CANTP_RESEND_FC_OVFLW;
+      context->State = CANTP_RESEND_FC_OVFLW;
     }
   }
 #endif
 }
 #endif
 
-static void CanTp_HandleFF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
+static void CanTp_HandleFF(PduIdType rxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   BufReq_ReturnType bufReq;
   PduLengthType bufferSize;
   PduLengthType ffLen;
   PduLengthType sfMaxLen;
-  uint32_t TpSduLength;
+  uint32_t tpSduLength;
   PduLengthType offset = 0;
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
   bufReq = CanTp_RxPreCheckState(context, config);
   if (BUFREQ_OK == bufReq) {
-    TpSduLength = (((uint32_t)pci & 0x0Fu) << 8) + data[0];
-    PduInfo.SduDataPtr = &data[1];
+    tpSduLength = (((uint32_t)pci & 0x0Fu) << 8) + data[0];
+    pduInfo.SduDataPtr = &data[1];
 
-    PduInfo.SduLength = (PduLengthType)length - 1u;
+    pduInfo.SduLength = (PduLengthType)length - 1u;
     if (CANTP_EXTENDED == config->AddressingFormat) {
-      ffLen = config->LL_DL - 3u;
+      ffLen = config->LinkLayerDataLength - 3u;
     } else {
-      ffLen = config->LL_DL - 2u;
+      ffLen = config->LinkLayerDataLength - 2u;
     }
 
-    if ((config->LL_DL > 8u) && (0u == TpSduLength)) {
-      TpSduLength = ((uint32_t)data[2] << 24) + ((uint32_t)data[3] << 16) +
+    if ((config->LinkLayerDataLength > 8u) && (0u == tpSduLength)) {
+      tpSduLength = ((uint32_t)data[2] << 24) + ((uint32_t)data[3] << 16) +
                     ((uint32_t)data[4] << 8) + ((uint32_t)data[5]);
-      PduInfo.SduDataPtr = &data[6];
-      PduInfo.SduLength -= 4u;
+      pduInfo.SduDataPtr = &data[6];
+      pduInfo.SduLength -= 4u;
       ffLen -= 4u;
     }
-    PduInfo.MetaDataPtr = (uint8_t *)&offset;
+    pduInfo.MetaDataPtr = (uint8_t *)&offset;
 
     sfMaxLen = CanTp_GetSFMaxLen(config);
   }
 
   if (BUFREQ_OK != bufReq) {
-    ASLOG(CANTPE, ("[%d] FF received in state %d, ignore!\n", RxPduId, context->state));
-  } else if (TpSduLength > PDU_LENGTH_MAX) {
-    ASLOG(CANTPE, ("[%d]FF size too big %u!\n", RxPduId, TpSduLength));
-  } else if ((TpSduLength <= ffLen) || (TpSduLength <= sfMaxLen)) {
-    ASLOG(CANTPE, ("[%d]FF size invalid %u(<=%d,%d)!\n", RxPduId, TpSduLength, ffLen, sfMaxLen));
-  } else if (PduInfo.SduLength == ffLen) {
-    bufReq = PduR_CanTpStartOfReception(config->PduR_RxPduId, &PduInfo, (PduLengthType)TpSduLength,
+    ASLOG(CANTPE, ("[%d] FF received in state %d, ignore!\n", rxPduId, context->State));
+  } else if (tpSduLength > PDU_LENGTH_MAX) {
+    ASLOG(CANTPE, ("[%d]FF size too big %u!\n", rxPduId, tpSduLength));
+  } else if ((tpSduLength <= ffLen) || (tpSduLength <= sfMaxLen)) {
+    ASLOG(CANTPE, ("[%d]FF size invalid %u(<=%d,%d)!\n", rxPduId, tpSduLength, ffLen, sfMaxLen));
+  } else if (pduInfo.SduLength == ffLen) {
+    bufReq = PduR_CanTpStartOfReception(config->PduR_RxPduId, &pduInfo, (PduLengthType)tpSduLength,
                                         &bufferSize);
     if (BUFREQ_OK == bufReq) {
-      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &PduInfo, &bufferSize);
+      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &pduInfo, &bufferSize);
 
       if (BUFREQ_OK != bufReq) {
         PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
@@ -329,54 +329,54 @@ static void CanTp_HandleFF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
 
     if (BUFREQ_OK != bufReq) {
 #ifdef CANTP_NO_FC
-      ASLOG(CANTPE, ("[%d]FF received with buffer status %d!\n", RxPduId, bufReq));
+      ASLOG(CANTPE, ("[%d]FF received with buffer status %d!\n", rxPduId, bufReq));
       CanTp_ResetToIdle(context);
 #else
-      CanTp_SendFC(RxPduId, N_PCI_OVFLW);
+      CanTp_SendFC(rxPduId, CANTP_N_PCI_OVFLW);
 #endif
     } else {
-      context->TpSduLength = (PduLengthType)TpSduLength - ffLen;
+      context->TpSduLength = (PduLengthType)tpSduLength - ffLen;
       context->TpSduOffset = ffLen;
       context->SN = 1;
 #ifdef CANTP_NO_FC
-      context->state = CANTP_WAIT_CF;
+      context->State = CANTP_WAIT_CF;
       CanTpSetAlarm(config->N_Cr);
       context->BS = 0;
 #else
-      CanTp_SendFC(RxPduId, N_PCI_CTS);
+      CanTp_SendFC(rxPduId, CANTP_N_PCI_CTS);
 #endif
     }
   } else {
     ASLOG(CANTPE,
-          ("[%d]FF received with invalid len %d(!=%d)!\n", RxPduId, PduInfo.SduLength, ffLen));
+          ("[%d]FF received with invalid len %d(!=%d)!\n", rxPduId, pduInfo.SduLength, ffLen));
   }
 }
 
-static void CanTp_HandleCF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
+static void CanTp_HandleCF(PduIdType rxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   BufReq_ReturnType bufReq = BUFREQ_OK;
   PduLengthType bufferSize;
   PduLengthType cfLen;
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
   /* A robust logic to handle cases where TxConfirm occurs after RxInd or is missing. */
-  if (CANTP_WAIT_FC_CTS_TX_COMPLETED == context->state) {
-    ASLOG(CANTPE, ("[%d]CF received before FC CTS TxConfirm\n", RxPduId));
-    context->state = CANTP_WAIT_CF;
+  if (CANTP_WAIT_FC_CTS_TX_COMPLETED == context->State) {
+    ASLOG(CANTPE, ("[%d]CF received before FC CTS TxConfirm\n", rxPduId));
+    context->State = CANTP_WAIT_CF;
   }
 
   if (CANTP_EXTENDED == config->AddressingFormat) {
-    cfLen = config->LL_DL - 2u;
+    cfLen = config->LinkLayerDataLength - 2u;
   } else {
-    cfLen = config->LL_DL - 1u;
+    cfLen = config->LinkLayerDataLength - 1u;
   }
 
-  if (context->state != CANTP_WAIT_CF) {
-    ASLOG(CANTPE, ("[%d]CF received when in state %d.\n", RxPduId, context->state));
+  if (context->State != CANTP_WAIT_CF) {
+    ASLOG(CANTPE, ("[%d]CF received when in state %d.\n", rxPduId, context->State));
     bufReq = BUFREQ_E_NOT_OK;
   } else if (context->TpSduLength > length) {
     if (length != cfLen) {
@@ -386,23 +386,23 @@ static void CanTp_HandleCF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
     /* OK */
   }
   if (BUFREQ_OK == bufReq) {
-    if (context->SN == (pci & N_PCI_SN)) {
+    if (context->SN == (pci & CANTP_N_PCI_SN)) {
       context->SN++;
       if (context->SN > 15u) {
         context->SN = 0u;
       }
-      PduInfo.SduLength = context->TpSduLength;
-      if (PduInfo.SduLength > length) {
-        PduInfo.SduLength = length;
+      pduInfo.SduLength = context->TpSduLength;
+      if (pduInfo.SduLength > length) {
+        pduInfo.SduLength = length;
       }
-      PduInfo.MetaDataPtr = (uint8_t *)&context->TpSduOffset;
-      PduInfo.SduDataPtr = data;
+      pduInfo.MetaDataPtr = (uint8_t *)&context->TpSduOffset;
+      pduInfo.SduDataPtr = data;
 
-      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &PduInfo, &bufferSize);
+      bufReq = PduR_CanTpCopyRxData(config->PduR_RxPduId, &pduInfo, &bufferSize);
 
       if (BUFREQ_OK == bufReq) {
-        context->TpSduLength -= PduInfo.SduLength;
-        context->TpSduOffset += PduInfo.SduLength;
+        context->TpSduLength -= pduInfo.SduLength;
+        context->TpSduOffset += pduInfo.SduLength;
         if (0u == context->TpSduLength) {
           CanTp_ResetToIdle(context);
           PduR_CanTpRxIndication(config->PduR_RxPduId, E_OK);
@@ -412,7 +412,7 @@ static void CanTp_HandleCF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
           if (context->BS > 0u) {
             context->BS--;
             if (0u == context->BS) {
-              CanTp_SendFC(RxPduId, N_PCI_CTS);
+              CanTp_SendFC(rxPduId, CANTP_N_PCI_CTS);
             }
           }
 #endif
@@ -420,33 +420,33 @@ static void CanTp_HandleCF(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
       } else {
         CanTp_ResetToIdle(context);
         PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
-        ASLOG(CANTPE, ("[%d]CF CopyRxData failed.\n", RxPduId));
+        ASLOG(CANTPE, ("[%d]CF CopyRxData failed.\n", rxPduId));
       }
     } else {
       CanTp_ResetToIdle(context);
       PduR_CanTpRxIndication(config->PduR_RxPduId, E_NOT_OK);
-      ASLOG(CANTPE, ("[%d]Sequence Number Wrong, Abort Current Receiving.\n", RxPduId));
+      ASLOG(CANTPE, ("[%d]Sequence Number Wrong, Abort Current Receiving.\n", rxPduId));
     }
   }
 }
 
 #ifndef CANTP_NO_FC
-static void CanTp_HandleFC(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
+static void CanTp_HandleFC(PduIdType rxPduId, uint8_t pci, uint8_t *data, uint8_t length) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
   /* A robust logic to handle cases where TxConfirm occurs after RxInd or is missing. */
-  if (CANTP_WAIT_FF_TX_COMPLETED == context->state) {
-    ASLOG(CANTPE, ("[%d]FC received before FF TxConfirm\n", RxPduId));
-    context->state = CANTP_WAIT_FIRST_FC;
-  } else if (CANTP_WAIT_CF_TX_COMPLETED == context->state) {
+  if (CANTP_WAIT_FF_TX_COMPLETED == context->State) {
+    ASLOG(CANTPE, ("[%d]FC received before FF TxConfirm\n", rxPduId));
+    context->State = CANTP_WAIT_FIRST_FC;
+  } else if (CANTP_WAIT_CF_TX_COMPLETED == context->State) {
     if (1u == context->BS) {
-      ASLOG(CANTPE, ("[%d]FC received before CF TxConfirm\n", RxPduId));
-      context->BS = context->cfgBS;
-      context->state = CANTP_WAIT_FC;
+      ASLOG(CANTPE, ("[%d]FC received before CF TxConfirm\n", rxPduId));
+      context->BS = context->CfgBS;
+      context->State = CANTP_WAIT_FC;
       context->WftCounter = 0u;
       CanTpSetAlarm(config->N_Bs);
     }
@@ -454,24 +454,24 @@ static void CanTp_HandleFC(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
     /* OK, do nothing */
   }
 
-  if ((context->state != CANTP_WAIT_FIRST_FC) && (context->state != CANTP_WAIT_FC)) {
-    ASLOG(CANTPE, ("[%d]FC received when in state %d.\n", RxPduId, context->state));
+  if ((context->State != CANTP_WAIT_FIRST_FC) && (context->State != CANTP_WAIT_FC)) {
+    ASLOG(CANTPE, ("[%d]FC received when in state %d.\n", rxPduId, context->State));
   } else {
-    switch ((pci & N_PCI_FS)) {
-    case N_PCI_CTS:
+    switch ((pci & CANTP_N_PCI_FS)) {
+    case CANTP_N_PCI_CTS:
       if (length < 2u) {
-        ASLOG(CANTPE, ("[%d]FC invalid DLC.\n", RxPduId));
+        ASLOG(CANTPE, ("[%d]FC invalid DLC.\n", rxPduId));
       } else {
-        if (CANTP_WAIT_FIRST_FC == context->state) {
-          context->cfgBS = data[0];
+        if (CANTP_WAIT_FIRST_FC == context->State) {
+          context->CfgBS = data[0];
           context->STmin = data[1];
         }
-        context->BS = context->cfgBS;
+        context->BS = context->CfgBS;
         CanTpCancelAlarm();
-        context->state = CANTP_SEND_CF_START;
+        context->State = CANTP_SEND_CF_START;
       }
       break;
-    case N_PCI_WT:
+    case CANTP_N_PCI_WT:
       if (context->WftCounter < 0xFFu) {
         context->WftCounter++;
       }
@@ -482,99 +482,100 @@ static void CanTp_HandleFC(PduIdType RxPduId, uint8_t pci, uint8_t *data, uint8_
         CanTpSetAlarm(config->N_Bs);
       }
       break;
-    case N_PCI_OVFLW:
+    case CANTP_N_PCI_OVFLW:
       CanTp_ResetToIdle(context);
       PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
       break;
     default:
       /* do nothing */
-      ASLOG(CANTPE, ("[%d]Invalid Flow Control Status.\n", RxPduId));
+      ASLOG(CANTPE, ("[%d]Invalid Flow Control Status.\n", rxPduId));
       break;
     }
   }
 }
 #endif
 
-static void CanTp_SendSF(PduIdType TxPduId) {
+static void CanTp_SendSF(PduIdType txPduId) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   PduLengthType pos = 0;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   uint8_t *data;
   BufReq_ReturnType bufReq;
   PduLengthType bufferSize;
-  PduLengthType ll_dl;
+  PduLengthType linkLayerDataLength;
   PduLengthType offset = 0;
 #ifndef CANTP_USE_TRIGGER_TRANSMIT
   Std_ReturnType r;
 #endif
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
-  data = config->data;
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
+  data = config->Data;
   if (CANTP_EXTENDED == config->AddressingFormat) {
     data[pos] = config->N_TA;
     pos++;
   }
 
-  if ((config->LL_DL > 8u) && ((7u - pos) < context->TpSduLength)) {
-    data[pos] = N_PCI_SF;
+  if ((config->LinkLayerDataLength > 8u) && ((7u - pos) < context->TpSduLength)) {
+    data[pos] = CANTP_N_PCI_SF;
     pos++;
     data[pos] = (uint8_t)context->TpSduLength;
     pos++;
   } else {
-    data[pos] = N_PCI_SF | (uint8_t)(context->TpSduLength & 0x7u);
+    data[pos] = CANTP_N_PCI_SF | (uint8_t)(context->TpSduLength & 0x7u);
     pos++;
   }
 
-  PduInfo.MetaDataPtr = (uint8_t *)&offset;
-  PduInfo.SduDataPtr = &data[pos];
-  PduInfo.SduLength = context->TpSduLength;
+  pduInfo.MetaDataPtr = (uint8_t *)&offset;
+  pduInfo.SduDataPtr = &data[pos];
+  pduInfo.SduLength = context->TpSduLength;
 
-  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &PduInfo, NULL, &bufferSize);
+  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &pduInfo, NULL, &bufferSize);
   if (BUFREQ_OK == bufReq) {
     pos += context->TpSduLength;
-    ll_dl = CanTp_GetDL(pos, config->LL_DL);
-    while (pos < ll_dl) {
-      data[pos] = config->padding;
+    linkLayerDataLength = CanTpGetDL(pos, config->LinkLayerDataLength);
+    while (pos < linkLayerDataLength) {
+      data[pos] = config->Padding;
       pos++;
     }
-    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, ll_dl,
-                   data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", txPduId,
+                   linkLayerDataLength, data[0], data[1], data[2], data[3], data[4], data[5],
+                   data[6], data[7]));
     context->PduInfo.SduDataPtr = data;
-    context->PduInfo.SduLength = ll_dl;
+    context->PduInfo.SduLength = linkLayerDataLength;
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-    context->state = CANTP_RESEND_SF;
+    context->State = CANTP_RESEND_SF;
     CanTpSetAlarm(config->N_As);
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
-      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+      STD_TOPIC_ISOTP(txPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
                       context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
-      context->state = CANTP_WAIT_SF_TX_COMPLETED;
+      context->State = CANTP_WAIT_SF_TX_COMPLETED;
       CanTpSetAlarm(config->N_As);
 #else
       CanTp_ResetToIdle(context);
       PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_OK);
 #endif
     } else {
-      context->state = CANTP_RESEND_SF;
+      context->State = CANTP_RESEND_SF;
       CanTpSetAlarm(config->N_As);
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("[%d]SF: failed to provide TX data, reset to idle\n", TxPduId));
+    ASLOG(CANTPE, ("[%d]SF: failed to provide TX data, reset to idle\n", txPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
 }
 
-static void CanTp_SendFF(PduIdType TxPduId) {
+static void CanTp_SendFF(PduIdType txPduId) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   PduLengthType pos = 0u;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   uint8_t *data;
   BufReq_ReturnType bufReq;
   PduLengthType bufferSize;
@@ -583,16 +584,16 @@ static void CanTp_SendFF(PduIdType TxPduId) {
 #endif
   PduLengthType offset = 0;
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
-  data = config->data;
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
+  data = config->Data;
   if (CANTP_EXTENDED == config->AddressingFormat) {
     data[pos] = config->N_TA;
     pos++;
   }
 
-  if ((config->LL_DL > 8u) && (context->TpSduLength > 4095u)) {
-    data[pos] = N_PCI_FF;
+  if ((config->LinkLayerDataLength > 8u) && (context->TpSduLength > 4095u)) {
+    data[pos] = CANTP_N_PCI_FF;
     pos++;
     data[pos] = 0u;
     pos++;
@@ -605,154 +606,155 @@ static void CanTp_SendFF(PduIdType TxPduId) {
     data[pos] = (uint8_t)context->TpSduLength & 0xFFu;
     pos++;
   } else {
-    data[pos] = N_PCI_FF | (uint8_t)((context->TpSduLength >> 8) & 0x0Fu);
+    data[pos] = CANTP_N_PCI_FF | (uint8_t)((context->TpSduLength >> 8) & 0x0Fu);
     pos++;
     data[pos] = (uint8_t)context->TpSduLength & 0xFFu;
     pos++;
   }
 
-  PduInfo.MetaDataPtr = (uint8_t *)&offset;
-  PduInfo.SduDataPtr = &data[pos];
-  PduInfo.SduLength = config->LL_DL - pos;
+  pduInfo.MetaDataPtr = (uint8_t *)&offset;
+  pduInfo.SduDataPtr = &data[pos];
+  pduInfo.SduLength = config->LinkLayerDataLength - pos;
 
-  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &PduInfo, NULL, &bufferSize);
+  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &pduInfo, NULL, &bufferSize);
   if (BUFREQ_OK == bufReq) {
-    context->TpSduLength -= PduInfo.SduLength;
-    context->TpSduOffset = PduInfo.SduLength;
+    context->TpSduLength -= pduInfo.SduLength;
+    context->TpSduOffset = pduInfo.SduLength;
     context->PduInfo.SduDataPtr = data;
-    context->PduInfo.SduLength = config->LL_DL;
+    context->PduInfo.SduLength = config->LinkLayerDataLength;
     context->SN = 1;
-    ASLOG(CANTPI,
-          ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, config->LL_DL,
-           data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", txPduId,
+                   config->LinkLayerDataLength, data[0], data[1], data[2], data[3], data[4],
+                   data[5], data[6], data[7]));
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-    context->state = CANTP_RESEND_FF;
+    context->State = CANTP_RESEND_FF;
     CanTpSetAlarm(config->N_As);
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
-      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+      STD_TOPIC_ISOTP(txPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
                       context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
-      context->state = CANTP_WAIT_FF_TX_COMPLETED;
+      context->State = CANTP_WAIT_FF_TX_COMPLETED;
       CanTpSetAlarm(config->N_As);
 #else
-      context->state = CANTP_WAIT_FIRST_FC;
+      context->State = CANTP_WAIT_FIRST_FC;
       context->WftCounter = 0u;
       CanTpSetAlarm(config->N_Bs);
 #endif
     } else {
-      context->state = CANTP_RESEND_FF;
+      context->State = CANTP_RESEND_FF;
       CanTpSetAlarm(config->N_As);
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("[%d]FF: failed to provide TX data, reset to idle\n", TxPduId));
+    ASLOG(CANTPE, ("[%d]FF: failed to provide TX data, reset to idle\n", txPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
 }
 
-static void CanTp_SendCF(PduIdType TxPduId) {
+static void CanTp_SendCF(PduIdType txPduId) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   PduLengthType pos = 0u;
-  PduInfoType PduInfo;
+  PduInfoType pduInfo;
   uint8_t *data;
   BufReq_ReturnType bufReq;
   PduLengthType bufferSize;
-  PduLengthType ll_dl;
+  PduLengthType linkLayerDataLength;
 #ifndef CANTP_USE_TRIGGER_TRANSMIT
   Std_ReturnType r;
 #endif
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
-  data = config->data;
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
+  data = config->Data;
   if (CANTP_EXTENDED == config->AddressingFormat) {
     data[pos] = config->N_TA;
     pos++;
   }
 
-  data[pos] = N_PCI_CF | context->SN;
+  data[pos] = CANTP_N_PCI_CF | context->SN;
   pos++;
   context->SN++;
   if (context->SN > 15u) {
     context->SN = 0u;
   }
 
-  bufferSize = config->LL_DL - pos;
+  bufferSize = config->LinkLayerDataLength - pos;
 
   if (bufferSize > context->TpSduLength) {
     bufferSize = context->TpSduLength;
   }
 
-  PduInfo.MetaDataPtr = (uint8_t *)&context->TpSduOffset;
-  PduInfo.SduDataPtr = &data[pos];
-  PduInfo.SduLength = bufferSize;
+  pduInfo.MetaDataPtr = (uint8_t *)&context->TpSduOffset;
+  pduInfo.SduDataPtr = &data[pos];
+  pduInfo.SduLength = bufferSize;
 
-  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &PduInfo, NULL, &bufferSize);
+  bufReq = PduR_CanTpCopyTxData(config->PduR_TxPduId, &pduInfo, NULL, &bufferSize);
   if (BUFREQ_OK == bufReq) {
-    context->TpSduLength -= PduInfo.SduLength;
-    context->TpSduOffset += PduInfo.SduLength;
-    pos += PduInfo.SduLength;
-    ll_dl = CanTp_GetDL(pos, config->LL_DL);
-    while (pos < ll_dl) {
-      data[pos] = config->padding;
+    context->TpSduLength -= pduInfo.SduLength;
+    context->TpSduOffset += pduInfo.SduLength;
+    pos += pduInfo.SduLength;
+    linkLayerDataLength = CanTpGetDL(pos, config->LinkLayerDataLength);
+    while (pos < linkLayerDataLength) {
+      data[pos] = config->Padding;
       pos++;
     }
-    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", TxPduId, ll_dl,
-                   data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
+    ASLOG(CANTPI, ("[%d]TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", txPduId,
+                   linkLayerDataLength, data[0], data[1], data[2], data[3], data[4], data[5],
+                   data[6], data[7]));
     context->PduInfo.SduDataPtr = data;
-    context->PduInfo.SduLength = ll_dl;
+    context->PduInfo.SduLength = linkLayerDataLength;
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-    context->state = CANTP_RESEND_CF;
+    context->State = CANTP_RESEND_CF;
     CanTpSetAlarm(config->N_As);
 #else
     r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
     if (E_OK == r) {
-      STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+      STD_TOPIC_ISOTP(txPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
                       context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
-      context->state = CANTP_WAIT_CF_TX_COMPLETED;
+      context->State = CANTP_WAIT_CF_TX_COMPLETED;
       CanTpSetAlarm(config->N_As);
     } else {
-      context->state = CANTP_RESEND_CF;
+      context->State = CANTP_RESEND_CF;
       CanTpSetAlarm(config->N_As);
     }
 #endif
   } else {
-    ASLOG(CANTPE, ("[%d]CF: failed to provide TX data, reset to idle\n", TxPduId));
+    ASLOG(CANTPE, ("[%d]CF: failed to provide TX data, reset to idle\n", txPduId));
     CanTp_ResetToIdle(context);
     PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_NOT_OK);
   }
 }
 
-static void CanTp_HandleCFTxCompleted(PduIdType TxPduId) {
+static void CanTp_HandleCFTxCompleted(PduIdType txPduId) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
 
   if (context->TpSduLength > 0u) {
-    if (context->cfgBS > 0u) {
+    if (context->CfgBS > 0u) {
       if (context->BS > 0u) {
         context->BS--;
         if (0u == context->BS) {
-          context->BS = context->cfgBS;
-          context->state = CANTP_WAIT_FC;
+          context->BS = context->CfgBS;
+          context->State = CANTP_WAIT_FC;
           context->WftCounter = 0u;
           CanTpSetAlarm(config->N_Bs);
         }
       }
     }
-    if (CANTP_WAIT_FC != context->state) {
+    if (CANTP_WAIT_FC != context->State) {
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-      CanTp_SendCF(TxPduId);
+      CanTp_SendCF(txPduId);
 #else
       if (context->STmin > 0u) {
-        context->state = CANTP_SEND_CF_DELAY;
+        context->State = CANTP_SEND_CF_DELAY;
         CanTpSetAlarm(CANTP_CONVERT_MS_TO_MAIN_CYCLES(context->STmin + CANTP_STMIN_ADJUST));
       } else {
-        CanTp_SendCF(TxPduId);
+        CanTp_SendCF(txPduId);
       }
 #endif
     }
@@ -763,76 +765,76 @@ static void CanTp_HandleCFTxCompleted(PduIdType TxPduId) {
 }
 
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-Std_ReturnType CanTp_ReSend(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType CanTp_ReSend(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
 #else
-static void CanTp_ReSend(PduIdType TxPduId) {
+static void CanTp_ReSend(PduIdType txPduId) {
 #endif
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   Std_ReturnType r;
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
 
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-  if (PduInfoPtr->SduLength >= context->PduInfo.SduLength) {
-    memcpy(PduInfoPtr->SduDataPtr, context->PduInfo.SduDataPtr, context->PduInfo.SduLength);
-    if (context->PduInfo.SduLength < PduInfoPtr->SduLength) {
-      memset(&PduInfoPtr->SduDataPtr[context->PduInfo.SduLength], config->padding,
-             PduInfoPtr->SduLength - context->PduInfo.SduLength);
+  if (pduInfoPtr->SduLength >= context->PduInfo.SduLength) {
+    memcpy(pduInfoPtr->SduDataPtr, context->PduInfo.SduDataPtr, context->PduInfo.SduLength);
+    if (context->PduInfo.SduLength < pduInfoPtr->SduLength) {
+      memset(&pduInfoPtr->SduDataPtr[context->PduInfo.SduLength], config->Padding,
+             pduInfoPtr->SduLength - context->PduInfo.SduLength);
     }
     r = E_OK;
   } else {
     r = E_NOT_OK;
-    ASLOG(CANTPE, ("[%d] ReSend FAIL in state %d\n", TxPduId, context->state));
+    ASLOG(CANTPE, ("[%d] ReSend FAIL in state %d\n", txPduId, context->State));
   }
 #else
   r = CanIf_Transmit(config->CanIfTxPduId, &context->PduInfo);
 #endif
   if (E_OK == r) {
-    STD_TOPIC_ISOTP(TxPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
+    STD_TOPIC_ISOTP(txPduId, FALSE, CanIf_CanTpGetTxCanId(config->CanIfTxPduId),
                     context->PduInfo.SduLength, context->PduInfo.SduDataPtr);
 #ifdef CANTP_USE_TX_CONFIRMATION
-    if (CANTP_RESEND_SF == context->state) {
-      context->state = CANTP_WAIT_SF_TX_COMPLETED;
-    } else if (CANTP_RESEND_FF == context->state) {
-      context->state = CANTP_WAIT_FF_TX_COMPLETED;
-    } else if (CANTP_RESEND_FC_CTS == context->state) {
-      context->state = CANTP_WAIT_FC_CTS_TX_COMPLETED;
-    } else if (CANTP_RESEND_FC_OVFLW == context->state) {
-      context->state = CANTP_WAIT_FC_OVFLW_TX_COMPLETED;
-    } else if (CANTP_RESEND_CF == context->state) {
-      context->state = CANTP_WAIT_CF_TX_COMPLETED;
+    if (CANTP_RESEND_SF == context->State) {
+      context->State = CANTP_WAIT_SF_TX_COMPLETED;
+    } else if (CANTP_RESEND_FF == context->State) {
+      context->State = CANTP_WAIT_FF_TX_COMPLETED;
+    } else if (CANTP_RESEND_FC_CTS == context->State) {
+      context->State = CANTP_WAIT_FC_CTS_TX_COMPLETED;
+    } else if (CANTP_RESEND_FC_OVFLW == context->State) {
+      context->State = CANTP_WAIT_FC_OVFLW_TX_COMPLETED;
+    } else if (CANTP_RESEND_CF == context->State) {
+      context->State = CANTP_WAIT_CF_TX_COMPLETED;
     } else {
-      ASLOG(CANTPE, ("[%d]resend in wrong state %d, impossible case", TxPduId, context->state));
+      ASLOG(CANTPE, ("[%d]resend in wrong state %d, impossible case", txPduId, context->State));
     }
     CanTpSetAlarm(config->N_As);
 #else
-    if (CANTP_RESEND_SF == context->state) {
+    if (CANTP_RESEND_SF == context->State) {
       CanTp_ResetToIdle(context);
       PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_OK);
-    } else if (CANTP_RESEND_FF == context->state) {
+    } else if (CANTP_RESEND_FF == context->State) {
 #if defined(CANTP_NO_FC)
-      CanTp_SendCF(TxPduId);
+      CanTp_SendCF(txPduId);
 #else
-      context->state = CANTP_WAIT_FIRST_FC;
+      context->State = CANTP_WAIT_FIRST_FC;
       context->WftCounter = 0u;
       CanTpSetAlarm(config->N_Bs);
 #endif
-    } else if (CANTP_RESEND_FC_CTS == context->state) {
-      context->state = CANTP_WAIT_CF;
+    } else if (CANTP_RESEND_FC_CTS == context->State) {
+      context->State = CANTP_WAIT_CF;
       CanTpSetAlarm(config->N_Cr);
-    } else if (CANTP_RESEND_FC_OVFLW == context->state) {
+    } else if (CANTP_RESEND_FC_OVFLW == context->State) {
       CanTp_ResetToIdle(context);
-    } else if (CANTP_RESEND_CF == context->state) {
+    } else if (CANTP_RESEND_CF == context->State) {
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-      CanTp_HandleCFTxCompleted(TxPduId);
+      CanTp_HandleCFTxCompleted(txPduId);
 #else
-      context->state = CANTP_WAIT_CF_TX_COMPLETED;
+      context->State = CANTP_WAIT_CF_TX_COMPLETED;
       CanTpSetAlarm(config->N_As);
 #endif
     } else {
-      ASLOG(CANTPE, ("[%d]resend in wrong state %d, impossible case", TxPduId, context->state));
+      ASLOG(CANTPE, ("[%d]resend in wrong state %d, impossible case", txPduId, context->State));
     }
 #endif
   }
@@ -841,21 +843,21 @@ static void CanTp_ReSend(PduIdType TxPduId) {
 #endif
 }
 
-static Std_ReturnType CanTp_StartToSend(PduIdType TxPduId) {
+static Std_ReturnType CanTp_StartToSend(PduIdType txPduId) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   PduLengthType sfMaxLen;
   Std_ReturnType ret = E_OK;
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
   sfMaxLen = CanTp_GetSFMaxLen(config);
 
   if (sfMaxLen >= context->TpSduLength) {
-    CanTp_SendSF(TxPduId);
+    CanTp_SendSF(txPduId);
   } else {
-    if (CANTP_PHYSICAL == config->comType) {
-      CanTp_SendFF(TxPduId);
+    if (CANTP_PHYSICAL == config->ComType) {
+      CanTp_SendFF(txPduId);
     } else {
       /* SWS_CanTp_00093: for communication type is functional, the CanTp module shall reject the
        * request */
@@ -868,34 +870,34 @@ static Std_ReturnType CanTp_StartToSend(PduIdType TxPduId) {
   return ret;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanTp_InitChannel(uint8_t Channel) {
+void CanTp_InitChannel(uint8_t channel) {
   CanTp_ChannelContextType *context;
-  context = &(CANTP_CONFIG->channelContexts[Channel]);
+  context = &(CANTP_CONFIG->ChannelContexts[channel]);
   memset(context, 0, sizeof(*context));
-  context->state = CANTP_IDLE;
+  context->State = CANTP_IDLE;
   CanTpCancelAlarm();
   context->STmin = 0;
   context->PduInfo.MetaDataPtr = NULL;
   context->TpSduLength = 0;
 }
 
-void CanTp_Init(const CanTp_ConfigType *CfgPtr) {
+void CanTp_Init(const CanTp_ConfigType *cfgPtr) {
   uint8_t i;
 #ifdef CANTP_USE_PB_CONFIG
-  if (NULL != CfgPtr) {
-    CANTP_CONFIG = CfgPtr;
+  if (NULL != cfgPtr) {
+    CANTP_CONFIG = cfgPtr;
   } else {
     CANTP_CONFIG = &CanTp_Config;
   }
 #else
-  (void)CfgPtr;
+  (void)cfgPtr;
 #endif
-  for (i = 0u; i < CANTP_CONFIG->numOfChannels; i++) {
+  for (i = 0u; i < CANTP_CONFIG->NumOfChannels; i++) {
     CanTp_InitChannel(i);
   }
 }
 
-void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void CanTp_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   const CanTp_ChannelConfigType *config;
   uint8_t pci;
   uint8_t *data;
@@ -903,116 +905,116 @@ void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
   Std_ReturnType r = E_OK;
   /* @SWS_CanTp_00322 */
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x42, CANTP_E_UNINIT, return);
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x42,
+  DET_VALIDATE((NULL != pduInfoPtr) && (NULL != pduInfoPtr->SduDataPtr), 0x42,
                CANTP_E_PARAM_POINTER, return);
 
   /* @SWS_CanTp_00359 */
-  DET_VALIDATE(RxPduId < CANTP_CONFIG->numOfChannels, 0x42, CANTP_E_INVALID_RX_ID, return);
+  DET_VALIDATE(rxPduId < CANTP_CONFIG->NumOfChannels, 0x42, CANTP_E_INVALID_RX_ID, return);
 
   ASLOG(CANTPI, ("[%d]RX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X], state=%d left=%d\n",
-                 RxPduId, PduInfoPtr->SduLength, PduInfoPtr->SduDataPtr[0],
-                 PduInfoPtr->SduDataPtr[1], PduInfoPtr->SduDataPtr[2], PduInfoPtr->SduDataPtr[3],
-                 PduInfoPtr->SduDataPtr[4], PduInfoPtr->SduDataPtr[5], PduInfoPtr->SduDataPtr[6],
-                 PduInfoPtr->SduDataPtr[7], CANTP_CONFIG->channelContexts[RxPduId].state,
-                 CANTP_CONFIG->channelContexts[RxPduId].TpSduLength));
-  STD_TOPIC_ISOTP(RxPduId, TRUE, CanIf_CanTpGetRxCanId(RxPduId), PduInfoPtr->SduLength,
-                  PduInfoPtr->SduDataPtr);
-  if (PduInfoPtr->SduLength > 1u) {
-    config = &(CANTP_CONFIG->channelConfigs[RxPduId]);
+                 rxPduId, pduInfoPtr->SduLength, pduInfoPtr->SduDataPtr[0],
+                 pduInfoPtr->SduDataPtr[1], pduInfoPtr->SduDataPtr[2], pduInfoPtr->SduDataPtr[3],
+                 pduInfoPtr->SduDataPtr[4], pduInfoPtr->SduDataPtr[5], pduInfoPtr->SduDataPtr[6],
+                 pduInfoPtr->SduDataPtr[7], CANTP_CONFIG->ChannelContexts[rxPduId].State,
+                 CANTP_CONFIG->ChannelContexts[rxPduId].TpSduLength));
+  STD_TOPIC_ISOTP(rxPduId, TRUE, CanIf_CanTpGetRxCanId(rxPduId), pduInfoPtr->SduLength,
+                  pduInfoPtr->SduDataPtr);
+  if (pduInfoPtr->SduLength > 1u) {
+    config = &(CANTP_CONFIG->ChannelConfigs[rxPduId]);
 
-    if (PduInfoPtr->SduLength <= config->LL_DL) {
+    if (pduInfoPtr->SduLength <= config->LinkLayerDataLength) {
       if (CANTP_EXTENDED == config->AddressingFormat) {
-        if (config->N_TA != PduInfoPtr->SduDataPtr[0]) {
-          ASLOG(CANTPI, ("[%d]not for me\n", RxPduId));
+        if (config->N_TA != pduInfoPtr->SduDataPtr[0]) {
+          ASLOG(CANTPI, ("[%d]not for me\n", rxPduId));
           r = E_NOT_OK;
-        } else if (PduInfoPtr->SduLength > 2u) {
-          pci = PduInfoPtr->SduDataPtr[1];
-          data = &PduInfoPtr->SduDataPtr[2];
-          length = PduInfoPtr->SduLength - 2u;
+        } else if (pduInfoPtr->SduLength > 2u) {
+          pci = pduInfoPtr->SduDataPtr[1];
+          data = &pduInfoPtr->SduDataPtr[2];
+          length = pduInfoPtr->SduLength - 2u;
         } else {
-          ASLOG(CANTPE, ("[%d]invalid DLC\n", RxPduId));
+          ASLOG(CANTPE, ("[%d]invalid DLC\n", rxPduId));
           r = E_NOT_OK;
         }
       } else {
-        pci = PduInfoPtr->SduDataPtr[0];
-        data = &PduInfoPtr->SduDataPtr[1];
-        length = PduInfoPtr->SduLength - 1u;
+        pci = pduInfoPtr->SduDataPtr[0];
+        data = &pduInfoPtr->SduDataPtr[1];
+        length = pduInfoPtr->SduLength - 1u;
       }
     } else {
-      ASLOG(CANTPE, ("[%d]invalid LL_DL\n", RxPduId));
+      ASLOG(CANTPE, ("[%d]invalid LinkLayerDataLength\n", rxPduId));
       r = E_NOT_OK;
     }
 
     if (E_OK == r) {
-      switch (pci & N_PCI_MASK) {
-      case N_PCI_SF:
+      switch (pci & CANTP_N_PCI_MASK) {
+      case CANTP_N_PCI_SF:
         /* OK for both functional and physical */
         break;
       default:
-        if (CANTP_PHYSICAL != config->comType) {
+        if (CANTP_PHYSICAL != config->ComType) {
           r = E_NOT_OK; /* only single frame supported for functional communication type */
         }
         break;
       }
     }
 
-    if (CanTp_GetDL(PduInfoPtr->SduLength, config->LL_DL) != PduInfoPtr->SduLength) {
-      ASLOG(CANTPE, ("[%d]RX with invalid DLC\n", RxPduId));
+    if (CanTpGetDL(pduInfoPtr->SduLength, config->LinkLayerDataLength) != pduInfoPtr->SduLength) {
+      ASLOG(CANTPE, ("[%d]RX with invalid DLC\n", rxPduId));
       r = E_NOT_OK;
     }
 
     if (E_OK == r) {
-      switch (pci & N_PCI_MASK) {
-      case N_PCI_SF:
-        CanTp_HandleSF(RxPduId, pci, data, length);
+      switch (pci & CANTP_N_PCI_MASK) {
+      case CANTP_N_PCI_SF:
+        CanTp_HandleSF(rxPduId, pci, data, length);
         break;
-      case N_PCI_FF:
-        CanTp_HandleFF(RxPduId, pci, data, length);
+      case CANTP_N_PCI_FF:
+        CanTp_HandleFF(rxPduId, pci, data, length);
         break;
-      case N_PCI_CF:
-        CanTp_HandleCF(RxPduId, pci, data, length);
+      case CANTP_N_PCI_CF:
+        CanTp_HandleCF(rxPduId, pci, data, length);
         break;
 #ifndef CANTP_NO_FC
-      case N_PCI_FC:
-        CanTp_HandleFC(RxPduId, pci, data, length);
+      case CANTP_N_PCI_FC:
+        CanTp_HandleFC(rxPduId, pci, data, length);
         break;
 #endif
       default:
-        ASLOG(CANTPE, ("[%d]RX with invalid PCI 0x%02X\n", RxPduId, pci));
+        ASLOG(CANTPE, ("[%d]RX with invalid PCI 0x%02X\n", rxPduId, pci));
         break;
       }
     }
   } else {
-    ASLOG(CANTPE, ("[%d]RX with invalid args\n", RxPduId));
+    ASLOG(CANTPE, ("[%d]RX with invalid args\n", rxPduId));
   }
 }
 
-void CanTp_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
+void CanTp_TxConfirmation(PduIdType txPduId, Std_ReturnType result) {
 #ifdef CANTP_USE_TX_CONFIRMATION
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x40, CANTP_E_UNINIT, return);
-  DET_VALIDATE(TxPduId < CANTP_CONFIG->numOfChannels, 0x40, CANTP_E_INVALID_TX_ID, return);
+  DET_VALIDATE(txPduId < CANTP_CONFIG->NumOfChannels, 0x40, CANTP_E_INVALID_TX_ID, return);
 
   if (E_OK == result) {
-    config = &(CANTP_CONFIG->channelConfigs[TxPduId]);
-    context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-    switch (context->state) {
+    config = &(CANTP_CONFIG->ChannelConfigs[txPduId]);
+    context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+    switch (context->State) {
     case CANTP_WAIT_SF_TX_COMPLETED:
       CanTp_ResetToIdle(context);
       PduR_CanTpTxConfirmation(config->PduR_TxPduId, E_OK);
       break;
     case CANTP_WAIT_CF_TX_COMPLETED:
-      CanTp_HandleCFTxCompleted(TxPduId);
+      CanTp_HandleCFTxCompleted(txPduId);
       break;
     case CANTP_WAIT_FF_TX_COMPLETED:
-      context->state = CANTP_WAIT_FIRST_FC;
+      context->State = CANTP_WAIT_FIRST_FC;
       context->WftCounter = 0;
       CanTpSetAlarm(config->N_Bs);
       break;
     case CANTP_WAIT_FC_CTS_TX_COMPLETED:
-      context->state = CANTP_WAIT_CF;
+      context->State = CANTP_WAIT_CF;
       CanTpSetAlarm(config->N_Cr);
       break;
     case CANTP_WAIT_FC_OVFLW_TX_COMPLETED:
@@ -1025,24 +1027,24 @@ void CanTp_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
 #endif
 }
 
-Std_ReturnType CanTp_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType CanTp_Transmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType r = E_OK;
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x49, CANTP_E_UNINIT, return E_NOT_OK);
 
   /* @SWS_CanTp_00321 */
-  DET_VALIDATE((NULL != PduInfoPtr) && (PduInfoPtr->SduLength > 0), 0x49, CANTP_E_PARAM_POINTER,
+  DET_VALIDATE((NULL != pduInfoPtr) && (pduInfoPtr->SduLength > 0), 0x49, CANTP_E_PARAM_POINTER,
                return E_NOT_OK);
 
   /* @SWS_CanTp_00356 */
-  DET_VALIDATE(TxPduId < CANTP_CONFIG->numOfChannels, 0x49, CANTP_E_INVALID_TX_ID, return E_NOT_OK);
+  DET_VALIDATE(txPduId < CANTP_CONFIG->NumOfChannels, 0x49, CANTP_E_INVALID_TX_ID, return E_NOT_OK);
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  if (CANTP_IDLE == context->state) {
-    context->TpSduLength = PduInfoPtr->SduLength;
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  if (CANTP_IDLE == context->State) {
+    context->TpSduLength = pduInfoPtr->SduLength;
     context->TpSduOffset = 0;
-    r = CanTp_StartToSend(TxPduId);
+    r = CanTp_StartToSend(txPduId);
   } else {
     r = E_NOT_OK;
   }
@@ -1050,17 +1052,17 @@ Std_ReturnType CanTp_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) 
   return r;
 }
 
-void CanTp_MainFunction_Channel(uint8_t Channel) {
+void CanTp_MainFunction_Channel(uint8_t channel) {
   const CanTp_ChannelConfigType *config;
   CanTp_ChannelContextType *context;
   boolean bTimeout = FALSE;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x06, CANTP_E_UNINIT, return);
 
-  context = &(CANTP_CONFIG->channelContexts[Channel]);
-  config = &(CANTP_CONFIG->channelConfigs[Channel]);
+  context = &(CANTP_CONFIG->ChannelContexts[channel]);
+  config = &(CANTP_CONFIG->ChannelConfigs[channel]);
 
-  tpEnterCritical();
+  CanTpEnterCritical();
   if (CanTpIsAlarmStarted()) {
     CanTpSignalAlarm();
     if (CanTpIsAlarmTimeout()) {
@@ -1068,14 +1070,14 @@ void CanTp_MainFunction_Channel(uint8_t Channel) {
       bTimeout = TRUE;
     }
   }
-  tpExitCritical();
+  CanTpExitCritical();
 
   if (TRUE == bTimeout) {
-    if (CANTP_SEND_CF_DELAY != context->state) {
-      ASLOG(CANTPE, ("[%d] timer timeout in state %d\n", Channel, context->state));
+    if (CANTP_SEND_CF_DELAY != context->State) {
+      ASLOG(CANTPE, ("[%d] timer timeout in state %d\n", channel, context->State));
     }
 
-    switch (context->state) {
+    switch (context->State) {
     case CANTP_WAIT_CF:
 #ifdef CANTP_USE_TX_CONFIRMATION
     case CANTP_WAIT_FC_CTS_TX_COMPLETED:
@@ -1089,7 +1091,7 @@ void CanTp_MainFunction_Channel(uint8_t Channel) {
       break;
 #endif
     case CANTP_SEND_CF_DELAY:
-      CanTp_SendCF((PduIdType)Channel);
+      CanTp_SendCF((PduIdType)channel);
       break;
     default:
       CanTp_ResetToIdle(context);
@@ -1098,29 +1100,29 @@ void CanTp_MainFunction_Channel(uint8_t Channel) {
     }
   }
 
-  if (CANTP_SEND_CF_START == context->state) { /* FC allow CF */
-    CanTp_SendCF((PduIdType)Channel);
+  if (CANTP_SEND_CF_START == context->State) { /* FC allow CF */
+    CanTp_SendCF((PduIdType)channel);
   }
 }
 
-void CanTp_MainFunction_ChannelFast(uint8_t Channel) {
+void CanTp_MainFunction_ChannelFast(uint8_t channel) {
 #ifndef CANTP_USE_TRIGGER_TRANSMIT
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x06, CANTP_E_UNINIT, return);
-  context = &(CANTP_CONFIG->channelContexts[Channel]);
+  context = &(CANTP_CONFIG->ChannelContexts[channel]);
 
-  switch (context->state) {
+  switch (context->State) {
   case CANTP_RESEND_SF:
   case CANTP_RESEND_FF:
   case CANTP_RESEND_FC_CTS:
   case CANTP_RESEND_FC_OVFLW:
   case CANTP_RESEND_CF:
-    CanTp_ReSend((PduIdType)Channel);
+    CanTp_ReSend((PduIdType)channel);
     break;
 #ifndef CANTP_USE_TX_CONFIRMATION
   case CANTP_WAIT_CF_TX_COMPLETED:
-    CanTp_HandleCFTxCompleted(Channel);
+    CanTp_HandleCFTxCompleted(channel);
     break;
 #endif
   default:
@@ -1134,7 +1136,7 @@ void CanTp_MainFunction(void) {
 #if 1 != CANTP_MAIN_FUNCTION_PERIOD
   uint8_t i;
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x06, CANTP_E_UNINIT, return);
-  for (i = 0; i < CANTP_CONFIG->numOfChannels; i++) {
+  for (i = 0; i < CANTP_CONFIG->NumOfChannels; i++) {
     CanTp_MainFunction_Channel(i);
   }
 #endif
@@ -1144,7 +1146,7 @@ void CanTp_MainFunction(void) {
 void CanTp_MainFunction_Fast(void) {
   uint8_t i;
   DET_VALIDATE(NULL != CANTP_CONFIG, 0x06, CANTP_E_UNINIT, return);
-  for (i = 0; i < CANTP_CONFIG->numOfChannels; i++) {
+  for (i = 0; i < CANTP_CONFIG->NumOfChannels; i++) {
 #if 1 == CANTP_MAIN_FUNCTION_PERIOD
     CanTp_MainFunction_Channel(i);
 #endif
@@ -1153,15 +1155,15 @@ void CanTp_MainFunction_Fast(void) {
 }
 
 #ifdef CANTP_USE_TRIGGER_TRANSMIT
-PduLengthType CanTp_GetTxPacketLength(PduIdType TxPduId) {
+PduLengthType CanTp_GetTxPacketLength(PduIdType txPduId) {
   PduLengthType ret = 0;
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0xFF, CANTP_E_UNINIT, return 0);
-  DET_VALIDATE(TxPduId < CANTP_CONFIG->numOfChannels, 0xFF, CANTP_E_INVALID_TX_ID, return 0);
+  DET_VALIDATE(txPduId < CANTP_CONFIG->NumOfChannels, 0xFF, CANTP_E_INVALID_TX_ID, return 0);
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  switch (context->state) {
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  switch (context->State) {
   case CANTP_RESEND_SF:
   case CANTP_RESEND_FF:
   case CANTP_RESEND_FC_CTS:
@@ -1176,15 +1178,15 @@ PduLengthType CanTp_GetTxPacketLength(PduIdType TxPduId) {
   return ret;
 }
 
-PduLengthType CanTp_GetRxLeftLength(PduIdType RxPduId) {
+PduLengthType CanTp_GetRxLeftLength(PduIdType rxPduId) {
   PduLengthType ret = 0;
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0xFE, CANTP_E_UNINIT, return 0);
-  DET_VALIDATE(RxPduId < CANTP_CONFIG->numOfChannels, 0xFE, CANTP_E_INVALID_RX_ID, return 0);
+  DET_VALIDATE(rxPduId < CANTP_CONFIG->NumOfChannels, 0xFE, CANTP_E_INVALID_RX_ID, return 0);
 
-  context = &(CANTP_CONFIG->channelContexts[RxPduId]);
-  switch (context->state) {
+  context = &(CANTP_CONFIG->ChannelContexts[rxPduId]);
+  switch (context->State) {
   case CANTP_WAIT_CF:
   case CANTP_WAIT_CF_TX_COMPLETED:
     ret = context->TpSduLength;
@@ -1196,29 +1198,29 @@ PduLengthType CanTp_GetRxLeftLength(PduIdType RxPduId) {
   return ret;
 }
 
-Std_ReturnType CanTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType CanTp_TriggerTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_OK;
   CanTp_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANTP_CONFIG, 0xF0, CANTP_E_UNINIT, return E_NOT_OK);
   /* 0xF0: self defined CanTp API */
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr) &&
-                 (PduInfoPtr->SduLength > 0),
+  DET_VALIDATE((NULL != pduInfoPtr) && (NULL != pduInfoPtr->SduDataPtr) &&
+                 (pduInfoPtr->SduLength > 0),
                0xF0, CANTP_E_PARAM_POINTER, return E_NOT_OK);
 
-  DET_VALIDATE(TxPduId < CANTP_CONFIG->numOfChannels, 0xF0, CANTP_E_INVALID_TX_ID, return E_NOT_OK);
+  DET_VALIDATE(txPduId < CANTP_CONFIG->NumOfChannels, 0xF0, CANTP_E_INVALID_TX_ID, return E_NOT_OK);
 
-  context = &(CANTP_CONFIG->channelContexts[TxPduId]);
-  switch (context->state) {
+  context = &(CANTP_CONFIG->ChannelContexts[txPduId]);
+  switch (context->State) {
   case CANTP_RESEND_SF:
   case CANTP_RESEND_FF:
   case CANTP_RESEND_FC_CTS:
   case CANTP_RESEND_FC_OVFLW:
   case CANTP_RESEND_CF:
-    ret = CanTp_ReSend(TxPduId, PduInfoPtr);
+    ret = CanTp_ReSend(txPduId, pduInfoPtr);
     break;
   default:
-    ASLOG(CANTPI, ("[%d] trigger transmit in state %d\n", TxPduId, context->state));
+    ASLOG(CANTPI, ("[%d] trigger transmit in state %d\n", txPduId, context->State));
     ret = E_NOT_OK;
     break;
   }
@@ -1230,11 +1232,11 @@ Std_ReturnType CanTp_TriggerTransmit(PduIdType TxPduId, const PduInfoType *PduIn
 void CanTp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x07, CANTP_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = DET_THIS_MODULE_ID;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 3;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = DET_THIS_MODULE_ID;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 3;
 }
 
 /** @brief release notes

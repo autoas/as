@@ -20,24 +20,24 @@ class Plugin(QAction):
         self.mImportVectorCANDBCSignals()
 
     def msg_name(self, bus, msg):
-        name = msg['name']
+        name = msg['Name']
         if not name.startswith(bus+'_'):
             name = '_'.join([bus, name])
-            msg['name'] = name
+            msg['Name'] = name
         return name
 
     def updateEcuC(self, bus, messages):
         updated = False
         cfg = self.root.find('EcuC')
         if None == cfg:
-            cfg = {'class': 'EcuC', 'Pdus': []}
+            cfg = {'Class': 'EcuC', 'Pdus': []}
             updated = True
-        names = [x['name'] for x in cfg.get('Pdus', [])]
+        names = [x['Name'] for x in cfg.get('Pdus', [])]
         for msg in messages:
             name = self.msg_name(bus, msg)
             if name not in names:
                 names.append(name)
-                cfg['Pdus'].append({'name': name, 'size': 8*msg['dlc']})
+                cfg['Pdus'].append({'Name': name, 'Size': 8*msg['Dlc']})
                 updated = True
         if updated:
             self.root.reload('EcuC', cfg)
@@ -46,31 +46,31 @@ class Plugin(QAction):
         updated = False
         cfg = self.root.find('CanIf')
         if None == cfg:
-            cfg = {'class': 'CanIf', 'networks': []}
+            cfg = {'Class': 'CanIf', 'Networks': []}
             updated = True
-        network_names = [x['name'] for x in cfg.get('networks', [])]
+        network_names = [x['Name'] for x in cfg.get('Networks', [])]
         if bus not in network_names:
-            network = {'name': bus, 'me': self.CAN_SELF_DBC_NODE, 'RxPdus': [], 'TxPdus': []}
-            cfg['networks'].append(network)
+            network = {'Name': bus, 'Me': self.CAN_SELF_DBC_NODE, 'RxPdus': [], 'TxPdus': []}
+            cfg['Networks'].append(network)
             updated = True
         else:
-            for x in cfg['networks']:
-                if x['name'] == bus:
+            for x in cfg['Networks']:
+                if x['Name'] == bus:
                     network = x
                     break
-        rx_names = [x['name'] for x in network.get('RxPdus', [])]
-        tx_names = [x['name'] for x in network.get('TxPdus', [])]
+        rx_names = [x['Name'] for x in network.get('RxPdus', [])]
+        tx_names = [x['Name'] for x in network.get('TxPdus', [])]
         for msg in messages:
             name = self.msg_name(bus, msg)
-            if msg['node'] == self.CAN_SELF_DBC_NODE:
+            if msg['Node'] == self.CAN_SELF_DBC_NODE:
                 if name not in tx_names:
-                    txPdu = {'name': name, 'id': msg['id'], 'hoh': 0, 'dynamic': False, 'up': 'PduR'}
+                    txPdu = {'Name': name, 'Id': msg['Id'], 'Hoh': 0, 'Dynamic': False, 'Up': 'PduR'}
                     network['TxPdus'].append(txPdu)
                     updated = True
             else:
                 if name not in rx_names:
-                    rxPdu = {'name': name, 'id': msg['id'],
-                             'hoh': 0, 'use_mask': False, 'up': 'PduR'}
+                    rxPdu = {'Name': name, 'Id': msg['Id'],
+                             'Hoh': 0, 'UseMask': False, 'Up': 'PduR'}
                     network['RxPdus'].append(rxPdu)
                     updated = True
         if updated:
@@ -80,18 +80,18 @@ class Plugin(QAction):
         updated = False
         cfg = self.root.find('PduR')
         if None == cfg:
-            cfg = {'class': 'PduR', 'routines': []}
+            cfg = {'Class': 'PduR', 'Routines': []}
             updated = True
-        names = [x['name'] for x in cfg.get('routines', [])]
+        names = [x['Name'] for x in cfg.get('Routines', [])]
         for msg in messages:
             name = self.msg_name(bus, msg)
             if name not in names:
                 names.append(name)
-                if msg['node'] == self.CAN_SELF_DBC_NODE:
+                if msg['Node'] == self.CAN_SELF_DBC_NODE:
                     fr, to = 'Com', 'CanIf'
                 else:
                     fr, to = 'CanIf', 'Com'
-                cfg['routines'].append({'name': name, 'from': fr, 'to': to})
+                cfg['Routines'].append({'Name': name, 'From': fr, 'To': to})
                 updated = True
         if updated:
             self.root.reload('PduR', cfg)
@@ -100,37 +100,37 @@ class Plugin(QAction):
         updated = False
         cfg = self.root.find('Com')
         if None == cfg:
-            cfg = {'class': 'Com', 'nodes': [], 'group_signals': [], 'networks': []}
+            cfg = {'Class': 'Com', 'Nodes': [], 'GroupSignals': [], 'Networks': []}
             updated = True
-        network_names = [x['name'] for x in cfg.get('networks', [])]
+        network_names = [x['Name'] for x in cfg.get('Networks', [])]
         if bus not in network_names:
-            network = {'name': bus, 'network': 'CAN', 'me': self.CAN_SELF_DBC_NODE, 'messages': []}
-            cfg['networks'].append(network)
+            network = {'Name': bus, 'Network': 'CAN', 'Me': self.CAN_SELF_DBC_NODE, 'Messages': []}
+            cfg['Networks'].append(network)
             updated = True
         else:
-            for x in cfg['networks']:
-                if x['name'] == bus:
+            for x in cfg['Networks']:
+                if x['Name'] == bus:
                     network = x
                     break
-        message_names = [x['name'] for x in network.get('messages', [])]
+        message_names = [x['Name'] for x in network.get('Messages', [])]
         for msg in messages:
-            if msg['node'] not in cfg['nodes']:
-                cfg['nodes'].append(msg['node'])
+            if msg['Node'] not in cfg['Nodes']:
+                cfg['Nodes'].append(msg['Node'])
                 updated = True
-            signals = list(msg['signals'])
+            signals = list(msg['Signals'])
             name = self.msg_name(bus, msg)
             if name not in message_names:
                 bo = dict(msg)
-                network['messages'].append(bo)
+                network['Messages'].append(bo)
             else:
-                for x in network.get('messages', []):
-                    if x['name'] == name:
+                for x in network.get('Messages', []):
+                    if x['Name'] == name:
                         bo = x
                         break
-            signal_names = [x['name'] for x in bo.get('signals', [])]
+            signal_names = [x['Name'] for x in bo.get('Signals', [])]
             for signal in signals:
-                if signal['name'] not in signal_names:
-                    bo['signals'].append(signal)
+                if signal['Name'] not in signal_names:
+                    bo['Signals'].append(signal)
                     updated = True
         if updated:
             self.root.reload('Com', cfg)

@@ -1,10 +1,10 @@
 {
-  "class": "PduR",
-  "routines": [
+  "Class": "PduR",
+  "Routines": [
     {
-      "name": "CAN0_MSG_TIME_TX",
-      "from": "Com",
-      "to": "CanIf"
+      "Name": "CAN0_MSG_TIME_TX",
+      "From": "Com",
+      "To": "CanIf"
     }
   ]
 }

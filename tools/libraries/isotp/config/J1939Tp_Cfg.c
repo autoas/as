@@ -11,8 +11,8 @@
 #define J1939TP_NUM_PDU_PER_CHANNEL 4
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern void CanIf_J1939TpReconfig(uint8_t Channel, J1939Tp_ParamType *params);
-extern void PduR_J1939TpReConfig(uint8_t Channel);
+extern void CanIf_J1939TpReconfig(uint8_t channel, J1939Tp_ParamType *params);
+extern void PduR_J1939TpReConfig(uint8_t channel);
 /* ================================ [ DATAS     ] ============================================== */
 static J1939Tp_RxChannelContextType J1939Tp_RxChannelContexts[J1939TP_MAX_CHANNELS];
 static uint8_t u8RxData[J1939TP_MAX_CHANNELS][64];
@@ -42,8 +42,8 @@ const J1939Tp_ConfigType J1939Tp_Config = {
 INITIALIZER(_isotp_j1939tp_init) {
   int i;
   for (i = 0; i < J1939TP_MAX_CHANNELS; i++) {
-    J1939Tp_TxChannels[i].context = &J1939Tp_TxChannelContexts[i];
-    J1939Tp_TxChannels[i].data = u8TxData[i];
+    J1939Tp_TxChannels[i].Context = &J1939Tp_TxChannelContexts[i];
+    J1939Tp_TxChannels[i].Data = u8TxData[i];
     J1939Tp_TxChannels[i].TxPgPGN = 0;
     J1939Tp_TxChannels[i].PduR_TxPduId = 2 * CANTP_MAX_CHANNELS + i;
     J1939Tp_TxChannels[i].CanIf_TxCmNPdu = CANTP_MAX_CHANNELS + 3 * i + 0;
@@ -57,15 +57,15 @@ INITIALIZER(_isotp_j1939tp_init) {
     J1939Tp_TxChannels[i].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(1050);
     J1939Tp_TxChannels[i].TxProtocol = J1939TP_PROTOCOL_CMDT;
     J1939Tp_TxChannels[i].TxMaxPacketsPerBlock = 8;
-    J1939Tp_TxChannels[i].LL_DL = 8;
+    J1939Tp_TxChannels[i].LinkLayerDataLength = 8;
     J1939Tp_TxChannels[i].S = 0;
     J1939Tp_TxChannels[i].ADType = 0;
-    J1939Tp_TxChannels[i].padding = 0x55;
+    J1939Tp_TxChannels[i].Padding = 0x55;
   }
 
   for (i = 0; i < J1939TP_MAX_CHANNELS; i++) {
-    J1939Tp_RxChannels[i].context = &J1939Tp_RxChannelContexts[i];
-    J1939Tp_RxChannels[i].data = u8RxData[i];
+    J1939Tp_RxChannels[i].Context = &J1939Tp_RxChannelContexts[i];
+    J1939Tp_RxChannels[i].Data = u8RxData[i];
     J1939Tp_RxChannels[i].PduR_RxPduId = CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS + i;
     J1939Tp_RxChannels[i].CanIf_TxCmNPdu = CANTP_MAX_CHANNELS + 3 * i + 3;
     J1939Tp_RxChannels[i].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(200);
@@ -75,10 +75,10 @@ INITIALIZER(_isotp_j1939tp_init) {
     J1939Tp_RxChannels[i].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(1050);
     J1939Tp_RxChannels[i].RxProtocol = J1939TP_PROTOCOL_CMDT;
     J1939Tp_RxChannels[i].RxPacketsPerBlock = 8;
-    J1939Tp_RxChannels[i].LL_DL = 8;
+    J1939Tp_RxChannels[i].LinkLayerDataLength = 8;
     J1939Tp_RxChannels[i].S = 0;
     J1939Tp_RxChannels[i].ADType = 0;
-    J1939Tp_RxChannels[i].padding = 0x55;
+    J1939Tp_RxChannels[i].Padding = 0x55;
   }
 
   for (i = 0; i < J1939TP_MAX_CHANNELS; i++) {
@@ -136,28 +136,28 @@ INITIALIZER(_isotp_j1939tp_init) {
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void J1939Tp_ReConfig(uint8_t Channel, J1939Tp_ParamType *params) {
-  if (Channel < J1939TP_MAX_CHANNELS) {
-    J1939Tp_TxChannels[Channel].STMin = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->STMin);
-    J1939Tp_TxChannels[Channel].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->Tr);
-    J1939Tp_TxChannels[Channel].T1 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T1);
-    J1939Tp_TxChannels[Channel].T2 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T2);
-    J1939Tp_TxChannels[Channel].T3 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T3);
-    J1939Tp_TxChannels[Channel].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T4);
-    J1939Tp_TxChannels[Channel].TxProtocol = params->protocol;
-    J1939Tp_TxChannels[Channel].TxMaxPacketsPerBlock = params->TxMaxPacketsPerBlock;
-    J1939Tp_TxChannels[Channel].LL_DL = params->ll_dl;
+void J1939Tp_ReConfig(uint8_t channel, J1939Tp_ParamType *params) {
+  if (channel < J1939TP_MAX_CHANNELS) {
+    J1939Tp_TxChannels[channel].STMin = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->STMin);
+    J1939Tp_TxChannels[channel].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->Tr);
+    J1939Tp_TxChannels[channel].T1 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T1);
+    J1939Tp_TxChannels[channel].T2 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T2);
+    J1939Tp_TxChannels[channel].T3 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T3);
+    J1939Tp_TxChannels[channel].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T4);
+    J1939Tp_TxChannels[channel].TxProtocol = params->protocol;
+    J1939Tp_TxChannels[channel].TxMaxPacketsPerBlock = params->TxMaxPacketsPerBlock;
+    J1939Tp_TxChannels[channel].LinkLayerDataLength = params->LinkLayerDataLength;
 
-    J1939Tp_RxChannels[Channel].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->Tr);
-    J1939Tp_RxChannels[Channel].T1 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T1);
-    J1939Tp_RxChannels[Channel].T2 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T2);
-    J1939Tp_RxChannels[Channel].T3 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T3);
-    J1939Tp_RxChannels[Channel].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T4);
-    J1939Tp_RxChannels[Channel].RxProtocol = params->protocol;
-    J1939Tp_RxChannels[Channel].RxPacketsPerBlock = params->TxMaxPacketsPerBlock;
-    J1939Tp_RxChannels[Channel].LL_DL = params->ll_dl;
+    J1939Tp_RxChannels[channel].Tr = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->Tr);
+    J1939Tp_RxChannels[channel].T1 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T1);
+    J1939Tp_RxChannels[channel].T2 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T2);
+    J1939Tp_RxChannels[channel].T3 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T3);
+    J1939Tp_RxChannels[channel].T4 = J1939TP_CONVERT_MS_TO_MAIN_CYCLES(params->T4);
+    J1939Tp_RxChannels[channel].RxProtocol = params->protocol;
+    J1939Tp_RxChannels[channel].RxPacketsPerBlock = params->TxMaxPacketsPerBlock;
+    J1939Tp_RxChannels[channel].LinkLayerDataLength = params->LinkLayerDataLength;
 
-    PduR_J1939TpReConfig(Channel);
-    CanIf_J1939TpReconfig(Channel, params);
+    PduR_J1939TpReConfig(channel);
+    CanIf_J1939TpReconfig(channel, params);
   }
 }

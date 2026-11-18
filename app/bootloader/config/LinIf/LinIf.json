@@ -1,42 +1,42 @@
 {
-  "class": "LinIf",
-  "networks": [
+  "Class": "LinIf",
+  "Networks": [
     {
-      "name": "LIN0",
-      "me": "AS",
-      "timeout": 100,
-      "mode": "slave",
+      "Name": "LIN0",
+      "Me": "AS",
+      "Timeout": 100,
+      "Mode": "slave",
       "TxPdus": [
         {
-          "name": "LIN0_DIAG_RES_TX",
-          "id": "0x3d",
-          "type": "DIAG_SRF",
-          "checksum": "enhanced",
-          "dlc": 8,
-          "up": "LinTp"
+          "Name": "LIN0_DIAG_RES_TX",
+          "Id": "0x3d",
+          "Type": "DIAG_SRF",
+          "Checksum": "enhanced",
+          "Dlc": 8,
+          "Up": "LinTp"
         }
       ],
       "RxPdus": [
         {
-          "name": "LIN0_DIAG_REQ_RX",
-          "id": "0x3c",
-          "type": "DIAG_MRF",
-          "checksum": "enhanced",
-          "dlc": 8,
-          "up": "LinTp"
+          "Name": "LIN0_DIAG_REQ_RX",
+          "Id": "0x3c",
+          "Type": "DIAG_MRF",
+          "Checksum": "enhanced",
+          "Dlc": 8,
+          "Up": "LinTp"
         }
       ],
       "ScheduleTables": [
         {
-          "name": "DIAG_TBL",
-          "tables": [
+          "Name": "DIAG_TBL",
+          "Tables": [
             {
-              "name": "LIN0_DIAG_RES_TX",
-              "delay": "10"
+              "Name": "LIN0_DIAG_RES_TX",
+              "Delay": "10"
             },
             {
-              "name": "LIN0_DIAG_REQ_RX",
-              "delay": "10"
+              "Name": "LIN0_DIAG_REQ_RX",
+              "Delay": "10"
             }
           ]
         }

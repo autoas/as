@@ -7,5 +7,18 @@ objs = Glob("*.c")
 @register_library
 class LibraryDcm(Library):
     def config(self):
-        self.CPPPATH = ["$INFRAS", CWD, "$NvM_Cfg", "$PduR_Cfg", "$Dem_Cfg", "$CanTp_Cfg", "$LinTp_Cfg"]
+        # Dcm 的每个源文件都直接 include "Dcm_Cfg.h"，而各个服务是通过
+        # DCM_USE_SERVICE_xxx 宏条件编译进来的，所以必须优先使用调用者注册的
+        # 那份 Dcm 配置（$Dcm_Cfg），否则库会编到别处（或不存在的）同名头文件，
+        # 造成 Dcm_Config 里列了的服务在库里没有实现。
+        self.CPPPATH = [
+            "$INFRAS",
+            CWD,
+            "$Dcm_Cfg",
+            "$NvM_Cfg",
+            "$PduR_Cfg",
+            "$Dem_Cfg",
+            "$CanTp_Cfg",
+            "$LinTp_Cfg",
+        ]
         self.source = objs

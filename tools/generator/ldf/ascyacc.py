@@ -112,10 +112,10 @@ def p_schtbl_list(p):
     """schtbl_list : schtbl_list schtbl
     | schtbl"""
     if len(p) == 2:
-        p[0] = {"schedule_tables": p[1]}
+        p[0] = {"ScheduleTables": p[1]}
     elif len(p) == 3:
         p[0] = p[1]
-        p[0]["schedule_tables"].update(p[2])
+        p[0]["ScheduleTables"].update(p[2])
 
 
 def p_schtbl(p):
@@ -134,7 +134,7 @@ def p_schentrys(p):
 
 def p_schentry(p):
     """schentry : ID delay INTEGER ms SEMI"""
-    p[0] = {"name": p[1], "delay": p[3]}
+    p[0] = {"Name": p[1], "Delay": p[3]}
 
 
 def p_node_attributes(p):
@@ -195,7 +195,7 @@ def p_diagnostic_frame_list(p):
 
 def p_diagnostic_frame(p):
     """diagnostic_frame : ID COLON INTEGER LBRACE frame_signals RBRACE"""
-    p[0] = {p[1]: {"id": p[3], "signals": p[5]}}
+    p[0] = {p[1]: {"Id": p[3], "Signals": p[5]}}
 
 
 def p_frames(p):
@@ -215,7 +215,7 @@ def p_frame_list(p):
 
 def p_frame(p):
     """frame : ID COLON INTEGER COMMA ID COMMA INTEGER LBRACE frame_signals RBRACE"""
-    p[0] = {p[1]: {"id": p[3], "publisher": p[5], "dlc": p[7], "signals": p[9]}}
+    p[0] = {p[1]: {"Id": p[3], "Publisher": p[5], "Dlc": p[7], "Signals": p[9]}}
 
 
 def p_frame_signals(p):
@@ -230,7 +230,7 @@ def p_frame_signals(p):
 
 def p_frame_signal(p):
     """frame_signal : ID COMMA INTEGER SEMI"""
-    p[0] = {p[1]: {"start": p[3]}}
+    p[0] = {p[1]: {"Start": p[3]}}
 
 
 def p_diagnostic_signals(p):
@@ -250,7 +250,7 @@ def p_diagnostic_signal_list(p):
 
 def p_diagnostic_signal(p):
     """diagnostic_signal : ID COLON INTEGER COMMA INTEGER SEMI"""
-    p[0] = {p[1]: {"size": p[3], "initial": p[5]}}
+    p[0] = {p[1]: {"Size": p[3], "Initial": p[5]}}
 
 
 def p_signals(p):
@@ -262,19 +262,19 @@ def p_signals_list(p):
     """signals_list : signals_list signal
     | signal"""
     if len(p) == 2:
-        p[0] = {"signals": p[1]}
+        p[0] = {"Signals": p[1]}
     elif len(p) == 3:
         p[0] = p[1]
-        p[0]["signals"].update(p[2])
+        p[0]["Signals"].update(p[2])
 
 
 def p_signal(p):
     """signal : ID COLON INTEGER COMMA INTEGER COMMA ID COMMA ids SEMI
     | ID COLON INTEGER COMMA INTEGER COMMA ID SEMI"""
     if len(p) == 11:
-        p[0] = {p[1]: {"size": p[3], "initial": p[5], "publisher": p[7], "subscriber": p[9]}}
+        p[0] = {p[1]: {"Size": p[3], "Initial": p[5], "Publisher": p[7], "Subscriber": p[9]}}
     else:
-        p[0] = {p[1]: {"size": p[3], "initial": p[5], "publisher": p[7], "subscriber": []}}
+        p[0] = {p[1]: {"Size": p[3], "Initial": p[5], "Publisher": p[7], "Subscriber": []}}
 
 
 def p_nodes(p):
@@ -297,7 +297,7 @@ def p_node(p):
     | Master COLON ID COMMA INTEGER ms COMMA INTEGER ms SEMI
     | Slaves COLON ids SEMI"""
     if len(p) == 11:
-        p[0] = {"master": {"name": p[3], "time_base": p[5], "jitter": p[8]}}
+        p[0] = {"master": {"Name": p[3], "time_base": p[5], "jitter": p[8]}}
     else:
         p[0] = {"slaves": p[3]}
 

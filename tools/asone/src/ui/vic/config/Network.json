@@ -1,60 +1,60 @@
 {
   "AntiTest": true,
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
+      "Name": "SomeIp",
+      "Class": "SomeIp",
       "SD": {
-        "hostname" : "ssas",
-        "multicast" : "224.244.224.245"
+        "Hostname" : "ssas",
+        "Multicast" : "224.244.224.245"
       },
-      "structs": [
+      "Structs": [
         {
-          "name": "Gauge",
-          "data": [
-            { "name": "name", "type": "string", "size": 32 },
-            { "name": "degree", "type": "uint32" }
+          "Name": "Gauge",
+          "Data": [
+            { "Name": "name", "Type": "string", "Size": 32 },
+            { "Name": "degree", "Type": "uint32" }
           ]
         },
         {
-          "name": "Telltale",
-          "data": [
-            { "name": "name", "type": "string", "size": 32 },
-            { "name": "on", "type": "bool" }
+          "Name": "Telltale",
+          "Data": [
+            { "Name": "name", "Type": "string", "Size": 32 },
+            { "Name": "on", "Type": "bool" }
           ]
         },
         {
-          "name": "Display",
-          "data": [
-            { "name": "gauges", "type": "Gauge", "size": 4, "variable_array": true },
-            { "name": "telltales", "type": "Telltale", "size": 16, "variable_array": true }
+          "Name": "Display",
+          "Data": [
+            { "Name": "gauges", "Type": "Gauge", "Size": 4, "VariableArray": true },
+            { "Name": "telltales", "Type": "Telltale", "Size": 16, "VariableArray": true }
           ]
         }
       ],
-      "servers": [
+      "Servers": [
         {
-          "name": "VIC",
-          "service":"0x1234",
-          "instance":"0x5678",
-          "clientId":"0x4444",
-          "unreliable":"30560",
-          "event-groups": [
+          "Name": "VIC",
+          "Service":"0x1234",
+          "Instance":"0x5678",
+          "ClientId":"0x4444",
+          "Unreliable":"30560",
+          "EventGroups": [
             {
-              "name": "Cluster",
-              "groupId": "0x8001",
-              "enable_multicast": true,
-              "multicast": {
-                "threshold": 1,
-                "addr":"224.244.224.245:30561"
+              "Name": "Cluster",
+              "GroupId": "0x8001",
+              "EnableMulticast": true,
+              "Multicast": {
+                "Threshold": 1,
+                "Addr":"224.244.224.245:30561"
               },
-              "events": [
+              "Events": [
                 {
-                  "name" : "DisplayStatus",
-                  "eventId": "0xbeef",
-                  "tp": true,
-                  "type": "Display",
-                  "version" : "0"
+                  "Name" : "DisplayStatus",
+                  "EventId": "0xbeef",
+                  "Tp": true,
+                  "Type": "Display",
+                  "Version" : "0"
                 }
               ]
             }
@@ -63,16 +63,17 @@
       ]
     },
     {
-      "name": "SoAd",
-      "class": "SoAd",
-      "sockets": [
+      "Name": "SoAd",
+      "Class": "SoAd",
+      "Sockets": [
         {
-          "name": "MIRROR_CLIENT_0",
-          "client": "224.244.224.245:30511",
-          "protocol": "UDP",
-          "multicast": true,
-          "up": "Mirror",
-          "RxPduId": "0"
+          "Name": "MIRROR_CLIENT_0",
+          "Client": "224.244.224.245:30511",
+          "Protocol": "UDP",
+          "Multicast": true,
+          "Up": "Mirror",
+          "RxPduId": "0",
+          "Type": "client"
         }
       ]
     }

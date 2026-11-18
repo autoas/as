@@ -1,14 +1,14 @@
 {
-  "class": "Trace",
-  "area": "App",
-  "size": 1024,
-  "durations": [
+  "Class": "Trace",
+  "Area": "App",
+  "Size": 1024,
+  "Durations": [
     "MainTask10ms",
     "MainTaskFast",
     "MemoryTask",
     "FeeBackup"
   ],
-  "events": [
+  "Events": [
     "FlsAcErase",
     "FlsAcWrite"
   ]

@@ -24,7 +24,7 @@ namespace as {
 
 #define XLT_MSG_DEFAULT XLT_MSG_INFO
 
-#define XLT_LOG(level, fmt, ...) addMsg(XLT_MSG_##level, #level ": " fmt, ##__VA_ARGS__)
+#define XLT_LOG(level, fmt, ...) AddMsg(XLT_MSG_##level, #level ": " fmt, ##__VA_ARGS__)
 
 #define XLT_VERBOSE(fmt, ...) XLT_LOG(VERBOSE, fmt, ##__VA_ARGS__)
 #define XLT_DEBUG(fmt, ...) XLT_LOG(DEBUG, fmt, ##__VA_ARGS__)
@@ -35,7 +35,7 @@ namespace as {
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static std::string get(XLT_ConfigType &cfg, std::string key, std::string dft) {
+static std::string Xlt_Get(XLT_ConfigType &cfg, std::string key, std::string dft) {
   std::string value = dft;
   auto it = cfg.find(key);
   if (it != cfg.end()) {
@@ -44,7 +44,7 @@ static std::string get(XLT_ConfigType &cfg, std::string key, std::string dft) {
   return value;
 }
 
-static int str2int(std::string strV) {
+static int Xlt_StrToInt(std::string strV) {
   int value;
 
   if ((0 == strncmp(strV.c_str(), "0x", 2)) || (0 == strncmp(strV.c_str(), "0X", 2))) {
@@ -56,7 +56,7 @@ static int str2int(std::string strV) {
   return value;
 }
 
-std::vector<std::string> strSplit(const std::string &str, char delim) {
+std::vector<std::string> Xlt_StrSplit(const std::string &str, char delim) {
   std::stringstream ss(str);
   std::string item;
   std::vector<std::string> elems;
@@ -69,10 +69,10 @@ std::vector<std::string> strSplit(const std::string &str, char delim) {
 }
 
 /* the string array must in hex format */
-static int str2arrayu8(std::string strV, std::vector<uint8_t> &u8Arr) {
+static int Xlt_StrToArrayU8(std::string strV, std::vector<uint8_t> &u8Arr) {
   int ret = 0;
 
-  std::vector<std::string> strArr = strSplit(strV, ' ');
+  std::vector<std::string> strArr = Xlt_StrSplit(strV, ' ');
   u8Arr.reserve(strArr.size());
   for (auto &str : strArr) {
     u8Arr.push_back((uint8_t)strtoul(str.c_str(), NULL, 16));
@@ -81,17 +81,17 @@ static int str2arrayu8(std::string strV, std::vector<uint8_t> &u8Arr) {
   return ret;
 }
 
-static int get(XLT_ConfigType &cfg, std::string key, int dft) {
+static int Xlt_Get(XLT_ConfigType &cfg, std::string key, int dft) {
   int value = dft;
   auto it = cfg.find(key);
   if (it != cfg.end()) {
     auto strV = it->second;
-    value = str2int(strV);
+    value = Xlt_StrToInt(strV);
   }
   return value;
 }
 
-static std::string format(const uint8_t *data, int len) {
+static std::string Xlt_Format(const uint8_t *data, int len) {
   static const std::map<uint8_t, std::string> nrcMap = {
     {0x00, "positive response"},
     {0x10, "general reject"},
@@ -152,11 +152,11 @@ static std::string format(const uint8_t *data, int len) {
   return ss.str();
 }
 
-static std::string format(std::vector<uint8_t> data) {
-  return format(data.data(), (int)data.size());
+static std::string Xlt_Format(std::vector<uint8_t> data) {
+  return Xlt_Format(data.data(), (int)data.size());
 }
 
-static std::string hex(const uint8_t *data, int len) {
+static std::string Xlt_Hex(const uint8_t *data, int len) {
   std::stringstream ss;
   for (int i = 0; i < len; i++) {
     ss << std::setw(2) << std::setfill('0') << std::hex << (int)data[i];
@@ -168,36 +168,36 @@ static std::string hex(const uint8_t *data, int len) {
   return ss.str();
 }
 
-static std::string hex(std::vector<uint8_t> data) {
-  return hex(data.data(), (int)data.size());
+static std::string Xlt_Hex(std::vector<uint8_t> data) {
+  return Xlt_Hex(data.data(), (int)data.size());
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
 XLTester::XLTester() {
 }
 
 XLTester::~XLTester() {
-  if (m_thread.joinable()) {
-    m_thread.join();
+  if (m_Thread.joinable()) {
+    m_Thread.join();
   }
 
   if (nullptr != m_IsoTp) {
-    isotp_destory(m_IsoTp);
+    IsoTp_Destroy(m_IsoTp);
     m_IsoTp = nullptr;
   }
 
-  if (m_canBusId >= 0) {
-    can_close(m_canBusId);
-    m_canBusId = -1;
+  if (m_CanBusId >= 0) {
+    CanL_Close(m_CanBusId);
+    m_CanBusId = -1;
   }
 }
 
-void XLTester::addMsg(int level, const char *fmt, ...) {
+void XLTester::AddMsg(int level, const char *fmt, ...) {
   va_list args;
   if (level >= XLT_MSG_DEFAULT) {
-    std::lock_guard<std::mutex> guard(m_lock);
+    std::lock_guard<std::mutex> guard(m_Lock);
     va_start(args, fmt);
-    if (m_lsz < (int)sizeof(m_logs)) {
-      m_lsz += vsnprintf(&m_logs[m_lsz], sizeof(m_logs) - m_lsz, fmt, args);
+    if (m_LogSize < (int)sizeof(m_Logs)) {
+      m_LogSize += vsnprintf(&m_Logs[m_LogSize], sizeof(m_Logs) - m_LogSize, fmt, args);
     } else {
       printf("XLTester logs area too small, please enlarge it\n");
       vprintf(fmt, args);
@@ -210,81 +210,81 @@ void XLTester::addMsg(int level, const char *fmt, ...) {
   }
 }
 
-std::string XLTester::getMsg() {
+std::string XLTester::GetMsg() {
   std::string msg;
-  std::lock_guard<std::mutex> guard(m_lock);
-  if (m_lsz > 0) {
-    msg = m_logs;
-    m_lsz = 0;
+  std::lock_guard<std::mutex> guard(m_Lock);
+  if (m_LogSize > 0) {
+    msg = m_Logs;
+    m_LogSize = 0;
   }
   return msg;
 }
 
-int XLTester::getProgress() {
-  if (m_progress >= XLTESTER_PROGRESS_DONE) {
-    if (m_thread.joinable()) {
-      m_thread.join();
+int XLTester::GetProgress() {
+  if (m_Progress >= XLTESTER_PROGRESS_DONE) {
+    if (m_Thread.joinable()) {
+      m_Thread.join();
     }
   }
-  return m_progress;
+  return m_Progress;
 }
 
-int XLTester::initIsoTp() {
+int XLTester::InitIsoTp() {
   int ret = 0;
 
-  auto protocol = get(m_dcmCfg, "Protocol", "CAN");
-  auto device = get(m_dcmCfg, "Device", "simulator_v2");
-  uint32_t port = get(m_dcmCfg, "Port", 0);
-  uint32_t baudrate = get(m_dcmCfg, "Baudrate", 500000);
+  auto protocol = Xlt_Get(m_DcmCfg, "Protocol", "CAN");
+  auto device = Xlt_Get(m_DcmCfg, "Device", "simulator_v2");
+  uint32_t port = Xlt_Get(m_DcmCfg, "Port", 0);
+  uint32_t baudrate = Xlt_Get(m_DcmCfg, "Baudrate", 500000);
   uint32_t rxid = 0x732, txid = 0x731;
-  uint16_t N_TA = get(m_dcmCfg, "N_TA", 0xFFFF);
-  uint32_t delayUs = get(m_dcmCfg, "delayUs", 0);
-  auto LL_DL = get(m_dcmCfg, "LL_DL", 8);
+  uint16_t N_TA = Xlt_Get(m_DcmCfg, "N_TargetAddress", 0xFFFF);
+  uint32_t delayUs = Xlt_Get(m_DcmCfg, "DelayUs", 0);
+  auto LinkLayerDataLength = Xlt_Get(m_DcmCfg, "LinkLayerDataLength", 8);
   if (protocol == "LIN") {
     rxid = 0x3d;
     txid = 0x3c;
   }
 
-  rxid = get(m_dcmCfg, "Physical Response Address", rxid);
-  txid = get(m_dcmCfg, "Physical Request Address", txid);
+  rxid = Xlt_Get(m_DcmCfg, "PhysicalResponseAddress", rxid);
+  txid = Xlt_Get(m_DcmCfg, "PhysicalRequestAddress", txid);
 
-  m_Params.baudrate = (uint32_t)baudrate;
-  m_Params.port = port;
-  m_Params.ll_dl = LL_DL;
+  m_Params.Baudrate = (uint32_t)baudrate;
+  m_Params.Port = port;
+  m_Params.LinkLayerDataLength = LinkLayerDataLength;
   m_Params.N_TA = N_TA;
 
   if (protocol == "CAN") {
-    strcpy(m_Params.device, device.c_str());
-    m_Params.protocol = ISOTP_OVER_CAN;
+    strcpy(m_Params.Device, device.c_str());
+    m_Params.Protocol = ISOTP_OVER_CAN;
     m_Params.U.CAN.RxCanId = (uint32_t)rxid;
     m_Params.U.CAN.TxCanId = (uint32_t)txid;
-    m_Params.U.CAN.BlockSize = get(m_dcmCfg, "Block Size", 8);
-    m_Params.U.CAN.STmin = get(m_dcmCfg, "STmin", 0);
-    m_funcAddr = get(m_dcmCfg, "Functional Request Address", 0x7df);
-    if (m_canBusId >= 0) {
-      can_close(m_canBusId);
-      m_canBusId = -1;
+    m_Params.U.CAN.BlockSize = Xlt_Get(m_DcmCfg, "BlockSize", 8);
+    m_Params.U.CAN.STmin = Xlt_Get(m_DcmCfg, "STmin", 0);
+    m_FuncAddr = Xlt_Get(m_DcmCfg, "FunctionalRequestAddress", 0x7df);
+    if (m_CanBusId >= 0) {
+      CanL_Close(m_CanBusId);
+      m_CanBusId = -1;
     }
-    m_canBusId = can_open(device.c_str(), port, (uint32_t)baudrate);
-    if (m_canBusId < 0) {
+    m_CanBusId = CanL_Open(device.c_str(), port, (uint32_t)baudrate);
+    if (m_CanBusId < 0) {
       XLT_ERROR("CAN device %s port %d baudrate %d open failed\n", device.c_str(), port, baudrate);
       ret = EACCES;
     }
   } else if (protocol == "LIN") {
-    strcpy(m_Params.device, device.c_str());
-    m_Params.protocol = ISOTP_OVER_LIN;
+    strcpy(m_Params.Device, device.c_str());
+    m_Params.Protocol = ISOTP_OVER_LIN;
     m_Params.U.LIN.RxId = (uint32_t)rxid;
     m_Params.U.LIN.TxId = (uint32_t)txid;
-    m_Params.U.LIN.timeout = get(m_dcmCfg, "STmin", 100);
-    m_Params.U.LIN.delayUs = delayUs;
+    m_Params.U.LIN.Timeout = Xlt_Get(m_DcmCfg, "STmin", 100);
+    m_Params.U.LIN.DelayUs = delayUs;
   } else if (protocol == "DoIP") {
-    auto ipStr = get(m_dcmCfg, "ip", "224.244.224.245");
-    strcpy(m_Params.device, ipStr.c_str());
-    m_Params.protocol = ISOTP_OVER_DOIP;
-    m_Params.port = get(m_dcmCfg, "port", 13400);
-    m_Params.U.DoIP.sourceAddress = get(m_dcmCfg, "sa", 0xbeef);
-    m_Params.U.DoIP.targetAddress = get(m_dcmCfg, "ta", 0xdead);
-    m_Params.U.DoIP.activationType = get(m_dcmCfg, "at", 0xda);
+    auto ipStr = Xlt_Get(m_DcmCfg, "Ip", "224.244.224.245");
+    strcpy(m_Params.Device, ipStr.c_str());
+    m_Params.Protocol = ISOTP_OVER_DOIP;
+    m_Params.Port = Xlt_Get(m_DcmCfg, "Port", 13400);
+    m_Params.U.DoIP.SourceAddress = Xlt_Get(m_DcmCfg, "SourceAddress", 0xbeef);
+    m_Params.U.DoIP.TargetAddress = Xlt_Get(m_DcmCfg, "TargetAddress", 0xdead);
+    m_Params.U.DoIP.ActivationType = Xlt_Get(m_DcmCfg, "ActivationType", 0xda);
   } else {
     XLT_ERROR("invalid protocol %s\n", protocol.c_str());
     ret = EINVAL;
@@ -292,10 +292,10 @@ int XLTester::initIsoTp() {
 
   if (0 == ret) {
     if (nullptr != m_IsoTp) {
-      isotp_destory(m_IsoTp);
+      IsoTp_Destroy(m_IsoTp);
       m_IsoTp = nullptr;
     }
-    m_IsoTp = isotp_create(&m_Params);
+    m_IsoTp = IsoTp_Create(&m_Params);
     if (nullptr == m_IsoTp) {
       XLT_ERROR("Fail to create Dcm\n");
       ret = EFAULT;
@@ -308,12 +308,12 @@ int XLTester::initIsoTp() {
   return ret;
 }
 
-int XLTester::lookup(XLWorksheet &sheet, std::string value, int row, int &col) {
+int XLTester::Lookup(XLWorksheet &sheet, std::string value, int row, int &col) {
   int ret = EEXIST;
   int numColumns = sheet.range().numColumns();
 
   for (int c = 1; c <= numColumns; c++) {
-    std::string val = getCellValue(sheet, row, c);
+    std::string val = GetCellValue(sheet, row, c);
     if (val == value) {
       XLT_DEBUG("found %s at (%d, %d)\n", value.c_str(), row, c);
       col = c;
@@ -325,7 +325,7 @@ int XLTester::lookup(XLWorksheet &sheet, std::string value, int row, int &col) {
   return ret;
 }
 
-int XLTester::getTestCases(TestList &testList) {
+int XLTester::GetTestCases(TestList &testList) {
   int ret = 0;
   XLWorksheet caseSheet;
   int numRows;
@@ -335,19 +335,19 @@ int XLTester::getTestCases(TestList &testList) {
 
   try {
     bool bFound = false;
-    caseSheet = m_doc->workbook().worksheet(testList.name);
+    caseSheet = m_Doc->workbook().worksheet(testList.Name);
     numRows = caseSheet.range().numRows();
     for (int row = 1; row <= numRows; row++) {
-      ret = lookup(caseSheet, "Test Case", row, testCaseCol);
-      ret += lookup(caseSheet, "Test Type", row, testTypeCol);
-      ret += lookup(caseSheet, "Address", row, addressCol);
-      ret += lookup(caseSheet, "Request", row, requestCol);
-      ret += lookup(caseSheet, "Expected Response", row, expectedResponseCol);
-      ret += lookup(caseSheet, "Repeat", row, repeatCol);
-      ret += lookup(caseSheet, "Actual Response", row, actualResponseCol);
-      ret += lookup(caseSheet, "Delay(ms)", row, delayMsCol);
-      ret += lookup(caseSheet, "Result", row, resultCol);
-      ret += lookup(caseSheet, "Comments", row, commentsCol);
+      ret = Lookup(caseSheet, "Test Case", row, testCaseCol);
+      ret += Lookup(caseSheet, "Test Type", row, testTypeCol);
+      ret += Lookup(caseSheet, "Address", row, addressCol);
+      ret += Lookup(caseSheet, "Request", row, requestCol);
+      ret += Lookup(caseSheet, "Expected Response", row, expectedResponseCol);
+      ret += Lookup(caseSheet, "Repeat", row, repeatCol);
+      ret += Lookup(caseSheet, "Actual Response", row, actualResponseCol);
+      ret += Lookup(caseSheet, "Delay(ms)", row, delayMsCol);
+      ret += Lookup(caseSheet, "Result", row, resultCol);
+      ret += Lookup(caseSheet, "Comments", row, commentsCol);
       if (0 == ret) {
         startRow = row + 1;
         bFound = true;
@@ -355,7 +355,7 @@ int XLTester::getTestCases(TestList &testList) {
       }
     }
     if (false == bFound) {
-      XLT_ERROR("Can't found valid title for: %s\n", testList.name.c_str());
+      XLT_ERROR("Can't found valid title for: %s\n", testList.Name.c_str());
       ret = EINVAL;
     } else {
       XLT_DEBUG("titile position: %d %d %d %d %d %d %d %d %d %d\n", testCaseCol, testTypeCol,
@@ -363,39 +363,39 @@ int XLTester::getTestCases(TestList &testList) {
                 delayMsCol, resultCol, commentsCol);
     }
   } catch (const std::exception &e) {
-    XLT_ERROR("Fail to get test cases for %s: %s\n", testList.name.c_str(), e.what());
+    XLT_ERROR("Fail to get test cases for %s: %s\n", testList.Name.c_str(), e.what());
     ret = EFAULT;
   }
 
   if (0 == ret) {
-    testList.sheet = caseSheet;
-    testList.actualResponseCol = actualResponseCol;
-    testList.resultCol = resultCol;
+    testList.Sheet = caseSheet;
+    testList.ActualResponseCol = actualResponseCol;
+    testList.ResultCol = resultCol;
     for (int row = startRow; row <= numRows; row++) {
       TestCase tstCase;
-      tstCase.name = getCellValue(caseSheet, row, testCaseCol);
-      tstCase.type = getCellValue(caseSheet, row, testTypeCol);
-      tstCase.address = getCellValue(caseSheet, row, addressCol);
-      tstCase.request = getCellValue(caseSheet, row, requestCol);
-      tstCase.expectedResponse = getCellValue(caseSheet, row, expectedResponseCol);
-      tstCase.comments = getCellValue(caseSheet, row, commentsCol);
-      tstCase.delayMs = str2int(getCellValue(caseSheet, row, delayMsCol));
-      tstCase.row = row;
+      tstCase.Name = GetCellValue(caseSheet, row, testCaseCol);
+      tstCase.Type = GetCellValue(caseSheet, row, testTypeCol);
+      tstCase.Address = GetCellValue(caseSheet, row, addressCol);
+      tstCase.Request = GetCellValue(caseSheet, row, requestCol);
+      tstCase.ExpectedResponse = GetCellValue(caseSheet, row, expectedResponseCol);
+      tstCase.Comments = GetCellValue(caseSheet, row, commentsCol);
+      tstCase.DelayMs = Xlt_StrToInt(GetCellValue(caseSheet, row, delayMsCol));
+      tstCase.Row = row;
 
-      auto repeatStr = getCellValue(caseSheet, row, repeatCol);
+      auto repeatStr = GetCellValue(caseSheet, row, repeatCol);
       if ("" != repeatStr) {
-        tstCase.repeat = str2int(repeatStr);
-        if (tstCase.repeat <= 0) {
+        tstCase.Repeat = Xlt_StrToInt(repeatStr);
+        if (tstCase.Repeat <= 0) {
           ret = EINVAL;
-          XLT_ERROR("%s: repeat \"%s\" is invalid\n", testList.name.c_str(), repeatStr.c_str());
+          XLT_ERROR("%s: repeat \"%s\" is invalid\n", testList.Name.c_str(), repeatStr.c_str());
         }
       }
 
-      if (("" != tstCase.type) && ("" != tstCase.request)) {
-        testList.cases.push_back(tstCase);
-        XLT_DEBUG("%s: %s, %s, %s, %s, %s, %s\n", testList.name.c_str(), tstCase.name.c_str(),
-                  tstCase.type.c_str(), tstCase.address.c_str(), tstCase.request.c_str(),
-                  tstCase.expectedResponse.c_str(), tstCase.comments.c_str());
+      if (("" != tstCase.Type) && ("" != tstCase.Request)) {
+        testList.Cases.push_back(tstCase);
+        XLT_DEBUG("%s: %s, %s, %s, %s, %s, %s\n", testList.Name.c_str(), tstCase.Name.c_str(),
+                  tstCase.Type.c_str(), tstCase.Address.c_str(), tstCase.Request.c_str(),
+                  tstCase.ExpectedResponse.c_str(), tstCase.Comments.c_str());
       }
     }
   }
@@ -403,17 +403,17 @@ int XLTester::getTestCases(TestList &testList) {
   return ret;
 }
 
-int XLTester::init(std::string filePath) {
+int XLTester::Init(std::string filePath) {
   int ret = 0;
   XLWorksheet configSheet;
   int numRows, numColumns;
 
-  m_progress = 0;
-  m_dcmCfg.clear();
-  m_testLists.clear();
+  m_Progress = 0;
+  m_DcmCfg.clear();
+  m_TestLists.clear();
 
   try {
-    m_doc = std::make_shared<XLDocument>(filePath);
+    m_Doc = std::make_shared<XLDocument>(filePath);
     XLT_DEBUG("Open Excel: %s OK\n", filePath.c_str());
   } catch (const std::exception &e) {
     XLT_ERROR("Fail to open Excel: %s, %s\n", filePath.c_str(), e.what());
@@ -422,31 +422,31 @@ int XLTester::init(std::string filePath) {
 
   if (0 == ret) {
     try {
-      configSheet = m_doc->workbook().worksheet("Config");
+      configSheet = m_Doc->workbook().worksheet("Config");
       numRows = configSheet.range().numRows();
       numColumns = configSheet.range().numColumns();
       XLT_DEBUG("Get config sheet: rows,cols = %d,%d\n", numRows, numColumns);
       for (int row = 1; (row <= numRows) && (0 == ret); row++) {
         for (int col = 1; (col < numColumns) && (0 == ret); col++) {
-          std::string key = getCellValue(configSheet, row, col);
-          std::string value = getCellValue(configSheet, row, col + 1);
+          std::string key = GetCellValue(configSheet, row, col);
+          std::string value = GetCellValue(configSheet, row, col + 1);
           if (("Configuration" == key) && ("Dcm" == value)) {
             XLT_DEBUG("Get config Dcm @ row,col = %d,%d\n", row, col);
             for (row = row + 1; row <= numRows; row++) {
-              std::string key = getCellValue(configSheet, row, col);
-              std::string value = getCellValue(configSheet, row, col + 1);
+              std::string key = GetCellValue(configSheet, row, col);
+              std::string value = GetCellValue(configSheet, row, col + 1);
               if (("" == key) || ("" == value)) {
                 break;
               }
               XLT_INFO("Dcm: %s = %s\n", key.c_str(), value.c_str());
-              m_dcmCfg[key] = value;
+              m_DcmCfg[key] = value;
             }
             break;
           } else if (("TestList" == key) && ("TestType" == value)) {
             for (row = row + 1; (row <= numRows) && (0 == ret); row++) {
-              std::string key = getCellValue(configSheet, row, col);
-              std::string value = getCellValue(configSheet, row, col + 1);
-              std::string onOff = getCellValue(configSheet, row, col + 2);
+              std::string key = GetCellValue(configSheet, row, col);
+              std::string value = GetCellValue(configSheet, row, col + 1);
+              std::string onOff = GetCellValue(configSheet, row, col + 2);
               if (("" == key) || ("" == value)) {
                 break;
               }
@@ -455,11 +455,11 @@ int XLTester::init(std::string filePath) {
               }
               XLT_INFO("TestList for %s, type %s\n", key.c_str(), value.c_str());
               TestList testList;
-              testList.name = key;
-              testList.type = value;
-              ret = getTestCases(testList);
+              testList.Name = key;
+              testList.Type = value;
+              ret = GetTestCases(testList);
               if (0 == ret) {
-                m_testLists.push_back(testList);
+                m_TestLists.push_back(testList);
               }
             }
             break;
@@ -475,17 +475,17 @@ int XLTester::init(std::string filePath) {
   }
 
   if (0 == ret) {
-    if (m_dcmCfg.empty()) {
+    if (m_DcmCfg.empty()) {
       XLT_ERROR("No Dcm Cfg provided\n");
       ret = EFAULT;
     } else {
-      ret = initIsoTp();
+      ret = InitIsoTp();
     }
   }
 
   if (0 == ret) {
     auto dir = std::string(dirname((char *)filePath.c_str()));
-    auto luaScript = dir + "/" + get(m_dcmCfg, "lua", "Tester.lua");
+    auto luaScript = dir + "/" + Xlt_Get(m_DcmCfg, "Lua", "Tester.lua");
     try {
       m_Lua = std::make_shared<AsLuaScript>(luaScript);
     } catch (const std::exception &e) {
@@ -496,86 +496,86 @@ int XLTester::init(std::string filePath) {
 
   if (0 == ret) {
     int totalCases = 0;
-    for (auto &tstList : m_testLists) {
-      totalCases += tstList.cases.size();
+    for (auto &tstList : m_TestLists) {
+      totalCases += tstList.Cases.size();
     }
 
-    m_step = XLTESTER_PROGRESS_DONE / totalCases;
+    m_Step = XLTESTER_PROGRESS_DONE / totalCases;
   }
 
   if (0 != ret) {
     /* resource cleanup */
     m_Lua = nullptr;
     if (nullptr != m_IsoTp) {
-      isotp_destory(m_IsoTp);
+      IsoTp_Destroy(m_IsoTp);
       m_IsoTp = nullptr;
     }
 
-    if (m_canBusId >= 0) {
-      can_close(m_canBusId);
-      m_canBusId = -1;
+    if (m_CanBusId >= 0) {
+      CanL_Close(m_CanBusId);
+      m_CanBusId = -1;
     }
   }
 
   return ret;
 }
 
-int XLTester::executeCANCase(TestCase &tstCase) {
+int XLTester::ExecuteCanCase(TestCase &tstCase) {
   int ret = 0;
   uint32_t canId;
-  int repeat = tstCase.repeat;
+  int repeat = tstCase.Repeat;
   std::vector<uint8_t> req;
   bool bLuaRequest = false;
   std::string api;
   std::string request;
 
-  if (0 == strncmp(tstCase.request.c_str(), "lua.", 4)) {
+  if (0 == strncmp(tstCase.Request.c_str(), "lua.", 4)) {
     bLuaRequest = true;
-    api = std::string(&tstCase.request.c_str()[4]);
-    request = tstCase.address;
-  } else if (0 == strncmp(tstCase.address.c_str(), "lua.", 4)) {
+    api = std::string(&tstCase.Request.c_str()[4]);
+    request = tstCase.Address;
+  } else if (0 == strncmp(tstCase.Address.c_str(), "lua.", 4)) {
     bLuaRequest = true;
-    api = std::string(&tstCase.address.c_str()[4]);
-    request = tstCase.request;
+    api = std::string(&tstCase.Address.c_str()[4]);
+    request = tstCase.Request;
   } else {
-    canId = (uint32_t)str2int(tstCase.address);
-    ret = str2arrayu8(tstCase.request, req);
+    canId = (uint32_t)Xlt_StrToInt(tstCase.Address);
+    ret = Xlt_StrToArrayU8(tstCase.Request, req);
   }
 
   for (int i = 0; (i < repeat) && (0 == ret); i++) {
     if (true == bLuaRequest) {
-      lua_arg_t inArgs[3];
-      inArgs[0].type = LUA_ARG_TYPE_SINT32;
-      inArgs[0].s32 = m_canBusId;
+      Lua_ArgType inArgs[3];
+      inArgs[0].Type = LUA_ARG_TYPE_SINT32;
+      inArgs[0].S32 = m_CanBusId;
 
-      inArgs[1].type = LUA_ARG_TYPE_STRING;
-      inArgs[1].string = request;
+      inArgs[1].Type = LUA_ARG_TYPE_STRING;
+      inArgs[1].String = request;
 
-      inArgs[2].type = LUA_ARG_TYPE_STRING;
-      inArgs[2].string = tstCase.expectedResponse;
+      inArgs[2].Type = LUA_ARG_TYPE_STRING;
+      inArgs[2].String = tstCase.ExpectedResponse;
 
-      lua_arg_t outArgs[2];
-      outArgs[0].type = LUA_ARG_TYPE_SINT32;
-      outArgs[1].type = LUA_ARG_TYPE_STRING; /* the actural response text */
-      ret = m_Lua->call(api.c_str(), inArgs, 3, outArgs, 2);
+      Lua_ArgType outArgs[2];
+      outArgs[0].Type = LUA_ARG_TYPE_SINT32;
+      outArgs[1].Type = LUA_ARG_TYPE_STRING; /* the actural response text */
+      ret = m_Lua->Call(api.c_str(), inArgs, 3, outArgs, 2);
       if (0 == ret) {
-        ret = outArgs[0].s32;
-        if ("" != outArgs[1].string) {
-          tstCase.actualResponse += std::to_string(i) + ": " + outArgs[1].string + "\n";
+        ret = outArgs[0].S32;
+        if ("" != outArgs[1].String) {
+          tstCase.ActualResponse += std::to_string(i) + ": " + outArgs[1].String + "\n";
         }
       } else {
         XLT_ERROR("Failed to call lua API %s: %d\n", api.c_str(), ret);
       }
     } else {
-      auto bRet = can_write(m_canBusId, canId, (uint8_t)req.size(), req.data());
+      auto bRet = CanL_Write(m_CanBusId, canId, (uint8_t)req.size(), req.data());
       if (true != bRet) {
-        XLT_ERROR("%d time: can write(%d, %x, [%s]) failed\n", i, m_canBusId, canId,
-                  hex(req).c_str());
+        XLT_ERROR("%d time: can write(%d, %x, [%s]) failed\n", i, m_CanBusId, canId,
+                  Xlt_Hex(req).c_str());
         ret = EFAULT;
       } else {
         if (i < (repeat - 1)) {
-          if (tstCase.delayMs > 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(tstCase.delayMs));
+          if (tstCase.DelayMs > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(tstCase.DelayMs));
           }
         }
       }
@@ -583,32 +583,32 @@ int XLTester::executeCANCase(TestCase &tstCase) {
   }
 
   if (0 != ret) {
-    tstCase.result = false;
+    tstCase.Result = false;
   } else {
-    tstCase.result = true;
+    tstCase.Result = true;
   }
 
   return ret;
 }
 
-int XLTester::udsRequestService(std::vector<uint8_t> &req, std::vector<uint8_t> &res,
+int XLTester::UdsRequestService(std::vector<uint8_t> &req, std::vector<uint8_t> &res,
                                 std::string address) {
   int r = 0;
   res.clear();
-  XLT_DEBUG("Dcm request: %s\n", format(req).c_str());
+  XLT_DEBUG("Dcm request: %s\n", Xlt_Format(req).c_str());
 
-  uint32_t funcAddr = m_funcAddr;
+  uint32_t funcAddr = m_FuncAddr;
 
   if ("Functional" == address) {
     /* switch to functional addressing mode */
-    isotp_ioctl(m_IsoTp, ISOTP_IOCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
+    IsoTp_IoCtl(m_IsoTp, ISOTP_IOCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
   }
 
-  r = isotp_transmit(m_IsoTp, (uint8_t *)req.data(), req.size(), nullptr, 0);
+  r = IsoTp_Transmit(m_IsoTp, (uint8_t *)req.data(), req.size(), nullptr, 0);
   while (0 == r) {
-    int rlen = isotp_receive(m_IsoTp, m_Buffer, sizeof(m_Buffer));
+    int rlen = IsoTp_Receive(m_IsoTp, m_Buffer, sizeof(m_Buffer));
     if (rlen > 0) {
-      XLT_DEBUG("Dcm response: %s\n", format(m_Buffer, rlen).c_str());
+      XLT_DEBUG("Dcm response: %s\n", Xlt_Format(m_Buffer, rlen).c_str());
       if ((req[0] | 0x40) == m_Buffer[0]) {
         r = 0;
         for (int i = 0; i < rlen; i++) {
@@ -635,24 +635,24 @@ int XLTester::udsRequestService(std::vector<uint8_t> &req, std::vector<uint8_t> 
 
   if ("Functional" == address) {
     /* switch back to physical addressing mode */
-    isotp_ioctl(m_IsoTp, ISOTP_IOCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
+    IsoTp_IoCtl(m_IsoTp, ISOTP_IOCTL_SET_TX_ID, &funcAddr, sizeof(funcAddr));
   }
 
   return r;
 }
 
-int XLTester::luaRequest(std::string api, std::vector<uint8_t> &req) {
+int XLTester::LuaRequest(std::string api, std::vector<uint8_t> &req) {
   int ret = 0;
 
-  lua_arg_t outArgs[2];
-  outArgs[0].type = LUA_ARG_TYPE_SINT32;  /* ret */
-  outArgs[1].type = LUA_ARG_TYPE_UINT8_N; /* req */
+  Lua_ArgType outArgs[2];
+  outArgs[0].Type = LUA_ARG_TYPE_SINT32;  /* ret */
+  outArgs[1].Type = LUA_ARG_TYPE_UINT8_N; /* req */
 
-  ret = m_Lua->call(api.c_str(), nullptr, 0, outArgs, 2);
+  ret = m_Lua->Call(api.c_str(), nullptr, 0, outArgs, 2);
   if (0 == ret) {
-    ret = outArgs[0].s32;
+    ret = outArgs[0].S32;
     if (0 == ret) {
-      req = outArgs[1].u8N;
+      req = outArgs[1].U8N;
     }
   } else {
     XLT_ERROR("Failed to call lua API %s: %d\n", api.c_str(), ret);
@@ -661,19 +661,19 @@ int XLTester::luaRequest(std::string api, std::vector<uint8_t> &req) {
   return ret;
 }
 
-int XLTester::luaResponse(std::string api, std::vector<uint8_t> res) {
+int XLTester::LuaResponse(std::string api, std::vector<uint8_t> res) {
   int ret = 0;
 
-  lua_arg_t inArgs[1];
-  inArgs[0].type = LUA_ARG_TYPE_UINT8_N;
-  inArgs[0].u8N = res;
+  Lua_ArgType inArgs[1];
+  inArgs[0].Type = LUA_ARG_TYPE_UINT8_N;
+  inArgs[0].U8N = res;
 
-  lua_arg_t outArgs[1];
-  outArgs[0].type = LUA_ARG_TYPE_SINT32;
+  Lua_ArgType outArgs[1];
+  outArgs[0].Type = LUA_ARG_TYPE_SINT32;
 
-  ret = m_Lua->call(api.c_str(), inArgs, 1, outArgs, 1);
+  ret = m_Lua->Call(api.c_str(), inArgs, 1, outArgs, 1);
   if (0 == ret) {
-    ret = outArgs[0].s32;
+    ret = outArgs[0].S32;
   } else {
     XLT_ERROR("Failed to call lua API %s: %d\n", api.c_str(), ret);
   }
@@ -681,27 +681,27 @@ int XLTester::luaResponse(std::string api, std::vector<uint8_t> res) {
   return ret;
 }
 
-int XLTester::executeUDSCase(TestCase &tstCase) {
+int XLTester::ExecuteUdsCase(TestCase &tstCase) {
   int ret = 0;
 
   std::vector<uint8_t> req;
   std::vector<uint8_t> res;
 
-  if (0 == strncmp(tstCase.request.c_str(), "lua.", 4)) {
-    ret = luaRequest(std::string(&tstCase.request.c_str()[4]), req);
+  if (0 == strncmp(tstCase.Request.c_str(), "lua.", 4)) {
+    ret = LuaRequest(std::string(&tstCase.Request.c_str()[4]), req);
   } else {
-    ret = str2arrayu8(tstCase.request, req);
+    ret = Xlt_StrToArrayU8(tstCase.Request, req);
   }
 
   if (0 == ret) {
-    ret = udsRequestService(req, res, tstCase.address);
+    ret = UdsRequestService(req, res, tstCase.Address);
     if (0 == ret) {
-      tstCase.actualResponse = hex(res);
-      if (0 == strncmp(tstCase.expectedResponse.c_str(), "lua.", 4)) {
-        ret = luaResponse(std::string(&tstCase.expectedResponse.c_str()[4]), res);
+      tstCase.ActualResponse = Xlt_Hex(res);
+      if (0 == strncmp(tstCase.ExpectedResponse.c_str(), "lua.", 4)) {
+        ret = LuaResponse(std::string(&tstCase.ExpectedResponse.c_str()[4]), res);
       } else {
-        auto strArrR = strSplit(tstCase.actualResponse, ' ');
-        auto strArrG = strSplit(tstCase.expectedResponse, ' ');
+        auto strArrR = Xlt_StrSplit(tstCase.ActualResponse, ' ');
+        auto strArrG = Xlt_StrSplit(tstCase.ExpectedResponse, ' ');
         if (strArrR.size() != strArrG.size()) {
           ret = EFAULT;
         } else {
@@ -717,116 +717,116 @@ int XLTester::executeUDSCase(TestCase &tstCase) {
       }
     }
   } else {
-    XLT_ERROR("  name=\"%s\", request=\"%s\" contains invalid data\n", tstCase.name.c_str(),
-              tstCase.request.c_str());
+    XLT_ERROR("  name=\"%s\", request=\"%s\" contains invalid data\n", tstCase.Name.c_str(),
+              tstCase.Request.c_str());
 
     ret = EINVAL;
   }
 
   if (0 != ret) {
-    tstCase.result = false;
+    tstCase.Result = false;
   } else {
-    tstCase.result = true;
+    tstCase.Result = true;
   }
 
   return ret;
 }
 
-int XLTester::executeTestCase(TestCase &tstCase) {
+int XLTester::ExecuteTestCase(TestCase &tstCase) {
   int ret = 0;
 
-  if ("UDS" == tstCase.type) {
-    ret = executeUDSCase(tstCase);
-  } else if ("CAN" == tstCase.type) {
-    ret = executeCANCase(tstCase);
+  if ("UDS" == tstCase.Type) {
+    ret = ExecuteUdsCase(tstCase);
+  } else if ("CAN" == tstCase.Type) {
+    ret = ExecuteCanCase(tstCase);
   } else {
-    XLT_ERROR("  name=\"%s\", type=\"%s\" not supported\n", tstCase.name.c_str(),
-              tstCase.type.c_str());
+    XLT_ERROR("  name=\"%s\", type=\"%s\" not supported\n", tstCase.Name.c_str(),
+              tstCase.Type.c_str());
     ret = EINVAL;
   }
 
   XLT_INFO("  name=\"%s\", type=\"%s\", address=%s, request=\"%s\", repeat=%d, expected=\"%s\", "
            "actual=\"%s\", %s\n",
-           tstCase.name.c_str(), tstCase.type.c_str(), tstCase.address.c_str(),
-           tstCase.request.c_str(), tstCase.repeat, tstCase.expectedResponse.c_str(),
-           tstCase.actualResponse.c_str(), tstCase.result ? "PASS" : "FAIL");
+           tstCase.Name.c_str(), tstCase.Type.c_str(), tstCase.Address.c_str(),
+           tstCase.Request.c_str(), tstCase.Repeat, tstCase.ExpectedResponse.c_str(),
+           tstCase.ActualResponse.c_str(), tstCase.Result ? "PASS" : "FAIL");
 
   return ret;
 }
 
-void XLTester::threadMain() {
+void XLTester::ThreadMain() {
   XLT_INFO("Starting Test ...\n");
 
   uint32_t failNum = 0;
   uint32_t passNum = 0;
 
-  for (auto &tstList : m_testLists) {
-    XLT_INFO("Starting Test for %s: %d number of cases\n", tstList.name.c_str(),
-             (int)tstList.cases.size());
-    for (auto &tstCase : tstList.cases) {
-      (void)executeTestCase(tstCase);
-      if (tstCase.delayMs > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(tstCase.delayMs));
+  for (auto &tstList : m_TestLists) {
+    XLT_INFO("Starting Test for %s: %d number of cases\n", tstList.Name.c_str(),
+             (int)tstList.Cases.size());
+    for (auto &tstCase : tstList.Cases) {
+      (void)ExecuteTestCase(tstCase);
+      if (tstCase.DelayMs > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(tstCase.DelayMs));
       }
-      m_progress += m_step;
+      m_Progress += m_Step;
 
       try {
         /* update the value field */
-        auto cellActualRes = tstList.sheet.cell(tstCase.row, tstList.actualResponseCol);
-        cellActualRes.value() = tstCase.actualResponse;
+        auto cellActualRes = tstList.Sheet.cell(tstCase.Row, tstList.ActualResponseCol);
+        cellActualRes.value() = tstCase.ActualResponse;
 
-        auto cellResult = tstList.sheet.cell(tstCase.row, tstList.resultCol);
-        cellResult.value() = tstCase.result ? "PASS" : "FAIL";
-        if (false == tstCase.result) {
+        auto cellResult = tstList.Sheet.cell(tstCase.Row, tstList.ResultCol);
+        cellResult.value() = tstCase.Result ? "PASS" : "FAIL";
+        if (false == tstCase.Result) {
           failNum++;
         } else {
           passNum++;
         }
       } catch (const std::exception &e) {
-        XLT_ERROR("Fail to update sheet %s for case %s: %s\n", tstList.name.c_str(),
-                  tstCase.name.c_str(), e.what());
+        XLT_ERROR("Fail to update sheet %s for case %s: %s\n", tstList.Name.c_str(),
+                  tstCase.Name.c_str(), e.what());
       }
     }
   }
 
   try {
-    m_doc->saveAs("TestReport.xlsx");
-    m_doc->close();
+    m_Doc->saveAs("TestReport.xlsx");
+    m_Doc->close();
     XLT_INFO("Generate Report TestReport.xlsx OK, %u FAIL, %u PASS\n", failNum, passNum);
   } catch (const std::exception &e) {
     XLT_ERROR("Fail to generate TestReport.xlsx: %s\n", e.what());
   }
 
   XLT_INFO("Test Done\n");
-  m_progress = XLTESTER_PROGRESS_DONE;
+  m_Progress = XLTESTER_PROGRESS_DONE;
 
   m_Lua = nullptr;
   if (nullptr != m_IsoTp) {
-    isotp_destory(m_IsoTp);
+    IsoTp_Destroy(m_IsoTp);
     m_IsoTp = nullptr;
   }
 
-  if (m_canBusId >= 0) {
-    can_close(m_canBusId);
-    m_canBusId = -1;
+  if (m_CanBusId >= 0) {
+    CanL_Close(m_CanBusId);
+    m_CanBusId = -1;
   }
 }
 
-int XLTester::start(std::string filePath) {
-  int ret = init(filePath);
+int XLTester::Start(std::string filePath) {
+  int ret = Init(filePath);
 
   if (0 == ret) {
-    m_progress = 0;
-    if (m_thread.joinable()) {
-      m_thread.join();
+    m_Progress = 0;
+    if (m_Thread.joinable()) {
+      m_Thread.join();
     }
-    m_thread = std::thread(&XLTester::threadMain, this);
+    m_Thread = std::thread(&XLTester::ThreadMain, this);
   }
 
   return ret;
 }
 
-std::string XLTester::getCellValue(XLWorksheet &sheet, int row, int col) {
+std::string XLTester::GetCellValue(XLWorksheet &sheet, int row, int col) {
   std::string value = "";
   int ret = 0;
   XLCell cell;

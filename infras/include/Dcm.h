@@ -171,21 +171,21 @@ typedef uint8_t Dcm_SesCtrlType;
 /* @SWS_Dcm_00992 */
 typedef struct {
   /*0 = physical request, 1 = functional request*/
-  uint8_t reqType : 1;
+  uint8_t ReqType : 1;
   /* 0 = no (do not suppress), 1 = yes (no positive response will be sent) */
-  uint8_t suppressPosResponse : 1;
+  uint8_t SuppressPosResponse : 1;
 } Dcm_MsgAddInfoType;
 
 /* @SWS_Dcm_00994 */
 typedef struct {
-  Dcm_MsgType reqData;
-  Dcm_MsgLenType reqDataLen;
-  Dcm_MsgType resData;
-  Dcm_MsgLenType resDataLen;
-  Dcm_MsgAddInfoType msgAddInfo;
-  Dcm_MsgLenType resMaxDataLen;
+  Dcm_MsgType ReqData;
+  Dcm_MsgLenType ReqDataLen;
+  Dcm_MsgType ResData;
+  Dcm_MsgLenType ResDataLen;
+  Dcm_MsgAddInfoType MsgAddInfo;
+  Dcm_MsgLenType ResMaxDataLen;
   /* Dcm_IdContextType idContext; */
-  PduIdType dcmRxPduId;
+  PduIdType DcmRxPduId;
 } Dcm_MsgContextType;
 
 /* @SWS_Dcm_00988 */
@@ -213,12 +213,12 @@ extern Dcm_Nvm_SecurityAccessType Dcm_NvmSecurityAccess_Ram;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Dcm_00037 */
-void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) ConfigPtr);
+void Dcm_Init(P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) configPtr);
 /* @SWS_Dcm_00053 */
 void Dcm_MainFunction(void);
 /* @SWS_Dcm_00094 */
 BufReq_ReturnType Dcm_StartOfReception(PduIdType id, const PduInfoType *info,
-                                       PduLengthType TpSduLength, PduLengthType *bufferSizePtr);
+                                       PduLengthType tpSduLength, PduLengthType *bufferSizePtr);
 /* @ SWS_Dcm_00556 */
 BufReq_ReturnType Dcm_CopyRxData(PduIdType id, const PduInfoType *info,
                                  PduLengthType *bufferSizePtr);
@@ -230,17 +230,17 @@ BufReq_ReturnType Dcm_CopyTxData(PduIdType id, const PduInfoType *info, const Re
 /* @SWS_Dcm_00351 */
 void Dcm_TpTxConfirmation(PduIdType id, Std_ReturnType result);
 /* @SWS_Dcm_01092 */
-void Dcm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void Dcm_TxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 void Dcm_MainFunction_Request(void);
 void Dcm_MainFunction_Response(void);
 
 /* @SWS_Dcm_00338 */
-Std_ReturnType Dcm_GetSecurityLevel(Dcm_SecLevelType *SecLevel);
-Std_ReturnType Dcm_SetSecurityLevel(Dcm_SecLevelType SecLevel);
+Std_ReturnType Dcm_GetSecurityLevel(Dcm_SecLevelType *secLevel);
+Std_ReturnType Dcm_SetSecurityLevel(Dcm_SecLevelType secLevel);
 /* @SWS_Dcm_00339 */
-Std_ReturnType Dcm_GetSesCtrlType(Dcm_SesCtrlType *SesCtrlType);
-Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType SesCtrlType);
+Std_ReturnType Dcm_GetSesCtrlType(Dcm_SesCtrlType *sesCtrlType);
+Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType sesCtrlType);
 /* @SWS_Dcm_00520 */
 Std_ReturnType Dcm_ResetToDefaultSession(void);
 
@@ -250,33 +250,33 @@ void Dcm_SessionChangeIndication(Dcm_SesCtrlType sesCtrlTypeActive, Dcm_SesCtrlT
 void Dcm_PerformReset(uint8_t resetType);
 
 /* @SWS_Dcm_00950 */
-Std_ReturnType Dcm_GetVin(uint8_t *Data);
+Std_ReturnType Dcm_GetVin(uint8_t *data);
 
 /* @SWS_Dcm_00539 */
-Dcm_ReturnReadMemoryType Dcm_ReadMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
-                                        uint32_t MemoryAddress, uint32_t MemorySize,
-                                        uint8_t *MemoryData,
-                                        Dcm_NegativeResponseCodeType *ErrorCode);
+Dcm_ReturnReadMemoryType Dcm_ReadMemory(Dcm_OpStatusType opStatus, uint8_t memoryIdentifier,
+                                        uint32_t memoryAddress, uint32_t memorySize,
+                                        uint8_t *memoryData,
+                                        Dcm_NegativeResponseCodeType *errorCode);
 
 /* @SWS_Dcm_00540 */
-Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType OpStatus, uint8_t MemoryIdentifier,
-                                          uint32_t MemoryAddress, uint32_t MemorySize,
-                                          const uint8_t *MemoryData,
-                                          Dcm_NegativeResponseCodeType *ErrorCode);
+Dcm_ReturnWriteMemoryType Dcm_WriteMemory(Dcm_OpStatusType opStatus, uint8_t memoryIdentifier,
+                                          uint32_t memoryAddress, uint32_t memorySize,
+                                          const uint8_t *memoryData,
+                                          Dcm_NegativeResponseCodeType *errorCode);
 
 Std_ReturnType Dcm_AuthenticationVerifyTesterCertificate(const uint8_t *publicKey,
                                                          uint16_t publicKeyLen,
                                                          const uint8_t *signature,
                                                          uint16_t signatureLen,
-                                                         Dcm_NegativeResponseCodeType *ErrorCode);
+                                                         Dcm_NegativeResponseCodeType *errorCode);
 
 Std_ReturnType Dcm_AuthenticationGetChallenge(uint8_t *challenge, uint16_t *length);
 
 Std_ReturnType Dcm_AuthenticationVerifyProofOfOwnership(const uint8_t *signature,
                                                         uint16_t signatureLen,
-                                                        Dcm_NegativeResponseCodeType *ErrorCode);
+                                                        Dcm_NegativeResponseCodeType *errorCode);
 
-Std_ReturnType Dcm_GetRxPduId(PduIdType *PduId);
+Std_ReturnType Dcm_GetRxPduId(PduIdType *pduId);
 
 /* @SWS_Dcm_00065 */
 void Dcm_GetVersionInfo(Std_VersionInfoType *versionInfo);

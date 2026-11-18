@@ -41,7 +41,7 @@ class LibraryAsOne(Library):
     def config(self):
         pkg_json = Package("https://gitee.com/mirrors/nlohmann-json.git")
         self.include = ["%s/src/one/include" % (CWD)]
-        self.LIBS = ["LUA", "CanLib", "LinLib", "IsoTp", "DevLib", "Loader", "Utils", "StdBit", "E2E"]
+        self.LIBS = ["LUA", "CanL", "LinL", "IsoTp", "DevLib", "Loader", "Utils", "StdBit", "E2E"]
         self.Append(CPPDEFINES=["USE_STD_DEBUG", "USE_STD_PRINTF", "LIN_USE_EXT_ID", "USE_STD_TOPIC", "USE_E2E"])
         self.RegisterConfig("E2E", cfgE2E)
         self.Append(CPPPATH=["%s/include" % (pkg_json)])

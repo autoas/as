@@ -154,7 +154,7 @@ class UICan(QWidget):
         if(str(self.btnOpen[id].text()) == 'Open'):
             device = str(self.cmbxCanDevice[id].currentText())
             port = int(
-                str(self.cmbxCanPort[id].currentText()).replace('port', ''))
+                str(self.cmbxCanPort[id].currentText()).replace('Port', ''))
             baud = int(str(self.cmbxCanBaud[id].currentText()))
             self.nodes[id] = AsCan(device, port, baud)
             self.btnOpen[id].setText('Close')

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UICOM_HPP__
-#define __UICOM_HPP__
+#ifndef UICOM_HPP
+#define UICOM_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QTextEdit>
@@ -49,12 +49,12 @@ public:
   ~UIMsg();
 
 public:
-  void run(void);
+  void Run(void);
 
 private:
-  void updateMsg(void);
-  int toInteger(std::string s);
-  void view(std::shared_ptr<Signal> sig);
+  void UpdateMsg(void);
+  int ToInteger(std::string s);
+  void View(std::shared_ptr<Signal> sig);
 
 private:
   void timerEvent(QTimerEvent *event);
@@ -68,25 +68,25 @@ public slots:
 
 private:
   std::shared_ptr<Message> m_Msg;
-  std::vector<QLineEdit *> m_leData;
+  std::vector<QLineEdit *> m_LeData;
 
-  QLineEdit *m_lePeriod = nullptr;
-  QPushButton *m_btnUpdate;
+  QLineEdit *m_LePeriod = nullptr;
+  QPushButton *m_BtnUpdate;
 
-  QComboBox *m_cmbxSignals;
-  QLineEdit *m_leScale;
-  QLineEdit *m_leOffset;
-  QPushButton *m_btnView;
+  QComboBox *m_CmbxSignals;
+  QLineEdit *m_LeScale;
+  QLineEdit *m_LeOffset;
+  QPushButton *m_BtnView;
 
-  QLineEdit *m_leScript;
-  QPushButton *m_btnLoadScript;
-  QPushButton *m_btnExecScript;
+  QLineEdit *m_LeScript;
+  QPushButton *m_BtnLoadScript;
+  QPushButton *m_BtnExecScript;
   int m_ExecTimerId = 0;
 
-  QTabWidget *m_tabWidget;
+  QTabWidget *m_TabWidget;
   struct FigureInfo {
-    int tabIndex;
-    UIFigure *figure;
+    int TabIndex;
+    UIFigure *Figure;
   };
   std::map<std::string, FigureInfo> m_Figures;
 };
@@ -110,24 +110,24 @@ private:
   void timerEvent(QTimerEvent *event);
 
 private:
-  bool load(std::string cfgPath);
-  bool loadUI(void);
+  bool Load(std::string cfgPath);
+  bool LoadUi(void);
 
 private:
-  QLineEdit *m_leComJs;
-  QPushButton *m_btnOpenComJs;
-  QPushButton *m_btnStart;
-  QTabWidget *m_tabWidget;
+  QLineEdit *m_LeComJs;
+  QPushButton *m_BtnOpenComJs;
+  QPushButton *m_BtnStart;
+  QTabWidget *m_TabWidget;
   QTreeWidget *m_Tree;
 
-  QLineEdit *m_leScript;
-  QPushButton *m_btnLoadScript;
-  QPushButton *m_btnExecScript;
+  QLineEdit *m_LeScript;
+  QPushButton *m_BtnLoadScript;
+  QPushButton *m_BtnExecScript;
   int m_ExecTimerId = 0;
 
   std::vector<UIMsg *> m_UIMsgs;
 
-  std::map<std::string, int> m_msg2TabIndexMap;
+  std::map<std::string, int> m_Msg2TabIndexMap;
 
   json m_Json;
 
@@ -142,4 +142,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UICOM_HPP__ */
+#endif /* UICOM_HPP */

@@ -4,8 +4,8 @@
  *
  * ref: Specification of Diagnostic over IP AUTOSAR CP Release 4.4.0
  */
-#ifndef _DOIP_H
-#define _DOIP_H
+#ifndef DOIP_H
+#define DOIP_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "SoAd.h"
@@ -26,7 +26,7 @@ typedef struct DoIP_Config_s DoIP_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_DoIP_00026 */
-void DoIP_Init(const DoIP_ConfigType *ConfigPtr);
+void DoIP_Init(const DoIP_ConfigType *configPtr);
 
 /* @SWS_DoIP_00251 @deprecated */
 void DoIP_ActivationLineSwitchActive(void);
@@ -35,57 +35,57 @@ void DoIP_ActivationLineSwitchActive(void);
 void DoIP_ActivationLineSwitchInactive(void);
 
 /* @SWS_DoIP_91000 */
-void DoIP_ActivationLineSwitch(uint8_t InterfaceId, boolean *Active);
+void DoIP_ActivationLineSwitch(uint8_t interfaceId, boolean *active);
 
 /* @SWS_DoIP_91002 */
-void DoIP_TriggerVehicleAnnouncement(uint8_t InterfaceId);
+void DoIP_TriggerVehicleAnnouncement(uint8_t interfaceId);
 
 /* @SWS_DoIP_00022 */
-Std_ReturnType DoIP_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType DoIP_TpTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_DoIP_00023 */
-Std_ReturnType DoIP_TpCancelTransmit(PduIdType TxPduId);
+Std_ReturnType DoIP_TpCancelTransmit(PduIdType txPduId);
 
 /* @SWS_DoIP_00024 */
-Std_ReturnType DoIP_TpCancelReceive(PduIdType RxPduId);
+Std_ReturnType DoIP_TpCancelReceive(PduIdType rxPduId);
 
 /* @SWS_DoIP_00277 */
-Std_ReturnType DoIP_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType DoIP_IfTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_DoIP_00278 */
-Std_ReturnType DoIP_IfCancelTransmit(PduIdType TxPduId);
+Std_ReturnType DoIP_IfCancelTransmit(PduIdType txPduId);
 
 /* @SWS_DoIP_00041 */
 void DoIP_MainFunction(void);
 
 /* @SWS_DoIP_00244 */
-void DoIP_SoAdIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void DoIP_SoAdIfRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_DoIP_00245 */
-void DoIP_SoAdIfTxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void DoIP_SoAdIfTxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_DoIP_00037 */
-BufReq_ReturnType DoIP_SoAdTpStartOfReception(PduIdType RxPduId, const PduInfoType *info,
-                                              PduLengthType TpSduLength,
+BufReq_ReturnType DoIP_SoAdTpStartOfReception(PduIdType rxPduId, const PduInfoType *info,
+                                              PduLengthType tpSduLength,
                                               PduLengthType *bufferSizePtr);
 
 /* @SWS_DoIP_00038 */
-void DoIP_SoAdTpRxIndication(PduIdType RxPduId, Std_ReturnType result);
+void DoIP_SoAdTpRxIndication(PduIdType rxPduId, Std_ReturnType result);
 
 /* @SWS_DoIP_00033 */
-BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType RxPduId, const PduInfoType *info,
+BufReq_ReturnType DoIP_SoAdTpCopyRxData(PduIdType rxPduId, const PduInfoType *info,
                                         PduLengthType *bufferSizePtr);
 
-Std_ReturnType DoIP_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+Std_ReturnType DoIP_HeaderIndication(PduIdType rxPduId, const PduInfoType *info,
                                      uint32_t *payloadLength);
-void DoIP_RxIndication(PduIdType RxPduId, const PduInfoType *info);
+void DoIP_RxIndication(PduIdType rxPduId, const PduInfoType *info);
 
 /* @SWS_DoIP_00039 */
-void DoIP_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
+void DoIP_SoConModeChg(SoAd_SoConIdType soConId, SoAd_SoConModeType mode);
 
 /* @SWS_DoIP_00027 */
 void DoIP_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _DOIP_H */
+#endif /* DOIP_H */

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef _LWIP_H
-#define _LWIP_H
+#ifndef LWIP_CFG_H
+#define LWIP_CFG_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef LWIP_IPADDR_CFG_NR
@@ -11,12 +11,10 @@
 #endif
 
 #if LWIP_IPADDR_CFG_NR == 0
-#define LWIP_MAC_ADDR_BASE                                                                         \
-  { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed }
+#define LWIP_MAC_ADDR_BASE {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed}
 #define LWIP_AS_LOCAL_IP_ADDR "172.18.0.200"
 #elif LWIP_IPADDR_CFG_NR == 1
-#define LWIP_MAC_ADDR_BASE                                                                         \
-  { 0xfe, 0xed, 0xde, 0xad, 0xbe, 0xef }
+#define LWIP_MAC_ADDR_BASE {0xfe, 0xed, 0xde, 0xad, 0xbe, 0xef}
 #define LWIP_AS_LOCAL_IP_ADDR "172.18.0.201"
 #else
 #error invalid LWIP_IPADDR_CFG_NR
@@ -108,4 +106,4 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _LWIP_H */
+#endif /* LWIP_CFG_H */

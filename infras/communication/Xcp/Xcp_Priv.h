@@ -220,7 +220,7 @@ typedef Std_ReturnType (*Xcp_GetProgramResetPermissionFncType)(Xcp_OpStatusType 
 
 typedef struct {
   Xcp_GetProgramResetPermissionFncType GetProgramResetPermissionFnc;
-  uint16_t delay;
+  uint16_t Delay;
 } Xcp_ProgramResetConfigType;
 
 typedef Std_ReturnType (*Xcp_GetProgramStartPermissionFncType)(Xcp_OpStatusType OpStatus,
@@ -228,93 +228,93 @@ typedef Std_ReturnType (*Xcp_GetProgramStartPermissionFncType)(Xcp_OpStatusType 
 
 typedef struct {
   Xcp_GetProgramStartPermissionFncType GetProgramStartPermissionFnc;
-  uint8_t maxBs;
+  uint8_t MaxBs;
   uint8_t STmin;
-  uint8_t queSz;
+  uint8_t QueSz;
 } Xcp_ProgramStartConfigType;
 
 typedef struct {
-  Xcp_DspServiceFncType dspServiceFnc;
-  P2CONST(void, AUTOMATIC, XCP_CONST) config;
+  Xcp_DspServiceFncType DspServiceFnc;
+  P2CONST(void, AUTOMATIC, XCP_CONST) Config;
   uint8_t Pid;
-  uint8_t resource; /* the protected resource that need to be unlocked for this service */
+  uint8_t Resource; /* the protected resource that need to be unlocked for this service */
 } Xcp_ServiceType;
 
 typedef struct {
-  uint16_t timer;
-  uint8_t state;
+  uint16_t Timer;
+  uint8_t State;
   /* uint8_t mode; Now DAQ only, timestamp and PID_OFF not supported */
-  uint8_t prescaler;
-  uint8_t evChl;
-  uint8_t curPid;
+  uint8_t Prescaler;
+  uint8_t EvChl;
+  uint8_t CurPid;
 } Xcp_DaqListContextType;
 
 struct Xcp_Config_s {
-  P2CONST(Xcp_ServiceType, AUTOMATIC, XCP_CONST) services;
-  P2CONST(Xcp_DaqListType *, AUTOMATIC, XCP_CONST) daqList;
-  Xcp_DaqListContextType *daqContexts;
-  P2CONST(Xcp_EventChannelType, AUTOMATIC, XCP_CONST) evChls;
-  Xcp_OdtType *dynOdtSlots;
-  Xcp_OdtEntryType *dynOdtEntrySlots;
-  uint16_t numOfStaticDaqList;
-  uint16_t numOfDaqList;
-  uint16_t numOfDynOdtSlots;
-  uint16_t numOfDynOdtEntrySlots;
+  P2CONST(Xcp_ServiceType, AUTOMATIC, XCP_CONST) Services;
+  P2CONST(Xcp_DaqListType *, AUTOMATIC, XCP_CONST) DaqList;
+  Xcp_DaqListContextType *DaqContexts;
+  P2CONST(Xcp_EventChannelType, AUTOMATIC, XCP_CONST) EvChls;
+  Xcp_OdtType *DynOdtSlots;
+  Xcp_OdtEntryType *DynOdtEntrySlots;
+  uint16_t NumOfStaticDaqList;
+  uint16_t NumOfDaqList;
+  uint16_t NumOfDynOdtSlots;
+  uint16_t NumOfDynOdtEntrySlots;
   PduIdType CanIfTxPduId;
-  uint8_t numOfServices;
-  uint8_t numOfEvChls;
-  uint8_t resource;
+  uint8_t NumOfServices;
+  uint8_t NumOfEvChls;
+  uint8_t Resource;
 };
 
 typedef struct Xcp_Packet_s {
   STAILQ_ENTRY(Xcp_Packet_s) entry;
-  Xcp_MsgLenType length;
-  uint8_t payload[XCP_PATCKET_MAX_SIZE];
-  Xcp_OpStatusType opStatus;
+  Xcp_MsgLenType Length;
+  uint8_t Payload[XCP_PATCKET_MAX_SIZE];
+  Xcp_OpStatusType OpStatus;
 } Xcp_PacketType;
 
 typedef STAILQ_HEAD(Xcp_PacketListHead_s, Xcp_Packet_s) Xcp_PacketListType;
 
 typedef struct {
-  uint32_t address;
-  uint8_t extension;
+  uint32_t Address;
+  uint8_t Extension;
 } Xcp_MtaContextType;
 
 typedef struct {
-  uint32_t address;
-  uint8_t extension;
-  uint8_t length;
-  uint8_t offset;
+  uint32_t Address;
+  uint8_t Extension;
+  uint8_t Length;
+  uint8_t Offset;
 } Xcp_DownloadContextType;
 
 typedef struct {
-  uint32_t address;
-  uint8_t extension;
-  uint8_t length;
-  uint8_t offset;
+  uint32_t Address;
+  uint8_t Extension;
+  uint8_t Length;
+  uint8_t Offset;
 } Xcp_ProgramContextType;
 
 typedef struct {
-  uint16_t daqListNumber;
-  uint8_t odtNumber;
-  uint8_t odtEntryNumber;
+  uint16_t DaqListNumber;
+  uint8_t OdtNumber;
+  uint8_t OdtEntryNumber;
 } Xcp_SetDaqPtrContextType;
 
 typedef struct {
-  Xcp_PacketListType rxPackets;
-  Xcp_PacketListType txPackets;
-  P2CONST(Xcp_ServiceType, AUTOMATIC, XCP_CONST) curService;
-  uint32_t cache[XCP_CACHE_SIZE / sizeof(uint32_t)];
-  Xcp_MsgContextType msgContext;
+  Xcp_PacketListType RxPackets;
+  Xcp_PacketListType TxPackets;
+  P2CONST(Xcp_ServiceType, AUTOMATIC, XCP_CONST) CurService;
+  uint32_t Cache[XCP_CACHE_SIZE / sizeof(uint32_t)];
+  Xcp_MsgContextType MsgContext;
 #ifdef XCP_USE_SERVICE_PGM_PROGRAM_RESET
-  uint16_t timer2Reset;
+  uint16_t Timer2Reset;
 #endif
-  uint8_t activeChannel;   /* active channel that connected */
-  uint8_t lockedResource;  /* protected resource */
-  uint8_t requestResource; /* the cached get seed requested resource */
-  uint8_t cacheOwner;      /* record the cache last used by which service */
+  uint8_t ActiveChannel;   /* active channel that connected */
+  uint8_t LockedResource;  /* protected resource */
+  uint8_t RequestResource; /* the cached get seed requested resource */
+  uint8_t CacheOwner;      /* record the cache last used by which service */
 #ifdef XCP_USE_SERVICE_PGM_PROGRAM_START
-  uint8_t pgmFlags;
+  uint8_t PgmFlags;
 #endif
 } Xcp_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
@@ -394,5 +394,5 @@ void Xcp_SetU32(uint8_t *data, uint32_t u32);
 uint16_t Xcp_GetU16(const uint8_t *data);
 void Xcp_SetU16(uint8_t *data, uint16_t u16);
 
-void Xcp_RxIndication(uint8_t channel, const PduInfoType *PduInfoPtr);
+void Xcp_RxIndication(uint8_t channel, const PduInfoType *pduInfoPtr);
 #endif /* XCP_PRIV_H */

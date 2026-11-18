@@ -1,16 +1,16 @@
 {
-  "class": "Dem",
+  "Class": "Dem",
   "Memories": [
     {
-      "name": "Primary",
-      "origin": "0x0001"
+      "Name": "Primary",
+      "Origin": "0x0001"
     },
     {
-      "name": "Mirror",
-      "origin": "0x0002"
+      "Name": "Mirror",
+      "Origin": "0x0002"
     }
   ],
-  "general": {
+  "General": {
     "AgingCycleCounterThreshold": 5,
     "ConfirmationThreshold": 2,
     "OccurrenceCounterProcessing": "TF",
@@ -27,141 +27,141 @@
   },
   "DTCs": [
     {
-      "name": "DTC0",
-      "number": "0x112200",
-      "conditions": [
+      "Name": "DTC0",
+      "Number": "0x112200",
+      "Conditions": [
         "BatteryNormal"
       ],
-      "destination": [
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 0,
+      "Priority": 0,
       "OperationCycleRef": "IGNITION"
     },
     {
-      "name": "DTC1",
-      "number": "0x112201",
-      "destination": [
+      "Name": "DTC1",
+      "Number": "0x112201",
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 1
+      "Priority": 1
     },
     {
-      "name": "DTC2",
-      "number": "0x112202",
-      "destination": [
+      "Name": "DTC2",
+      "Number": "0x112202",
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 2
+      "Priority": 2
     },
     {
-      "name": "DTC3",
-      "number": "0x112203",
-      "destination": [
+      "Name": "DTC3",
+      "Number": "0x112203",
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 3
+      "Priority": 3
     },
     {
-      "name": "DTC4",
-      "number": "0x112204",
-      "destination": [
+      "Name": "DTC4",
+      "Number": "0x112204",
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 4
+      "Priority": 4
     },
     {
-      "name": "DTC_COMB0",
-      "number": "0x112205",
-      "destination": [
+      "Name": "DTC_COMB0",
+      "Number": "0x112205",
+      "Destination": [
         "Primary",
         "Mirror"
       ],
-      "priority": 5,
-      "comments": "this is an example that multiply event share one DTC",
-      "is_group": true,
-      "events": [
+      "Priority": 5,
+      "Comments": "this is an example that multiply event share one DTC",
+      "IsGroup": true,
+      "Events": [
         {
-          "name": "DTC_COMB0_EVENT0"
+          "Name": "DTC_COMB0_EVENT0"
         },
         {
-          "name": "DTC_COMB0_EVENT1"
+          "Name": "DTC_COMB0_EVENT1"
         },
         {
-          "name": "DTC_COMB0_EVENT2"
+          "Name": "DTC_COMB0_EVENT2"
         }
       ]
     }
   ],
   "Environments": [
     {
-      "name": "Battery",
-      "id": "0x1001",
-      "type": "uint16",
-      "unit": "v"
+      "Name": "Battery",
+      "Id": "0x1001",
+      "Type": "uint16",
+      "Unit": "v"
     },
     {
-      "name": "VehileSpeed",
-      "id": "0x1002",
-      "type": "uint16",
-      "unit": "km/h"
+      "Name": "VehileSpeed",
+      "Id": "0x1002",
+      "Type": "uint16",
+      "Unit": "km/h"
     },
     {
-      "name": "EngineSpeed",
-      "id": "0x1003",
-      "type": "uint16",
-      "unit": "r/min"
+      "Name": "EngineSpeed",
+      "Id": "0x1003",
+      "Type": "uint16",
+      "Unit": "r/min"
     },
     {
-      "name": "Time",
-      "id": "0x1004",
-      "type": "struct",
-      "data": [
+      "Name": "Time",
+      "Id": "0x1004",
+      "Type": "struct",
+      "Data": [
         {
-          "name": "year",
-          "type": "uint8"
+          "Name": "year",
+          "Type": "uint8"
         },
         {
-          "name": "month",
-          "type": "uint8"
+          "Name": "month",
+          "Type": "uint8"
         },
         {
-          "name": "day",
-          "type": "uint8"
+          "Name": "day",
+          "Type": "uint8"
         },
         {
-          "name": "hour",
-          "type": "uint8"
+          "Name": "hour",
+          "Type": "uint8"
         },
         {
-          "name": "minute",
-          "type": "uint8"
+          "Name": "minute",
+          "Type": "uint8"
         },
         {
-          "name": "second",
-          "type": "uint8"
+          "Name": "second",
+          "Type": "uint8"
         }
       ],
-      "unit": "YY-MM-DD-HH"
+      "Unit": "YY-MM-DD-HH"
     }
   ],
   "ExtendedDatas": [
     {
-      "name": "FaultOccuranceCounter",
-      "type": "uint8"
+      "Name": "FaultOccurrenceCounter",
+      "Type": "uint8"
     },
     {
-      "name": "AgingCounter",
-      "type": "uint8"
+      "Name": "AgingCounter",
+      "Type": "uint8"
     },
     {
-      "name": "AgedCounter",
-      "type": "uint8"
+      "Name": "AgedCounter",
+      "Type": "uint8"
     }
   ]
 }

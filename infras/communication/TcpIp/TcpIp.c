@@ -55,8 +55,8 @@ static boolean lInitialized = FALSE;
 static boolean lLinkedUp = FALSE;
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32) && !defined(USE_LWIP)
-#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
-#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+#define TcpIpMalloc(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define TcpIpFree(x) HeapFree(GetProcessHeap(), 0, (x))
 Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr) {
   Std_ReturnType ret = E_OK;
   DWORD dwRetVal = 0;
@@ -74,7 +74,7 @@ Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr
   outBufLen = 15000;
 
   do {
-    pAddresses = (IP_ADAPTER_ADDRESSES *)MALLOC(outBufLen);
+    pAddresses = (IP_ADAPTER_ADDRESSES *)TcpIpMalloc(outBufLen);
     if (pAddresses == NULL) {
       printf("Memory allocation failed for IP_ADAPTER_ADDRESSES struct\n");
       ret = E_NOT_OK;
@@ -83,7 +83,7 @@ Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr
     dwRetVal = GetAdaptersAddresses(family, flags, NULL, pAddresses, &outBufLen);
 
     if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
-      FREE(pAddresses);
+      TcpIpFree(pAddresses);
       pAddresses = NULL;
       ret = E_NOT_OK;
     } else {
@@ -122,7 +122,7 @@ Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr
             uint8_t *ipaddr = (uint8_t *)&pUnicast->Address.lpSockaddr->sa_data[2];
             printf("\tUnicast[%d]: %u.%u.%u.%u\n", i, ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
             if ((i == 0) && (Iterations == number)) {
-              memcpy(addr->addr, ipaddr, 4);
+              memcpy(addr->Addr, ipaddr, 4);
               ret = E_OK;
             }
             pUnicast = pUnicast->Next;
@@ -135,14 +135,14 @@ Std_ReturnType TcpIp_GetAdapterAddress(uint32_t number, TcpIp_SockAddrType *addr
   }
 
   if (pAddresses) {
-    FREE(pAddresses);
+    TcpIpFree(pAddresses);
   }
   return ret;
 }
 #endif
 
 #ifndef USE_LWIP
-uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType LocalAddrId) {
+uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType localAddrId) {
   static uint32_t u32AddrLocal = INADDR_ANY;
   static boolean bAddrLocalSetup = FALSE;
   char *ip;
@@ -155,9 +155,9 @@ uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType LocalAddrId) {
       static bool lGeted = FALSE;
       static bool lAvaiable = FALSE;
       if (FALSE == lGeted) {
-        if (E_OK == TcpIp_GetAdapterAddress(LocalAddrId, &addr)) {
-          snprintf(lIPStr, sizeof(lIPStr), "%d.%d.%d.%d", addr.addr[0], addr.addr[1], addr.addr[2],
-                   addr.addr[3]);
+        if (E_OK == TcpIp_GetAdapterAddress(localAddrId, &addr)) {
+          snprintf(lIPStr, sizeof(lIPStr), "%d.%d.%d.%d", addr.Addr[0], addr.Addr[1], addr.Addr[2],
+                   addr.Addr[3]);
           ASLOG(WARN, ("env AS_LOCAL_IP not set, using adapter 0, IP is %s\n", lIPStr));
           lAvaiable = TRUE;
         }
@@ -183,7 +183,7 @@ uint32_t TcpIp_GetLocalIpAddr(TcpIp_LocalAddrIdType LocalAddrId) {
 #endif
 
 /* ================================ [ FUNCTIONS ] ============================================== */
-void TcpIp_Init(const TcpIp_ConfigType *ConfigPtr) {
+void TcpIp_Init(const TcpIp_ConfigType *configPtr) {
   if (FALSE == lInitialized) {
     TcpIp_Config.InitFnc();
     lInitialized = TRUE;
@@ -226,66 +226,66 @@ TcpIp_SocketIdType TcpIp_Create(TcpIp_ProtocolType protocol) {
   return sockId;
 }
 
-Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType SocketId, boolean nonBlocked) {
+Std_ReturnType TcpIp_SetNonBlock(TcpIp_SocketIdType socketId, boolean nonBlocked) {
   Std_ReturnType ret = E_OK;
   int r;
 #if defined(_WIN32) && !defined(USE_LWIP)
   u_long iMode = (u_long)nonBlocked;
-  r = ioctlsocket(SocketId, FIONBIO, &iMode);
+  r = ioctlsocket(socketId, FIONBIO, &iMode);
 #else
   int on = (int)nonBlocked;
-  r = ioctl(SocketId, FIONBIO, &on);
+  r = ioctl(socketId, FIONBIO, &on);
 #endif
 
   if (0 != r) {
-    ASLOG(TCPIPE, ("[%d] set non block falied: %d\n", SocketId, r));
+    ASLOG(TCPIPE, ("[%d] set non block falied: %d\n", socketId, r));
     ret = E_NOT_OK;
   }
 
   return ret;
 }
 
-Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType SocketId, uint32_t timeoutMs) {
+Std_ReturnType TcpIp_SetTimeout(TcpIp_SocketIdType socketId, uint32_t timeoutMs) {
   Std_ReturnType ret = E_OK;
   int r;
 #if defined(linux) || defined(USE_LWIP)
   struct timeval tv;
   tv.tv_sec = 0;
   tv.tv_usec = timeoutMs * 1000;
-  r = setsockopt(SocketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+  r = setsockopt(socketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 #elif defined(_WIN32)
   DWORD timeout = timeoutMs;
-  r = setsockopt(SocketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof timeout);
+  r = setsockopt(socketId, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof timeout);
 #endif
 
   if (0 != r) {
-    ASLOG(TCPIPE, ("[%d] set timeout falied: %d\n", SocketId, r));
+    ASLOG(TCPIPE, ("[%d] set timeout falied: %d\n", socketId, r));
     ret = E_NOT_OK;
   }
 
   return ret;
 }
 
-Std_ReturnType TcpIp_Close(TcpIp_SocketIdType SocketId, boolean Abort) {
+Std_ReturnType TcpIp_Close(TcpIp_SocketIdType socketId, boolean abort) {
   int r;
   Std_ReturnType ret = E_OK;
-  (void)Abort;
+  (void)abort;
 #if defined(_WIN32) && !defined(USE_LWIP)
-  r = closesocket(SocketId);
+  r = closesocket(socketId);
 #else
-  r = close(SocketId);
+  r = close(socketId);
 #endif
   if (0 != r) {
     ret = E_NOT_OK;
   }
 
-  ASLOG(TCPIP, ("[%d] close\n", SocketId));
+  ASLOG(TCPIP, ("[%d] close\n", socketId));
 
   return ret;
 }
 
-Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType LocalAddrId,
-                          uint16_t *PortPtr) {
+Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType socketId, TcpIp_LocalAddrIdType localAddrId,
+                          uint16_t *portPtr) {
   Std_ReturnType ret = E_OK;
 
   int r;
@@ -294,7 +294,7 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
 #endif
   struct sockaddr_in sLocalAddr;
 #ifdef USE_LWIP
-  setsockopt(SocketId, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(int)); /* Set socket to no delay */
+  setsockopt(socketId, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(int)); /* Set socket to no delay */
 #endif
   memset((char *)&sLocalAddr, 0, sizeof(sLocalAddr));
   sLocalAddr.sin_family = AF_INET;
@@ -302,46 +302,46 @@ Std_ReturnType TcpIp_Bind(TcpIp_SocketIdType SocketId, TcpIp_LocalAddrIdType Loc
   sLocalAddr.sin_len = sizeof(sLocalAddr);
 #endif
 #if (defined(_WIN32) || defined(linux)) && !defined(USE_LWIP)
-  if (LocalAddrId == TCPIP_LOCALADDRID_ANY) {
+  if (localAddrId == TCPIP_LOCALADDRID_ANY) {
     sLocalAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  } else if (LocalAddrId == TCPIP_LOCALADDRID_LOCALHOST) {
+  } else if (localAddrId == TCPIP_LOCALADDRID_LOCALHOST) {
     sLocalAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   } else {
-    sLocalAddr.sin_addr.s_addr = TcpIp_GetLocalIpAddr(LocalAddrId);
+    sLocalAddr.sin_addr.s_addr = TcpIp_GetLocalIpAddr(localAddrId);
   }
 #else
   sLocalAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 #endif
-  sLocalAddr.sin_port = htons(*PortPtr);
+  sLocalAddr.sin_port = htons(*portPtr);
 
-  r = bind(SocketId, (struct sockaddr *)&sLocalAddr, sizeof(sLocalAddr));
+  r = bind(socketId, (struct sockaddr *)&sLocalAddr, sizeof(sLocalAddr));
   if (0 != r) {
     ret = E_NOT_OK;
     ASLOG(TCPIPE,
-          ("[%d] bind to adapter %d port %d failed: %d\n", SocketId, LocalAddrId, *PortPtr, r));
+          ("[%d] bind to adapter %d port %d failed: %d\n", socketId, localAddrId, *portPtr, r));
   } else {
-    TcpIp_SetNonBlock(SocketId, TRUE);
+    TcpIp_SetNonBlock(socketId, TRUE);
   }
 
   if (E_OK == ret) {
     socklen_t len = sizeof(sLocalAddr);
-    r = getsockname(SocketId, (struct sockaddr *)&sLocalAddr, &len);
+    r = getsockname(socketId, (struct sockaddr *)&sLocalAddr, &len);
     if (r < 0) {
-      ASLOG(TCPIPE, ("[%d] failed to getsockname: %d\n", SocketId, r));
+      ASLOG(TCPIPE, ("[%d] failed to getsockname: %d\n", socketId, r));
       ret = E_NOT_OK;
     } else {
-      ASLOG(TCPIP, ("[%d] bind to adapter %d port %d: %d.%d.%d.%d:%d\n", SocketId, LocalAddrId,
-                    *PortPtr, ((uint8_t *)&sLocalAddr.sin_addr)[0],
+      ASLOG(TCPIP, ("[%d] bind to adapter %d port %d: %d.%d.%d.%d:%d\n", socketId, localAddrId,
+                    *portPtr, ((uint8_t *)&sLocalAddr.sin_addr)[0],
                     ((uint8_t *)&sLocalAddr.sin_addr)[1], ((uint8_t *)&sLocalAddr.sin_addr)[2],
                     ((uint8_t *)&sLocalAddr.sin_addr)[3], ntohs(sLocalAddr.sin_port)));
-      *PortPtr = ntohs(sLocalAddr.sin_port);
+      *portPtr = ntohs(sLocalAddr.sin_port);
     }
   }
 
   return ret;
 }
 
-Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *ipv4Addr) {
+Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *ipv4Addr) {
   int r;
   Std_ReturnType ret = E_NOT_OK;
 #ifdef USE_LWIP
@@ -350,25 +350,25 @@ Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrT
   struct ip_mreq mreq;
 
 #ifdef USE_LWIP
-  memcpy(&ipaddr.addr, ipv4Addr->addr, 4);
+  memcpy(&ipaddr.addr, ipv4Addr->Addr, 4);
   if (ip_addr_ismulticast(&ipaddr)) {
 #endif
 
 #ifndef USE_LWIP
-    memcpy(&mreq.imr_multiaddr.s_addr, ipv4Addr->addr, 4);
+    memcpy(&mreq.imr_multiaddr.s_addr, ipv4Addr->Addr, 4);
     mreq.imr_interface.s_addr = TcpIp_GetLocalIpAddr(0);
 #else
   mreq.imr_multiaddr.s_addr = ipaddr.addr;
   mreq.imr_interface.s_addr = netif_default->ip_addr.addr;
 #endif
-    r = setsockopt(SocketId, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq));
-    ASLOG(TCPIP, ("[%d] multicast on %d.%d.%d.%d:%d\n", SocketId, ipv4Addr->addr[0],
-                  ipv4Addr->addr[1], ipv4Addr->addr[2], ipv4Addr->addr[3], ipv4Addr->port));
+    r = setsockopt(socketId, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq));
+    ASLOG(TCPIP, ("[%d] multicast on %d.%d.%d.%d:%d\n", socketId, ipv4Addr->Addr[0],
+                  ipv4Addr->Addr[1], ipv4Addr->Addr[2], ipv4Addr->Addr[3], ipv4Addr->Port));
     if (0 == r) {
       ret = E_OK;
     } else {
-      ASLOG(TCPIPE, ("[%d] multicast on %d.%d.%d.%d:%d error: %d\n", SocketId, ipv4Addr->addr[0],
-                     ipv4Addr->addr[1], ipv4Addr->addr[2], ipv4Addr->addr[3], ipv4Addr->port, r));
+      ASLOG(TCPIPE, ("[%d] multicast on %d.%d.%d.%d:%d error: %d\n", socketId, ipv4Addr->Addr[0],
+                     ipv4Addr->Addr[1], ipv4Addr->Addr[2], ipv4Addr->Addr[3], ipv4Addr->Port, r));
     }
 #ifdef USE_LWIP
   }
@@ -376,17 +376,17 @@ Std_ReturnType TcpIp_AddToMulticast(TcpIp_SocketIdType SocketId, TcpIp_SockAddrT
   return ret;
 }
 
-Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType SocketId,
-                                    TcpIp_LocalAddrIdType LocalAddrId) {
+Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType socketId,
+                                    TcpIp_LocalAddrIdType localAddrId) {
   int r;
   Std_ReturnType ret = E_OK;
   struct in_addr localInterface;
 #ifndef USE_LWIP
-  localInterface.s_addr = TcpIp_GetLocalIpAddr(LocalAddrId);
+  localInterface.s_addr = TcpIp_GetLocalIpAddr(localAddrId);
 #else
   localInterface.s_addr = netif_default->ip_addr.addr;
 #endif
-  r = setsockopt(SocketId, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localInterface,
+  r = setsockopt(socketId, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localInterface,
                  sizeof(localInterface));
   if (0 != r) {
     ASLOG(TCPIPE, ("setsockopt(IP_MULTICAST_IF) failed\n"));
@@ -396,8 +396,8 @@ Std_ReturnType TcpIp_SetMulticastIF(TcpIp_SocketIdType SocketId,
   return ret;
 }
 
-Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, uint32_t Interval,
-                                  uint32_t Count) {
+Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType socketId, uint32_t idel, uint32_t interval,
+                                  uint32_t count) {
   Std_ReturnType ret = E_OK;
 #if defined(_WIN32) && !defined(USE_LWIP)
 #ifdef SIO_KEEPALIVE_VALS
@@ -408,73 +408,73 @@ Std_ReturnType TcpIp_TcpKeepAlive(TcpIp_SocketIdType SocketId, uint32_t Idel, ui
 #else
   int keepalive = 1;
 #ifndef USE_LWIP
-  int keepInterval = Interval;
-  int keepIdle = Idel;
-  int keepCount = Count;
+  int keepInterval = interval;
+  int keepIdle = idel;
+  int keepCount = count;
 #endif
 #endif
   int r = 0;
 
 #if defined(_WIN32) && !defined(USE_LWIP)
 #ifdef SIO_KEEPALIVE_VALS
-  keepin.keepaliveinterval = Interval * 1000;
-  keepin.keepalivetime = Idel * 1000;
+  keepin.keepaliveinterval = interval * 1000;
+  keepin.keepalivetime = idel * 1000;
   keepin.onoff = 1;
-  r = WSAIoctl(SocketId, SIO_KEEPALIVE_VALS, &keepin, sizeof(keepin), &keepout, sizeof(keepout),
+  r = WSAIoctl(socketId, SIO_KEEPALIVE_VALS, &keepin, sizeof(keepin), &keepout, sizeof(keepout),
                &bytesnum, NULL, NULL);
 #endif
 #else
 #ifndef USE_LWIP
-  r = setsockopt(SocketId, SOL_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));
-  r |= setsockopt(SocketId, SOL_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
-  r |= setsockopt(SocketId, SOL_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
+  r = setsockopt(socketId, SOL_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));
+  r |= setsockopt(socketId, SOL_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
+  r |= setsockopt(socketId, SOL_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
 #endif
-  r |= setsockopt(SocketId, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive, sizeof(keepalive));
+  r |= setsockopt(socketId, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive, sizeof(keepalive));
 #endif
 
   if (0 != r) {
     ret = E_NOT_OK;
-    ASLOG(TCPIP, ("[%d] keep alive fail\n", SocketId));
+    ASLOG(TCPIP, ("[%d] keep alive fail\n", socketId));
   }
 
   return ret;
 }
 
-Std_ReturnType TcpIp_TcpListen(TcpIp_SocketIdType SocketId, uint16_t MaxChannels) {
+Std_ReturnType TcpIp_TcpListen(TcpIp_SocketIdType socketId, uint16_t maxChannels) {
   Std_ReturnType ret = E_NOT_OK;
   int r;
 
-  r = listen(SocketId, MaxChannels);
+  r = listen(socketId, maxChannels);
   if (0 == r) {
     ret = E_OK;
   } else {
-    ASLOG(TCPIPE, ("[%d] listen failed: %d\n", SocketId, r));
+    ASLOG(TCPIPE, ("[%d] listen failed: %d\n", socketId, r));
   }
-  ASLOG(TCPIP, ("[%d] listen(%d) \n", SocketId, MaxChannels));
+  ASLOG(TCPIP, ("[%d] listen(%d) \n", socketId, maxChannels));
 
   return ret;
 }
 
-Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType SocketId, TcpIp_SocketIdType *AcceptSock,
-                               TcpIp_SockAddrType *RemoteAddrPtr) {
+Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType socketId, TcpIp_SocketIdType *acceptSock,
+                               TcpIp_SockAddrType *remoteAddrPtr) {
   Std_ReturnType ret = E_OK;
   int clientFd;
   struct sockaddr_in client_addr;
   int addrlen = sizeof(client_addr);
 
-  clientFd = accept(SocketId, (struct sockaddr *)&client_addr, (socklen_t *)&addrlen);
+  clientFd = accept(socketId, (struct sockaddr *)&client_addr, (socklen_t *)&addrlen);
 
   if (clientFd >= 0) {
     /* New connection established */
     TcpIp_SetNonBlock(clientFd, TRUE);
 
     TcpIp_TcpKeepAlive(clientFd, 10, 1, 3);
-    RemoteAddrPtr->port = htons(client_addr.sin_port);
-    memcpy(RemoteAddrPtr->addr, &client_addr.sin_addr.s_addr, 4);
-    ASLOG(TCPIP, ("[%d] accept %d.%d.%d.%d:%d as %d\n", SocketId, RemoteAddrPtr->addr[0],
-                  RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3],
-                  RemoteAddrPtr->port, clientFd));
-    *AcceptSock = (TcpIp_SocketIdType)clientFd;
+    remoteAddrPtr->Port = htons(client_addr.sin_port);
+    memcpy(remoteAddrPtr->Addr, &client_addr.sin_addr.s_addr, 4);
+    ASLOG(TCPIP, ("[%d] accept %d.%d.%d.%d:%d as %d\n", socketId, remoteAddrPtr->Addr[0],
+                  remoteAddrPtr->Addr[1], remoteAddrPtr->Addr[2], remoteAddrPtr->Addr[3],
+                  remoteAddrPtr->Port, clientFd));
+    *acceptSock = (TcpIp_SocketIdType)clientFd;
   } else {
     ret = E_NOT_OK;
   }
@@ -482,38 +482,38 @@ Std_ReturnType TcpIp_TcpAccept(TcpIp_SocketIdType SocketId, TcpIp_SocketIdType *
   return ret;
 }
 
-Std_ReturnType TcpIp_IsTcpStatusOK(TcpIp_SocketIdType SocketId) {
+Std_ReturnType TcpIp_IsTcpStatusOK(TcpIp_SocketIdType socketId) {
   Std_ReturnType ret = E_OK;
   int sockErr = 0, r;
   socklen_t sockErrLen = sizeof(sockErr);
 
-  r = getsockopt(SocketId, SOL_SOCKET, SO_ERROR, (char *)&sockErr, &sockErrLen);
+  r = getsockopt(socketId, SOL_SOCKET, SO_ERROR, (char *)&sockErr, &sockErrLen);
   if (r != 0) {
     ret = E_NOT_OK;
   } else {
     if ((sockErr != 0) && (sockErr != EWOULDBLOCK)) {
       ret = E_NOT_OK;
-      ASLOG(TCPIP, ("[%d] status bad\n", SocketId));
+      ASLOG(TCPIP, ("[%d] status bad\n", socketId));
     }
   }
 
   return ret;
 }
 
-Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
-                          uint32_t *Length /* InOut */) {
+Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType socketId, uint8_t *bufPtr,
+                          uint32_t *length /* InOut */) {
   Std_ReturnType ret = E_OK;
   int nbytes;
 
-  nbytes = recv(SocketId, (char *)BufPtr, *Length, 0);
+  nbytes = recv(socketId, (char *)bufPtr, *length, 0);
 
-  *Length = 0;
+  *length = 0;
   if (nbytes > 0) {
-    *Length = nbytes;
-    ASLOG(TCPIP, ("[%d] recv %d bytes\n", SocketId, nbytes));
+    *length = nbytes;
+    ASLOG(TCPIP, ("[%d] recv %d bytes\n", socketId, nbytes));
   } else if (nbytes < -1) {
     ret = E_NOT_OK;
-    ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, nbytes));
+    ASLOG(TCPIPE, ("[%d] recv got error %d\n", socketId, nbytes));
 
   } else if (-1 == nbytes) {
 #ifndef USE_LWIP
@@ -524,9 +524,9 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
 #endif
     {
 #ifdef _WIN32
-      ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, WSAGetLastError()));
+      ASLOG(TCPIPE, ("[%d] recv got error %d\n", socketId, WSAGetLastError()));
 #else
-      ASLOG(TCPIPE, ("[%d] recv got error %d\n", SocketId, errno));
+      ASLOG(TCPIPE, ("[%d] recv got error %d\n", socketId, errno));
 #endif
       ret = E_NOT_OK;
     } else {
@@ -540,27 +540,27 @@ Std_ReturnType TcpIp_Recv(TcpIp_SocketIdType SocketId, uint8_t *BufPtr,
   return ret;
 }
 
-Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *RemoteAddrPtr,
-                              uint8_t *BufPtr, uint32_t *Length /* InOut */) {
+Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *remoteAddrPtr,
+                              uint8_t *bufPtr, uint32_t *length /* InOut */) {
   Std_ReturnType ret = E_OK;
   struct sockaddr_in fromAddr;
   socklen_t fromAddrLen = sizeof(fromAddr);
   int nbytes;
 
   nbytes =
-    recvfrom(SocketId, (char *)BufPtr, *Length, 0, (struct sockaddr *)&fromAddr, &fromAddrLen);
+    recvfrom(socketId, (char *)bufPtr, *length, 0, (struct sockaddr *)&fromAddr, &fromAddrLen);
 
-  *Length = 0;
+  *length = 0;
   if (nbytes > 0) {
-    RemoteAddrPtr->port = htons(fromAddr.sin_port);
-    memcpy(RemoteAddrPtr->addr, &fromAddr.sin_addr.s_addr, 4);
-    ASLOG(TCPIP, ("[%d] recv %d bytes from %d.%d.%d.%d:%d\n", SocketId, nbytes,
-                  RemoteAddrPtr->addr[0], RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2],
-                  RemoteAddrPtr->addr[3], RemoteAddrPtr->port));
-    *Length = nbytes;
+    remoteAddrPtr->Port = htons(fromAddr.sin_port);
+    memcpy(remoteAddrPtr->Addr, &fromAddr.sin_addr.s_addr, 4);
+    ASLOG(TCPIP, ("[%d] recv %d bytes from %d.%d.%d.%d:%d\n", socketId, nbytes,
+                  remoteAddrPtr->Addr[0], remoteAddrPtr->Addr[1], remoteAddrPtr->Addr[2],
+                  remoteAddrPtr->Addr[3], remoteAddrPtr->Port));
+    *length = nbytes;
   } else if (nbytes < -1) {
     ret = E_NOT_OK;
-    ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, nbytes));
+    ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", socketId, nbytes));
   } else if (-1 == nbytes) {
 #ifndef USE_LWIP
 #ifdef _WIN32
@@ -570,9 +570,9 @@ Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *R
 #endif
     {
 #ifdef _WIN32
-      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, WSAGetLastError()));
+      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", socketId, WSAGetLastError()));
 #else
-      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", SocketId, errno));
+      ASLOG(TCPIPE, ("[%d] recvfrom got error %d\n", socketId, errno));
 #endif
       ret = E_NOT_OK;
     } else {
@@ -586,8 +586,8 @@ Std_ReturnType TcpIp_RecvFrom(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *R
   return ret;
 }
 
-Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrType *RemoteAddrPtr,
-                            const uint8_t *BufPtr, uint32_t Length) {
+Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType socketId, const TcpIp_SockAddrType *remoteAddrPtr,
+                            const uint8_t *bufPtr, uint32_t length) {
   Std_ReturnType ret = E_OK;
   struct sockaddr_in toAddr;
   socklen_t toAddrLen = sizeof(toAddr);
@@ -598,18 +598,18 @@ Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrTyp
   toAddr.sin_len = sizeof(toAddr);
 #endif
 
-  memcpy(&toAddr.sin_addr.s_addr, RemoteAddrPtr->addr, 4);
-  toAddr.sin_port = htons(RemoteAddrPtr->port);
-  nbytes = sendto(SocketId, (char *)BufPtr, Length, 0, (struct sockaddr *)&toAddr, toAddrLen);
+  memcpy(&toAddr.sin_addr.s_addr, remoteAddrPtr->Addr, 4);
+  toAddr.sin_port = htons(remoteAddrPtr->Port);
+  nbytes = sendto(socketId, (char *)bufPtr, length, 0, (struct sockaddr *)&toAddr, toAddrLen);
 
-  ASLOG(TCPIP, ("[%d] send to %d.%d.%d.%d:%d %d/%d bytes\n", SocketId, RemoteAddrPtr->addr[0],
-                RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3],
-                RemoteAddrPtr->port, nbytes, Length));
+  ASLOG(TCPIP, ("[%d] send to %d.%d.%d.%d:%d %d/%d bytes\n", socketId, remoteAddrPtr->Addr[0],
+                remoteAddrPtr->Addr[1], remoteAddrPtr->Addr[2], remoteAddrPtr->Addr[3],
+                remoteAddrPtr->Port, nbytes, length));
 
-  if (nbytes != Length) {
-    ASLOG(TCPIPE, ("[%d] sendto(%d.%d.%d.%d:%d, %d), error is %d\n", SocketId,
-                   RemoteAddrPtr->addr[0], RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2],
-                   RemoteAddrPtr->addr[3], RemoteAddrPtr->port, Length, nbytes));
+  if (nbytes != length) {
+    ASLOG(TCPIPE, ("[%d] sendto(%d.%d.%d.%d:%d, %d), error is %d\n", socketId,
+                   remoteAddrPtr->Addr[0], remoteAddrPtr->Addr[1], remoteAddrPtr->Addr[2],
+                   remoteAddrPtr->Addr[3], remoteAddrPtr->Port, length, nbytes));
     if (nbytes >= 0) {
       ret = TCPIP_E_NOSPACE;
     } else {
@@ -620,15 +620,15 @@ Std_ReturnType TcpIp_SendTo(TcpIp_SocketIdType SocketId, const TcpIp_SockAddrTyp
   return ret;
 }
 
-Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, uint32_t Length) {
+Std_ReturnType TcpIp_Send(TcpIp_SocketIdType socketId, const uint8_t *bufPtr, uint32_t length) {
   Std_ReturnType ret = E_OK;
   int nbytes;
 
-  nbytes = send(SocketId, (char *)BufPtr, Length, 0);
-  ASLOG(TCPIP, ("[%d] send(%d/%d)\n", SocketId, nbytes, Length));
+  nbytes = send(socketId, (char *)bufPtr, length, 0);
+  ASLOG(TCPIP, ("[%d] send(%d/%d)\n", socketId, nbytes, length));
 
-  if (nbytes != Length) {
-    ASLOG(TCPIPE, ("[%d] send(%d), error is %d\n", SocketId, Length, nbytes));
+  if (nbytes != length) {
+    ASLOG(TCPIPE, ("[%d] send(%d), error is %d\n", socketId, length, nbytes));
     if (nbytes >= 0) {
       ret = TCPIP_E_NOSPACE;
     } else {
@@ -639,38 +639,38 @@ Std_ReturnType TcpIp_Send(TcpIp_SocketIdType SocketId, const uint8_t *BufPtr, ui
   return ret;
 }
 
-Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType SocketId,
-                                const TcpIp_SockAddrType *RemoteAddrPtr) {
+Std_ReturnType TcpIp_TcpConnect(TcpIp_SocketIdType socketId,
+                                const TcpIp_SockAddrType *remoteAddrPtr) {
   Std_ReturnType ret = E_NOT_OK;
   int r;
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(struct sockaddr_in));
   addr.sin_family = AF_INET;
-  memcpy(&addr.sin_addr.s_addr, RemoteAddrPtr->addr, 4);
-  addr.sin_port = htons(RemoteAddrPtr->port);
+  memcpy(&addr.sin_addr.s_addr, remoteAddrPtr->Addr, 4);
+  addr.sin_port = htons(remoteAddrPtr->Port);
 
-  r = connect(SocketId, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+  r = connect(socketId, (struct sockaddr *)&addr, sizeof(struct sockaddr));
   if (0 == r) {
-    TcpIp_SetNonBlock(SocketId, TRUE);
+    TcpIp_SetNonBlock(socketId, TRUE);
     ret = E_OK;
   } else {
-    ASLOG(TCPIPE, ("[%d] connect %d.%d.%d.%d:%d failed: %d\n", SocketId, RemoteAddrPtr->addr[0],
-                   RemoteAddrPtr->addr[1], RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3],
-                   RemoteAddrPtr->port, r));
+    ASLOG(TCPIPE, ("[%d] connect %d.%d.%d.%d:%d failed: %d\n", socketId, remoteAddrPtr->Addr[0],
+                   remoteAddrPtr->Addr[1], remoteAddrPtr->Addr[2], remoteAddrPtr->Addr[3],
+                   remoteAddrPtr->Port, r));
   }
 
   ASLOG(TCPIP,
-        ("[%d] connect %d.%d.%d.%d:%d\n", SocketId, RemoteAddrPtr->addr[0], RemoteAddrPtr->addr[1],
-         RemoteAddrPtr->addr[2], RemoteAddrPtr->addr[3], RemoteAddrPtr->port));
+        ("[%d] connect %d.%d.%d.%d:%d\n", socketId, remoteAddrPtr->Addr[0], remoteAddrPtr->Addr[1],
+         remoteAddrPtr->Addr[2], remoteAddrPtr->Addr[3], remoteAddrPtr->Port));
 
   return ret;
 }
 
-Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *RemoteAddrPtr, uint32_t ipv4Addr,
+Std_ReturnType TcpIp_SetupAddrFrom(TcpIp_SockAddrType *remoteAddrPtr, uint32_t ipv4Addr,
                                    uint16_t port) {
   uint32_t u32Addr = htonl(ipv4Addr);
-  memcpy(RemoteAddrPtr->addr, &u32Addr, 4);
-  RemoteAddrPtr->port = port;
+  memcpy(remoteAddrPtr->Addr, &u32Addr, 4);
+  remoteAddrPtr->Port = port;
   return E_OK;
 }
 
@@ -685,46 +685,46 @@ uint32_t TcpIp_InetAddr(const char *ip) {
   return u32Addr;
 }
 
-Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType LocalAddrId, TcpIp_SockAddrType *IpAddrPtr,
-                               uint8_t *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr) {
+Std_ReturnType TcpIp_GetIpAddr(TcpIp_LocalAddrIdType localAddrId, TcpIp_SockAddrType *ipAddrPtr,
+                               uint8_t *netmaskPtr, TcpIp_SockAddrType *defaultRouterPtr) {
 #ifdef USE_LWIP
-  memcpy(IpAddrPtr->addr, &netif_default->ip_addr.addr, 4);
+  memcpy(ipAddrPtr->Addr, &netif_default->ip_addr.addr, 4);
   return E_OK;
 #else
-  uint32_t u32Addr = TcpIp_GetLocalIpAddr(LocalAddrId);
-  memcpy(IpAddrPtr->addr, &u32Addr, 4);
+  uint32_t u32Addr = TcpIp_GetLocalIpAddr(localAddrId);
+  memcpy(ipAddrPtr->Addr, &u32Addr, 4);
   return E_OK;
 #endif
 }
 
-Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType SocketId, TcpIp_SockAddrType *addr) {
+Std_ReturnType TcpIp_GetLocalAddr(TcpIp_SocketIdType socketId, TcpIp_SockAddrType *addr) {
   Std_ReturnType ret = E_NOT_OK;
   int r;
   struct sockaddr_in name;
   socklen_t namelen = sizeof(name);
 
-  r = getsockname(SocketId, (struct sockaddr *)&name, &namelen);
+  r = getsockname(socketId, (struct sockaddr *)&name, &namelen);
   if (0 == r) {
-    addr->port = htons(name.sin_port);
-    memcpy(addr->addr, &name.sin_addr, 4);
+    addr->Port = htons(name.sin_port);
+    memcpy(addr->Addr, &name.sin_addr, 4);
     ret = E_OK;
 
-    ASLOG(TCPIP, ("[%d] sockname %d.%d.%d.%d:%d\n", SocketId, addr->addr[0], addr->addr[1],
-                  addr->addr[2], addr->addr[3], addr->port));
+    ASLOG(TCPIP, ("[%d] sockname %d.%d.%d.%d:%d\n", socketId, addr->Addr[0], addr->Addr[1],
+                  addr->Addr[2], addr->Addr[3], addr->Port));
   } else {
-    ASLOG(TCPIPE, ("[%d] get sockname failed: %d\n", SocketId, r));
+    ASLOG(TCPIPE, ("[%d] get sockname failed: %d\n", socketId, r));
   }
 
   return ret;
 }
 
-uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId) {
+uint16_t TcpIp_Tell(TcpIp_SocketIdType socketId) {
 #if defined(_WIN32) && !defined(USE_LWIP)
   u_long Length = 0;
-  ioctlsocket(SocketId, FIONREAD, &Length);
+  ioctlsocket(socketId, FIONREAD, &Length);
 #else
   int Length = 0;
-  ioctl(SocketId, FIONREAD, &Length);
+  ioctl(socketId, FIONREAD, &Length);
 #endif
 
   if (Length > TCPIP_MAX_DATA_SIZE) {
@@ -732,7 +732,7 @@ uint16_t TcpIp_Tell(TcpIp_SocketIdType SocketId) {
   }
 
   if (Length > 0) {
-    ASLOG(TCPIP, ("[%d] tell %u\n", SocketId, (uint16_t)Length));
+    ASLOG(TCPIP, ("[%d] tell %u\n", socketId, (uint16_t)Length));
   }
 
   return (uint16_t)Length;
@@ -757,9 +757,9 @@ boolean TcpIp_IsLinkedUp(void) {
 void TcpIp_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x02, TCPIP_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_TCPIP;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_TCPIP;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

@@ -58,7 +58,7 @@ Rules:
 
 - **Physical** requests have a unique DoIP TA (one ECU) and a unique CAN request ID.
 - **Functional** requests use one DoIP group TA (e.g. `0xE001`) and fan out to multiple buses. The distinguishing feature is **the same DoIP TA appearing in multiple rows with different target buses/CAN IDs** (TA `0xE001` appears for PT_CANFD/CL1_CAN with CAN IDs `0x7E0`/`0x7DF`).
-- All IDs are 11-bit standard (CAN STD): both CAN FD and classic CAN use 11-bit IDs and differ only by `LL_DL` (64 vs 8) (ECU_A `0x731`/`0x732`, ECU_B `0x741`/`0x742`, functional `0x7DF`/`0x7E0`).
+- All IDs are 11-bit standard (CAN STD): both CAN FD and classic CAN use 11-bit IDs and differ only by `LinkLayerDataLength` (64 vs 8) (ECU_A `0x731`/`0x732`, ECU_B `0x741`/`0x742`, functional `0x7DF`/`0x7E0`).
 
 A second section typically lists remote/OTA testers with different SAs (e.g. `0x0F00`) and their own functional groups routed to different bus subsets. Each tester SA corresponds to one tester/routine pair in the DoIP configuration.
 
@@ -78,40 +78,46 @@ The example configuration files are located in [`app/app/config/DoIPGW/`](../../
 
 | File | Content |
 |---|---|
-| [`Network.json`](../../app/app/config/DoIPGW/Network.json) | DoIP: discovery address, `max_connections`, targets (physical + functional group), routines, testers |
-| [`PduR.json`](../../app/app/config/DoIPGW/PduR.json) | PduR gateway routes: `_RX`/`_TX` per node; functional target includes `destinations` fan-out and `DestBuffer` |
-| [`CanTp.json`](../../app/app/config/DoIPGW/CanTp.json) | One CanTp channel per node; `LL_DL` = 64 for CAN FD, 8 for classic CAN |
+| [`Network.json`](../../app/app/config/DoIPGW/Network.json) | DoIP: discovery address, `MaxConnections`, targets (physical + functional group), routines, testers |
+| [`PduR.json`](../../app/app/config/DoIPGW/PduR.json) | PduR gateway routes: `_RX`/`_TX` per node; functional target includes `Destinations` fan-out and `DestBuffer` |
+| [`CanTp.json`](../../app/app/config/DoIPGW/CanTp.json) | One CanTp channel per node; `LinkLayerDataLength` = 64 for CAN FD, 8 for classic CAN |
 | [`CanIf.json`](../../app/app/config/DoIPGW/CanIf.json) | CAN IDs: TX PDU = request ID, RX PDU = response ID, all 11-bit standard IDs |
 | [`Mempool.json`](../../app/app/config/DoIPGW/Mempool.json) | Memory pool used by SoAd/DoIP |
 
 ### 3.1 CanIf and CanTp PDU Direction Explanation
 
-In the PduR configuration for this gateway, PDU routing paths use the naming convention where `_RX` denotes the direction "from tester to ECU" (request path) and `_TX` denotes "from ECU to tester" (response path). The CanTp configuration must align with PduR's PDU IDs.
+This is the most confusing part of a DoIP-to-CAN gateway configuration, because **two `_RX`/`_TX` naming conventions with opposite perspectives** meet here:
 
-Looking at the generated code (e.g. `CanTp_Cfg.c` and `PduR_Cfg.h`):
-- For a channel like `PT_CANFD_E001`, CanTp is configured with `PDUR_PT_CANFD_E001_TX` as its `PduR_RxPduId` and `PDUR_PT_CANFD_E001_RX` as its `PduR_TxPduId`.
-- In PduR routing paths, the request path uses `PT_CANFD_E001_RX` (DoIP → CanTp), while the response path uses `PT_CANFD_E001_TX` (CanTp → DoIP).
-- This means: from CanTp's perspective, when CanTp receives a TP PDU from PduR for transmission to the bus (the request coming in from the upper layer side for this gateway's forward direction), that corresponds to the request path ID (`..._RX` in PduR naming). When CanTp notifies PduR of TP reception completion/result for a response coming from the bus, it uses the response path ID (`..._TX` in PduR naming).
+* **PduR route names** are from the tester's perspective: `<node>_RX` = request coming *into* the gateway from DoIP, `<node>_TX` = response going *out* of the gateway to DoIP.
+* **CanTp JSON `RxPduId` / `TxPduId`** are from the bus's perspective: `TxPduId` = the PduR path that *feeds* the data CanTp transmits onto the bus (the request path), `RxPduId` = the PduR path on which CanTp *hands up* the data it received from the bus (the response path).
 
-Also mapping to CanIf: the request that CanTp sends to the bus goes via `CANIF_<name>_TX` (defined in CanIf as the gateway TX frame on the bus). The responses received from the bus come in via the corresponding CanIf RX frame and are delivered to CanTp. In the JSON, we see `RxPduId` in CanTp points to the CanIf TX PDU name (e.g. `PT_CANFD_E001_TX`) and `TxPduId` points to the CanIf RX PDU name (e.g. `PT_CANFD_E001_RX`). This matches the generator's mapping: `CanIfTxPduId = CANIF_<name>_TX`, and `PduR_RxPduId`/`PduR_TxPduId` are taken from `RxPduId`/`TxPduId` in the JSON (mapped to `PDUR_*` in the generated config).
+That is why the channel JSON looks "crossed" (see [CanTp.json](../../app/app/config/DoIPGW/CanTp.json)):
 
-So for gateway forwarding (DoIP → CAN):
-- The request arrives via PduR to CanTp on the PduR request path (named `_RX`). In CanTp config, this is `PduR_RxPduId = PDUR_<RxPduId from JSON>`. Since the JSON sets `RxPduId = PT_CANFD_E001_TX`, this becomes `PDUR_PT_CANFD_E001_TX` in the generated code — which is the PduR ID for the CanTp→DoIP response path in this example's naming? Wait, looking at PduR_Cfg.h: `PDUR_PT_CANFD_E001_RX = 0` is the DoIP→CanTp request path, `PDUR_PT_CANFD_E001_TX = 4` is the CanTp→DoIP response path. And CanTp_Cfg.c uses `PDUR_PT_CANFD_E001_TX` as `PduR_RxPduId`. That means the CanTp channel's "PduR Rx" (reception from PduR/upper layer side for transmission to bus) is wired to the PduR response-path ID by this naming — this is the convention used in this configuration/generator.
+```json
+{ "Name": "PT_CANFD_004A", "RxPduId": "PT_CANFD_004A_TX", "TxPduId": "PT_CANFD_004A_RX", "LinkLayerDataLength": 64 }
+```
 
-In this configuration, the JSON fields are mapped by the generator as follows (see `tools/generator/CanTp.py`):
-- `CanIfTxPduId = CANIF_<name>_TX`
-- `PduR_RxPduId = PDUR_<RxPduId>` (from `CanTp.RxPduId`)
-- `PduR_TxPduId = PDUR_<TxPduId>` (from `CanTp.TxPduId`)
+The generator ([CanTp.py](../../tools/generator/CanTp.py)) maps this to the generated `CanTp_Cfg.c` as:
 
-The key point is that the naming is consistent with the generated PduR/CanTp configuration; `RxPduId` in the JSON is used to derive the PduR ID that CanTp uses for its PduR interface, not directly the bus RX name. For functional group channels, the corresponding response-side PDU is typically unused due to response suppression, but `TxPduId` is still specified to maintain a uniform channel structure.
+| Generated field | Value | Runtime meaning (verified in `CanTp.c`) |
+| --- | --- | --- |
+| `CanIfTxPduId` | `CANIF_<name>_TX` | CAN frame CanTp sends onto the bus (request, flow control) |
+| `PduR_TxPduId` | `PDUR_<TxPduId>` = `PDUR_PT_CANFD_004A_RX` | CanTp pulls the request payload from PduR (`PduR_CanTpCopyTxData`) — the DoIP→CanTp request route |
+| `PduR_RxPduId` | `PDUR_<RxPduId>` = `PDUR_PT_CANFD_004A_TX` | CanTp indicates the received response up to PduR (`PduR_CanTpStartOfReception/CopyRxData/RxIndication`) — the CanTp→DoIP response route |
+
+On the PduR side the corresponding routes in [PduR.json](../../app/app/config/DoIPGW/PduR.json) are `{ "Name": "PT_CANFD_004A_RX", "From": "DoIP", "To": "CanTp" }` (request) and `{ "Name": "PT_CANFD_004A_TX", "From": "CanTp", "To": "DoIP" }` (response). The DoIP→CanTp route's `Dest` (`PT_CANFD_004A_RX`) lands exactly on CanTp's `PduR_TxPduId`, which is where `CanTpTransmit` pulls the data.
+
+CanIf completes the chain: the gateway transmits the request on the CAN request ID (`CANIF_<node>_TX`, e.g. `0x731`) and receives the response on the CAN response ID (`CANIF_<node>_RX`, e.g. `0x732`), both defined in [CanIf.json](../../app/app/config/DoIPGW/CanIf.json) as 11-bit standard IDs.
+
+For functional group channels the same structure applies; the response-side PDU is unused because functional requests suppress positive responses, but `TxPduId` is still specified to keep a uniform channel structure.
 
 ### 3.2 Configuration Notes
 
-- **Physical target**: one DoIP TA mapped to one CanTp channel. **Functional target**: one DoIP TA with a `nodes` array (DoIP receives the request once, PduR replicates it to each node). Response matching in DoIP uses each node's own `doipTxPduId` to avoid mixing responses.
-- **Functional fan-out**: the functional target's request route carries `destinations`; the same buffered request is forwarded to each listed CanTp channel.
-- **Destination buffer required**: A TP gateway **must** configure a destination buffer (`DestBuffer` + `buffers` entry). Otherwise `PduR_GwStartOfReception` rejects the message and DoIP returns NACK `0x08` (`DOIP_E_DIAG_TP_ERROR`). Size the buffer for the maximum expected UDS message (e.g. 4096 for flashing).
+- **Physical target**: one DoIP TA mapped to one CanTp channel. **Functional target**: one DoIP TA with a `Nodes` array (DoIP receives the request once, PduR replicates it to each node). Response matching in DoIP uses each node's own `doipTxPduId` to avoid mixing responses.
+- **Functional fan-out**: the functional target's request route carries `Destinations`; the same buffered request is forwarded to each listed CanTp channel.
+- **Destination buffer required**: A TP gateway **must** configure a destination buffer (`DestBuffer` + `Buffers` entry). Otherwise `PduR_GwStartOfReception` rejects the message and DoIP returns NACK `0x08` (`DOIP_E_DIAG_TP_ERROR`). Size the buffer for the maximum expected UDS message (e.g. 4096 for flashing).
 - **ID format**: All IDs are 11-bit standard IDs, written as-is with no extended-frame bit.
-- **Host simulation**: All virtual nodes share the `simulator_v2` bus and are separated by CAN ID filtering. The `networks` split into physical controllers is relevant only on real hardware.
+- **Host simulation**: All virtual nodes share the `simulator_v2` bus and are separated by CAN ID filtering. The `Networks` split into physical controllers is relevant only on real hardware.
 
 ## 4. Runtime Routing Behavior
 
@@ -168,16 +174,36 @@ graph TB
 - **Functional requests** (`0xE001`): Replicated to every node and typically carry the positive-response-suppression bit (e.g. `0x28 0x83 0x03`, `0x10 0x83`, `0x3E 0x80`), so edge nodes do not respond, avoiding collisions when multiple ECUs share the same functional ID.
 - **DoIP diagnostic ACK** (`0x8002`): Sent before the UDS response. Per ISO 13400, it may echo the first bytes of the request; this echo is not the UDS response.
 
+A full round trip for a physical request (ECU_A, TA `0x004A`):
+
+```mermaid
+sequenceDiagram
+    participant T as Tester (SA 0x0E80)
+    participant G as DoIPGW gateway
+    participant P as PduR (gw buffer)
+    participant C as CanTp (PT_CANFD_004A)
+    participant E as ECU_A
+    T->>G: TCP 0x8001 diag msg (TA 0x004A, UDS 10 01)
+    G-->>T: TCP 0x8002 positive ACK
+    G->>P: DoIP route PT_CANFD_004A_RX
+    P->>C: CanTpTransmit (pull via PDUR_..._RX)
+    C->>E: CAN 0x731 SF 02 10 01 (FD, LinkLayerDataLength 64)
+    E-->>C: CAN 0x732 SF 06 50 01 00 32 01 F4
+    C->>P: PduR_CanTpRxIndication (PDUR_..._TX)
+    P->>G: DoIP_TpTransmit (doipTxPduId of node 004A)
+    G-->>T: TCP 0x8001 diag msg (SA 0x004A, UDS 50 01 ...)
+```
+
 ## 5. Simulating Edge CAN TP Nodes
 
 [`dummy_ecu.py`](../../app/app/config/DoIPGW/dummy_ecu.py) uses the host simulator binding `one.AsPy.isotp`. Each ECU runs in its own process. The ID orientation is from the ECU's perspective:
 
-- `rxid` = CAN ID carrying requests **to** this ECU (= gateway CanIf **TX** ID)
-- `txid` = CAN ID carrying responses **from** this ECU (= gateway CanIf **RX** ID)
+- `RxId` = CAN ID carrying requests **to** this ECU (= gateway CanIf **TX** ID)
+- `TxId` = CAN ID carrying responses **from** this ECU (= gateway CanIf **RX** ID)
 
 ### 5.1 Edge Node and CAN ID Mapping
 
-| Simulated node | `rxid` (requests in) | `txid` (responses out) | `LL_DL` |
+| Simulated node | `RxId` (requests in) | `TxId` (responses out) | `LinkLayerDataLength` |
 |---|---|---|---|
 | ECU_A (PT_CANFD) | `0x731` | `0x732` | 64 |
 | ECU_B (BD_CANFD) | `0x741` | `0x742` | 64 |
@@ -189,14 +215,14 @@ graph TB
 
 ### 5.2 Dummy Responder
 
-[`dummy_ecu.py`](../../app/app/config/DoIPGW/dummy_ecu.py) simulates one ECU per process (no threading). It accepts `--rxid`, `--txid`, `--ll-dl`, and `--name` as command-line arguments. Response logic: for every request, it returns the positive service ID (`SID | 0x40`) and echoes the remaining bytes. For `0x10` (SessionControl), it appends the standard P2/P2* timing bytes `00 32 01 F4` (P2=50ms, P2*=5s).
+[`dummy_ecu.py`](../../app/app/config/DoIPGW/dummy_ecu.py) simulates one ECU per process (no threading). It accepts `--RxId`, `--TxId`, `--LinkLayerDataLength`, and `--Name` as command-line arguments. Response logic: for every request, it returns the positive service ID (`SID | 0x40`) and echoes the remaining bytes. For `0x10` (SessionControl), it appends the standard P2/P2* timing bytes `00 32 01 F4` (P2=50ms, P2*=5s).
 
 Example startup:
 
 ```sh
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x731 --txid 0x732 --ll-dl 64 --name ECU_A
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x741 --txid 0x742 --ll-dl 64 --name ECU_B
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x757 --txid 0x75F --ll-dl 8  --name ECU_C
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x731 --TxId 0x732 --LinkLayerDataLength 64 --Name ECU_A
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x741 --TxId 0x742 --LinkLayerDataLength 64 --Name ECU_B
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x757 --TxId 0x75F --LinkLayerDataLength 8  --Name ECU_C
 ```
 
 ### 5.3 DoIP Tester
@@ -257,12 +283,12 @@ build\nt\GCC\one\CanDump.exe -d simulator_v2 -p 0
 ### Step 4 - Start the Edge ECUs (Shell 3+)
 
 ```sh
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x731 --txid 0x732 --ll-dl 64 --name ECU_A
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x741 --txid 0x742 --ll-dl 64 --name ECU_B
-python app/app/config/DoIPGW/dummy_ecu.py --rxid 0x757 --txid 0x75F --ll-dl 8  --name ECU_C
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x731 --TxId 0x732 --LinkLayerDataLength 64 --Name ECU_A
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x741 --TxId 0x742 --LinkLayerDataLength 64 --Name ECU_B
+python app/app/config/DoIPGW/dummy_ecu.py --RxId 0x757 --TxId 0x75F --LinkLayerDataLength 8  --Name ECU_C
 ```
 
-Each process listens for requests on `rxid` and replies on `txid`.
+Each process listens for requests on `RxId` and replies on `TxId`.
 
 ### Step 5 - Send Requests and Observe CAN Frames
 

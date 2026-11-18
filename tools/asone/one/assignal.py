@@ -70,9 +70,9 @@ class Sdu():
             rBit -= 1
 
     def set(self, sig, value):
-        start = sig['start']
-        size = sig['size']
-        endian = sig['endian']
+        start = sig['Start']
+        size = sig['Size']
+        endian = sig['Endian']
         if (endian == 'big'):
             self.beset(start, size, value)
         else:
@@ -106,9 +106,9 @@ class Sdu():
 
     def get(self, sig):
         # for big endian only
-        start = sig['start']
-        size = sig['size']
-        endian = sig['endian']
+        start = sig['Start']
+        size = sig['Size']
+        endian = sig['Endian']
         if (endian == 'big'):
             return self.beget(start, size)
         else:
@@ -124,8 +124,8 @@ class Sdu():
 class Signal():
     def __init__(self, sg):
         self.sg = sg
-        self.name = sg['name']
-        self.mask = (1 << sg['size'])-1
+        self.name = sg['Name']
+        self.mask = (1 << sg['Size'])-1
         self.notifyMQ = []
         self.set_value(0)
 
@@ -160,19 +160,19 @@ class Signal():
 
 class Message():
     def __init__(self, msg, network, isTx):
-        self.name = msg['name']
+        self.name = msg['Name']
         self.msg = msg
         self.network = network
         self.isTx = isTx
         self.sgs = {}
-        self.sdu = Sdu(msg['dlc'])
+        self.sdu = Sdu(msg['Dlc'])
         if ('period' in msg):
             self.period = msg['period']
         else:
             self.period = 1000
         self.timer = time.time()
-        for sg in msg['signals']:
-            self.sgs[sg['name']] = Signal(sg)
+        for sg in msg['Signals']:
+            self.sgs[sg['Name']] = Signal(sg)
         self.notifyMQ = []
 
     def register_mq(self, mq):
@@ -185,7 +185,7 @@ class Message():
         if len(self.notifyMQ):
             msg = {}
             for sig in self:
-                msg[sig['name']] = sig.value
+                msg[sig['Name']] = sig.value
             for mq in self.notifyMQ:
                 mq.put(msg)
 
@@ -201,7 +201,7 @@ class Message():
     def transmit(self):
         for sig in self:
             self.sdu.set(sig, sig.value)
-        self.network.write(self.msg['id'], self.sdu)
+        self.network.write(self.msg['Id'], self.sdu)
 
     def ProcessTX(self):
         if (self.period <= 0):
@@ -213,7 +213,7 @@ class Message():
             self.notify_mq()
 
     def ProcessRX(self):
-        result, idx, data = self.network.read(self.msg['id'], self.msg['dlc'])
+        result, idx, data = self.network.read(self.msg['Id'], self.msg['Dlc'])
         if (result):
             self.sdu.data = [d for d in data]
             for sig in self:
@@ -246,7 +246,7 @@ class Message():
         return self.__getitem__(key)
 
     def __setattr__(self, key, value):
-        if (key in ['msg', 'name', 'network', 'isTx', 'sgs', 'sdu', 'period', 'timer', 'notifyMQ']):
+        if (key in ['msg', 'Name', 'Network', 'isTx', 'sgs', 'sdu', 'period', 'timer', 'notifyMQ']):
             self.__dict__[key] = value
         else:
             self.__setitem__(key, value)
@@ -255,23 +255,23 @@ class Message():
 class Network(threading.Thread):
     def __init__(self, network):
         threading.Thread.__init__(self)
-        device = network.get('device', 'simulator')
-        port = network.get('port', 0)
-        baudrate = network.get('baudrate', 1000000)
-        if network['network'] == 'CAN':
+        device = network.get('Device', 'simulator')
+        port = network.get('Port', 0)
+        baudrate = network.get('Baudrate', 1000000)
+        if network['Network'] == 'CAN':
             self.bus = can(device, port, baudrate)
         else:
             self.bus = lin(**network)
         self.msgs = {}
-        for msg in network['messages']:
-            self.msgs[msg['name']] = Message(
-                msg, self, isTx=False if msg['node'] == network['me'] else True)
+        for msg in network['Messages']:
+            self.msgs[msg['Name']] = Message(
+                msg, self, isTx=False if msg['Node'] == network['Me'] else True)
         self.start()
 
     def lookup(self, name):
         for msg in self:
             for sig in msg:
-                if (sig['name'] == name):
+                if (sig['Name'] == name):
                     return sig
         return None
 

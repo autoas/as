@@ -31,19 +31,19 @@ void EcuM_Init(void) {
   EcuM_AL_DriverInitZero();
   EcuM_AL_DriverInitOne();
   /* No OS support in EcuM */
-  EcuM_Contxt.state = ECUM_STATE_STARTUP_ONE;
+  EcuM_Contxt.State = ECUM_STATE_STARTUP_ONE;
 }
 
 void EcuM_StartupTwo(void) {
   EcuM_AL_DriverInitTwo();
-  EcuM_Contxt.state = ECUM_STATE_STARTUP_TWO;
+  EcuM_Contxt.State = ECUM_STATE_STARTUP_TWO;
 }
 
 Std_ReturnType EcuM_RequestRUN(EcuM_UserType user) {
   Std_ReturnType ret = E_OK;
   (void)user;
 
-  EcuM_Contxt.bRequestRun = TRUE;
+  EcuM_Contxt.RequestRun = TRUE;
 
   return ret;
 }
@@ -52,7 +52,7 @@ Std_ReturnType EcuM_ReleaseRUN(EcuM_UserType user) {
   Std_ReturnType ret = E_OK;
   (void)user;
 
-  EcuM_Contxt.bRequestRun = FALSE;
+  EcuM_Contxt.RequestRun = FALSE;
 
   return ret;
 }
@@ -61,7 +61,7 @@ Std_ReturnType EcuM_RequestPOST_RUN(EcuM_UserType user) {
   Std_ReturnType ret = E_OK;
   (void)user;
 
-  EcuM_Contxt.bRequestPostRun = TRUE;
+  EcuM_Contxt.RequestPostRun = TRUE;
 
   return ret;
 }
@@ -70,34 +70,34 @@ Std_ReturnType EcuM_ReleasePOST_RUN(EcuM_UserType user) {
   Std_ReturnType ret = E_OK;
   (void)user;
 
-  EcuM_Contxt.bRequestPostRun = FALSE;
+  EcuM_Contxt.RequestPostRun = FALSE;
 
   return ret;
 }
 
 void EcuM_MainFunction(void) {
-  if (TRUE == EcuM_Contxt.bRequestRun) {
-    if (ECUM_STATE_RUN != EcuM_Contxt.state) {
+  if (TRUE == EcuM_Contxt.RequestRun) {
+    if (ECUM_STATE_RUN != EcuM_Contxt.State) {
       ASLOG(ECUM, ("Enter Run\n"));
       EcuM_AL_EnterRUN();
-      EcuM_Contxt.state = ECUM_STATE_RUN;
+      EcuM_Contxt.State = ECUM_STATE_RUN;
     }
-  } else if (TRUE == EcuM_Contxt.bRequestPostRun) {
-    if (ECUM_STATE_POST_RUN != EcuM_Contxt.state) {
+  } else if (TRUE == EcuM_Contxt.RequestPostRun) {
+    if (ECUM_STATE_POST_RUN != EcuM_Contxt.State) {
       ASLOG(ECUM, ("Enter Post Run\n"));
       EcuM_AL_EnterPOST_RUN();
-      EcuM_Contxt.state = ECUM_STATE_POST_RUN;
+      EcuM_Contxt.State = ECUM_STATE_POST_RUN;
     }
   } else {
     if (EcuM_Contxt.Twakeup > 0) {
       EcuM_Contxt.Twakeup--;
-    } else if (ECUM_STATE_SLEEP != EcuM_Contxt.state) {
+    } else if (ECUM_STATE_SLEEP != EcuM_Contxt.State) {
       ASLOG(ECUM, ("Enter Sleep\n"));
-      EcuM_Contxt.state = ECUM_STATE_SLEEP;
+      EcuM_Contxt.State = ECUM_STATE_SLEEP;
       EcuM_AL_EnterSLEEP();
       ASLOG(ECUM, ("Enter Wakeup\n"));
       EcuM_Contxt.Twakeup = EcuM_Config.TMinWakup;
-      EcuM_Contxt.state = ECUM_STATE_WAKEUP;
+      EcuM_Contxt.State = ECUM_STATE_WAKEUP;
     } else {
       /* do nothing */
     }
@@ -107,9 +107,9 @@ void EcuM_MainFunction(void) {
 void EcuM_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x00, ECUM_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_ECUM;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_ECUM;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

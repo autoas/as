@@ -5,7 +5,7 @@ objs = Glob("src/*.cpp")
 
 
 @register_library
-class LibraryLinLib(Library):
+class LibraryLinL(Library):
     def config(self):
         self.include = "%s/include" % (CWD)
         self.LIBS = ["DevLib"]

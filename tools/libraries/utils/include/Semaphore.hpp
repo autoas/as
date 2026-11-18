@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef _SEMAPHORE_HPP_
-#define _SEMAPHORE_HPP_
+#ifndef SEMAPHORE_HPP
+#define SEMAPHORE_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 
@@ -15,8 +15,8 @@ public:
   Semaphore(int value = 0);
   ~Semaphore();
 
-  int wait(uint32_t timeoutMs = UINT32_MAX);
-  int post();
+  int Wait(uint32_t timeoutMs = UINT32_MAX);
+  int Post(void);
 
 private:
   void *m_Sem = nullptr;
@@ -26,4 +26,4 @@ private:
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } // namespace as
-#endif /* _SEMAPHORE_HPP_ */
+#endif /* SEMAPHORE_HPP */

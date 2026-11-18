@@ -29,7 +29,7 @@ class SignalGenerator():
     def __init__(self, sig):
         self.sig = sig
         self.leData = QLineEdit('0')
-        self.cbxLabel = QCheckBox(sig['name'])
+        self.cbxLabel = QCheckBox(sig['Name'])
         self.cmbxGenerator = QComboBox()
         self.min = self.sig.get_min()
         self.max = self.sig.get_max()
@@ -107,11 +107,11 @@ class UIMsg(QScrollArea):
                 grid.addWidget(sigGen.cbxLabel, row, col)
                 grid.addWidget(sigGen.leData, row, col+1)
                 grid.addWidget(sigGen.cmbxGenerator, row, col+1)
-                self.leData[sig['name']] = sigGen
+                self.leData[sig['Name']] = sigGen
             else:
-                grid.addWidget(QLabel(sig['name']), row, col)
-                self.leData[sig['name']] = QLineEdit('0')
-                grid.addWidget(self.leData[sig['name']], row, col+1)
+                grid.addWidget(QLabel(sig['Name']), row, col)
+                self.leData[sig['Name']] = QLineEdit('0')
+                grid.addWidget(self.leData[sig['Name']], row, col+1)
             col += 2
             if (col > 3):
                 col = 0
@@ -128,7 +128,7 @@ class UIMsg(QScrollArea):
         self.btnUpdate.clicked.connect(self.on_btnUpdate_clicked)
         if not self.msg.IsTransmit():
             for sig in self.msg:
-                self.leData[sig['name']].setReadOnly(True)
+                self.leData[sig['Name']].setReadOnly(True)
         wd.setLayout(grid)
         self.setWidget(wd)
 
@@ -142,7 +142,7 @@ class UIMsg(QScrollArea):
         for sig in self.msg:
             try:
                 sig.set_value(self.toInteger(
-                    str(self.leData[sig['name']].text())))
+                    str(self.leData[sig['Name']].text())))
             except ValueError:
                 pass  # as just type '0x' maybe
         period = self.toInteger(str(self.lePeriod.text()))
@@ -159,7 +159,7 @@ class UIMsg(QScrollArea):
             self.updateMsg()
         else:
             for sig in self.msg:
-                self.leData[sig['name']].setText(
+                self.leData[sig['Name']].setText(
                     '%s(%s)' % (hex(sig.get_value()), sig.get_value()))
 
 
@@ -174,7 +174,7 @@ class UICom(QWidget):
         hbox.addWidget(self.leComJs)
         self.btnOpenComJs = QPushButton('...')
         hbox.addWidget(self.btnOpenComJs)
-        self.btnStart = QPushButton('start')
+        self.btnStart = QPushButton('Start')
         hbox.addWidget(self.btnStart)
         self.vbox.addLayout(hbox)
 
@@ -252,15 +252,15 @@ class UICom(QWidget):
             self.leComJs.setText(defJs)
 
     def on_btnStart_clicked(self):
-        if self.btnStart.text() == 'start':
+        if self.btnStart.text() == 'Start':
             self.loadComJs()
-            self.btnStart.setText('stop')
+            self.btnStart.setText('Stop')
         else:
             self.tabWidget.clear()
             for network in self.networks:
                 network.stop()
             self.networks = []
-            self.btnStart.setText('start')
+            self.btnStart.setText('Start')
 
     def loadComJs(self):
         comjs = self.leComJs.text()
@@ -271,7 +271,7 @@ class UICom(QWidget):
             cfg = json.load(f)
         self.msgs = {}
         signals = []
-        for net in cfg['networks']:
+        for net in cfg['Networks']:
             network = Network(net)
             for msg in network:
                 if msg.name in ANI_VIEWS:
@@ -280,7 +280,7 @@ class UICom(QWidget):
                 self.msgs[msg.name] = UIMsg(msg)
                 self.tabWidget.addTab(self.msgs[msg.name], msg.name)
                 for sig in msg:
-                    signals.append(sig['name'])
+                    signals.append(sig['Name'])
             self.networks.append(network)
         self.cmbxSignals.clear()
         self.cmbxSignals.addItems(signals)

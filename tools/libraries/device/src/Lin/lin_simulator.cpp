@@ -17,32 +17,32 @@
 #define LIN_PORT_MIN 100
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  uint32_t busid;
-  TcpIp_SocketIdType s;
-} Lin_SocketBusType;
+  uint32_t BusId;
+  TcpIp_SocketIdType Socket;
+} Dev_LinSocketBusType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int socket_open(Lin_DeviceType *dev, const char *option);
-static int socket_write(Lin_DeviceType *dev, Lin_FrameType *frame);
-static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame);
-static void socket_close(Lin_DeviceType *dev);
-static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size);
+static int Dev_SocketOpen(Dev_LinDeviceType *dev, const char *option);
+static int Dev_SocketWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static int Dev_SocketRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static void Dev_SocketClose(Dev_LinDeviceType *dev);
+static int Dev_SocketIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Lin_DeviceOpsType lin_simulator_ops = {
-  .name = "simulator/",
-  .open = socket_open,
-  .close = socket_close,
-  .write = socket_write,
-  .read = socket_read,
-  .ioctl = socket_ioctl,
+extern "C" const Dev_LinDeviceOpsType Dev_LinSimulatorOps = {
+  .Name = "simulator/",
+  .Open = Dev_SocketOpen,
+  .Close = Dev_SocketClose,
+  .Write = Dev_SocketWrite,
+  .Read = Dev_SocketRead,
+  .IoCtl = Dev_SocketIoctl,
 };
 /* ================================ [ LOCALS    ] ============================================== */
-static int socket_open(Lin_DeviceType *dev, const char *option) {
+static int Dev_SocketOpen(Dev_LinDeviceType *dev, const char *option) {
   int r = 0;
   Std_ReturnType ercd;
-  uint32_t busid = (uint32_t)atoi(&dev->name.c_str()[14]);
+  uint32_t busid = (uint32_t)atoi(&dev->Name.c_str()[14]);
   TcpIp_SocketIdType s;
   TcpIp_SockAddrType sockAddr;
-  Lin_SocketBusType *bus;
+  Dev_LinSocketBusType *bus;
 
   TcpIp_Init(nullptr);
   TcpIp_SetupAddrFrom(&sockAddr, TCPIP_IPV4_ADDR(127, 0, 0, 1), LIN_PORT_MIN + busid);
@@ -62,11 +62,11 @@ static int socket_open(Lin_DeviceType *dev, const char *option) {
   }
 
   if (0 == r) {
-    bus = new Lin_SocketBusType;
+    bus = new Dev_LinSocketBusType;
     if (bus != nullptr) {
-      bus->busid = busid;
-      bus->s = s;
-      dev->param = (void *)bus;
+      bus->BusId = busid;
+      bus->Socket = s;
+      dev->Param = (void *)bus;
     } else {
       r = -3;
     }
@@ -75,29 +75,29 @@ static int socket_open(Lin_DeviceType *dev, const char *option) {
   return r;
 }
 
-static int socket_write(Lin_DeviceType *dev, Lin_FrameType *frame) {
-  int r = LIN_MTU;
+static int Dev_SocketWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
+  int r = DEVLIN_MTU;
   Std_ReturnType ercd;
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
 
-  ercd = TcpIp_Send(bus->s, (uint8_t *)frame, LIN_MTU);
+  ercd = TcpIp_Send(bus->Socket, (uint8_t *)frame, DEVLIN_MTU);
   if (ercd != E_OK) {
-    ASLOG(ERROR, ("LIN Socket %s send message failed!\n", dev->name.c_str()));
+    ASLOG(ERROR, ("LIN Socket %s send message failed!\n", dev->Name.c_str()));
     r = -1;
   }
 
   return r;
 }
 
-static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
+static int Dev_SocketRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
   int r = 0;
   Std_ReturnType ercd;
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
-  uint32_t len = LIN_MTU;
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
+  uint32_t len = DEVLIN_MTU;
 
-  ercd = TcpIp_Recv(bus->s, (uint8_t *)frame, &len);
-  if ((len == LIN_MTU) && (E_OK == ercd)) {
-    r = LIN_MTU;
+  ercd = TcpIp_Recv(bus->Socket, (uint8_t *)frame, &len);
+  if ((len == DEVLIN_MTU) && (E_OK == ercd)) {
+    r = DEVLIN_MTU;
   } else if (E_OK == ercd) {
     /* pass */
   } else {
@@ -105,19 +105,19 @@ static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
   }
 
   if (r < 0) {
-    ASLOG(ERROR, ("LIN Socket %s read message failed!\n", dev->name.c_str()));
+    ASLOG(ERROR, ("LIN Socket %s read message failed!\n", dev->Name.c_str()));
   }
 
   return r;
 }
 
-static void socket_close(Lin_DeviceType *dev) {
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
-  TcpIp_Close(bus->s, TRUE);
+static void Dev_SocketClose(Dev_LinDeviceType *dev) {
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
+  TcpIp_Close(bus->Socket, TRUE);
   delete bus;
 }
 
-static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size) {
+static int Dev_SocketIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size) {
   int r = -__LINE__;
 
   switch (type) {

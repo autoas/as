@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef _CAN_TSYN_CFG_H
-#define _CAN_TSYN_CFG_H
+#ifndef CANTSYN_MASTER_CFG_H
+#define CANTSYN_MASTER_CFG_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef CANTSYN_MAIN_FUNCTION_PERIOD
@@ -16,4 +16,4 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _CAN_TSYN_CFG_H */
+#endif /* CANTSYN_MASTER_CFG_H */

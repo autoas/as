@@ -38,14 +38,14 @@
 /* ================================ [ TYPES     ] ============================================== */
 class IsotpCanV2 {
 public:
-  IsotpCanV2(isotp_t *isotp, int busid) : m_isotp(isotp), m_busid(busid) {
-    m_LL_DL = m_isotp->params.ll_dl;
-    m_N_TA = m_isotp->params.N_TA;
+  IsotpCanV2(IsoTp_Type *isotp, int busid) : m_isotp(isotp), m_busid(busid) {
+    m_LinkLayerDataLength = m_isotp->Params.LinkLayerDataLength;
+    m_N_TA = m_isotp->Params.N_TA;
   }
 
   ~IsotpCanV2() {
     if (m_busid >= 0) {
-      can_close(m_busid);
+      CanL_Close(m_busid);
     }
   }
 
@@ -89,21 +89,21 @@ private:
           ("[%d]-TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", m_isotp->Channel, dlc,
            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
 
-    bool ok = can_write(m_busid, m_isotp->params.U.CAN.TxCanId, dlc, &data[0]);
+    bool ok = CanL_Write(m_busid, m_isotp->Params.U.CAN.TxCanId, dlc, &data[0]);
     return ok ? 0 : -EIO;
   }
 
   int sendSF(const uint8_t *txBuffer, size_t txSize) {
     std::vector<uint8_t> data;
     size_t pos = 0;
-    data.resize(m_LL_DL, m_padding);
+    data.resize(m_LinkLayerDataLength, m_padding);
 
     if (isExtendedAddressing()) {
       data[pos] = (uint8_t)m_N_TA;
       pos++;
     }
 
-    if ((m_LL_DL > 8u) && ((7u - pos) < txSize)) {
+    if ((m_LinkLayerDataLength > 8u) && ((7u - pos) < txSize)) {
       data[pos] = N_PCI_SF;
       pos++;
       data[pos] = (uint8_t)txSize;
@@ -125,14 +125,14 @@ private:
     size_t TpSduLength = m_txBuffer.size();
     std::vector<uint8_t> data;
     size_t pos = 0;
-    data.resize(m_LL_DL, m_padding);
+    data.resize(m_LinkLayerDataLength, m_padding);
 
     if (isExtendedAddressing()) {
       data[pos] = (uint8_t)m_N_TA;
       pos++;
     }
 
-    if ((m_LL_DL > 8u) && (TpSduLength > 4095u)) {
+    if ((m_LinkLayerDataLength > 8u) && (TpSduLength > 4095u)) {
       data[pos] = N_PCI_FF;
       pos++;
       data[pos] = 0u;
@@ -151,7 +151,7 @@ private:
       data[pos] = (uint8_t)TpSduLength & 0xFFu;
       pos++;
     }
-    size_t copyLen = m_LL_DL - pos;
+    size_t copyLen = m_LinkLayerDataLength - pos;
     memcpy(&data[pos], &m_txBuffer[0], copyLen);
     pos += copyLen;
     m_offset = copyLen;
@@ -196,28 +196,28 @@ private:
     return r;
   }
 
-  int txIndication(const can_frame_t &frame) {
+  int txIndication(const CanL_FrameType &frame) {
     int r = 0;
     uint8_t pci;
     const uint8_t *data;
     uint8_t length;
 
     if (isExtendedAddressing()) {
-      if (m_N_TA != frame.data[0]) {
+      if (m_N_TA != frame.Data[0]) {
         ASLOG(ISOTPI, ("[%d]not for me, ignore\n", m_isotp->Channel));
         r = 0;
-      } else if (frame.dlc > 2u) {
-        pci = frame.data[1];
-        data = &frame.data[2];
-        length = frame.dlc - 2u;
+      } else if (frame.Dlc > 2u) {
+        pci = frame.Data[1];
+        data = &frame.Data[2];
+        length = frame.Dlc - 2u;
       } else {
         ASLOG(ISOTPE, ("[%d]invalid DLC\n", m_isotp->Channel));
         r = -EINVAL;
       }
     } else {
-      pci = frame.data[0];
-      data = &frame.data[1];
-      length = frame.dlc - 1u;
+      pci = frame.Data[0];
+      data = &frame.Data[1];
+      length = frame.Dlc - 1u;
     }
 
     switch (pci & N_PCI_MASK) {
@@ -235,16 +235,16 @@ private:
 
   int waitFC() {
     int r = 0;
-    uint32_t canid = m_isotp->params.U.CAN.RxCanId;
-    bool ok = can_wait_v2(m_busid, canid, m_timeoutMs);
+    uint32_t canid = m_isotp->Params.U.CAN.RxCanId;
+    bool ok = CanL_WaitV2(m_busid, canid, m_timeoutMs);
     if (true == ok) {
-      can_frame_t frame;
-      frame.canid = canid;
-      ok = can_read_v2(m_busid, &frame);
+      CanL_FrameType frame;
+      frame.CanId = canid;
+      ok = CanL_ReadV2(m_busid, &frame);
       if (true == ok) {
         ASLOG(ISOTP, ("[%d]-RX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
-                      m_isotp->Channel, frame.dlc, frame.data[0], frame.data[1], frame.data[2],
-                      frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7]));
+                      m_isotp->Channel, frame.Dlc, frame.Data[0], frame.Data[1], frame.Data[2],
+                      frame.Data[3], frame.Data[4], frame.Data[5], frame.Data[6], frame.Data[7]));
         r = txIndication(frame);
       } else {
         r = -EIO;
@@ -259,7 +259,7 @@ private:
     int r = 0;
     std::vector<uint8_t> data;
     size_t pos = 0;
-    data.resize(m_LL_DL, m_padding);
+    data.resize(m_LinkLayerDataLength, m_padding);
 
     if (isExtendedAddressing()) {
       data[pos] = (uint8_t)m_N_TA;
@@ -273,7 +273,7 @@ private:
       m_SN = 0u;
     }
 
-    size_t bufferSize = m_LL_DL - pos;
+    size_t bufferSize = m_LinkLayerDataLength - pos;
     if (bufferSize > (m_txBuffer.size() - m_offset)) {
       bufferSize = m_txBuffer.size() - m_offset;
     }
@@ -313,7 +313,7 @@ private:
     const uint8_t *SduDataPtr;
     uint8_t dataLen = length;
 
-    if ((0u == SduLength) && (m_LL_DL > 8u)) {
+    if ((0u == SduLength) && (m_LinkLayerDataLength > 8u)) {
       SduLength = data[0];
       SduDataPtr = &data[1];
       dataLen -= 1u;
@@ -340,7 +340,7 @@ private:
   int sendFC() {
     std::vector<uint8_t> data;
     size_t pos = 0;
-    data.resize(m_LL_DL, m_padding);
+    data.resize(m_LinkLayerDataLength, m_padding);
 
     if (isExtendedAddressing()) {
       data[pos] = (uint8_t)m_N_TA;
@@ -349,16 +349,16 @@ private:
 
     data[pos] = N_PCI_FC | N_PCI_CTS;
     pos++;
-    data[pos] = m_isotp->params.U.CAN.BlockSize;
+    data[pos] = m_isotp->Params.U.CAN.BlockSize;
     pos++;
-    data[pos] = m_isotp->params.U.CAN.STmin;
+    data[pos] = m_isotp->Params.U.CAN.STmin;
     pos++;
 
     size_t dl = getDL(pos);
     ASLOG(ISOTP,
           ("[%d]+TX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", m_isotp->Channel, dl,
            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]));
-    bool ok = can_write(m_busid, m_isotp->params.U.CAN.TxCanId, dl, &data[0]);
+    bool ok = CanL_Write(m_busid, m_isotp->Params.U.CAN.TxCanId, dl, &data[0]);
     return ok ? 0 : -EIO;
   }
 
@@ -374,12 +374,12 @@ private:
     SduDataPtr = &data[1];
     SduLength = (size_t)length - 1u;
     if (isExtendedAddressing()) {
-      ffLen = m_LL_DL - 3u;
+      ffLen = m_LinkLayerDataLength - 3u;
     } else {
-      ffLen = m_LL_DL - 2u;
+      ffLen = m_LinkLayerDataLength - 2u;
     }
 
-    if ((m_LL_DL > 8u) && (0u == TpSduLength)) {
+    if ((m_LinkLayerDataLength > 8u) && (0u == TpSduLength)) {
       TpSduLength = ((uint32_t)data[2] << 24) + ((uint32_t)data[3] << 16) +
                     ((uint32_t)data[4] << 8) + ((uint32_t)data[5]);
       SduDataPtr = &data[6];
@@ -418,9 +418,9 @@ private:
     size_t cfLen;
 
     if (isExtendedAddressing()) {
-      cfLen = m_LL_DL - 2u;
+      cfLen = m_LinkLayerDataLength - 2u;
     } else {
-      cfLen = m_LL_DL - 1u;
+      cfLen = m_LinkLayerDataLength - 1u;
     }
 
     if (m_offset == 0) {
@@ -451,28 +451,28 @@ private:
     return r;
   }
 
-  int rxIndication(const can_frame_t &frame) {
+  int rxIndication(const CanL_FrameType &frame) {
     int r = 0;
     uint8_t pci;
     const uint8_t *data;
     uint8_t length;
 
     if (isExtendedAddressing()) {
-      if (m_N_TA != frame.data[0]) {
+      if (m_N_TA != frame.Data[0]) {
         ASLOG(ISOTPI, ("[%d]not for me, ignore\n", m_isotp->Channel));
         r = 0;
-      } else if (frame.dlc > 2u) {
-        pci = frame.data[1];
-        data = &frame.data[2];
-        length = frame.dlc - 2u;
+      } else if (frame.Dlc > 2u) {
+        pci = frame.Data[1];
+        data = &frame.Data[2];
+        length = frame.Dlc - 2u;
       } else {
         ASLOG(ISOTPE, ("[%d]invalid DLC\n", m_isotp->Channel));
         r = -EINVAL;
       }
     } else {
-      pci = frame.data[0];
-      data = &frame.data[1];
-      length = frame.dlc - 1u;
+      pci = frame.Data[0];
+      data = &frame.Data[1];
+      length = frame.Dlc - 1u;
     }
 
     switch (pci & N_PCI_MASK) {
@@ -496,16 +496,16 @@ private:
 
   int waitFrame() {
     int r = 0;
-    uint32_t canid = m_isotp->params.U.CAN.RxCanId;
-    bool ok = can_wait_v2(m_busid, canid, m_timeoutMs);
+    uint32_t canid = m_isotp->Params.U.CAN.RxCanId;
+    bool ok = CanL_WaitV2(m_busid, canid, m_timeoutMs);
     if (true == ok) {
-      can_frame_t frame;
-      frame.canid = canid;
-      ok = can_read_v2(m_busid, &frame);
+      CanL_FrameType frame;
+      frame.CanId = canid;
+      ok = CanL_ReadV2(m_busid, &frame);
       if (true == ok) {
         ASLOG(ISOTP, ("[%d]+RX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
-                      m_isotp->Channel, frame.dlc, frame.data[0], frame.data[1], frame.data[2],
-                      frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7]));
+                      m_isotp->Channel, frame.Dlc, frame.Data[0], frame.Data[1], frame.Data[2],
+                      frame.Data[3], frame.Data[4], frame.Data[5], frame.Data[6], frame.Data[7]));
         r = rxIndication(frame);
       } else {
         r = -EIO;
@@ -522,30 +522,30 @@ private:
 
   size_t getSFMaxLen() {
     size_t sfMaxLen;
-    if (m_LL_DL > 8u) {
+    if (m_LinkLayerDataLength > 8u) {
       if (isExtendedAddressing()) {
-        sfMaxLen = m_LL_DL - 3u;
+        sfMaxLen = m_LinkLayerDataLength - 3u;
       } else {
-        sfMaxLen = m_LL_DL - 2u;
+        sfMaxLen = m_LinkLayerDataLength - 2u;
       }
     } else {
       if (isExtendedAddressing()) {
-        sfMaxLen = m_LL_DL - 2u;
+        sfMaxLen = m_LinkLayerDataLength - 2u;
       } else {
-        sfMaxLen = m_LL_DL - 1u;
+        sfMaxLen = m_LinkLayerDataLength - 1u;
       }
     }
     return sfMaxLen;
   }
 
   size_t getDL(size_t len) {
-    size_t dl = m_LL_DL;
+    size_t dl = m_LinkLayerDataLength;
     uint32_t i;
-    const uint8_t lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48};
+    const uint8_t lLinkLayerDataLengths[] = {8, 12, 16, 20, 24, 32, 48};
 
-    for (i = 0; i < sizeof(lLL_DLs); i++) {
-      if (len <= lLL_DLs[i]) {
-        dl = lLL_DLs[i];
+    for (i = 0; i < sizeof(lLinkLayerDataLengths); i++) {
+      if (len <= lLinkLayerDataLengths[i]) {
+        dl = lLinkLayerDataLengths[i];
         break;
       }
     }
@@ -553,8 +553,8 @@ private:
   }
 
 private:
-  isotp_t *m_isotp;
-  uint8_t m_LL_DL;
+  IsoTp_Type *m_isotp;
+  uint8_t m_LinkLayerDataLength;
   uint16_t m_N_TA;
   std::vector<uint8_t> m_txBuffer;
   std::vector<uint8_t> m_rxBuffer;
@@ -572,27 +572,27 @@ private:
   bool m_waitFirstFC;
 };
 /* ================================ [ DECLARES  ] ============================================== */
-int isotp_can_v2_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);
-void isotp_can_v2_destory(isotp_t *isotp);
+int IsoTp_CanV2Receive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize);
+void IsoTp_CanV2Destroy(IsoTp_Type *isotp);
 /* ================================ [ DATAS     ] ============================================== */
-static isotp_t lIsoTp[CANTP_MAX_CHANNELS];
-static std::mutex lMutex;
+static IsoTp_Type isotpTp[CANTP_MAX_CHANNELS];
+static std::mutex isotpMutex;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-isotp_t *isotp_can_v2_create(isotp_parameter_t *params) {
-  isotp_t *isotp = NULL;
+IsoTp_Type *IsoTp_CanV2Create(IsoTp_ParameterType *params) {
+  IsoTp_Type *isotp = NULL;
   int busid = -1;
   int r = 0;
   size_t i;
 
-  std::unique_lock<std::mutex> lck(lMutex);
-  for (i = 0; i < ARRAY_SIZE(lIsoTp); i++) {
-    if (TRUE == lIsoTp[i].running) {
-      if ((0 == strcmp(lIsoTp[i].params.device, params->device)) &&
-          (lIsoTp[i].params.port == params->port) &&
-          ((lIsoTp[i].params.U.CAN.RxCanId == params->U.CAN.RxCanId) ||
-           (lIsoTp[i].params.U.CAN.TxCanId == params->U.CAN.TxCanId))) {
-        ASLOG(ISOTPE, ("isotp CAN %s:%d %X:%X already opened\n", params->device, params->port,
+  std::unique_lock<std::mutex> lck(isotpMutex);
+  for (i = 0; i < ARRAY_SIZE(isotpTp); i++) {
+    if (TRUE == isotpTp[i].Running) {
+      if ((0 == strcmp(isotpTp[i].Params.Device, params->Device)) &&
+          (isotpTp[i].Params.Port == params->Port) &&
+          ((isotpTp[i].Params.U.CAN.RxCanId == params->U.CAN.RxCanId) ||
+           (isotpTp[i].Params.U.CAN.TxCanId == params->U.CAN.TxCanId))) {
+        ASLOG(ISOTPE, ("isotp CAN %s:%d %X:%X already opened\n", params->Device, params->Port,
                        params->U.CAN.RxCanId, params->U.CAN.TxCanId));
         r = -EEXIST;
         break;
@@ -601,10 +601,10 @@ isotp_t *isotp_can_v2_create(isotp_parameter_t *params) {
   }
 
   if (0 == r) {
-    for (i = 0; i < ARRAY_SIZE(lIsoTp); i++) {
-      if (FALSE == lIsoTp[i].running) {
-        isotp = &lIsoTp[i];
-        isotp->running = TRUE;
+    for (i = 0; i < ARRAY_SIZE(isotpTp); i++) {
+      if (FALSE == isotpTp[i].Running) {
+        isotp = &isotpTp[i];
+        isotp->Running = TRUE;
         isotp->Channel = (uint8_t)i;
         break;
       }
@@ -612,10 +612,10 @@ isotp_t *isotp_can_v2_create(isotp_parameter_t *params) {
   }
 
   if (NULL != isotp) {
-    busid = can_open(params->device, params->port, params->baudrate);
+    busid = CanL_Open(params->Device, params->Port, params->Baudrate);
     if (busid < 0) {
-      ASLOG(ISOTPE, ("isotp CAN %s:%d open failed\n", params->device, params->port));
-      isotp->running = FALSE;
+      ASLOG(ISOTPE, ("isotp CAN %s:%d open failed\n", params->Device, params->Port));
+      isotp->Running = FALSE;
       r = -EINVAL;
     }
   } else {
@@ -623,56 +623,56 @@ isotp_t *isotp_can_v2_create(isotp_parameter_t *params) {
   }
 
   if (0 == r) {
-    isotp->params = *params;
-    isotp->errorTimeout = ISOTP_DEFAULT_TIMEOUT;
-    Std_TimerStop(&isotp->timerErrorNotify);
-    isotp->priv = new IsotpCanV2(isotp, busid);
+    isotp->Params = *params;
+    isotp->ErrorTimeout = ISOTP_DEFAULT_TIMEOUT;
+    Std_TimerStop(&isotp->TimerErrorNotify);
+    isotp->Priv = new IsotpCanV2(isotp, busid);
   }
 
   return isotp;
 }
 
-int isotp_can_v2_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
-                          size_t rxSize) {
+int IsoTp_CanV2Transmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize,
+                        uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
-  IsotpCanV2 *pWorker = (IsotpCanV2 *)isotp->priv;
+  IsotpCanV2 *pWorker = (IsotpCanV2 *)isotp->Priv;
 
   r = pWorker->transmit(txBuffer, txSize);
   if (0 == r) {
     if (NULL != rxBuffer) {
-      r = isotp_can_v2_receive(isotp, rxBuffer, rxSize);
+      r = IsoTp_CanV2Receive(isotp, rxBuffer, rxSize);
     }
   }
 
   return r;
 }
 
-int isotp_can_v2_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
+int IsoTp_CanV2Receive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
-  IsotpCanV2 *pWorker = (IsotpCanV2 *)isotp->priv;
+  IsotpCanV2 *pWorker = (IsotpCanV2 *)isotp->Priv;
 
   r = pWorker->receive(rxBuffer, rxSize);
 
   return r;
 }
 
-int isotp_can_v2_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+int IsoTp_CanV2IoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size) {
   int r = -__LINE__;
-  std::lock_guard<std::mutex> lg(isotp->mutex);
+  std::lock_guard<std::mutex> lg(isotp->Mutex);
   switch (cmd) {
   case ISOTP_IOCTL_SET_TX_ID:
     if ((NULL != data) && (size == sizeof(uint32_t))) {
       uint32_t txId = *(uint32_t *)data;
-      *(uint32_t *)data = isotp->params.U.CAN.TxCanId;
-      isotp->params.U.CAN.TxCanId = txId;
+      *(uint32_t *)data = isotp->Params.U.CAN.TxCanId;
+      isotp->Params.U.CAN.TxCanId = txId;
       r = 0;
     }
     break;
   case ISOTP_IOCTL_SET_TIMEOUT:
     if ((NULL != data) && (size == sizeof(uint32_t))) {
       uint32_t timeoutUs = *(uint32_t *)data;
-      *(uint32_t *)data = isotp->errorTimeout;
-      isotp->errorTimeout = timeoutUs;
+      *(uint32_t *)data = isotp->ErrorTimeout;
+      isotp->ErrorTimeout = timeoutUs;
       r = 0;
     }
   default:
@@ -682,7 +682,7 @@ int isotp_can_v2_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
   return r;
 }
 
-void isotp_can_v2_destory(isotp_t *isotp) {
-  isotp->running = FALSE;
-  delete (IsotpCanV2 *)isotp->priv;
+void IsoTp_CanV2Destroy(IsoTp_Type *isotp) {
+  isotp->Running = FALSE;
+  delete (IsotpCanV2 *)isotp->Priv;
 }

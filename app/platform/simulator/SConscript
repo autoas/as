@@ -14,7 +14,7 @@ libsForSimulator = {
 class LibrarySimulator(Library):
     object = True
     def config(self):
-        self.LIBS = ["CanLib", "DevLib", "Utils"]
+        self.LIBS = ["CanL", "DevLib", "Utils"]
         self.Append(CPPDEFINES=["LIN_USE_EXT_ID"])
         self.CPPPATH = ["$INFRAS", "$StdTrace_Cfg", "#RingBuffer", "$LinIf_Cfg"]
         self.source = objs

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef _NM_PRIV_H
-#define _NM_PRIV_H
+#ifndef NM_PRIV_H
+#define NM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -20,17 +20,17 @@
 typedef uint8_t Nm_StandardBusTypeType;
 
 typedef struct {
-  Nm_StandardBusTypeType busType;
-  NetworkHandleType handle;
+  Nm_StandardBusTypeType BusType;
+  NetworkHandleType Handle;
   NetworkHandleType ComMHandle;
 } Nm_ChannelConfigType;
 
 struct Nm_Config_s {
-  const Nm_ChannelConfigType *channelConfigs;
-  uint8_t numOfChannels;
+  const Nm_ChannelConfigType *ChannelConfigs;
+  uint8_t NumOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _NM_PRIV_H */
+#endif /* NM_PRIV_H */

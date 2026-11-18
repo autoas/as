@@ -64,15 +64,15 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  busid = can_open(device, (uint32_t)port, (uint32_t)baudrate);
+  busid = CanL_Open(device, (uint32_t)port, (uint32_t)baudrate);
   if (busid >= 0) {
-    rv = can_write(busid, canid, dlc, data);
+    rv = CanL_Write(busid, canid, dlc, data);
   } else {
     rv = FALSE;
   }
 
   if (busid >= 0) {
-    (void)can_close(busid);
+    (void)CanL_Close(busid);
   }
 
   if (FALSE == rv) {

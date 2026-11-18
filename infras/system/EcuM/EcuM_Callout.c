@@ -29,7 +29,7 @@ void EcuM_MemoryService(void) {
   uint16_t i;
   EcuM_DriverMainFncType pDriverMainFnc;
 
-  for (i = 0; i < EcuM_Config.numOfMainMem; i++) {
+  for (i = 0; i < EcuM_Config.NumOfMainMem; i++) {
     pDriverMainFnc = EcuM_Config.DriverMemMainList[i];
     pDriverMainFnc();
   }
@@ -52,9 +52,9 @@ void EcuM_AL_DriverInitZero(void) {
   uint16_t i;
   const EcuM_DriverInitItemType *pInitItem;
 
-  for (i = 0; i < EcuM_Config.numOfZero; i++) {
+  for (i = 0; i < EcuM_Config.NumOfZero; i++) {
     pInitItem = &EcuM_Config.DriverInitListZero[i];
-    pInitItem->InitFnc(pInitItem->config);
+    pInitItem->InitFnc(pInitItem->Config);
   }
 
 #ifdef USE_DEM
@@ -66,9 +66,9 @@ void EcuM_AL_DriverInitOne(void) {
   uint16_t i;
   const EcuM_DriverInitItemType *pInitItem;
 
-  for (i = 0; i < EcuM_Config.numOfOne; i++) {
+  for (i = 0; i < EcuM_Config.NumOfOne; i++) {
     pInitItem = &EcuM_Config.DriverInitListOne[i];
-    pInitItem->InitFnc(pInitItem->config);
+    pInitItem->InitFnc(pInitItem->Config);
   }
 }
 
@@ -88,9 +88,9 @@ void EcuM_AL_DriverInitTwo(void) {
 #endif
   STD_TRACE_APP(MEMORY_TASK_E);
 
-  for (i = 0; i < EcuM_Config.numOfTwo; i++) {
+  for (i = 0; i < EcuM_Config.NumOfTwo; i++) {
     pInitItem = &EcuM_Config.DriverInitListTwo[i];
-    pInitItem->InitFnc(pInitItem->config);
+    pInitItem->InitFnc(pInitItem->Config);
   }
 }
 
@@ -98,7 +98,7 @@ void EcuM_BswService(void) {
   uint16_t i;
   EcuM_DriverMainFncType pDriverMainFnc;
 
-  for (i = 0; i < EcuM_Config.numOfMain; i++) {
+  for (i = 0; i < EcuM_Config.NumOfMain; i++) {
     pDriverMainFnc = EcuM_Config.DriverMainList[i];
     pDriverMainFnc();
   }
@@ -108,7 +108,7 @@ void EcuM_BswServiceFast(void) {
   uint16_t i;
   EcuM_DriverMainFncType pDriverMainFnc;
 
-  for (i = 0; i < EcuM_Config.numOfMainFast; i++) {
+  for (i = 0; i < EcuM_Config.NumOfMainFast; i++) {
     pDriverMainFnc = EcuM_Config.DriverMainFastList[i];
     pDriverMainFnc();
   }

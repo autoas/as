@@ -1,89 +1,92 @@
 {
-  "class": "PduR",
-  "routines" : [
+  "Class": "PduR",
+  "Routines" : [
     {
-      "name": "P2P_RX",
-      "from": "CanTp",
-      "to": "Dcm"
+      "Name": "P2P_RX",
+      "From": "CanTp",
+      "To": "Dcm"
     },
     {
-      "name": "P2P_TX",
-      "from": "Dcm",
-      "to": "CanTp"
+      "Name": "P2P_TX",
+      "From": "Dcm",
+      "To": "CanTp"
     },
     {
-      "name": "P2A_RX",
-      "from": "CanTp",
-      "to": "Dcm",
-      "destinations": [ { "name": "P2A_FW_TX", "to": "CanTp", "fake": "P2A_FW_RX" } ]
+      "Name": "P2A_RX",
+      "From": "CanTp",
+      "To": "Dcm",
+      "Destinations": [ { "Name": "P2A_FW_TX", "To": "CanTp", "Fake": "P2A_FW_RX", "UseFake": true } ]
     },
     {
-      "name": "P2A_TX",
-      "from": "Dcm",
-      "to": "CanTp"
+      "Name": "P2A_TX",
+      "From": "Dcm",
+      "To": "CanTp"
     },
     {
-      "name": "CAN0_SECOC_MSG0_TX",
-      "from": "Com",
-      "to": "SecOC"
+      "Name": "CAN0_SECOC_MSG0_TX",
+      "From": "Com",
+      "To": "SecOC"
     },
     {
-      "name": "FW_CAN0_SECOC_MSG0_TX",
-      "from": "SecOC",
-      "to": "CanIf"
+      "Name": "FW_CAN0_SECOC_MSG0_TX",
+      "From": "SecOC",
+      "To": "CanIf"
     },
     {
-      "name": "FW_CAN0_SECOC_MSG1_RX",
-      "from": "CanIf",
-      "to": "SecOC"
+      "Name": "FW_CAN0_SECOC_MSG1_RX",
+      "From": "CanIf",
+      "To": "SecOC"
     },
     {
-      "name": "CAN0_SECOC_MSG1_RX",
-      "from": "SecOC",
-      "to": "Com"
+      "Name": "CAN0_SECOC_MSG1_RX",
+      "From": "SecOC",
+      "To": "Com"
     },
     {
-      "name": "MIRROR_TX",
-      "from": "Mirror",
-      "to": "CanIf"
+      "Name": "MIRROR_TX",
+      "From": "Mirror",
+      "To": "CanIf"
     }
   ],
-  "backup-routines-secoc-test-over-cantp": [
+  "BackupRoutinesSecocTestOverCantp": [
     {
-      "name": "FW_CAN0_SECOC_MSG0_TX",
-      "from": "SecOC",
-      "to": "CanTp",
-      "comments": "FW - forward the secured PDU from SecOC to CanIf or CanTp"
+      "Name": "FW_CAN0_SECOC_MSG0_TX",
+      "From": "SecOC",
+      "To": "CanTp",
+      "Comments": "FW - forward the secured PDU from SecOC to CanIf or CanTp"
     },
     {
-      "name": "FW_CAN0_SECOC_MSG0_RX",
-      "from": "CanTp",
-      "to": "SecOC",
-      "dest": "CAN0_SECOC_MSG1_RX",
-      "comments": "FW - forward the secured PDU from CanIf to SecOC"
+      "Name": "FW_CAN0_SECOC_MSG0_RX",
+      "From": "CanTp",
+      "To": "SecOC",
+      "Dest": "CAN0_SECOC_MSG1_RX",
+      "Comments": "FW - forward the secured PDU from CanIf to SecOC",
+      "UseDest": true
     }
   ],
-  "networks": [
+  "Networks": [
     {
-      "name": "CAN0",
-      "network": "CAN",
-      "me": "AS",
-      "dbc": "CAN0.dbc",
-      "ignore": ["CanNmUserData"]
+      "Name": "CAN0",
+      "Network": "CAN",
+      "Me": "AS",
+      "Dbc": "CAN0.dbc",
+      "Ignore": ["CanNmUserData"],
+      "UseDbc": true
     },
     {
-      "name": "CAN1",
-      "network": "CAN",
-      "me": "AS",
-      "dbc": "CAN0.dbc",
-      "ignore": ["CanNmUserData"]
+      "Name": "CAN1",
+      "Network": "CAN",
+      "Me": "AS",
+      "Dbc": "CAN0.dbc",
+      "Ignore": ["CanNmUserData"],
+      "UseDbc": true
     }
   ],
-  "memory": [
+  "Memory": [
     {
-      "name": "middle",
-      "size": 64,
-      "number": 2
+      "Name": "middle",
+      "Size": 64,
+      "Number": 2
     }
   ]
 }

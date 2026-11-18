@@ -18,7 +18,8 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 static void usage(char *prog) {
-  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l LL_DL -b baudrate "
+  printf("usage: %s -d device -p port -r rxid -t txid -v AABBCCDDEEFF.. -w -l linkLayerDataLength "
+         "-b baudrate "
          "-n N_TA -s delayUs [-V version]\n"
          "\tdevice: protocol.device, for examples, \"CAN.simulator\", \"LIN.simulator\".\n"
          "\tfor J1939Tp: txid = txDT, rxid = rxDT, and follow options required\n"
@@ -44,13 +45,13 @@ int main(int argc, char *argv[]) {
   char *device = "CAN.simulator_v2";
   int port = 0;
   uint32_t rxid = 0x732, txid = 0x731;
-  isotp_j1939tp_protocal_t jprotocol = ISOTP_J1939TP_PROTOCOL_CMDT;
+  IsoTp_J1939TpProtocolType jprotocol = ISOTP_J1939TP_PROTOCOL_CMDT;
   uint32_t rxCM = 0x18ECFFE8, rxDirect = 0x18FECAE8, rxFC = 0x18ECFFE9;
   uint32_t txCM = 0x17ECFFE8, txDirect = 0x17FECAE8, txFC = 0x17ECFFE9;
   uint16_t N_TA = 0xFFFF;
   uint32_t delayUs = 0;
   uint32_t PgPGN = 0;
-  int ll_dl = 8;
+  int linkLayerDataLength = 8;
   int length = 0;
   uint8_t data[4095];
   char bytes[3] = {0, 0, 0};
@@ -59,14 +60,14 @@ int main(int argc, char *argv[]) {
   int wait = 0;
   int echo = 0;
   int quitRx = 0; /* whether do tx only */
-  isotp_t *isotp;
+  IsoTp_Type *isotp;
   int baudrate = 500000;
   uint32_t timeout = 100; /* ms */
-  isotp_parameter_t params;
+  IsoTp_ParameterType params;
   static const uint8_t testerKeep[2] = {0x3E, 0x00 | 0x80};
-  isotp_can_version_t version = ISOTP_CAN_V2;
+  IsoTp_CanVersionType version = ISOTP_CAN_V2;
 
-  memset(&params, 0, sizeof(isotp_parameter_t));
+  memset(&params, 0, sizeof(IsoTp_ParameterType));
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:D:g:l:n:p:r:t:v:V:T:wec:C:f:F:s:S:j:q")) != -1) {
     switch (ch) {
@@ -87,7 +88,7 @@ int main(int argc, char *argv[]) {
       PgPGN = (uint32_t)toU32(optarg);
       break;
     case 'l':
-      ll_dl = toU32(optarg);
+      linkLayerDataLength = toU32(optarg);
       break;
     case 'n':
       N_TA = toU32(optarg);
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
       }
       break;
     case 'V':
-      version = (isotp_can_version_t)toU32(optarg);
+      version = (IsoTp_CanVersionType)toU32(optarg);
       break;
     case 'w':
       wait = 1;
@@ -166,18 +167,18 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  params.baudrate = (uint32_t)baudrate;
-  params.port = port;
-  params.ll_dl = ll_dl;
+  params.Baudrate = (uint32_t)baudrate;
+  params.Port = port;
+  params.LinkLayerDataLength = linkLayerDataLength;
   params.N_TA = N_TA;
   if (0 == strncmp("CAN", device, 3)) {
-    strcpy(params.device, &device[4]);
-    params.protocol = ISOTP_OVER_CAN;
+    strcpy(params.Device, &device[4]);
+    params.Protocol = ISOTP_OVER_CAN;
     params.U.CAN.RxCanId = (uint32_t)rxid;
     params.U.CAN.TxCanId = (uint32_t)txid;
     params.U.CAN.BlockSize = 8;
     params.U.CAN.STmin = delayUs;
-    params.U.CAN.version = version;
+    params.U.CAN.Version = version;
   } else if (0 == strncmp("LIN", device, 3)) {
     if (0x731 == txid) {
       txid = 0x3c;
@@ -185,24 +186,24 @@ int main(int argc, char *argv[]) {
     if (0x732 == rxid) {
       rxid = 0x3d;
     }
-    strcpy(params.device, &device[4]);
-    params.protocol = ISOTP_OVER_LIN;
+    strcpy(params.Device, &device[4]);
+    params.Protocol = ISOTP_OVER_LIN;
     params.U.LIN.RxId = (uint32_t)rxid;
     params.U.LIN.TxId = (uint32_t)txid;
-    params.U.LIN.timeout = timeout;
-    params.U.LIN.delayUs = delayUs;
+    params.U.LIN.Timeout = timeout;
+    params.U.LIN.DelayUs = delayUs;
   } else if (0 == strncmp("J1939TP", device, 7)) {
-    strcpy(params.device, &device[8]);
-    params.protocol = ISOTP_OVER_J1939TP;
-    params.U.J1939TP.TX.CM = txCM | CAN_ID_EXTENDED;
-    params.U.J1939TP.TX.Direct = txDirect | CAN_ID_EXTENDED;
-    params.U.J1939TP.TX.DT = txDT | CAN_ID_EXTENDED;
+    strcpy(params.Device, &device[8]);
+    params.Protocol = ISOTP_OVER_J1939TP;
+    params.U.J1939TP.TX.CM = txCM | CANL_ID_EXTENDED;
+    params.U.J1939TP.TX.Direct = txDirect | CANL_ID_EXTENDED;
+    params.U.J1939TP.TX.DT = txDT | CANL_ID_EXTENDED;
     params.U.J1939TP.TX.FC = txFC;
     params.U.J1939TP.RX.CM = rxCM;
     params.U.J1939TP.RX.Direct = rxDirect;
     params.U.J1939TP.RX.DT = rxDT;
-    params.U.J1939TP.RX.FC = rxFC | CAN_ID_EXTENDED;
-    params.U.J1939TP.protocol = jprotocol;
+    params.U.J1939TP.RX.FC = rxFC | CANL_ID_EXTENDED;
+    params.U.J1939TP.Protocol = jprotocol;
     params.U.J1939TP.PgPGN = PgPGN;
 
     printf("J1939TP protocol %s\n", ISOTP_J1939TP_PROTOCOL_CMDT == jprotocol ? "CMDT" : "BAM");
@@ -228,7 +229,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  isotp = isotp_create(&params);
+  isotp = IsoTp_Create(&params);
 
   if (NULL == isotp) {
     r = -2;
@@ -241,9 +242,9 @@ int main(int argc, char *argv[]) {
     }
     printf("\n");
     if (quitRx) {
-      r = isotp_transmit(isotp, data, length, NULL, 0);
+      r = IsoTp_Transmit(isotp, data, length, NULL, 0);
     } else {
-      r = isotp_transmit(isotp, data, length, data, sizeof(data));
+      r = IsoTp_Transmit(isotp, data, length, data, sizeof(data));
     }
     do {
       if (quitRx) {
@@ -256,23 +257,23 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
         if (wait) {
-          isotp_transmit(isotp, testerKeep, 2, NULL, 0);
+          IsoTp_Transmit(isotp, testerKeep, 2, NULL, 0);
         }
       } else {
         printf("failed with error %d\n", r);
         break;
       }
       if (wait) {
-        r = isotp_receive(isotp, data, sizeof(data));
+        r = IsoTp_Receive(isotp, data, sizeof(data));
       }
     } while (wait);
   } else {
     printf("going to receive TP data:\n");
     do {
-      r = isotp_receive(isotp, data, sizeof(data));
+      r = IsoTp_Receive(isotp, data, sizeof(data));
       if (r > 0) {
-        if (ISOTP_OVER_J1939TP == params.protocol) {
-          (void)isotp_ioctl(isotp, ISOTP_IOCTL_J1939TP_GET_PGN, &PgPGN, sizeof(PgPGN));
+        if (ISOTP_OVER_J1939TP == params.Protocol) {
+          (void)IsoTp_IoCtl(isotp, ISOTP_IOCTL_J1939TP_GET_PGN, &PgPGN, sizeof(PgPGN));
           printf("RX PgPGN %" PRIx32 ": ", PgPGN);
         } else {
           printf("RX: ");
@@ -282,7 +283,7 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
         if (echo) {
-          r = isotp_transmit(isotp, data, r, NULL, 0);
+          r = IsoTp_Transmit(isotp, data, r, NULL, 0);
           if (r < 0) {
             printf("echo back failed: %d\n", r);
           }
@@ -292,7 +293,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (NULL != isotp) {
-    isotp_destory(isotp);
+    IsoTp_Destroy(isotp);
   }
 
   return r;

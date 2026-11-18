@@ -13,7 +13,7 @@ __all__ = ["Gen_VSomeIpSkeleton"]
 
 def Gen_VSomeIpSkeleton(cfg, service, dir, source):
     allStructs = GetStructs(cfg)
-    service_name = service["name"]
+    service_name = service["Name"]
 
     source["%sSkeletonV" % (service_name)] = ["%s/%sSkeletonV.cpp" % (dir, service_name)]
 
@@ -30,10 +30,10 @@ def Gen_VSomeIpSkeleton(cfg, service, dir, source):
 
     # Prepare context data
     MaxPayloadSize = 32
-    listenNum = service.get("listen", 1)
+    listenNum = service.get("Listen", 1)
     context = {
         "cfg": cfg,
-        "service": service,
+        "Service": service,
         "service_name": service_name,
         "allStructs": allStructs,
         "MaxPayloadSize": MaxPayloadSize,

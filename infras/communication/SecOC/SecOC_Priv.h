@@ -33,23 +33,23 @@ typedef Std_ReturnType (*SecOC_GetFreshnessFncType)(uint8_t *FreshnessValue,
 
 typedef struct {
   SecOC_GetFreshnessFncType GetFreshnessFnc;
-  uint16_t length; /* in bits */
+  uint16_t Length; /* in bits */
 } SecOC_FreshnessValueType;
 
 typedef uint8_t SecOC_TxPduProcStateType;
 
 typedef struct {
   PduLengthType SduLength;
-  SecOC_TxPduProcStateType state;
+  SecOC_TxPduProcStateType State;
 } SecOC_TxPduProcContextType;
 
 typedef struct { /* @ECUC_SecOC_00012 */
-  SecOC_TxPduProcContextType *context;
-  uint8_t *buffer;                 /* working buffer */
+  SecOC_TxPduProcContextType *Context;
+  uint8_t *Buffer;                 /* working buffer */
   uint32_t TxAuthServiceConfigRef; /* Symbolic name reference to CsmJob */
   PduIdType FwTxPduId;             /* forward it to lower layer */
   PduIdType UpTxPduId;             /* notify upper layer*/
-  uint16_t bufLen;                 /* working buffer length */
+  uint16_t BufLen;                 /* working buffer length */
   uint16_t AuthInfoLength;
   uint16_t AuthInfoTruncLength; /* The length in bits of the authentication code */
   uint16_t DataId;
@@ -72,15 +72,15 @@ typedef uint8_t SecOC_RxPduProcStateType;
 
 typedef struct {
   PduLengthType SduLength;
-  SecOC_RxPduProcStateType state;
+  SecOC_RxPduProcStateType State;
 } SecOC_RxPduProcContextType;
 
 typedef struct { /* ECUC_SecOC_00011 */
-  SecOC_RxPduProcContextType *context;
-  uint8_t *buffer;                 /* working buffer */
+  SecOC_RxPduProcContextType *Context;
+  uint8_t *Buffer;                 /* working buffer */
   uint32_t RxAuthServiceConfigRef; /* Symbolic name reference to CsmJob */
   PduIdType UpRxPduId;             /* notify upper layer*/
-  uint16_t bufLen;                 /* working buffer length */
+  uint16_t BufLen;                 /* working buffer length */
   uint16_t AuthDataFreshnessLen;
   uint16_t AuthDataFreshnessStartPosition;
 #if 0
@@ -112,13 +112,13 @@ struct SecOC_Config_s {
   const SecOC_FreshnessValueType *FrVals;
   const SecOC_TxPduProcessingType *TxPduProcs;
   const SecOC_RxPduProcessingType *RxPduProcs;
-  uint16_t numTxPduProcs;
-  uint16_t numRxPduProcs;
-  uint16_t numFrVals;
+  uint16_t NumTxPduProcs;
+  uint16_t NumRxPduProcs;
+  uint16_t NumFrVals;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-const SecOC_ConfigType* SecOC_GetConfig(void);
+const SecOC_ConfigType *SecOC_GetConfig(void);
 #endif /* SECOC_PRIV_H */

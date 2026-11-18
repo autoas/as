@@ -3,8 +3,8 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  * ref: AUTOSAR_SWS_CompilerAbstraction
  */
-#ifndef _STD_COMPILER_H
-#define _STD_COMPILER_H
+#ifndef STD_COMPILER_H
+#define STD_COMPILER_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #ifdef __cplusplus
 extern "C" {
@@ -77,12 +77,12 @@ extern "C" {
 #ifdef __compiler_offsetof
 #define __offsetof(TYPE, MEMBER) __compiler_offsetof(TYPE, MEMBER)
 #else
-#define __offsetof(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
+#define __offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 #endif
 #endif
 
 #ifndef __containerof
-#define __containerof(x, s, m) ((s *)((const volatile char *)(x)-__offsetof(s, m)))
+#define __containerof(x, s, m) ((s *)((const volatile char *)(x) - __offsetof(s, m)))
 #endif
 
 /* @SWS_COMPILER_00046 */
@@ -148,4 +148,4 @@ typedef void *void_ptr_t;
 #ifdef __cplusplus
 }
 #endif
-#endif /* _STD_COMPILER_H */
+#endif /* STD_COMPILER_H */

@@ -54,15 +54,15 @@ class wTable(QTableWidget):
         self.dcm = parent
         self.Data = data
         headers = []
-        for d in self.Data.get('datas', []):
-            headers.append(d['name'])
+        for d in self.Data.get('Datas', []):
+            headers.append(d['Name'])
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.setMinimumHeight(200)
 
     def getValue(self, data):
-        if 'lua' in self.Data:
-            api = self.Data['lua']
+        if 'Lua' in self.Data:
+            api = self.Data['Lua']
             bs, headers, values = self.dcm.lua.table_get(api)
             for b in bs:
                 data.append(b, 8)
@@ -86,8 +86,8 @@ class wTable(QTableWidget):
             raise
 
     def setValue(self, data):
-        if 'lua' in self.Data:
-            api = self.Data['lua']
+        if 'Lua' in self.Data:
+            api = self.Data['Lua']
             headers, values, nBits = self.dcm.lua.table_decode(api, data.left())
             self.setColumnCount(len(headers))
             widths = [len(h) * 10 for h in headers]
@@ -120,22 +120,22 @@ class wDataUS(QComboBox):
         self.OptionInvalid = 0
         list = []
         for select in self.Data['Select']:
-            list.append(select['name'])
+            list.append(select['Name'])
             self.OptionInvalid += 1
         list.append('Invalid')
         self.addItems(list)
 
-        if 'default' in self.Data:
-            default = self.Data['default']
+        if 'Default' in self.Data:
+            default = self.Data['Default']
             si = 0
             index = -1
             for i, select in enumerate(self.Data['Select']):
-                if (default == select['value']):
+                if (default == select['Value']):
                     index = i
                     break
             self.setCurrentIndex(index)
 
-        if data.get('readonly', False):
+        if data.get('Readonly', False):
             self.setEnabled(False)
 
     def getValue(self, data):
@@ -145,19 +145,19 @@ class wDataUS(QComboBox):
         svalue = None
         for select in self.Data['Select']:
             if (index == si):
-                svalue = select['value']
+                svalue = select['Value']
                 break
             else:
                 si = si + 1
         assert (svalue)
 
         d = eval(svalue)
-        num = eval(self.Data['type'][1:-6])
+        num = eval(self.Data['Type'][1:-6])
         data.append(d, num)
 
     def setValue(self, data):
         try:
-            num = eval(self.Data['type'][1:-6])
+            num = eval(self.Data['Type'][1:-6])
             value = data.get(num)
 
         except IndexError:
@@ -166,7 +166,7 @@ class wDataUS(QComboBox):
             return
         index = 0
         for select in self.Data['Select']:
-            if (eval(select['value']) == value):
+            if (eval(select['Value']) == value):
                 break
             else:
                 index += 1
@@ -180,56 +180,56 @@ class wDataU(QLineEdit):
         super(QLineEdit, self).__init__(parent)
         self.dcm = parent
         self.Data = data
-        if 'default' in data:
-            self.setText('%s' % (data['default']))
+        if 'Default' in data:
+            self.setText('%s' % (data['Default']))
         else:
             self.setText('0')
-        if data.get('readonly', False):
+        if data.get('Readonly', False):
             self.setReadOnly(True)
             self.setStyleSheet("background-color:rgba(128,128,128,255)")
 
     def setValue(self, data):
         try:
-            if (self.Data['type'][-5:] == 'Array'):
-                num = eval(self.Data['type'][1:-5])
+            if (self.Data['Type'][-5:] == 'Array'):
+                num = eval(self.Data['Type'][1:-5])
                 value = '[ '
-                if (self.Data['display'] == 'asc'):
+                if (self.Data['Display'] == 'asc'):
                     value = 'text='
-                size = self.Data['size']
+                size = self.Data['Size']
                 raw = []
                 for i in range(0, size):
                     v = data.get(num)
-                    if (self.Data['display'] == 'hex'):
+                    if (self.Data['Display'] == 'hex'):
                         value += '0x%X,' % (v)
-                    elif (self.Data['display'] == 'asc'):
+                    elif (self.Data['Display'] == 'asc'):
                         value += '%c' % (v)
                     else:
                         value += '%d,' % (v)
                     raw.append(hex(v))
-                if (self.Data['display'] != 'asc'):
+                if (self.Data['Display'] != 'asc'):
                     value = value[:-1] + ' ]'
                 self.setToolTip('raw=%s' % (raw))
             else:
-                num = eval(self.Data['type'][1:])
+                num = eval(self.Data['Type'][1:])
                 value = data.get(num)
         except IndexError:
             QMessageBox(QMessageBox.Critical, 'Error', 'Data record witn Invalid Length  %s.' % (
                 self.dcm.get_response())).exec_()
             return
-        if (self.Data['type'][-5:] == 'Array'):
+        if (self.Data['Type'][-5:] == 'Array'):
             self.setText(value)
         else:
-            if (self.Data['display'] == 'hex'):
+            if (self.Data['Display'] == 'hex'):
                 self.setText('0x%X' % (value))
             else:
                 self.setText('%d' % (value))
 
     def getValue(self, data):
-        stype = self.Data['type']
+        stype = self.Data['Type']
         if (stype[-5:] == 'Array'):
             num = eval(stype[1:-5])
             assert (num <= 32)
-            size = self.Data['size']
+            size = self.Data['Size']
             string = str(self.text())
             if (string[:5] == 'text='):
                 va = []
@@ -305,7 +305,7 @@ class UISecurityAccess(QGroupBox):
         self.btnUnlock.clicked.connect(self.on_btnUnlock_clicked)
 
     def Seed2Key(self, Level, res):
-        alg = Level['python']
+        alg = Level['Python']
         if (type(alg) == list):
             alg = '\n'.join(alg)
         if (alg.startswith('def')):
@@ -327,7 +327,7 @@ class UISecurityAccess(QGroupBox):
         data.append(0x27, 8)
         levelName = str(self.cmbxSecurityLevels.currentText())
         Level = self.service[levelName]
-        levelV = Level['level']
+        levelV = Level['Level']
         data.append(levelV, 8)
         res = self.dcm.transmit(data.toarray())
         if (res == None):
@@ -363,7 +363,7 @@ class UISecurityAccess(QGroupBox):
 
 class UIService(QGroupBox):
     def __init__(self, service, parent):
-        super(QGroupBox, self).__init__(service['name'], parent)
+        super(QGroupBox, self).__init__(service['Name'], parent)
         self.service = service
         self.dcm = parent
         self.SID = eval(service['SID'])
@@ -376,21 +376,21 @@ class UIService(QGroupBox):
         row = 0
         col = 0
         tables = []
-        for data in self.service.get('transmit', []):
-            if data['type'] == 'Table':
+        for data in self.service.get('Transmit', []):
+            if data['Type'] == 'Table':
                 leData = wTable(data, parent)
                 tables.append(leData)
                 self.leTxDatas.append(leData)
                 continue
-            elif (data['type'][-6:] == 'Select'):
+            elif (data['Type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
             self.leTxDatas.append(leData)
             # not visible, not add it
-            if data.get('visible', True) == False:
+            if data.get('Visible', True) == False:
                 continue
-            grid.addWidget(QLabel(data['name']+":"), row, col+0)
+            grid.addWidget(QLabel(data['Name']+":"), row, col+0)
             grid.addWidget(leData, row, col+1)
             col += 2
 
@@ -409,22 +409,22 @@ class UIService(QGroupBox):
         col = 0
         row += 1
         tables = []
-        for data in self.service.get('receive', []):
-            data['readonly'] = True
-            if data['type'] == 'Table':
+        for data in self.service.get('Receive', []):
+            data['Readonly'] = True
+            if data['Type'] == 'Table':
                 leData = wTable(data, parent)
                 tables.append(leData)
                 self.leRxDatas.append(leData)
                 continue
-            elif (data['type'][-6:] == 'Select'):
+            elif (data['Type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
             self.leRxDatas.append(leData)
             # not visible, not add it
-            if data.get('visible', True) == False:
+            if data.get('Visible', True) == False:
                 continue
-            grid.addWidget(QLabel(data['name']), row, col+0)
+            grid.addWidget(QLabel(data['Name']), row, col+0)
             grid.addWidget(leData, row, col+1)
             col += 2
 
@@ -460,7 +460,7 @@ class UIService(QGroupBox):
 
 class UIDataIdentifier(QGroupBox):
     def __init__(self, service, parent):
-        super(QGroupBox, self).__init__(service['name'], parent)
+        super(QGroupBox, self).__init__(service['Name'], parent)
         self.DID = service
         self.dcm = parent
         grid = QGridLayout()
@@ -468,13 +468,13 @@ class UIDataIdentifier(QGroupBox):
         self.leDatas = []
         row = 0
         col = 0
-        for data in self.DID['data']:
-            if (data['type'][-6:] == 'Select'):
+        for data in self.DID['Data']:
+            if (data['Type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
             self.leDatas.append(leData)
-            grid.addWidget(QLabel(data['name']), row, col+0)
+            grid.addWidget(QLabel(data['Name']), row, col+0)
             grid.addWidget(leData, row, col+1)
             col += 2
 
@@ -489,10 +489,10 @@ class UIDataIdentifier(QGroupBox):
         self.btnRead.clicked.connect(self.on_btnRead_clicked)
         self.btnWrite.clicked.connect(self.on_btnWrite_clicked)
 
-        if (self.DID['attribute'] == 'r'):  # read-only
+        if (self.DID['Attribute'] == 'r'):  # read-only
             self.btnWrite.setDisabled(True)
 
-        if (self.DID['attribute'] == 'w'):  # write-only
+        if (self.DID['Attribute'] == 'w'):  # write-only
             self.btnRead.setDisabled(True)
 
         self.setLayout(grid)
@@ -531,7 +531,7 @@ class UIDataIdentifier(QGroupBox):
 
 class UIRoutineControl(QGroupBox):
     def __init__(self, service, parent):
-        super(QGroupBox, self).__init__(service['name'], parent)
+        super(QGroupBox, self).__init__(service['Name'], parent)
         self.SRI = service
         self.dcm = parent
         grid = QGridLayout()
@@ -539,13 +539,13 @@ class UIRoutineControl(QGroupBox):
         self.leDatas = []
         row = 0
         col = 0
-        for data in self.SRI['data']:
-            if (data['type'][-6:] == 'Select'):
+        for data in self.SRI['Data']:
+            if (data['Type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
             self.leDatas.append(leData)
-            grid.addWidget(QLabel(data['name']), row, col+0)
+            grid.addWidget(QLabel(data['Name']), row, col+0)
             grid.addWidget(leData, row, col+1)
             col += 2
 
@@ -571,7 +571,7 @@ class UIRoutineControl(QGroupBox):
         self.btnResult.clicked.connect(self.on_btnResult_clicked)
 
         try:
-            if self.SRI['stop']:
+            if self.SRI['Stop']:
                 self.btnStop.setDisabled(False)
             else:
                 self.btnStop.setDisabled(True)
@@ -579,7 +579,7 @@ class UIRoutineControl(QGroupBox):
             self.btnStop.setDisabled(True)
 
         try:
-            if self.SRI['result']:
+            if self.SRI['Result']:
                 self.btnResult.setDisabled(False)
             else:
                 self.btnResult.setDisabled(True)
@@ -637,7 +637,7 @@ class UIRoutineControl(QGroupBox):
 
 class UIInputOutputControl(QGroupBox):
     def __init__(self, service, parent):
-        super(QGroupBox, self).__init__(service['name'], parent)
+        super(QGroupBox, self).__init__(service['Name'], parent)
         self.IOC = service
         self.dcm = parent
         grid = QGridLayout()
@@ -645,13 +645,13 @@ class UIInputOutputControl(QGroupBox):
         self.leDatas = []
         row = 0
         col = 0
-        for data in self.IOC['data']:
-            if (data['type'][-6:] == 'Select'):
+        for data in self.IOC['Data']:
+            if (data['Type'][-6:] == 'Select'):
                 leData = wDataUS(data, parent)
             else:
                 leData = wDataU(data, parent)
             self.leDatas.append(leData)
-            grid.addWidget(QLabel(data['name']), row, col+0)
+            grid.addWidget(QLabel(data['Name']), row, col+0)
             grid.addWidget(leData, row, col+1)
             col += 2
 
@@ -703,8 +703,8 @@ class UIInputOutputControl(QGroupBox):
 class UIDTC(QGroupBox):
     def __init__(self, service, parent):
         super(QGroupBox, self).__init__("DTC", parent)
-        if 'path' in service:
-            with open(service['path']) as f:
+        if 'Path' in service:
+            with open(service['Path']) as f:
                 service = json.load(f)
         self.DTC = service
         self.dcm = parent
@@ -713,9 +713,9 @@ class UIDTC(QGroupBox):
         self.Snapshot = {}
         self.DTCs = {}
         for one in self.DTC['DTCs']:
-            self.DTCs[one['name']] = one
+            self.DTCs[one['Name']] = one
         for one in self.DTC['Environments']:
-            self.Snapshot[eval(one['id'])] = one
+            self.Snapshot[eval(one['Id'])] = one
 
         self.subfn = [self.reportNumberOfDTCByStatusMask,
                       self.reportNumberOfMirrorMemoryDTCByStatusMask,
@@ -821,26 +821,26 @@ class UIDTC(QGroupBox):
             record = record[4:]
 
     def decodeData(self, data, record):
-        assert (data['type'] in ['uint8', 'uint16', 'uint32', 'uint64'])
-        length = int(eval(data['type'][4:])/8)
+        assert (data['Type'] in ['uint8', 'uint16', 'uint32', 'uint64'])
+        length = int(eval(data['Type'][4:])/8)
         value = 0
         for j in range(length):
             value = (value << 8) + record[j]
         self.addInfo('\t    %s = %s (%s)' % (
-            data['name'], value, [hex(s) for s in record[:length]]))
+            data['Name'], value, [hex(s) for s in record[:length]]))
         return record[length:]
 
     def reportDTCSnapshotRecordByDTCNumber(self, fnid=0x04):
         recordNum = eval(str(self.leParam.text()))
         dtc = self.DTCs[str(self.cmbxDTC.currentText())]
-        id = eval(dtc['number'])
+        id = eval(dtc['Number'])
         res = self.reportDTCCommon(
             [fnid, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF, recordNum])
         if (res == None):
             return
         res = res.toarray()
         status = res[5]
-        self.addInfo('\t%s status:' % (dtc['name']))
+        self.addInfo('\t%s status:' % (dtc['Name']))
         self.addInfo('\tStatusMask = 0x%02X%s' %
                      (status, self.strStatusMask(status)))
         record = res[6:]
@@ -853,23 +853,23 @@ class UIDTC(QGroupBox):
                 id = (record[0] << 8) + record[1]
                 record = record[2:]
                 data = self.Snapshot[id]
-                if data['type'] in ['uint8', 'uint16', 'uint32', 'uint64']:
+                if data['Type'] in ['uint8', 'uint16', 'uint32', 'uint64']:
                     record = self.decodeData(data, record)
-                elif data['type'] == 'struct':
-                    for sd in data['data']:
+                elif data['Type'] == 'struct':
+                    for sd in data['Data']:
                         record = self.decodeData(sd, record)
 
     def reportDTCExtendedDataRecordByDTCNumber(self, fnid=0x06):
         recordNum = eval(str(self.leParam.text()))
         dtc = self.DTCs[str(self.cmbxDTC.currentText())]
-        id = eval(dtc['number'])
+        id = eval(dtc['Number'])
         res = self.reportDTCCommon(
             [fnid, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF, recordNum])
         if (res == None):
             return
         res = res.toarray()
         status = res[5]
-        self.addInfo('\t%s status:' % (dtc['name']))
+        self.addInfo('\t%s status:' % (dtc['Name']))
         self.addInfo('\tStatusMask = 0x%02X%s' %
                      (status, self.strStatusMask(status)))
         record = res[6:]
@@ -906,8 +906,8 @@ class UIDTC(QGroupBox):
 
     def strDtcName(self, id):
         for _, dtc in self.DTCs.items():
-            if (eval(dtc['number']) == id):
-                return dtc['name']
+            if (eval(dtc['Number']) == id):
+                return dtc['Name']
         return 'unknown'
 
     def showDTCCommon(self, res):
@@ -961,7 +961,7 @@ class UIDTC(QGroupBox):
         data = dcmbits()
         data.append(0x14, 8)
         dtc = self.DTCs[str(self.cmbxDTC.currentText())]
-        id = eval(dtc['number'])
+        id = eval(dtc['Number'])
         data.append(id, 24)
         res = self.dcm.transmit(data.toarray())
         if (res == None):
@@ -971,7 +971,7 @@ class UIDTC(QGroupBox):
                         'Clear DTC Failed! %s.' % (self.dcm.get_last_error())).exec_()
         else:
             QMessageBox(QMessageBox.Information, 'Info',
-                        'Clear DTC %s 0x%x done!' % (dtc['name'], id)).exec_()
+                        'Clear DTC %s 0x%x done!' % (dtc['Name'], id)).exec_()
 
     def on_btnCtrlDTCSetting_clicked(self):
         data = dcmbits()
@@ -1038,7 +1038,7 @@ class UIDcm(QWidget):
         grid.addWidget(QLabel('target:'), 1, 0)
         self.leTarget = QLineEdit()
         grid.addWidget(self.leTarget, 1, 1)
-        self.btnStart = QPushButton('start')
+        self.btnStart = QPushButton('Start')
         grid.addWidget(self.btnStart, 1, 2)
         self.cbxTesterPresent = QCheckBox("Tester Present")
         grid.addWidget(self.cbxTesterPresent, 2, 2)
@@ -1069,41 +1069,41 @@ class UIDcm(QWidget):
             self.dcm.transmit([0x3e, 0x80])
 
     def loadUI(self):
-        self.djs['target'] = eval(str(self.leTarget.text()))
-        if 'rxid' in self.djs['target']:
-            self.djs['target']['rxid'] = eval(self.djs['target']['rxid'])
-        if 'txid' in self.djs['target']:
-            self.djs['target']['txid'] = eval(self.djs['target']['txid'])
+        self.djs['Target'] = eval(str(self.leTarget.text()))
+        if 'RxId' in self.djs['Target']:
+            self.djs['Target']['RxId'] = eval(self.djs['Target']['RxId'])
+        if 'TxId' in self.djs['Target']:
+            self.djs['Target']['TxId'] = eval(self.djs['Target']['TxId'])
         try:
-            self.dcm = dcm(**self.djs['target'])
+            self.dcm = dcm(**self.djs['Target'])
         except Exception as e:
             QMessageBox(QMessageBox.Critical, 'Error', '%s' % (e)).exec_()
             return
         try:
             DIR = os.path.dirname(str(self.leJson.text()))
-            lf = '%s/%s' % (DIR, self.djs['lua'])
+            lf = '%s/%s' % (DIR, self.djs['Lua'])
             self.lua = lua(lf)
         except Exception as e:
             QMessageBox(QMessageBox.Critical, 'Error', '%s' % (e)).exec_()
             return
 
         self.tabWidget.clear()
-        for name, group in self.djs['groups'].items():
+        for name, group in self.djs['Groups'].items():
             self.tabWidget.addTab(UIGroup(group, self), name)
 
     def on_btnStart_clicked(self):
-        if self.btnStart.text() == 'start':
+        if self.btnStart.text() == 'Start':
             self.loadUI()
-            self.btnStart.setText('stop')
+            self.btnStart.setText('Stop')
         else:
             self.tabWidget.clear()
             self.dcm = None
-            self.btnStart.setText('start')
+            self.btnStart.setText('Start')
 
     def loadJson(self, djs):
         with open(djs) as f:
             self.djs = json.load(f)
-        self.leTarget.setText('%s' % (self.djs['target']))
+        self.leTarget.setText('%s' % (self.djs['Target']))
         self.leJson.setText(djs)
 
     def on_btnOpenJson_clicked(self):

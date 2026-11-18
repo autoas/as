@@ -1,30 +1,33 @@
 {
-  "class": "PduR",
-  "routines": [
+  "Class": "PduR",
+  "Routines": [
     {
-      "name": "PT_CANFD_E001_RX",
-      "from": "DoIP",
-      "to": "CanTp",
-      "dest": "PT_CANFD_E001_RX",
+      "Name": "PT_CANFD_E001_RX",
+      "From": "DoIP",
+      "To": "CanTp",
+      "Dest": "PT_CANFD_E001_RX",
       "DestBuffer": "FUNC_BUF",
-      "destinations": [
-        { "to": "CanTp", "name": "CL1_E001_RX" }
-      ]
+      "Destinations": [
+        { "To": "CanTp", "Name": "CL1_E001_RX" }
+      ],
+      "UseDest": true,
+      "UseDestBuffer": true,
+      "DestBufferType": "shared"
     },
-    { "name": "PT_CANFD_E001_TX", "from": "CanTp", "to": "DoIP" },
-    { "name": "CL1_E001_TX",      "from": "CanTp", "to": "DoIP" },
+    { "Name": "PT_CANFD_E001_TX", "From": "CanTp", "To": "DoIP" },
+    { "Name": "CL1_E001_TX",      "From": "CanTp", "To": "DoIP" },
 
-    { "name": "PT_CANFD_004A_RX", "from": "DoIP", "to": "CanTp" },
-    { "name": "PT_CANFD_004A_TX", "from": "CanTp", "to": "DoIP" },
-    { "name": "BD_CANFD_0053_RX", "from": "DoIP", "to": "CanTp" },
-    { "name": "BD_CANFD_0053_TX", "from": "CanTp", "to": "DoIP" },
-    { "name": "CL1_0757_RX", "from": "DoIP", "to": "CanTp" },
-    { "name": "CL1_0757_TX", "from": "CanTp", "to": "DoIP" }
+    { "Name": "PT_CANFD_004A_RX", "From": "DoIP", "To": "CanTp" },
+    { "Name": "PT_CANFD_004A_TX", "From": "CanTp", "To": "DoIP" },
+    { "Name": "BD_CANFD_0053_RX", "From": "DoIP", "To": "CanTp" },
+    { "Name": "BD_CANFD_0053_TX", "From": "CanTp", "To": "DoIP" },
+    { "Name": "CL1_0757_RX", "From": "DoIP", "To": "CanTp" },
+    { "Name": "CL1_0757_TX", "From": "CanTp", "To": "DoIP" }
   ],
-  "buffers": [ { "name": "FUNC_BUF", "size": 4096 } ],
-  "memory": [
-    { "name": "large",  "size": 4096, "number": 2 },
-    { "name": "middle", "size": 1400, "number": 8 },
-    { "name": "small",  "size": 128,  "number": 32 }
+  "Buffers": [ { "Name": "FUNC_BUF", "Size": 4096 } ],
+  "Memory": [
+    { "Name": "large",  "Size": 4096, "Number": 2 },
+    { "Name": "middle", "Size": 1400, "Number": 8 },
+    { "Name": "small",  "Size": 128,  "Number": 32 }
   ]
 }

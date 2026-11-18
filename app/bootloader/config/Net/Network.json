@@ -1,22 +1,22 @@
 {
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "DoIp",
-      "class": "DoIp",
-      "discovery": "224.244.224.245:13400",
-      "max_connections": 3,
-      "targets": [
-        { "name": "P2P", "address": "0xdead" },
-        { "name": "CAN_BL", "address": "0x0731"}
+      "Name": "DoIp",
+      "Class": "DoIp",
+      "Discovery": "224.244.224.245:13400",
+      "MaxConnections": 3,
+      "Targets": [
+        { "Name": "P2P", "Address": "0xdead" },
+        { "Name": "CAN_BL", "Address": "0x0731"}
       ],
-      "routines": [
-        { "name": "default", "number": "0x00", "targets": ["P2P"] },
-        { "name": "CANBL", "number": "0x00", "targets": ["CAN_BL"] }
+      "Routines": [
+        { "Name": "default", "Number": "0x00", "Targets": ["P2P"] },
+        { "Name": "CANBL", "Number": "0x00", "Targets": ["CAN_BL"] }
       ],
-      "testers": [
-        { "name": "default", "address": "0xbeef", "routines": ["default"] },
-        { "name": "CANBL", "address": "0x0E80", "routines": ["CANBL"] }
+      "Testers": [
+        { "Name": "default", "Address": "0xbeef", "Routines": ["default"] },
+        { "Name": "CANBL", "Address": "0x0E80", "Routines": ["CANBL"] }
       ]
     }
   ]

@@ -42,11 +42,11 @@ def Gen_ComM(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     chlIdMap = {}
-    for idc, chanel in enumerate(cfg["chanels"]):
-        chlIdMap[chanel["name"]] = str(idc)
+    for idc, chanel in enumerate(cfg["Chanels"]):
+        chlIdMap[chanel["Name"]] = str(idc)
         user_ids = []
-        for idu, user in enumerate(cfg["users"]):
-            if chanel["name"] in user["chanels"]:
+        for idu, user in enumerate(cfg["Users"]):
+            if chanel["Name"] in user["Chanels"]:
                 user_ids.append(str(idu))
         C.write("static const uint8_t ComM_Chl%sUsers[] = { %s };\n" % (idc, ",".join(user_ids)))
         IpduGroupIds = chanel.get("IpduGroupIds", [])
@@ -56,7 +56,7 @@ def Gen_ComM(cfg, dir):
                 % (idc, ",".join([str(x) for x in IpduGroupIds]))
             )
     C.write("static const ComM_ChannelConfigType ComM_ChannelConfigs[] = {\n")
-    for idc, chanel in enumerate(cfg["chanels"]):
+    for idc, chanel in enumerate(cfg["Chanels"]):
         IpduGroupIds = chanel.get("IpduGroupIds", [])
 
         C.write("  {\n")
@@ -70,26 +70,26 @@ def Gen_ComM(cfg, dir):
             "    COMM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* NmLightTimeout */ \n" % (chanel.get("NmLightTimeout", 5000))
         )
         C.write("    #endif\n")
-        C.write("    %s, /* smHandle */\n" % (idc))
-        C.write("    COMM_BUS_TYPE_%s,\n" % (chanel.get("type", "CAN")))
+        C.write("    %s, /* SmHandle */\n" % (idc))
+        C.write("    COMM_BUS_TYPE_%s,\n" % (chanel.get("Type", "CAN")))
         C.write("    ARRAY_SIZE(ComM_Chl%sUsers),\n" % (idc))
         if len(IpduGroupIds) > 0:
             C.write("    ARRAY_SIZE(Com_Chl%sIpduGroupIds),\n" % (idc))
         else:
-            C.write("    0, /* numOfComIpduGroups */\n")
-        C.write("    COMM_NM_VARIANT_%s,\n" % (chanel.get("variant", "FULL")))
-        C.write("    %s, /* nmHandle */\n" % (chanel.get("nmHandle", idc)))
+            C.write("    0, /* NumOfComIpduGroups */\n")
+        C.write("    COMM_NM_VARIANT_%s,\n" % (chanel.get("Variant", "FULL")))
+        C.write("    %s, /* NmHandle */\n" % (chanel.get("NmHandle", idc)))
         C.write("  },\n")
     C.write("};\n\n")
 
-    for idu, user in enumerate(cfg["users"]):
+    for idu, user in enumerate(cfg["Users"]):
         C.write(
             "static const uint8_t ComM_User%sChannels[] = { %s };\n"
-            % (idu, ",".join([chlIdMap[x] for x in user["chanels"]]))
+            % (idu, ",".join([chlIdMap[x] for x in user["Chanels"]]))
         )
     
     C.write("static const ComM_UserConfigType ComM_UserConfigs[] = {\n")
-    for idu, user in enumerate(cfg["users"]):
+    for idu, user in enumerate(cfg["Users"]):
         C.write("  {\n")
         C.write("    ComM_User%sChannels,\n" % (idu))
         C.write("    ARRAY_SIZE(ComM_User%sChannels),\n" % (idu))

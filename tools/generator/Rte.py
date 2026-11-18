@@ -22,11 +22,11 @@ def Gen(cfg):
     os.makedirs(genDir, exist_ok=True)
     with open(cfg) as f:
         cfg = json.load(f)
-    if "py" in cfg:
-        for inc in cfg.get("includes", []):
+    if "Py" in cfg:
+        for inc in cfg.get("Includes", []):
             p = os.path.abspath(os.path.join(bsw, inc))
             sys.path.append(p)
-        rte = os.path.join(bsw, cfg["py"])
+        rte = os.path.join(bsw, cfg["Py"])
         spec = importlib.util.spec_from_file_location(bswName, rte)
         rteM = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(rteM)
@@ -35,10 +35,10 @@ def Gen(cfg):
         from generator import asar
 
         arxmls = []
-        if type(cfg["arxml"]) is str:
-            arxmls_ = [cfg["arxml"]]
+        if type(cfg["Arxml"]) is str:
+            arxmls_ = [cfg["Arxml"]]
         else:
-            arxmls_ = cfg["arxml"]
+            arxmls_ = cfg["Arxml"]
         for arxml in arxmls_:
             arxml = os.path.join(bsw, arxml)
             if os.path.isfile(arxml):

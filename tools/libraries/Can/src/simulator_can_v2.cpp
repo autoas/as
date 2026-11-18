@@ -25,7 +25,7 @@ using namespace std::literals::chrono_literals;
 namespace simulator_can_v2 {
 /* ================================ [ MACROS    ] ============================================== */
 #define CAN_MAX_DLEN 64 /* 64 for CANFD */
-#define CAN_MTU sizeof(struct can_frame)
+#define CAN_MTU sizeof(struct CanL_WireFrameType)
 
 #define CAN_CAST_IP TCPIP_IPV4_ADDR(224, 244, 224, 245)
 #define CAN_PORT_MIN 8000
@@ -67,78 +67,78 @@ namespace simulator_can_v2 {
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /**
- * struct can_frame - basic CAN frame structure
+ * struct CanL_WireFrameType - basic CAN frame structure
  * @can_id:  CAN ID of the frame and CAN_*_FLAG flags, see canid_t definition
  * @can_dlc: frame payload length in byte (0 .. 8) aka data length code
  *           N.B. the DLC field from ISO 11898-1 Chapter 8.4.2.3 has a 1:1
  *           mapping of the 'data length code' to the real payload length
  * @data:    CAN frame payload (up to 8 byte)
  */
-struct can_frame {
+struct CanL_WireFrameType {
   uint8_t canid[4];
   uint8_t dlc;
   uint8_t data[CAN_MAX_DLEN];
   uint8_t timestamp[8];
   uint8_t uuid[CAN_UUID_LENGTH];
 };
-struct Can_SocketHandle_s {
-  uint32_t busid;
-  uint32_t port;
+struct CanL_SocketHandleType {
+  uint32_t BusId;
+  uint32_t Port;
   std::mutex mutex;
-  std::thread rx_thread;
-  volatile bool terminated;
-  can_device_rx_notification_t rx_notification;
+  std::thread RxThread;
+  volatile bool Terminated;
+  CanL_DeviceRxNotificationType RxNotification;
   TcpIp_SocketIdType sockRd;
   TcpIp_SocketIdType sockWt;
-  STAILQ_ENTRY(Can_SocketHandle_s) entry;
+  STAILQ_ENTRY(CanL_SocketHandleType) entry;
   uint8_t uuid[CAN_UUID_LENGTH];
 };
-struct Can_socketHandleList_s {
-  bool initialized;
+struct CanL_SocketHandleListType {
+  bool Initialized;
   std::mutex mutex;
-  STAILQ_HEAD(, Can_SocketHandle_s) head;
+  STAILQ_HEAD(, CanL_SocketHandleType) head;
 };
 /* ================================ [ DECLARES  ] ============================================== */
-static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
-                         can_device_rx_notification_t rx_notification);
-static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                         uint64_t timestamp);
-static void socket_read(uint32_t port);
-static void socket_close(uint32_t port);
-static void rx_daemon(struct Can_SocketHandle_s *handle);
+static bool CanL_SocketProbe(int busId, uint32_t port, uint32_t baudrate,
+                             CanL_DeviceRxNotificationType rxNotification);
+static bool CanL_SocketWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                             uint64_t timestamp);
+static void CanL_SocketRead(uint32_t port);
+static void CanL_SocketClose(uint32_t port);
+static void CanL_RxDaemon(struct CanL_SocketHandleType *handle);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Can_DeviceOpsType can_simulator_v2_ops = {
-  .name = "simulator_v2",
-  .probe = socket_probe,
-  .close = socket_close,
-  .write = socket_write,
-  .read = socket_read,
+extern "C" const CanL_DeviceOpsType CanL_SimulatorV2Ops = {
+  .Name = "simulator_v2",
+  .Probe = CanL_SocketProbe,
+  .Close = CanL_SocketClose,
+  .Write = CanL_SocketWrite,
+  .Read = CanL_SocketRead,
 };
-static struct Can_socketHandleList_s socketH = {
-  .initialized = false,
+static struct CanL_SocketHandleListType socketH = {
+  .Initialized = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
-static void get_uuid(uint8_t *uuid, size_t length) {
+static void CanL_GetUuid(uint8_t *uuid, size_t length) {
   GUID guid;
   CoCreateGuid(&guid);
   memcpy(uuid, &guid, length);
 }
 #else
-static void get_uuid(uint8_t *uuid, size_t length) {
+static void CanL_GetUuid(uint8_t *uuid, size_t length) {
   uuid_t uu;
   uuid_generate(uu);
   memcpy(uuid, uu, length);
 }
 #endif
 
-static struct Can_SocketHandle_s *getHandle(uint32_t port) {
-  struct Can_SocketHandle_s *handle, *h;
+static struct CanL_SocketHandleType *CanL_GetHandle(uint32_t port) {
+  struct CanL_SocketHandleType *handle, *h;
   handle = NULL;
 
   std::lock_guard<std::mutex> lck(socketH.mutex);
   STAILQ_FOREACH(h, &socketH.head, entry) {
-    if (h->port == port) {
+    if (h->Port == port) {
       handle = h;
       break;
     }
@@ -147,22 +147,22 @@ static struct Can_SocketHandle_s *getHandle(uint32_t port) {
   return handle;
 }
 
-static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
-                         can_device_rx_notification_t rx_notification) {
+static bool CanL_SocketProbe(int busId, uint32_t port, uint32_t baudrate,
+                             CanL_DeviceRxNotificationType rxNotification) {
   bool rv = true;
-  struct Can_SocketHandle_s *handle;
+  struct CanL_SocketHandleType *handle;
   TcpIp_SocketIdType sockRd, sockWt;
   Std_ReturnType ret;
   TcpIp_SockAddrType ipv4Addr;
-  uint16_t Port;
+  uint16_t PortNum;
 
-  if (false == socketH.initialized) {
+  if (false == socketH.Initialized) {
     STAILQ_INIT(&socketH.head);
     TcpIp_Init(NULL);
-    socketH.initialized = true;
+    socketH.Initialized = true;
   }
 
-  handle = getHandle(port);
+  handle = CanL_GetHandle(port);
 
   if (handle) {
     ASLOG(WARN, ("CAN socket port=%d is already on-line, no need to probe it again!\n", port));
@@ -170,16 +170,16 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
   } else {
     sockRd = TcpIp_Create(TCPIP_IPPROTO_UDP);
     if (sockRd >= 0) {
-      Port = CAN_PORT_MIN + port;
+      PortNum = CAN_PORT_MIN + port;
       ret = TcpIp_SetNonBlock(sockRd, FALSE);
       if (E_OK == ret) {
         ret = TcpIp_SetTimeout(sockRd, 10);
       }
       if (E_OK == ret) {
-        ret = TcpIp_Bind(sockRd, 0, &Port);
+        ret = TcpIp_Bind(sockRd, 0, &PortNum);
       }
       if (E_OK == ret) {
-        TcpIp_SetupAddrFrom(&ipv4Addr, CAN_CAST_IP, Port);
+        TcpIp_SetupAddrFrom(&ipv4Addr, CAN_CAST_IP, port);
         ret = TcpIp_AddToMulticast(sockRd, &ipv4Addr);
       }
       if (E_OK != ret) {
@@ -207,19 +207,19 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
       }
     }
     if (rv) { /* open port OK */
-      handle = new struct Can_SocketHandle_s;
+      handle = new struct CanL_SocketHandleType;
       std::lock_guard<std::mutex> lck2(handle->mutex);
       assert(handle);
-      handle->busid = busid;
-      handle->port = port;
-      handle->rx_notification = rx_notification;
+      handle->BusId = busId;
+      handle->Port = port;
+      handle->RxNotification = rxNotification;
       handle->sockRd = sockRd;
       handle->sockWt = sockWt;
-      get_uuid(handle->uuid, sizeof(handle->uuid));
+      CanL_GetUuid(handle->uuid, sizeof(handle->uuid));
       ASHEXDUMP(DEBUG, ("uuid[%u]:", port), handle->uuid, sizeof(handle->uuid));
-      handle->terminated = false;
+      handle->Terminated = false;
 
-      handle->rx_thread = std::thread(rx_daemon, handle);
+      handle->RxThread = std::thread(CanL_RxDaemon, handle);
       std::lock_guard<std::mutex> lck(socketH.mutex);
       STAILQ_INSERT_TAIL(&socketH.head, handle, entry);
     } else {
@@ -229,13 +229,13 @@ static bool socket_probe(int busid, uint32_t port, uint32_t baudrate,
 
   return rv;
 }
-static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                         uint64_t timestamp) {
+static bool CanL_SocketWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                             uint64_t timestamp) {
   bool rv = true;
-  struct can_frame frame;
+  struct CanL_WireFrameType frame;
   TcpIp_SockAddrType RemoteAddr;
   Std_ReturnType ret;
-  struct Can_SocketHandle_s *handle = getHandle(port);
+  struct CanL_SocketHandleType *handle = CanL_GetHandle(port);
   if (handle != NULL) {
     frame.dlc = dlc;
     mSetTimeStamp(frame, timestamp);
@@ -246,7 +246,7 @@ static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8
       memset(&frame.data[dlc], 0x55, CAN_MAX_DLEN - dlc);
     }
     memcpy(frame.uuid, handle->uuid, sizeof(frame.uuid));
-    TcpIp_SetupAddrFrom(&RemoteAddr, CAN_CAST_IP, CAN_PORT_MIN + handle->port);
+    TcpIp_SetupAddrFrom(&RemoteAddr, CAN_CAST_IP, CAN_PORT_MIN + handle->Port);
     ret = TcpIp_SendTo(handle->sockWt, &RemoteAddr, (const uint8_t *)&frame, CAN_MTU);
     if (E_OK != ret) {
       ASLOG(WARN, ("CAN socket port=%d send message failed!\n", port));
@@ -259,24 +259,24 @@ static bool socket_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8
 
   return rv;
 }
-static void socket_close(uint32_t port) {
-  struct Can_SocketHandle_s *handle = getHandle(port);
+static void CanL_SocketClose(uint32_t port) {
+  struct CanL_SocketHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
     std::lock_guard<std::mutex> lck(socketH.mutex);
-    handle->terminated = true;
-    if (handle->rx_thread.joinable()) {
-      handle->rx_thread.join();
+    handle->Terminated = true;
+    if (handle->RxThread.joinable()) {
+      handle->RxThread.join();
     }
     TcpIp_Close(handle->sockRd, TRUE);
     TcpIp_Close(handle->sockWt, TRUE);
-    STAILQ_REMOVE(&socketH.head, handle, Can_SocketHandle_s, entry);
+    STAILQ_REMOVE(&socketH.head, handle, CanL_SocketHandleType, entry);
     delete handle;
   }
 }
 
-static void rx_notifiy(struct Can_SocketHandle_s *handle) {
-  struct can_frame frame;
+static void CanL_RxIndication(struct CanL_SocketHandleType *handle) {
+  struct CanL_WireFrameType frame;
   TcpIp_SockAddrType RemoteAddr;
   uint32_t len = sizeof(frame);
   Std_ReturnType ret;
@@ -285,8 +285,8 @@ static void rx_notifiy(struct Can_SocketHandle_s *handle) {
     ret = TcpIp_RecvFrom(handle->sockRd, &RemoteAddr, (uint8_t *)&frame, &len);
     if ((E_OK == ret) && (len == sizeof(frame))) {
       if (0 != memcmp(frame.uuid, handle->uuid, sizeof(frame.uuid))) {
-        handle->rx_notification(handle->busid, mCANID(frame), frame.dlc, frame.data,
-                                mTimeStamp(frame));
+        handle->RxNotification(handle->BusId, mCANID(frame), frame.dlc, frame.data,
+                               mTimeStamp(frame));
       }
     } else {
       ret = E_NOT_OK;
@@ -294,18 +294,18 @@ static void rx_notifiy(struct Can_SocketHandle_s *handle) {
   } while (E_OK == ret);
 }
 
-static void socket_read(uint32_t port) {
-  struct Can_SocketHandle_s *handle = getHandle(port);
+static void CanL_SocketRead(uint32_t port) {
+  struct CanL_SocketHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
-    rx_notifiy(handle);
+    CanL_RxIndication(handle);
   }
 }
 
-static void rx_daemon(struct Can_SocketHandle_s *handle) {
-  while (false == handle->terminated) {
-    rx_notifiy(handle);
-    if (false == can_is_perf_mode()) {
+static void CanL_RxDaemon(struct CanL_SocketHandleType *handle) {
+  while (false == handle->Terminated) {
+    CanL_RxIndication(handle);
+    if (false == CanL_IsPerfMode()) {
       std::this_thread::sleep_for(1ms);
     }
   }

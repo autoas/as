@@ -28,9 +28,9 @@ UIChartView::~UIChartView() {
 
 void UIChartView::mouseMoveEvent(QMouseEvent *event) {
   if (m_LeftButtonPressed) {
-    QPoint oDeltaPos = event->pos() - m_oPrePos;
+    QPoint oDeltaPos = event->pos() - m_OPrePos;
     chart()->scroll(-oDeltaPos.x(), oDeltaPos.y());
-    m_oPrePos = event->pos();
+    m_OPrePos = event->pos();
   }
   QChartView::mouseMoveEvent(event);
 }
@@ -38,7 +38,7 @@ void UIChartView::mouseMoveEvent(QMouseEvent *event) {
 void UIChartView::mousePressEvent(QMouseEvent *event) {
   if (event->button() == Qt::LeftButton) {
     m_LeftButtonPressed = true;
-    m_oPrePos = event->pos();
+    m_OPrePos = event->pos();
     setCursor(Qt::OpenHandCursor);
   }
   QChartView::mousePressEvent(event);
@@ -74,93 +74,93 @@ UIFigure::UIFigure(std::shared_ptr<Signal> sig, float scale, int32_t offset)
   : m_Signal(sig), m_Scale(scale), m_Offset(offset) {
   auto vbox = new QVBoxLayout();
 
-  m_axisX = new QValueAxis();
-  m_axisY = new QValueAxis();
-  m_axisX->setTitleText("time");
-  m_axisY->setTitleText(tr(m_Signal->name().c_str()));
-  m_axisX->setMin(0);
-  m_axisY->setMax(0);
-  m_axisX->setMax(10);
-  m_axisY->setMax(10);
+  m_AxisX = new QValueAxis();
+  m_AxisY = new QValueAxis();
+  m_AxisX->setTitleText("time");
+  m_AxisY->setTitleText(tr(m_Signal->Name().c_str()));
+  m_AxisX->setMin(0);
+  m_AxisY->setMax(0);
+  m_AxisX->setMax(10);
+  m_AxisY->setMax(10);
 
   m_Chart = new QChart();
-  m_Chart->setTitle(tr(m_Signal->name().c_str()));
+  m_Chart->setTitle(tr(m_Signal->Name().c_str()));
   m_Chart->setAnimationOptions(QChart::AllAnimations);
-  m_Chart->addAxis(m_axisY, Qt::AlignLeft);
-  m_Chart->addAxis(m_axisX, Qt::AlignBottom);
+  m_Chart->addAxis(m_AxisY, Qt::AlignLeft);
+  m_Chart->addAxis(m_AxisX, Qt::AlignBottom);
 
   m_Line = new QLineSeries(m_Chart);
   m_Chart->addSeries(m_Line);
-  m_Line->attachAxis(m_axisX);
-  m_Line->attachAxis(m_axisY);
+  m_Line->attachAxis(m_AxisX);
+  m_Line->attachAxis(m_AxisY);
 
   auto hbox = new QHBoxLayout();
-  m_btnClear = new QPushButton("clear");
-  m_btnClear->setMaximumWidth(100);
-  hbox->addWidget(m_btnClear);
+  m_BtnClear = new QPushButton("clear");
+  m_BtnClear->setMaximumWidth(100);
+  hbox->addWidget(m_BtnClear);
   vbox->addLayout(hbox);
 
   m_ChartView = new UIChartView(m_Chart);
   vbox->addWidget(m_ChartView);
   setLayout(vbox);
 
-  m_Signal->createViewMsgQueue();
+  m_Signal->CreateViewMsgQueue();
   m_FigureType = FigureType::SIGNAL;
   startTimer(100);
 
-  connect(m_btnClear, SIGNAL(clicked()), this, SLOT(on_btnClear_clicked()));
+  connect(m_BtnClear, SIGNAL(clicked()), this, SLOT(on_btnClear_clicked()));
 }
 
 UIFigure::UIFigure(topic::figure::FigureConfig &config) : m_FigureConfig(config) {
   auto vbox = new QVBoxLayout();
 
-  m_axisX = new QValueAxis();
-  m_axisY = new QValueAxis();
-  m_axisX->setTitleText(tr(m_FigureConfig.titleX.c_str()));
-  m_axisY->setTitleText(tr(m_FigureConfig.titleY.c_str()));
-  m_axisX->setMin(m_FigureConfig.minX);
-  m_axisY->setMax(m_FigureConfig.minY);
-  m_axisX->setMax(m_FigureConfig.maxX);
-  m_axisY->setMax(m_FigureConfig.maxY);
+  m_AxisX = new QValueAxis();
+  m_AxisY = new QValueAxis();
+  m_AxisX->setTitleText(tr(m_FigureConfig.TitleX.c_str()));
+  m_AxisY->setTitleText(tr(m_FigureConfig.TitleY.c_str()));
+  m_AxisX->setMin(m_FigureConfig.MinX);
+  m_AxisY->setMax(m_FigureConfig.MinY);
+  m_AxisX->setMax(m_FigureConfig.MaxX);
+  m_AxisY->setMax(m_FigureConfig.MaxY);
 
   m_Chart = new QChart();
-  m_Chart->setTitle(tr(m_FigureConfig.name.c_str()));
+  m_Chart->setTitle(tr(m_FigureConfig.Name.c_str()));
   m_Chart->setAnimationOptions(QChart::AllAnimations);
-  m_Chart->addAxis(m_axisY, Qt::AlignLeft);
-  m_Chart->addAxis(m_axisX, Qt::AlignBottom);
+  m_Chart->addAxis(m_AxisY, Qt::AlignLeft);
+  m_Chart->addAxis(m_AxisX, Qt::AlignBottom);
 
-  for (auto line : m_FigureConfig.lines) {
+  for (auto line : m_FigureConfig.Lines) {
     LineHolder lh;
-    switch (line.type) {
+    switch (line.Type) {
     case topic::figure::LineType::LINE:
       lh.line = new QLineSeries(m_Chart);
       m_Chart->addSeries(lh.line);
-      lh.line->attachAxis(m_axisX);
-      lh.line->attachAxis(m_axisY);
-      lh.line->setName(tr(line.name.c_str()));
+      lh.line->attachAxis(m_AxisX);
+      lh.line->attachAxis(m_AxisY);
+      lh.line->setName(tr(line.Name.c_str()));
       break;
     case topic::figure::LineType::SPLINE:
       lh.spline = new QSplineSeries(m_Chart);
       m_Chart->addSeries(lh.spline);
-      lh.spline->attachAxis(m_axisX);
-      lh.spline->attachAxis(m_axisY);
-      lh.spline->setName(tr(line.name.c_str()));
+      lh.spline->attachAxis(m_AxisX);
+      lh.spline->attachAxis(m_AxisY);
+      lh.spline->setName(tr(line.Name.c_str()));
       break;
     case topic::figure::LineType::SCATTER:
       lh.scatter = new QScatterSeries(m_Chart);
       m_Chart->addSeries(lh.scatter);
-      lh.scatter->attachAxis(m_axisX);
-      lh.scatter->attachAxis(m_axisY);
-      lh.scatter->setName(tr(line.name.c_str()));
+      lh.scatter->attachAxis(m_AxisX);
+      lh.scatter->attachAxis(m_AxisY);
+      lh.scatter->setName(tr(line.Name.c_str()));
       lh.scatter->setMarkerSize(10);
       lh.scatter->setPointsVisible(true);
       break;
     case topic::figure::LineType::DOT:
       lh.line = new QLineSeries(m_Chart);
       m_Chart->addSeries(lh.line);
-      lh.line->attachAxis(m_axisX);
-      lh.line->attachAxis(m_axisY);
-      lh.line->setName(tr(line.name.c_str()));
+      lh.line->attachAxis(m_AxisX);
+      lh.line->attachAxis(m_AxisY);
+      lh.line->setName(tr(line.Name.c_str()));
       lh.line->setMarkerSize(10);
       lh.line->setPointsVisible(true);
       break;
@@ -169,14 +169,14 @@ UIFigure::UIFigure(topic::figure::FigureConfig &config) : m_FigureConfig(config)
       break;
     }
 
-    lh.msgQue = topic::figure::line(m_FigureConfig.name, line.name);
+    lh.msgQue = topic::figure::Line(m_FigureConfig.Name, line.Name);
     m_Lines.push_back(lh);
   }
 
   auto hbox = new QHBoxLayout();
-  m_btnClear = new QPushButton("clear");
-  m_btnClear->setMaximumWidth(100);
-  hbox->addWidget(m_btnClear);
+  m_BtnClear = new QPushButton("clear");
+  m_BtnClear->setMaximumWidth(100);
+  hbox->addWidget(m_BtnClear);
   vbox->addLayout(hbox);
 
   m_ChartView = new UIChartView(m_Chart);
@@ -187,67 +187,67 @@ UIFigure::UIFigure(topic::figure::FigureConfig &config) : m_FigureConfig(config)
   m_FigureType = FigureType::FIGURE;
   startTimer(100);
 
-  connect(m_btnClear, SIGNAL(clicked()), this, SLOT(on_btnClear_clicked()));
+  connect(m_BtnClear, SIGNAL(clicked()), this, SLOT(on_btnClear_clicked()));
 }
 
-void UIFigure::updateSignal(void) {
-  auto vmsgs = m_Signal->view();
+void UIFigure::UpdateSignal(void) {
+  auto vmsgs = m_Signal->View();
   for (auto &msg : vmsgs) {
-    float value = m_Scale * (msg.value - m_Offset);
-    m_Line->append(QPointF(msg.time, value));
-    if (msg.time > m_axisX->max()) {
-      m_axisX->setMax(msg.time + 10);
-      if (msg.time > 90) {
-        m_axisX->setMin(msg.time - 90);
+    float value = m_Scale * (msg.Value - m_Offset);
+    m_Line->append(QPointF(msg.Time, value));
+    if (msg.Time > m_AxisX->max()) {
+      m_AxisX->setMax(msg.Time + 10);
+      if (msg.Time > 90) {
+        m_AxisX->setMin(msg.Time - 90);
       }
     }
-    if (value > m_axisY->max()) {
-      m_axisY->setMax(value);
+    if (value > m_AxisY->max()) {
+      m_AxisY->setMax(value);
     }
-    if (value < m_axisY->min()) {
-      m_axisY->setMin(value);
+    if (value < m_AxisY->min()) {
+      m_AxisY->setMin(value);
     }
   }
 }
 
-void UIFigure::updateFigure(void) {
+void UIFigure::UpdateFigure(void) {
   int idx = 0;
-  for (auto line : m_FigureConfig.lines) {
+  for (auto line : m_FigureConfig.Lines) {
     LineHolder lh = m_Lines[idx];
     topic::figure::Point p;
     auto msgQue = lh.msgQue;
-    bool r = msgQue->get(p, true, 0);
+    bool r = msgQue->Get(p, true, 0);
     while (r) {
-      switch (line.type) {
+      switch (line.Type) {
       case topic::figure::LineType::LINE:
-        lh.line->append(QPointF(p.x, p.y));
+        lh.line->append(QPointF(p.X, p.Y));
         break;
       case topic::figure::LineType::SPLINE:
-        lh.spline->append(QPointF(p.x, p.y));
+        lh.spline->append(QPointF(p.X, p.Y));
         break;
       case topic::figure::LineType::SCATTER:
-        lh.scatter->append(QPointF(p.x, p.y));
+        lh.scatter->append(QPointF(p.X, p.Y));
         break;
       case topic::figure::LineType::DOT:
-        lh.line->append(QPointF(p.x, p.y));
+        lh.line->append(QPointF(p.X, p.Y));
         break;
       default:
         assert(0);
         break;
       }
-      if (p.x > m_axisX->max()) {
-        m_axisX->setMax(p.x + 1);
+      if (p.X > m_AxisX->max()) {
+        m_AxisX->setMax(p.X + 1);
       }
-      if (p.x < m_axisX->min()) {
-        m_axisX->setMin(p.x - 1);
+      if (p.X < m_AxisX->min()) {
+        m_AxisX->setMin(p.X - 1);
       }
-      if (p.y > m_axisY->max()) {
-        m_axisY->setMax(p.y + 1);
+      if (p.Y > m_AxisY->max()) {
+        m_AxisY->setMax(p.Y + 1);
       }
-      if (p.y < m_axisY->min()) {
-        m_axisY->setMin(p.y - 1);
+      if (p.Y < m_AxisY->min()) {
+        m_AxisY->setMin(p.Y - 1);
       }
-      r = msgQue->get(p, true, 0);
+      r = msgQue->Get(p, true, 0);
     }
     idx++;
   }
@@ -256,9 +256,9 @@ void UIFigure::updateFigure(void) {
 void UIFigure::timerEvent(QTimerEvent *event) {
   (void)event;
   if (FigureType::SIGNAL == m_FigureType) {
-    updateSignal();
+    UpdateSignal();
   } else {
-    updateFigure();
+    UpdateFigure();
   }
 }
 
@@ -267,9 +267,9 @@ void UIFigure::on_btnClear_clicked(void) {
     m_Line->clear();
   } else {
     int idx = 0;
-    for (auto line : m_FigureConfig.lines) {
+    for (auto line : m_FigureConfig.Lines) {
       LineHolder lh = m_Lines[idx];
-      switch (line.type) {
+      switch (line.Type) {
       case topic::figure::LineType::LINE:
         lh.line->clear();
         break;
@@ -294,7 +294,7 @@ void UIFigure::on_btnClear_clicked(void) {
 
 UIFigure::~UIFigure() {
   if (m_Signal) {
-    m_Signal->destoryViewMsgQueue();
+    m_Signal->DestroyViewMsgQueue();
   }
 }
 

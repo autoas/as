@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef _COMM_PRIV_H
-#define _COMM_PRIV_H
+#ifndef COMM_PRIV_H
+#define COMM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "Com.h"
@@ -31,7 +31,7 @@
 typedef uint8_t ComM_BusTypeType;
 
 typedef struct {
-  ComM_ModeType requestMode;
+  ComM_ModeType RequestMode;
 } ComM_UserContextType;
 
 typedef uint8_t ComM_NmFlagType;
@@ -40,10 +40,10 @@ typedef struct {
 #ifdef COMM_USE_VARIANT_LIGHT
   uint16_t NmLightTimer;
 #endif
-  ComM_ModeType requestMode;
-  ComM_StateType state;
-  ComM_NmFlagType nmFlag;
-  boolean bCommunicationAllowed;
+  ComM_ModeType RequestMode;
+  ComM_StateType State;
+  ComM_NmFlagType NmFlag;
+  boolean CommunicationAllowed;
 } ComM_ChannelContextType;
 
 /* @ECUC_ComM_00568 */
@@ -51,35 +51,35 @@ typedef uint8_t ComM_NmVariantType;
 
 /* @ECUC_ComM_00565 */
 typedef struct {
-  const uint8_t *users;
-  const Com_IpduGroupIdType* ComIpduGroupIds;
+  const uint8_t *Users;
+  const Com_IpduGroupIdType *ComIpduGroupIds;
 #ifdef COMM_USE_VARIANT_LIGHT
   uint16_t NmLightTimeout;
 #endif
-  NetworkHandleType smHandle;
-  ComM_BusTypeType busType;
-  uint8_t numOfUsers;
-  uint8_t numOfComIpduGroups;
+  NetworkHandleType SmHandle;
+  ComM_BusTypeType BusType;
+  uint8_t NumOfUsers;
+  uint8_t NumOfComIpduGroups;
   ComM_NmVariantType NmVariant;
-  NetworkHandleType nmHandle;
+  NetworkHandleType NmHandle;
 } ComM_ChannelConfigType;
 
 /* @ECUC_ComM_00653 */
 typedef struct {
-  const uint8_t *channels; /* A channel can be hold by multiple users */
-  uint8_t numOfChannels;
+  const uint8_t *Channels; /* A channel can be hold by multiple users */
+  uint8_t NumOfChannels;
 } ComM_UserConfigType;
 
 struct ComM_Config_s {
-  const ComM_ChannelConfigType *channelConfigs;
-  ComM_ChannelContextType *channelContexts;
-  const ComM_UserConfigType *userConfigs;
-  ComM_UserContextType *userContexts;
-  uint8_t numOfChannels;
-  uint8_t numOfUsers;
+  const ComM_ChannelConfigType *ChannelConfigs;
+  ComM_ChannelContextType *ChannelContexts;
+  const ComM_UserConfigType *UserConfigs;
+  ComM_UserContextType *UserContexts;
+  uint8_t NumOfChannels;
+  uint8_t NumOfUsers;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _COMM_PRIV_H */
+#endif /* COMM_PRIV_H */

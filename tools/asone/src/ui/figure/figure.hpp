@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __FIGURE_HPP__
-#define __FIGURE_HPP__
+#ifndef FIGURE_HPP
+#define FIGURE_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <vector>
 #include <string>
@@ -43,7 +43,7 @@ protected:
 
 private:
   bool m_LeftButtonPressed = false;
-  QPoint m_oPrePos = {0, 0};
+  QPoint m_OPrePos = {0, 0};
 };
 
 class UIFigure : public QWidget {
@@ -63,20 +63,20 @@ public slots:
   void on_btnClear_clicked(void);
 
 private:
-  void updateSignal(void);
-  void updateFigure(void);
+  void UpdateSignal(void);
+  void UpdateFigure(void);
   void timerEvent(QTimerEvent *event);
 
 private:
   /* general stuff */
   UIChartView *m_ChartView;
   QChart *m_Chart;
-  QValueAxis *m_axisX;
-  QValueAxis *m_axisY;
+  QValueAxis *m_AxisX;
+  QValueAxis *m_AxisY;
 
   FigureType m_FigureType;
 
-  QPushButton *m_btnClear;
+  QPushButton *m_BtnClear;
 
   /* stuff for COM signal */
   std::shared_ptr<Signal> m_Signal = nullptr;
@@ -104,4 +104,4 @@ private:
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace figure */
 } /* namespace as */
-#endif /* __FIGURE_HPP__ */
+#endif /* FIGURE_HPP */

@@ -37,19 +37,19 @@ using namespace std::literals::chrono_literals;
 #define ZLG_CALL(sym) VCI_##sym
 #endif
 /* ================================ [ TYPES     ] ============================================== */
-struct Can_ZLGHandle_s {
-  uint32_t busid;
-  uint32_t port;
+struct CanL_ZLGHandleType {
+  uint32_t BusId;
+  uint32_t Port;
   uint32_t DeviceType;
   uint32_t CANInd;
-  uint32_t baudrate;
+  uint32_t Baudrate;
   uint64_t localTime;
   UINT devTime; /* unit 0.1ms */
   std::mutex mutex;
-  std::thread rx_thread;
-  volatile bool terminated;
-  can_device_rx_notification_t rx_notification;
-  STAILQ_ENTRY(Can_ZLGHandle_s) entry;
+  std::thread RxThread;
+  volatile bool Terminated;
+  CanL_DeviceRxNotificationType RxNotification;
+  STAILQ_ENTRY(CanL_ZLGHandleType) entry;
 };
 
 typedef struct {
@@ -65,27 +65,27 @@ typedef struct {
   DWORD (*VCI_ReadErrInfo)(DWORD, DWORD, DWORD, PVCI_ERR_INFO);
 } Zlg_InterfaceType;
 
-struct Can_ZLGHandleList_s {
-  bool initialized;
+struct CanL_ZLGHandleListType {
+  bool Initialized;
   std::mutex mutex;
   Zlg_InterfaceType IF;
-  STAILQ_HEAD(, Can_ZLGHandle_s) head;
+  STAILQ_HEAD(, CanL_ZLGHandleType) head;
 };
 /* ================================ [ DECLARES  ] ============================================== */
-static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
-                      can_device_rx_notification_t rx_notification);
-static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                      uint64_t timestamp);
-static void zlg_close(uint32_t port);
-static void zlg_read(uint32_t port);
-static void rx_daemon(struct Can_ZLGHandle_s *handle);
+static bool CanL_ZlgProbe(int busId, uint32_t port, uint32_t baudrate,
+                          CanL_DeviceRxNotificationType rxNotification);
+static bool CanL_ZlgWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                          uint64_t timestamp);
+static void CanL_ZlgClose(uint32_t port);
+static void CanL_ZlgRead(uint32_t port);
+static void CanL_RxDaemon(struct CanL_ZLGHandleType *handle);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Can_DeviceOpsType can_zlg_ops = {
-  .name = "zlg",
-  .probe = zlg_probe,
-  .close = zlg_close,
-  .write = zlg_write,
-  .read = zlg_read,
+extern "C" const CanL_DeviceOpsType CanL_ZlgOps = {
+  .Name = "zlg",
+  .Probe = CanL_ZlgProbe,
+  .Close = CanL_ZlgClose,
+  .Write = CanL_ZlgWrite,
+  .Read = CanL_ZlgRead,
 };
 
 static uint32_t zlg_bauds[][2] = {
@@ -95,11 +95,11 @@ static uint32_t zlg_bauds[][2] = {
   {20 Kbps, 0x181C},   {10 Kbps, 0x311C},  {5 Kbps, 0xBFFF},
 };
 
-static struct Can_ZLGHandleList_s zlgH = {
-  .initialized = false,
+static struct CanL_ZLGHandleListType zlgH = {
+  .Initialized = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
-static bool openDriver(void) {
+static bool CanL_OpenDriver(void) {
   bool r = true;
 #ifdef USE_ZLG_DLL
   zlgH.IF.dll = PAL_DlOpen("ControlCAN.dll");
@@ -128,13 +128,13 @@ static bool openDriver(void) {
   return r;
 }
 
-static struct Can_ZLGHandle_s *getHandle(uint32_t port) {
-  struct Can_ZLGHandle_s *handle, *h;
+static struct CanL_ZLGHandleType *CanL_GetHandle(uint32_t port) {
+  struct CanL_ZLGHandleType *handle, *h;
   handle = NULL;
 
   std::lock_guard<std::mutex> lck(zlgH.mutex);
   STAILQ_FOREACH(h, &zlgH.head, entry) {
-    if (h->port == port) {
+    if (h->Port == port) {
       handle = h;
       break;
     }
@@ -143,8 +143,8 @@ static struct Can_ZLGHandle_s *getHandle(uint32_t port) {
   return handle;
 }
 
-static bool get_zlg_param(uint32_t port, uint32_t *DeviceType, uint32_t *CANInd,
-                          uint32_t *baudrate) {
+static bool CanL_GetZlgParam(uint32_t port, uint32_t *DeviceType, uint32_t *CANInd,
+                             uint32_t *baudrate) {
   uint32_t i;
   bool rv = true;
 
@@ -178,21 +178,21 @@ static bool get_zlg_param(uint32_t port, uint32_t *DeviceType, uint32_t *CANInd,
   return rv;
 }
 
-static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
-                      can_device_rx_notification_t rx_notification) {
+static bool CanL_ZlgProbe(int busId, uint32_t port, uint32_t baudrate,
+                          CanL_DeviceRxNotificationType rxNotification) {
   bool rv = true;
-  struct Can_ZLGHandle_s *handle;
+  struct CanL_ZLGHandleType *handle;
 
-  if (false == zlgH.initialized) {
-    rv = openDriver();
+  if (false == zlgH.Initialized) {
+    rv = CanL_OpenDriver();
     if (false == rv) {
       return false;
     }
     STAILQ_INIT(&zlgH.head);
-    zlgH.initialized = true;
+    zlgH.Initialized = true;
   }
 
-  handle = getHandle(port);
+  handle = CanL_GetHandle(port);
 
   if (handle) {
     ASLOG(WARN, ("CAN ZLG port=%d is already on-line, no need to probe it again!\n", port));
@@ -204,7 +204,7 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
     VCI_INIT_CONFIG init_config;
     uint32_t status;
 
-    rv = get_zlg_param(port, &DeviceType, &CANInd, &baud);
+    rv = CanL_GetZlgParam(port, &DeviceType, &CANInd, &baud);
 
     if (rv) {
       status = ZLG_CALL(OpenDevice)(DeviceType, 0, 0);
@@ -226,7 +226,7 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
       init_config.Timing1 = (UCHAR)baud & 0xFF;
       status = ZLG_CALL(InitCAN)(DeviceType, 0, CANInd, &init_config);
       if (STATUS_OK != status) {
-        ASLOG(WARN, ("CAN ZLG port=%d is not able to be initialized,error=%X!\n", port, status));
+        ASLOG(WARN, ("CAN ZLG port=%d is not able to be Initialized,error=%X!\n", port, status));
         rv = false;
       }
     }
@@ -250,18 +250,18 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
     }
 
     if (rv) { /* open port OK */
-      handle = new struct Can_ZLGHandle_s;
+      handle = new struct CanL_ZLGHandleType;
       assert(handle);
-      handle->busid = busid;
-      handle->port = port;
+      handle->BusId = busId;
+      handle->Port = port;
       handle->DeviceType = DeviceType;
       handle->CANInd = CANInd;
-      handle->baudrate = baudrate;
-      handle->rx_notification = rx_notification;
+      handle->Baudrate = baudrate;
+      handle->RxNotification = rxNotification;
       handle->localTime = 0;
       handle->devTime = 0;
-      handle->terminated = false;
-      handle->rx_thread = std::thread(rx_daemon, handle);
+      handle->Terminated = false;
+      handle->RxThread = std::thread(CanL_RxDaemon, handle);
       std::lock_guard<std::mutex> lck(zlgH.mutex);
       STAILQ_INSERT_TAIL(&zlgH.head, handle, entry);
     } else {
@@ -271,11 +271,11 @@ static bool zlg_probe(int busid, uint32_t port, uint32_t baudrate,
 
   return rv;
 }
-static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                      uint64_t timestamp) {
+static bool CanL_ZlgWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                          uint64_t timestamp) {
   bool rv = true;
   uint32_t status;
-  struct Can_ZLGHandle_s *handle = getHandle(port);
+  struct CanL_ZLGHandleType *handle = CanL_GetHandle(port);
   (void)timestamp;
 
   if (handle != NULL) {
@@ -287,7 +287,7 @@ static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
     msg.SendType = 0;
     msg.ID = canid & 0x7FFFFFFFUL;
     msg.DataLen = dlc;
-    if (0 != (canid & CAN_ID_EXTENDED)) {
+    if (0 != (canid & CANL_ID_EXTENDED)) {
       msg.ExternFlag = 1;
     } else {
       msg.ExternFlag = 0;
@@ -310,16 +310,16 @@ static bool zlg_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
 
   return rv;
 }
-static void zlg_close(uint32_t port) {
-  struct Can_ZLGHandle_s *handle = getHandle(port);
+static void CanL_ZlgClose(uint32_t port) {
+  struct CanL_ZLGHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
     std::lock_guard<std::mutex> lck(zlgH.mutex);
-    handle->terminated = true;
-    if (handle->rx_thread.joinable()) {
-      handle->rx_thread.join();
+    handle->Terminated = true;
+    if (handle->RxThread.joinable()) {
+      handle->RxThread.join();
     }
-    STAILQ_REMOVE(&zlgH.head, handle, Can_ZLGHandle_s, entry);
+    STAILQ_REMOVE(&zlgH.head, handle, CanL_ZLGHandleType, entry);
     if (true == STAILQ_EMPTY(&zlgH.head)) {
       ZLG_CALL(CloseDevice)(handle->DeviceType, 0);
     }
@@ -327,7 +327,7 @@ static void zlg_close(uint32_t port) {
   }
 }
 
-static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
+static void CanL_RxIndication(struct CanL_ZLGHandleType *handle) {
   VCI_CAN_OBJ msg;
   VCI_ERR_INFO info;
   uint32_t status;
@@ -337,7 +337,7 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
   status = ZLG_CALL(Receive)(handle->DeviceType, 0, handle->CANInd, &msg, 1, 10);
   if (STATUS_OK == status) {
     if (1 == msg.TimeFlag) {
-      if (can_is_perf_mode()) {
+      if (CanL_IsPerfMode()) {
         timestamp = PAL_Timestamp();
       } else {
         if ((0 == handle->localTime) && (0 == handle->devTime)) {
@@ -354,7 +354,7 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
     } else {
       timestamp = 0;
     }
-    handle->rx_notification(handle->busid, msg.ID, msg.DataLen, msg.Data, timestamp);
+    handle->RxNotification(handle->BusId, msg.ID, msg.DataLen, msg.Data, timestamp);
   }
 
   status = ZLG_CALL(ReadErrInfo)(handle->DeviceType, 0, handle->CANInd, &info);
@@ -363,18 +363,18 @@ static void rx_notifiy(struct Can_ZLGHandle_s *handle) {
   }
 }
 
-static void zlg_read(uint32_t port) {
-  struct Can_ZLGHandle_s *handle = getHandle(port);
+static void CanL_ZlgRead(uint32_t port) {
+  struct CanL_ZLGHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
-    rx_notifiy(handle);
+    CanL_RxIndication(handle);
   }
 }
 
-static void rx_daemon(struct Can_ZLGHandle_s *handle) {
-  while (false == handle->terminated) {
-    rx_notifiy(handle);
-    if (false == can_is_perf_mode()) {
+static void CanL_RxDaemon(struct CanL_ZLGHandleType *handle) {
+  while (false == handle->Terminated) {
+    CanL_RxIndication(handle);
+    if (false == CanL_IsPerfMode()) {
       std::this_thread::sleep_for(1ms);
     }
   }

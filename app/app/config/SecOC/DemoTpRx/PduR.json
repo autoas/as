@@ -1,15 +1,15 @@
 {
-  "class": "PduR",
-  "routines": [
+  "Class": "PduR",
+  "Routines": [
     {
-      "name": "FW_CAN0_SECOC_MSG_RX",
-      "from": "CanTp",
-      "to": "SecOC"
+      "Name": "FW_CAN0_SECOC_MSG_RX",
+      "From": "CanTp",
+      "To": "SecOC"
     },
     {
-      "name": "CAN0_SECOC_MSG_RX",
-      "from": "SecOC",
-      "to": "Com"
+      "Name": "CAN0_SECOC_MSG_RX",
+      "From": "SecOC",
+      "To": "Com"
     }
   ]
 }

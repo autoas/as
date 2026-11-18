@@ -9,7 +9,7 @@ Import("BUILD_DIR")
 
 
 @register_library
-class LibraryCanLib(Library):
+class LibraryCanL(Library):
     def config_peakcan(self):
         peakcan = Package("https://www.peak-system.com/fileadmin/media/files/pcan-basic.zip")
         self.CPPPATH += ["%s/Include" % (peakcan)]

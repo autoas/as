@@ -40,14 +40,14 @@ typedef struct {
   PduLengthType TpSduLength;
   uint8_t MaxPacketsPerBlock;
   uint8_t NumPacketsThisBlock;
-  uint16_t timer;
-  uint8_t state;
+  uint16_t Timer;
+  uint8_t State;
 } J1939Tp_RxChannelContextType;
 
 /* @ECUC_J1939Tp_00053 */
 typedef struct {
-  J1939Tp_RxChannelContextType *context;
-  uint8_t *data; /* data buffer to TP frame transmission */
+  J1939Tp_RxChannelContextType *Context;
+  uint8_t *Data; /* data buffer to TP frame transmission */
 
   PduIdType PduR_RxPduId;
   PduIdType CanIf_TxCmNPdu;
@@ -75,10 +75,10 @@ typedef struct {
    * parameter value see SAE J1939/21. */
   uint8_t RxPacketsPerBlock;
 
-  uint8_t LL_DL;
+  uint8_t LinkLayerDataLength;
   uint8_t S;      /* FD session */
   uint8_t ADType; /* Assurance Data Type  */
-  uint8_t padding;
+  uint8_t Padding;
 
   /* Enable receive cancellation using the API J1939Tp_CancelReceive() for this channel. */
   // boolean RxCancellationSupport;
@@ -94,15 +94,15 @@ typedef struct {
   uint32_t NextSN;
   PduInfoType PduInfo;
   PduLengthType TpSduLength;
-  uint16_t timer;
+  uint16_t Timer;
   uint8_t NumPacketsToSend;
-  uint8_t state;
+  uint8_t State;
 } J1939Tp_TxChannelContextType;
 
 /* @ECUC_J1939Tp_00059 */
 typedef struct {
-  J1939Tp_TxChannelContextType *context;
-  uint8_t *data; /* data buffer to TP frame transmission */
+  J1939Tp_TxChannelContextType *Context;
+  uint8_t *Data; /* data buffer to TP frame transmission */
 
   uint32_t TxPgPGN; /* @PGN of the referenced N-SDUs. */
 
@@ -136,10 +136,10 @@ typedef struct {
    * this parameter value see SAE J1939/21. */
   uint8_t TxMaxPacketsPerBlock;
 
-  uint8_t LL_DL;
+  uint8_t LinkLayerDataLength;
   uint8_t S;      /* FD session */
   uint8_t ADType; /* Assurance Data Type  */
-  uint8_t padding;
+  uint8_t Padding;
 
   /* Enable transmit cancellation using the API J1939Tp_CancelTransmit() for this channel. */
   // boolean TxCancellationSupport;
@@ -175,10 +175,10 @@ struct J1939Tp_Config_s {
   const J1939Tp_TxChannelType *TxChannels;
   const J1939Tp_PduInfoType *RxPduInfos;
   const J1939Tp_PduInfoType *TxPduInfos;
-  uint16_t numOfRxChannels;
-  uint16_t numOfTxChannels;
-  uint16_t numOfRxPduInfos;
-  uint16_t numOfTxPduInfos;
+  uint16_t NumOfRxChannels;
+  uint16_t NumOfTxChannels;
+  uint16_t NumOfRxPduInfos;
+  uint16_t NumOfTxPduInfos;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

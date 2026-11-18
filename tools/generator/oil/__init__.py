@@ -46,7 +46,7 @@ def extract(p):
             cfg[tag].append(obj)
 
     for obj in p:
-        if obj["type"] == "OS":
+        if obj["Type"] == "OS":
             for k, v in obj.items():
                 if k in km:
                     k = km[k]
@@ -54,19 +54,19 @@ def extract(p):
             if "SystemTimer" in cfg:
                 counter = {"Name": "SystemTimer", "Hardware": cfg["SystemTimer"]}
                 add(counter, "CounterList")
-        elif obj["type"] == "COM":
+        elif obj["Type"] == "COM":
             pass
-        elif obj["type"] == "APPMODE":
+        elif obj["Type"] == "APPMODE":
             pass
-        elif obj["type"] == "EVENT":
+        elif obj["Type"] == "EVENT":
             pass
-        elif obj["type"] == "RESOURCE":
-            resource = {"Name": obj["name"]}
+        elif obj["Type"] == "RESOURCE":
+            resource = {"Name": obj["Name"]}
             add(resource, "ResourceList")
-        elif obj["type"] == "ISR":
+        elif obj["Type"] == "ISR":
             pass
-        elif obj["type"] == "TASK":
-            task = {"Name": obj["name"]}
+        elif obj["Type"] == "TASK":
+            task = {"Name": obj["Name"]}
             for k, v in obj.items():
                 if k in km:
                     k = km[k]
@@ -84,11 +84,11 @@ def extract(p):
                         task["ApplicationModeList"] = ApplicationModeList
                     else:
                         task[k] = v
-                elif k not in ["name", "type"]:
+                elif k not in ["Name", "Type"]:
                     task[k] = v
             add(task, "TaskList")
-        elif obj["type"] == "ALARM":
-            alarm = {"Name": obj["name"]}
+        elif obj["Type"] == "ALARM":
+            alarm = {"Name": obj["Name"]}
             for k, v in obj.items():
                 if k in km:
                     k = km[k]
@@ -115,15 +115,15 @@ def extract(p):
                         alarm["ApplicationModeList"] = ApplicationModeList
                     else:
                         alarm[k] = v
-                elif k not in ["name", "type"]:
+                elif k not in ["Name", "Type"]:
                     alarm[k] = v
             add(alarm, "AlarmList")
-        elif obj["type"] == "COUNTER":
-            counter = {"Name": obj["name"]}
+        elif obj["Type"] == "COUNTER":
+            counter = {"Name": obj["Name"]}
             for k, v in obj.items():
                 if k in km:
                     k = km[k]
-                if k not in ["name", "type"]:
+                if k not in ["Name", "Type"]:
                     counter[k] = v
             add(counter, "CounterList")
         else:

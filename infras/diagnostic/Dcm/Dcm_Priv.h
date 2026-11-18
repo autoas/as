@@ -163,54 +163,54 @@ typedef enum {
 } Dcm_UDTStateType;
 
 typedef struct {
-  Dcm_UDTStateType state;
-  uint32_t memoryAddress;
-  uint32_t memorySize;
-  uint32_t offset;
-  uint8_t blockSequenceCounter;
+  Dcm_UDTStateType State;
+  uint32_t MemoryAddress;
+  uint32_t MemorySize;
+  uint32_t Offset;
+  uint8_t BlockSequenceCounter;
 } Dcm_UDTType;
 #endif
 
 typedef struct {
-  PduIdType curPduId;
+  PduIdType CurPduId;
   PduLengthType RxTpSduLength;
   PduLengthType RxIndex;
   PduLengthType TxTpSduLength;
   PduLengthType TxIndex;
-  uint16_t timerS3Server;
-  uint16_t timerP2Server;
-  uint8_t respPendCnt;
-  uint8_t currentSID;
-  Dcm_SesCtrlType currentSession;
+  uint16_t TimerS3Server;
+  uint16_t TimerP2Server;
+  uint8_t RespPendCnt;
+  uint8_t CurrentSID;
+  Dcm_SesCtrlType CurrentSession;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-  Dcm_SecLevelType currentLevel;
-  Dcm_SecLevelType requestLevel;
-  uint16_t securityDelayTimer;
+  Dcm_SecLevelType CurrentLevel;
+  Dcm_SecLevelType RequestLevel;
+  uint16_t SecurityDelayTimer;
 #endif
-  uint8_t rxBufferState;
-  uint8_t txBufferState;
-  Dcm_OpStatusType opStatus;
-  P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) curService;
-  Dcm_MsgContextType msgContext;
-  uint8_t responsePending;
+  uint8_t RxBufferState;
+  uint8_t TxBufferState;
+  Dcm_OpStatusType OpStatus;
+  P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) CurService;
+  Dcm_MsgContextType MsgContext;
+  uint8_t ResponsePending;
 #if defined(DCM_USE_SERVICE_REQUEST_DOWNLOAD) || defined(DCM_USE_SERVICE_REQUEST_UPLOAD)
   Dcm_UDTType UDTData;
 #endif
 #ifdef DCM_USE_SERVICE_ECU_RESET
-  uint8_t resetType;
-  uint16_t timer2Reset;
+  uint8_t ResetType;
+  uint16_t Timer2Reset;
 #endif
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
-  uint8_t cachedSeed[DCM_MAX_SEED_SIZE];
+  uint8_t CachedSeed[DCM_MAX_SEED_SIZE];
 #endif
 } Dcm_ContextType;
 
 typedef struct {
-  uint8_t sessionMask;
+  uint8_t SessionMask;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-  uint8_t securityMask;
+  uint8_t SecurityMask;
 #endif
-  uint8_t miscMask;
+  uint8_t MiscMask;
 } Dcm_SesSecAccessType;
 
 typedef Std_ReturnType (*Dcm_DspServiceFncType)(Dcm_MsgContextType *msgContext,
@@ -221,8 +221,8 @@ typedef Std_ReturnType (*Dcm_CallbackGetSesChgPermissionFncType)(Dcm_SesCtrlType
 
 typedef struct {
   Dcm_CallbackGetSesChgPermissionFncType GetSesChgPermissionFnc;
-  P2CONST(Dcm_SesCtrlType, AUTOMATIC, DCM_CONST) sesCtrls;
-  uint8_t numOfSesCtrls;
+  P2CONST(Dcm_SesCtrlType, AUTOMATIC, DCM_CONST) SesCtrls;
+  uint8_t NumOfSesCtrls;
 } Dcm_SessionControlConfigType;
 
 /* @SWS_Dcm_91003 */
@@ -234,15 +234,15 @@ typedef Std_ReturnType (*Dcm_CallbackCompareKeyFncType)(const uint8_t *Key,
 typedef struct {
   Dcm_CallbackGetSeedFncType GetSeedFnc;
   Dcm_CallbackCompareKeyFncType CompareKeyFnc;
-  Dcm_SecLevelType secLevel;
-  uint8_t seedSize;
-  uint8_t keySize;
-  uint8_t sessionMask;
+  Dcm_SecLevelType SecLevel;
+  uint8_t SeedSize;
+  uint8_t KeySize;
+  uint8_t SessionMask;
 } Dcm_SecLevelConfigType;
 
 typedef struct {
-  P2CONST(Dcm_SecLevelConfigType, AUTOMATIC, DCM_CONST) secLevelConfig;
-  uint8_t numOfSesLevels;
+  P2CONST(Dcm_SecLevelConfigType, AUTOMATIC, DCM_CONST) SecLevelConfig;
+  uint8_t NumOfSesLevels;
 } Dcm_SecurityAccessConfigType;
 
 /* SWS_Dcm_01203 */
@@ -272,21 +272,21 @@ typedef enum {
 
 /* Routine Control Context */
 typedef struct {
-  uint8_t state;
+  uint8_t State;
 } Dcm_RoutineControlContextType;
 
 typedef struct {
-  Dcm_RoutineControlContextType *context;
+  Dcm_RoutineControlContextType *Context;
   Dcm_StartRoutineFncType StartRoutineFnc;
   Dcm_StopRoutineFncType StopRoutineFnc;
   Dcm_RequestResultRoutineFncType RequestResultRoutineFnc;
-  uint16_t id;
+  uint16_t Id;
   Dcm_SesSecAccessType SesSecAccess;
 } Dcm_RoutineControlType;
 
 typedef struct {
-  P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) rtCtrls;
-  uint8_t numOfRtCtrls;
+  P2CONST(Dcm_RoutineControlType, AUTOMATIC, DCM_CONST) RtCtrls;
+  uint8_t NumOfRtCtrls;
 } Dcm_RoutineControlConfigType;
 
 /* length: the length of additional ControlRecord(controlOptionRecord + controlEnableMaskRecord)
@@ -307,12 +307,12 @@ typedef Dcm_IOCtrlExecuteFncType Dcm_IOCtrlFreezeCurrentStateFncType;
 typedef Dcm_IOCtrlExecuteFncType Dcm_IOCtrlShortTermAdjustmentFncType;
 
 typedef struct {
-  uint8_t requestMask;
+  uint8_t RequestMask;
 } Dcm_IOControlContextType;
 
 typedef struct {
-  Dcm_IOControlContextType *context;
-  uint16_t id;
+  Dcm_IOControlContextType *Context;
+  uint16_t Id;
   Dcm_IOCtrlReturnControlToEcuFncType ReturnControlToEcuFnc;
   Dcm_IOCtrlResetToDefaultFncType ResetToDefaultFnc;
   Dcm_IOCtrlFreezeCurrentStateFncType FreezeCurrentStateFnc;
@@ -322,7 +322,7 @@ typedef struct {
 
 typedef struct {
   P2CONST(Dcm_IOControlType, AUTOMATIC, DCM_CONST) IOCtrls;
-  uint8_t numOfIOCtrls;
+  uint8_t NumOfIOCtrls;
 } Dcm_IOControlConfigType;
 
 /* @SWS_Dcm_00754 */
@@ -351,13 +351,13 @@ typedef Std_ReturnType (*Dcm_ComCtrlFncType)(uint8_t comType,
 /* @SWS_Dcm_00981 */
 typedef uint8_t Dcm_CommunicationModeType;
 typedef struct {
-  uint8_t id;
-  Dcm_ComCtrlFncType comCtrlFnc;
+  uint8_t Id;
+  Dcm_ComCtrlFncType ComCtrlFnc;
 } Dcm_ComCtrlType;
 
 typedef struct {
   P2CONST(Dcm_ComCtrlType, AUTOMATIC, DCM_CONST) ComCtrls;
-  uint8_t numOfComCtrls;
+  uint8_t NumOfComCtrls;
 } Dcm_CommunicationControlConfigType;
 
 typedef Std_ReturnType (*Dcm_AuthenticationFncType)(Dcm_OpStatusType OpStatus,
@@ -367,13 +367,13 @@ typedef Std_ReturnType (*Dcm_AuthenticationFncType)(Dcm_OpStatusType OpStatus,
                                                     Dcm_NegativeResponseCodeType *ErrorCode);
 
 typedef struct {
-  uint8_t id;
-  Dcm_AuthenticationFncType authenticationFnc;
+  uint8_t Id;
+  Dcm_AuthenticationFncType AuthenticationFnc;
 } Dcm_AuthenticationType;
 
 typedef struct {
   P2CONST(Dcm_AuthenticationType, AUTOMATIC, DCM_CONST) Authentications;
-  uint8_t numOfAuthentications;
+  uint8_t NumOfAuthentications;
 } Dcm_AuthenticationConfigType;
 
 /* @SWS_Dcm_91071 */
@@ -404,7 +404,7 @@ typedef Std_ReturnType (*Dcm_GetEcuResetPermissionFncType)(Dcm_OpStatusType OpSt
 
 typedef struct {
   Dcm_GetEcuResetPermissionFncType GetEcuResetPermissionFnc;
-  uint16_t delay;
+  uint16_t Delay;
 } Dcm_EcuResetConfigType;
 
 typedef Std_ReturnType (*Dcm_CallbackReadDidFncType)(Dcm_OpStatusType opStatus, uint8_t *data,
@@ -416,83 +416,83 @@ typedef Std_ReturnType (*Dcm_CallbackWriteDidFncType)(Dcm_OpStatusType opStatus,
                                                       Dcm_NegativeResponseCodeType *errorCode);
 
 typedef struct {
-  Dcm_OpStatusType opStatus;
+  Dcm_OpStatusType OpStatus;
 } Dcm_ReadDIDContextType;
 
 typedef struct {
-  uint16_t id;
-  uint16_t length;
-  Dcm_CallbackReadDidFncType readDIdFnc;
+  uint16_t Id;
+  uint16_t Length;
+  Dcm_CallbackReadDidFncType ReadDIdFnc;
   Dcm_SesSecAccessType SesSecAccess;
 #ifdef DCM_USE_READ_DID_WITH_DYNAMIC_LENGTH
-  uint8_t bDynamicLength;
+  uint8_t DynamicLength;
 #endif
 } Dcm_rDIDConfigType;
 
 typedef struct {
-  Dcm_ReadDIDContextType *context;
-  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDID;
+  Dcm_ReadDIDContextType *Context;
+  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) RDID;
 } Dcm_ReadDIDType;
 
 typedef struct {
-  uint16_t id;
-  uint16_t length;
-  Dcm_CallbackWriteDidFncType writeDIdFnc;
+  uint16_t Id;
+  uint16_t Length;
+  Dcm_CallbackWriteDidFncType WriteDIdFnc;
   Dcm_SesSecAccessType SesSecAccess;
 } Dcm_WriteDIDType;
 
 typedef struct {
   P2CONST(Dcm_ReadDIDType, AUTOMATIC, DCM_CONST) DIDs;
-  uint8_t numOfDIDs;
+  uint8_t NumOfDIDs;
 } Dcm_ReadDIDConfigType;
 
 typedef struct {
   P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) DIDs;
-  uint8_t numOfDIDs;
+  uint8_t NumOfDIDs;
 } Dcm_ReadScalingDIDConfigType;
 
 typedef struct {
-  Dcm_OpStatusType opStatus;
-  uint16_t reload; /* timer reload value */
-  uint16_t timer;
+  Dcm_OpStatusType OpStatus;
+  uint16_t Reload; /* timer reload value */
+  uint16_t Timer;
 } Dcm_ReadPeriodicDIDContextType;
 
 typedef struct {
-  Dcm_ReadPeriodicDIDContextType *context;
+  Dcm_ReadPeriodicDIDContextType *Context;
   P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) DID;
 } Dcm_ReadPeriodicDIDType;
 
 typedef struct {
   P2CONST(Dcm_ReadPeriodicDIDType, AUTOMATIC, DCM_CONST) DIDs;
-  uint8_t numOfDIDs;
+  uint8_t NumOfDIDs;
 } Dcm_ReadPeriodicDIDConfigType;
 
 typedef struct {
   P2CONST(Dcm_WriteDIDType, AUTOMATIC, DCM_CONST) DIDs;
-  uint8_t numOfDIDs;
+  uint8_t NumOfDIDs;
 } Dcm_WriteDIDConfigType;
 
 typedef struct {
-  Dcm_DspServiceFncType subFnc;
+  Dcm_DspServiceFncType SubFnc;
   Dcm_SesSecAccessType SesSecAccess;
-  uint8_t type;
+  uint8_t Type;
 } Dcm_ReadDTCSubFunctionConfigType;
 
 typedef struct {
-  P2CONST(Dcm_ReadDTCSubFunctionConfigType, AUTOMATIC, DCM_CONST) subFunctions;
-  uint8_t numOfSubFunctions;
+  P2CONST(Dcm_ReadDTCSubFunctionConfigType, AUTOMATIC, DCM_CONST) SubFunctions;
+  uint8_t NumOfSubFunctions;
 } Dcm_ReadDTCInfoConfigType;
 
 struct Dcm_Service_s {
   uint8_t SID;
   Dcm_SesSecAccessType SesSecAccess;
-  Dcm_DspServiceFncType dspServiceFnc;
-  P2CONST(void, AUTOMATIC, DCM_CONST) config;
+  Dcm_DspServiceFncType DspServiceFnc;
+  P2CONST(void, AUTOMATIC, DCM_CONST) Config;
 };
 
 typedef struct {
-  P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) services;
-  uint8_t numOfServices;
+  P2CONST(Dcm_ServiceType, AUTOMATIC, DCM_CONST) Services;
+  uint8_t NumOfServices;
 } Dcm_ServiceTableType;
 
 typedef struct {
@@ -514,40 +514,40 @@ typedef struct {
 } Dcm_DslDiagRespConfigType;
 
 typedef struct {
-  Dcm_OpStatusType opStatus;
-  uint8_t index;
-  uint8_t position;
-  uint8_t size;
+  Dcm_OpStatusType OpStatus;
+  uint8_t Index;
+  uint8_t Position;
+  uint8_t Size;
 } Dcm_DDDIDEntryType;
 
 typedef struct {
-  Dcm_DDDIDEntryType entry[DCM_DDDID_MAX_ENTRY];
-  uint8_t numOfEntry;
+  Dcm_DDDIDEntryType Entry[DCM_DDDID_MAX_ENTRY];
+  uint8_t NumOfEntry;
 } Dcm_DDDIDContextType;
 
 typedef struct {
-  Dcm_rDIDConfigType *rDID;
-  Dcm_DDDIDContextType *context;
-  Dcm_CallbackReadDidFncType readDIdFnc;
+  Dcm_rDIDConfigType *RDID;
+  Dcm_DDDIDContextType *Context;
+  Dcm_CallbackReadDidFncType ReadDIdFnc;
 } Dcm_DDDIDConfigType;
 
 typedef struct {
-  uint32_t low;
-  uint32_t high;
-  uint8_t attr;
+  uint32_t Low;
+  uint32_t High;
+  uint8_t Attr;
   Dcm_SesSecAccessType SesSecAccess;
 } Dcm_DspMemoryRangeInfoType;
 
 typedef struct {
   P2CONST(uint8_t, AUTOMATIC, DCM_CONST) AddressAndLengthFormatIdentifiers; /* @ECUC_Dcm_00964 */
-  uint8_t numOfAALFIs;
+  uint8_t NumOfAALFIs;
   P2CONST(Dcm_DspMemoryRangeInfoType, AUTOMATIC, DCM_CONST) Mems;
-  uint8_t numOfMems;
+  uint8_t NumOfMems;
 } Dcm_DspMemoryConfigType;
 
 typedef struct {
   PduIdType TxPduId;
-  uint8_t reqType;
+  uint8_t ReqType;
 } Dcm_ChannelType;
 
 /* @SWS_Dcm_00218, SWS_Dcm_00516*/
@@ -557,30 +557,30 @@ typedef Std_ReturnType (*Dcm_ServiceVerificationFncType)(PduIdType RxPduId, uint
 
 struct Dcm_Config_s {
   Dcm_ServiceVerificationFncType ServiceVerificationFnc;
-  uint8_t *rxBuffer;
-  uint8_t *txBuffer;
-  PduLengthType rxBufferSize;
-  PduLengthType txBufferSize;
-  P2CONST(Dcm_ChannelType, DCM_CONST, DCM_CONST) channles;
-  uint8_t numOfChls;
-  P2CONST(Dcm_ServiceTableType *const, DCM_CONST, DCM_CONST) serviceTables;
-  uint8_t numOfServiceTables;
-  P2CONST(Dcm_TimingConfigType, AUTOMATIC, DCM_CONST) timing;
-  P2CONST(Dcm_DslDiagRespConfigType, AUTOMATIC, DCM_CONST) dslDisgResp;
+  uint8_t *RxBuffer;
+  uint8_t *TxBuffer;
+  PduLengthType RxBufferSize;
+  PduLengthType TxBufferSize;
+  P2CONST(Dcm_ChannelType, DCM_CONST, DCM_CONST) Channles;
+  uint8_t NumOfChls;
+  P2CONST(Dcm_ServiceTableType *const, DCM_CONST, DCM_CONST) ServiceTables;
+  uint8_t NumOfServiceTables;
+  P2CONST(Dcm_TimingConfigType, AUTOMATIC, DCM_CONST) Timing;
+  P2CONST(Dcm_DslDiagRespConfigType, AUTOMATIC, DCM_CONST) DslDisgResp;
 #ifdef DCM_USE_SERVICE_DYNAMICALLY_DEFINE_DATA_IDENTIFIER
   P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDDIDs;
-  uint8_t numOfDDDIDs;
+  uint8_t NumOfDDDIDs;
 #endif
-  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) rDIDs;
-  uint8_t numOfrDIDs;
+  P2CONST(Dcm_rDIDConfigType, AUTOMATIC, DCM_CONST) RDIDs;
+  uint8_t NumOfRDIDs;
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
-  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) rPDIDConfig;
+  P2CONST(Dcm_ReadPeriodicDIDConfigType, AUTOMATIC, DCM_CONST) RPDIDConfig;
 #endif
 #ifdef DCM_USE_SERVICE_INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
   P2CONST(Dcm_IOControlConfigType, AUTOMATIC, DCM_CONST) IOCtlConfig;
 #endif
 #ifdef DCM_USE_SERVICE_ROUTINE_CONTROL
-  P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST) rtCtrlConfig;
+  P2CONST(Dcm_RoutineControlConfigType, AUTOMATIC, DCM_CONST) RtCtrlConfig;
 #endif
 #if defined(DCM_USE_SERVICE_READ_MEMORY_BY_ADDRESS) ||                                             \
   defined(DCM_USE_SERVICE_WRITE_MEMORY_BY_ADDRESS)
@@ -700,46 +700,46 @@ Std_ReturnType Dcm_DspWriteMemoryByAddress(Dcm_MsgContextType *msgContext,
 Std_ReturnType Dcm_DspDynamicallyDefineDataIdentifier(Dcm_MsgContextType *msgContext,
                                                       Dcm_NegativeResponseCodeType *nrc);
 
-Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) DDConfig,
+Std_ReturnType Dcm_DspReadDDDID(P2CONST(Dcm_DDDIDConfigType, AUTOMATIC, DCM_CONST) dDConfig,
                                 Dcm_OpStatusType opStatus, uint8_t *data, uint16_t length,
                                 Dcm_NegativeResponseCodeType *nrc);
 
 Std_ReturnType Dcm_DspAuthentication(Dcm_MsgContextType *msgContext,
                                      Dcm_NegativeResponseCodeType *nrc);
 
-Std_ReturnType Dcm_DspDeAuthentication(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+Std_ReturnType Dcm_DspDeAuthentication(Dcm_OpStatusType opStatus, const uint8_t *dataIn,
                                        uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
-                                       Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspVerifyCertificateUnidirectional(Dcm_OpStatusType OpStatus,
+                                       Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspVerifyCertificateUnidirectional(Dcm_OpStatusType opStatus,
                                                       const uint8_t *dataIn, uint16_t dataInLen,
                                                       uint8_t *dataOut, uint16_t *dataOutLen,
-                                                      Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspVerifyCertificateBidirectional(Dcm_OpStatusType OpStatus,
+                                                      Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspVerifyCertificateBidirectional(Dcm_OpStatusType opStatus,
                                                      const uint8_t *dataIn, uint16_t dataInLen,
                                                      uint8_t *dataOut, uint16_t *dataOutLen,
-                                                     Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspProofOfOwnership(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                                     Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspProofOfOwnership(Dcm_OpStatusType opStatus, const uint8_t *dataIn,
                                        uint16_t dataInLen, uint8_t *dataOut, uint16_t *dataOutLen,
-                                       Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspTransmitCertificate(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                       Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspTransmitCertificate(Dcm_OpStatusType opStatus, const uint8_t *dataIn,
                                           uint16_t dataInLen, uint8_t *dataOut,
                                           uint16_t *dataOutLen,
-                                          Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspRequestChallengeForAuthentication(Dcm_OpStatusType OpStatus,
+                                          Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspRequestChallengeForAuthentication(Dcm_OpStatusType opStatus,
                                                         const uint8_t *dataIn, uint16_t dataInLen,
                                                         uint8_t *dataOut, uint16_t *dataOutLen,
-                                                        Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspVerifyProofOfOwnershipUnidirectional(Dcm_OpStatusType OpStatus,
+                                                        Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipUnidirectional(Dcm_OpStatusType opStatus,
                                                            const uint8_t *dataIn,
                                                            uint16_t dataInLen, uint8_t *dataOut,
                                                            uint16_t *dataOutLen,
-                                                           Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspVerifyProofOfOwnershipBidirectional(Dcm_OpStatusType OpStatus,
+                                                           Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspVerifyProofOfOwnershipBidirectional(Dcm_OpStatusType opStatus,
                                                           const uint8_t *dataIn, uint16_t dataInLen,
                                                           uint8_t *dataOut, uint16_t *dataOutLen,
-                                                          Dcm_NegativeResponseCodeType *ErrorCode);
-Std_ReturnType Dcm_DspAuthenticationConfiguration(Dcm_OpStatusType OpStatus, const uint8_t *dataIn,
+                                                          Dcm_NegativeResponseCodeType *errorCode);
+Std_ReturnType Dcm_DspAuthenticationConfiguration(Dcm_OpStatusType opStatus, const uint8_t *dataIn,
                                                   uint16_t dataInLen, uint8_t *dataOut,
                                                   uint16_t *dataOutLen,
-                                                  Dcm_NegativeResponseCodeType *ErrorCode);
+                                                  Dcm_NegativeResponseCodeType *errorCode);
 #endif /* DCM_PRIV_H */

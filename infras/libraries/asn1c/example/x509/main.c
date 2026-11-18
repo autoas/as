@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   /*
    * Decode the DER buffer.
    */
-  rval = ber_decode(0, &asn_DEF_Certificate, &ca, buf, size);
+  rval = ber_decode(0, &asn_DEF_Certificate, (void **)&ca, buf, size);
   assert(rval.code == RC_OK);
 
   /*

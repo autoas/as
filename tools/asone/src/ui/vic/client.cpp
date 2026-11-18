@@ -21,14 +21,14 @@ void VIC_SubscribeDisplayStatusAck(boolean isSubscribe) {
 void SomeIp_VIC_OnAvailability(boolean isAvailable) {
 }
 
-void VIC_DisplayStatus(const Display_Type* sample) {
+void VIC_DisplayStatus(const Display_Type *sample) {
   std::shared_ptr<Display_Type> msg = std::make_shared<Display_Type>();
   *msg = *sample;
-  s_MsgQ->put(msg);
+  s_MsgQ->Put(msg);
 }
 
 void CS_VIC_init(void) {
-  s_MsgQ = MessageQueue<std::shared_ptr<Display_Type>>::add("VIC"); 
+  s_MsgQ = MessageQueue<std::shared_ptr<Display_Type>>::Add("VIC");
   VIC_FindService();
   VIC_SubscribeDisplayStatus();
 }

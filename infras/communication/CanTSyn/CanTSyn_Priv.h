@@ -4,8 +4,8 @@
  *
  * ref: https://www.autosar.org/fileadmin/standards/R20-11/CP/AUTOSAR_SWS_TimeSyncOverCAN.pdf
  */
-#ifndef __CAN_TSYNC_PRIV_H__
-#define __CAN_TSYNC_PRIV_H__
+#ifndef CANTSYN_PRIV_H
+#define CANTSYN_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "ComStack_Types.h"
@@ -85,22 +85,22 @@ typedef struct {
 typedef uint8_t CanTSync_MasterStateType;
 
 typedef struct {
-  StbM_VirtualLocalTimeType t0r;
-  StbM_VirtualLocalTimeType t1r;
-  uint16_t timer;
-  uint16_t debounceCounter;
-  CanTSync_MasterStateType state;
-  uint8_t timeBaseUpdateCounter;
+  StbM_VirtualLocalTimeType T0r;
+  StbM_VirtualLocalTimeType T1r;
+  uint16_t Timer;
+  uint16_t DebounceCounter;
+  CanTSync_MasterStateType State;
+  uint8_t TimeBaseUpdateCounter;
   uint8_t SC;
 } CanTSyn_MasterContextType;
 
 typedef uint8_t CanTSync_SlaveStateType;
 
 typedef struct {
-  uint32_t st0r;
-  StbM_VirtualLocalTimeType t2r;
-  uint16_t timer;
-  CanTSync_SlaveStateType state;
+  uint32_t St0r;
+  StbM_VirtualLocalTimeType T2r;
+  uint16_t Timer;
+  CanTSync_SlaveStateType State;
   uint8_t SC;
 } CanTSyn_SlaveContextType;
 
@@ -108,15 +108,15 @@ typedef struct {
 typedef struct {
   union {
     struct {
-      void *context;
-      const void *config;
+      void *Context;
+      const void *Config;
     } V;
     struct {
-      CanTSyn_MasterContextType *context;
+      CanTSyn_MasterContextType *Context;
       const CanTSyn_GlobalTimeMasterType *Master;
     } M;
     struct {
-      CanTSyn_SlaveContextType *context;
+      CanTSyn_SlaveContextType *Context;
       const CanTSyn_GlobalTimeSlaveType *Slave;
     } S;
   } U;
@@ -131,7 +131,7 @@ typedef struct {
 
 struct CanTSyn_Config_s {
   const CanTSyn_GlobalTimeDomainType *GlobalTimeDomains;
-  uint8_t numOfGlobalTimeDomains;
+  uint8_t NumOfGlobalTimeDomains;
 };
 
 /* ================================ [ DECLARES  ] ============================================== */
@@ -139,4 +139,4 @@ struct CanTSyn_Config_s {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 
-#endif /* __CAN_TSYNC_PRIV_H__ */
+#endif /* CANTSYN_PRIV_H */

@@ -13,7 +13,7 @@ def fixupRes(prefix, cfg):
         prio = 0
         for tsk in task_list:
             for res2 in tsk.get("ResourceList", []):
-                if res["name"] == res2["name"]:
+                if res["Name"] == res2["Name"]:
                     res2["Type"] = prefix
                     if prio < tsk["Priority"]:
                         prio = tsk["Priority"]
@@ -27,7 +27,7 @@ def fixupEvt(cfg):
         masks = []
         for ev in tsk.get("EventList", []):
             for ev2 in evList:
-                if ev["name"] == ev2["name"]:
+                if ev["Name"] == ev2["Name"]:
                     ev["Mask"] = ev2["Mask"]
                     if ev["Mask"] != "AUTO":
                         masks.append(ev["Mask"])
@@ -51,8 +51,8 @@ def Gen_Os(cfg, dir):
     fixup(cfg)
     H = open("%s/Os_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef _OS_CFG_H\n")
-    H.write("#define _OS_CFG_H\n")
+    H.write("#ifndef OS_CFG_H\n")
+    H.write("#define OS_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("#ifndef MACROS_ONLY\n")
     H.write('#include "kernel.h"\n')
@@ -121,7 +121,7 @@ def Gen_Os(cfg, dir):
         H.write("#define MULTIPLY_TASK_ACTIVATION\n")
     H.write("\n\n")
     for id, task in enumerate(task_list):
-        H.write("#define TASK_ID_%-32s %-3s /* priority = %s */\n" % (task["name"], id, task["Priority"]))
+        H.write("#define TASK_ID_%-32s %-3s /* priority = %s */\n" % (task["Name"], id, task["Priority"]))
     H.write("#define TASK_NUM%-32s %s\n\n" % (" ", id + 1))
     alarm_list = cfg.get("AlarmList", [])
     appmode = []
@@ -136,24 +136,24 @@ def Gen_Os(cfg, dir):
     for task in task_list:
         for ev in task.get("EventList", []):
             withEvt = True
-            H.write("#define EVENT_MASK_%-40s %s\n" % ("%s_%s" % (task["name"], ev["name"]), ev["Mask"]))
+            H.write("#define EVENT_MASK_%-40s %s\n" % ("%s_%s" % (task["Name"], ev["Name"]), ev["Mask"]))
     H.write("\n")
     if withEvt:
         H.write("\n#define EXTENDED_TASK\n\n")
     res_list = cfg.get("ResourceList", [])
     for id, res in enumerate(res_list):
-        if res["name"] == "RES_SCHEDULER":
+        if res["Name"] == "RES_SCHEDULER":
             continue
-        H.write("#define RES_ID_%-32s %s\n" % (res["name"], id + 1))
+        H.write("#define RES_ID_%-32s %s\n" % (res["Name"], id + 1))
     H.write("#define RESOURCE_NUM %s\n\n" % (len(res_list) + 1))
     id = -1
     counter_list = cfg.get("CounterList", [])
     for id, counter in enumerate(counter_list):
-        H.write("#define COUNTER_ID_%-32s %s\n" % (counter["name"], id))
+        H.write("#define COUNTER_ID_%-32s %s\n" % (counter["Name"], id))
     H.write("#define COUNTER_NUM%-32s %s\n\n" % (" ", id + 1))
     id = -1
     for id, alarm in enumerate(alarm_list):
-        H.write("#define ALARM_ID_%-32s %s\n" % (alarm["name"], id))
+        H.write("#define ALARM_ID_%-32s %s\n" % (alarm["Name"], id))
     H.write("#define ALARM_NUM%-32s %s\n\n" % (" ", id + 1))
     isr_list = cfg.get("ISRList", [])
     isr_num = len(isr_list)
@@ -166,34 +166,34 @@ def Gen_Os(cfg, dir):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("#ifndef MACROS_ONLY\n")
     for task in task_list:
-        H.write("DeclareTask(%s);\n" % (task["name"]))
+        H.write("DeclareTask(%s);\n" % (task["Name"]))
     H.write("\n")
     for task in task_list:
         for ev in task.get("EventList", []):
-            H.write("DeclareEvent(%s);\n" % (ev["name"]))
+            H.write("DeclareEvent(%s);\n" % (ev["Name"]))
     H.write("\n")
     for res in res_list:
-        if res["name"] == "RES_SCHEDULER":
+        if res["Name"] == "RES_SCHEDULER":
             continue
-        H.write("DeclareResource(%s);\n" % (res["name"]))
+        H.write("DeclareResource(%s);\n" % (res["Name"]))
     H.write("\n")
     for counter in counter_list:
-        H.write("DeclareCounter(%s);\n" % (counter["name"]))
+        H.write("DeclareCounter(%s);\n" % (counter["Name"]))
     H.write("\n")
     for alarm in alarm_list:
-        H.write("DeclareAlarm(%s);\n" % (alarm["name"]))
+        H.write("DeclareAlarm(%s);\n" % (alarm["Name"]))
     H.write("#endif\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     H.write("#ifndef MACROS_ONLY\n")
     for task in task_list:
-        H.write("extern TASK(%s);\n" % (task["name"]))
+        H.write("extern TASK(%s);\n" % (task["Name"]))
     H.write("\n\n")
     for alarm in alarm_list:
-        H.write("extern ALARM(%s);\n" % (alarm["name"]))
+        H.write("extern ALARM(%s);\n" % (alarm["Name"]))
     H.write("\n\n")
     H.write("#endif\n")
-    H.write("#endif /* _OS_CFG_H */\n")
+    H.write("#endif /* OS_CFG_H */\n")
     H.close()
 
     C = open("%s/Os_Cfg.c" % (dir), "w")
@@ -213,7 +213,7 @@ def Gen_Os(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     isr_list = cfg.get("ISRList", [])
     for isr in isr_list:
-        C.write("extern void ISR_ATTR %s (void);\n" % (isr["name"]))
+        C.write("extern void ISR_ATTR %s (void);\n" % (isr["Name"]))
     C.write("void ISR_ATTR __weak default_isr_handle(void) { ShutdownOS(0xEE); }\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     CPU_CORE_NUMBER = cfg.get("CPU_CORE_NUMBER", 1)
@@ -223,10 +223,10 @@ def Gen_Os(cfg, dir):
     for task in task_list:
         C.write(
             "static uint32_t %s_Stack[(%s*OS_STK_SIZE_SCALER+sizeof(uint32_t)-1)/sizeof(uint32_t)];\n"
-            % (task["name"], task.get("StackSize", 512))
+            % (task["Name"], task.get("StackSize", 512))
         )
         if len(task.get("EventList", [])) > 0:
-            C.write("static EventVarType %s_EventVar;\n" % (task["name"]))
+            C.write("static EventVarType %s_EventVar;\n" % (task["Name"]))
     C.write("#if (OS_STATUS == EXTENDED)\n")
     inres_list = cfg.get("InternalResource", [])
     for task in task_list:
@@ -234,10 +234,10 @@ def Gen_Os(cfg, dir):
         for res in task.get("ResourceList", []):
             skip = False
             for ires in inres_list:
-                if res["name"] == ires["name"]:
+                if res["Name"] == ires["Name"]:
                     skip = True
             if not skip:
-                cstr += "    case RES_ID_%s:\n" % (res["name"])
+                cstr += "    case RES_ID_%s:\n" % (res["Name"])
         C.write(
             """static boolean %s_CheckAccess(ResourceType ResID)
 {
@@ -254,7 +254,7 @@ def Gen_Os(cfg, dir):
 
     return bAccess;
 }\n"""
-            % (task["name"], cstr)
+            % (task["Name"], cstr)
         )
     C.write("#endif\n")
     C.write("const TaskConstType TaskConstArray[TASK_NUM] =\n{\n")
@@ -266,7 +266,7 @@ def Gen_Os(cfg, dir):
             # generall task should has at most one internal resource
             for res in task.get("ResourceList", []):
                 for ires in inres_list:
-                    if res["name"] == ires["name"]:
+                    if res["Name"] == ires["Name"]:
                         if ires["Priority"] > runPrio:
                             runPrio = res["Priority"]
         maxAct = task.get("Activation", 1)
@@ -274,10 +274,10 @@ def Gen_Os(cfg, dir):
         if len(task.get("EventList", [])) > 0:
             if maxAct > 1:
                 raise Exception(
-                    "Task<%s>: multiple requesting of task activation allowed for basic tasks" % (task["name"])
+                    "Task<%s>: multiple requesting of task activation allowed for basic tasks" % (task["Name"])
                 )
             maxAct = 1
-            event = "&%s_EventVar" % (task["name"])
+            event = "&%s_EventVar" % (task["Name"])
 
         def AST(task):
             if task.get("AutoStart", False):
@@ -289,19 +289,19 @@ def Gen_Os(cfg, dir):
             return 0
 
         C.write("  {\n")
-        C.write("    /*.pStack =*/ %s_Stack,\n" % (task["name"]))
-        C.write("    /*.stackSize =*/ sizeof(%s_Stack),\n" % (task["name"]))
-        C.write("    /*.entry =*/ TaskMain%s,\n" % (task["name"]))
+        C.write("    /*.pStack =*/ %s_Stack,\n" % (task["Name"]))
+        C.write("    /*.stackSize =*/ sizeof(%s_Stack),\n" % (task["Name"]))
+        C.write("    /*.entry =*/ TaskMain%s,\n" % (task["Name"]))
         C.write("    #ifdef EXTENDED_TASK\n")
         C.write("    /*.pEventVar =*/ %s,\n" % (event))
         C.write("    #endif\n")
         C.write("    /*.appModeMask =*/ %s,\n" % (AST(task)))
         C.write("    #if (OS_STATUS == EXTENDED)\n")
-        C.write("    /*.CheckAccess =*/ %s_CheckAccess,\n" % (task["name"]))
+        C.write("    /*.CheckAccess =*/ %s_CheckAccess,\n" % (task["Name"]))
         C.write("    #endif\n")
-        C.write('    /*.name =*/ "%s",\n' % (task["name"]))
+        C.write('    /*.name =*/ "%s",\n' % (task["Name"]))
         # for IDLE task, priority is 0.
-        if task["name"][:8] == "TaskIdle":
+        if task["Name"][:8] == "TaskIdle":
             C.write("    /*.initPriority =*/ 0,\n")
             C.write("    /*.runPriority =*/ 0,\n")
         else:
@@ -316,7 +316,7 @@ def Gen_Os(cfg, dir):
             if (maxAct > 1) and (cpu == "OS_ON_ANY_CPU"):
                 raise Exception(
                     "Task<%s>: must be assigned to one specific CPU as max activation is %s > 1"
-                    % (task["name"], maxAct)
+                    % (task["Name"], maxAct)
                 )
         C.write("  },\n")
     C.write("};\n\n")
@@ -326,10 +326,10 @@ def Gen_Os(cfg, dir):
     C.write("  },\n")
     res_list = cfg.get("ResourceList", [])
     for res in res_list:
-        if res["name"] == "RES_SCHEDULER":
+        if res["Name"] == "RES_SCHEDULER":
             continue
         C.write("  {\n")
-        C.write("    /*.ceilPrio =*/ OS_PTHREAD_PRIORITY + %s, /* %s */\n" % (res["Priority"], res["name"]))
+        C.write("    /*.ceilPrio =*/ OS_PTHREAD_PRIORITY + %s, /* %s */\n" % (res["Priority"], res["Name"]))
         C.write("  },\n")
     C.write("};\n\n")
     counter_list = cfg.get("CounterList", [])
@@ -338,8 +338,8 @@ def Gen_Os(cfg, dir):
         C.write("const CounterConstType CounterConstArray[COUNTER_NUM] =\n{\n")
         for counter in counter_list:
             C.write("  {\n")
-            C.write('    /*.name=*/"%s",\n' % (counter["name"]))
-            C.write("    /*.pVar=*/&CounterVarArray[COUNTER_ID_%s],\n" % (counter["name"]))
+            C.write('    /*.name=*/"%s",\n' % (counter["Name"]))
+            C.write("    /*.pVar=*/&CounterVarArray[COUNTER_ID_%s],\n" % (counter["Name"]))
             C.write("    /*.base=*/{\n      /*.maxallowedvalue=*/%s,\n" % (counter.get("MaxAllowed", 65535)))
             C.write("    /*.ticksperbase=*/%s,\n" % (counter.get("TicksPerBase", 1)))
             C.write("    /*.mincycle=*/%s\n    }\n" % (counter.get("MinCycle", 1)))
@@ -348,7 +348,7 @@ def Gen_Os(cfg, dir):
     alarm_list = cfg.get("AlarmList", [])
     if len(alarm_list) > 0:
         for alarm in alarm_list:
-            C.write("static void %s_Action(void)\n{\n" % (alarm["name"]))
+            C.write("static void %s_Action(void)\n{\n" % (alarm["Name"]))
             if alarm["Action"].upper() == "ACTIVATETASK":
                 C.write("  (void)ActivateTask(TASK_ID_%s);\n" % (alarm["Task"]))
             elif alarm["Action"].upper() == "SETEVENT":
@@ -376,10 +376,10 @@ def Gen_Os(cfg, dir):
                 return 0, 0, 0
 
             C.write("  {\n")
-            C.write('    /*.name=*/"%s",\n' % (alarm["name"]))
-            C.write("    /*.pVar=*/&AlarmVarArray[ALARM_ID_%s],\n" % (alarm["name"]))
+            C.write('    /*.name=*/"%s",\n' % (alarm["Name"]))
+            C.write("    /*.pVar=*/&AlarmVarArray[ALARM_ID_%s],\n" % (alarm["Name"]))
             C.write("    /*.pCounter=*/&CounterConstArray[COUNTER_ID_%s],\n" % (alarm["Driver"]))
-            C.write("    /*.Action=*/%s_Action,\n" % (alarm["name"]))
+            C.write("    /*.Action=*/%s_Action,\n" % (alarm["Name"]))
             appmode, start, period = AST(alarm)
             C.write("    /*.appModeMask=*/%s,\n" % (appmode))
             C.write("    /*.start=*/%s,\n" % (start))
@@ -388,27 +388,27 @@ def Gen_Os(cfg, dir):
         C.write("};\n\n")
 
     for task in task_list:
-        C.write("const TaskType %s = TASK_ID_%s;\n" % (task["name"], task["name"]))
+        C.write("const TaskType %s = TASK_ID_%s;\n" % (task["Name"], task["Name"]))
     C.write("\n")
     evList = []
     for task in task_list:
         for ev in task.get("EventList", []):
             if ev in evList:
-                print("WARNING: %s for %s is with the same name with others" % (ev["name"], task["name"]))
+                print("WARNING: %s for %s is with the same name with others" % (ev["Name"], task["Name"]))
             else:
-                evList.append(ev["name"])
-                C.write("const EventMaskType %s = EVENT_MASK_%s_%s;\n" % (ev["name"], task["name"], ev["name"]))
+                evList.append(ev["Name"])
+                C.write("const EventMaskType %s = EVENT_MASK_%s_%s;\n" % (ev["Name"], task["Name"], ev["Name"]))
     C.write("\n")
     for res in res_list:
-        if res["name"] == "RES_SCHEDULER":
+        if res["Name"] == "RES_SCHEDULER":
             continue
-        C.write("const ResourceType %s = RES_ID_%s;\n" % (res["name"], res["name"]))
+        C.write("const ResourceType %s = RES_ID_%s;\n" % (res["Name"], res["Name"]))
     C.write("\n")
     for counter in counter_list:
-        C.write("const CounterType %s = COUNTER_ID_%s;\n" % (counter["name"], counter["name"]))
+        C.write("const CounterType %s = COUNTER_ID_%s;\n" % (counter["Name"], counter["Name"]))
     C.write("\n")
     for alarm in alarm_list:
-        C.write("const AlarmType %s = ALARM_ID_%s;\n" % (alarm["name"], alarm["name"]))
+        C.write("const AlarmType %s = ALARM_ID_%s;\n" % (alarm["Name"], alarm["Name"]))
 
     maxPrio = 0
     for task in task_list:
@@ -432,7 +432,7 @@ def Gen_Os(cfg, dir):
             prio2 = task["Priority"]
             if prio2 == prio:
                 sumact += task.get("Activation", 1)
-                comments += "%s(Activation=%s)," % (task["name"], task.get("Activation", 1))
+                comments += "%s(Activation=%s)," % (task["Name"], task.get("Activation", 1))
         if sumact > 5:
             C.write("static TaskType ReadyFIFO_prio%s%s[%s];\n" % (prio, perCpu, sumact))
     cstr = "\nconst ReadyFIFOType ReadyFIFO%s[PRIORITY_NUM+1]=\n{\n" % (perCpu)
@@ -454,7 +454,7 @@ def Gen_Os(cfg, dir):
                 prio2 = task["Priority"]
                 if prio2 == prio:
                     sumact += task.get("Activation", 1)
-                    comments += "%s(Activation=%s)," % (task["name"], task.get("Activation", 1))
+                    comments += "%s(Activation=%s)," % (task["Name"], task.get("Activation", 1))
             if sumact > 5:
                 cstr += "  {\n    /*.max=*/%s,/* %s */\n    /*.pFIFO=*/ReadyFIFO_prio%s%s\n  },\n" % (
                     sumact,
@@ -485,7 +485,7 @@ def Gen_Os(cfg, dir):
             iname = "default_isr_handle"
             for isr in isr_list:
                 if iid == isr["Vector"]:
-                    iname = isr["name"]
+                    iname = isr["Name"]
                     break
             C.write("  ISR_ADDR(%s), /* %s */\n" % (iname, iid))
         C.write("};\n\n")
@@ -494,15 +494,15 @@ def Gen_Os(cfg, dir):
     C.write("static const Std_TraceEventType lOsTraceTask_B[] = {\n")
     idles = []
     for task in task_list:
-        if task["name"][:8] == "TaskIdle":
-            idles.append(task["name"])
-        C.write("  TRE_OS_%s_B,\n" % (toMacro(task["name"])))
+        if task["Name"][:8] == "TaskIdle":
+            idles.append(task["Name"])
+        C.write("  TRE_OS_%s_B,\n" % (toMacro(task["Name"])))
     for i in range(cfg.get("PTHREAD", 0)):
         C.write("  TRE_OS_%s_B,\n" % (toMacro("pthread%s" % (i))))
     C.write("};\n")
     C.write("static const Std_TraceEventType lOsTraceTask_E[] = {\n")
     for task in task_list:
-        C.write("  TRE_OS_%s_E,\n" % (toMacro(task["name"])))
+        C.write("  TRE_OS_%s_E,\n" % (toMacro(task["Name"])))
     for i in range(cfg.get("PTHREAD", 0)):
         C.write("  TRE_OS_%s_E,\n" % (toMacro("pthread%s" % (i))))
     C.write("};\n")
@@ -564,14 +564,14 @@ def fromOIL(pdir, cfg):
 def extract_trace(cfg, dir):
     from .Trace import Gen as TraceGen
 
-    cfg_ = {"class": "Trace", "area": "OS", "size": cfg.get("trace_size", 1024), "durations": [], "events": []}
+    cfg_ = {"Class": "Trace", "Area": "OS", "Size": cfg.get("TraceSize", 1024), "Durations": [], "Events": []}
     for tsk in cfg.get("TaskList", []):
-        cfg_["durations"].append(tsk["name"])
+        cfg_["Durations"].append(tsk["Name"])
         for ev in tsk.get("EventList", []):
-            if ev not in cfg_["events"]:
-                cfg_["events"].append(ev["name"])
+            if ev not in cfg_["Events"]:
+                cfg_["Events"].append(ev["Name"])
     for i in range(cfg.get("PTHREAD", 0)):
-        cfg_["durations"].append("pthread%s" % (i))
+        cfg_["Durations"].append("pthread%s" % (i))
     with open("%s/Trace.json" % (dir), "w") as f:
         json.dump(cfg_, f, indent=2)
     TraceGen("%s/Trace.json" % (dir))

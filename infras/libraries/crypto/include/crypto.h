@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef _CRYPTO_H
-#define _CRYPTO_H
+#ifndef CRYPTO_H
+#define CRYPTO_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #include <errno.h>
@@ -45,4 +45,4 @@ int crypto_base64_encode(const uint8_t *in, uint32_t inlen, uint8_t *out, uint32
 #ifdef __cplusplus
 }
 #endif
-#endif /* _CRYPTO_H */
+#endif /* CRYPTO_H */

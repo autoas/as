@@ -33,19 +33,19 @@ A one-channel configuration example can be found in [OsekNm.json](../../app/app/
 
 ```json
 {
-  "class": "OsekNm",
-  "networks": [
+  "Class": "OsekNm",
+  "Networks": [
     {
-      "name": "OSEKNM0",
-      "tTx": 20,
-      "tTyp": 1000,
-      "tMax": 1500,
-      "tError": 1000,
-      "tWbs": 5000,
+      "Name": "OSEKNM0",
+      "TTx": 20,
+      "TTyp": 1000,
+      "TMax": 1500,
+      "TError": 1000,
+      "TWbs": 5000,
       "NodeMask": "0xFF",
       "NodeId": 0,
-      "rx_limit": 4,
-      "tx_limit": 8
+      "RxLimit": 4,
+      "TxLimit": 8
     }
   ]
 }
@@ -55,15 +55,15 @@ Parameter meanings (the struct is defined in [OsekNm_Priv.h](../../infras/commun
 
 | Parameter | Meaning |
 | --- | --- |
-| `name` | Network name; used to derive the txPduId (e.g. `CANIF_OSEKNM0_TX`) |
+| `Name` | Network name; used to derive the txPduId (e.g. `CANIF_OSEKNM0_TX`) |
 | `NodeId` | This node's id on the logical ring; it also determines the NM CAN ID: **`0x400 + NodeId`** |
-| `tTyp` | Typical period between two ring messages in normal operation (ms) |
-| `tMax` | Maximum allowed interval between two ring messages (ms); a timeout means the ring is broken |
-| `tError` | Interval between two NMLimpHome messages after entering LimpHome (ms) |
-| `tWbs` | Time to wait after a sleep indication before entering NMBusSleep (ms) |
-| `tTx` | Delay before retrying a transmit request that the lower layer rejected (ms) |
-| `tx_limit` | Consecutive transmit failure/error count that forces LimpHome when exceeded |
-| `rx_limit` | Consecutive receive error count that forces LimpHome when exceeded |
+| `TTyp` | Typical period between two ring messages in normal operation (ms) |
+| `TMax` | Maximum allowed interval between two ring messages (ms); a timeout means the ring is broken |
+| `TError` | Interval between two NMLimpHome messages after entering LimpHome (ms) |
+| `TWbs` | Time to wait after a sleep indication before entering NMBusSleep (ms) |
+| `TTx` | Delay before retrying a transmit request that the lower layer rejected (ms) |
+| `TxLimit` | Consecutive transmit failure/error count that forces LimpHome when exceeded |
+| `RxLimit` | Consecutive receive error count that forces LimpHome when exceeded |
 | `NodeMask` | Mask used to extract the NodeId from a received CAN ID (`CanId & NodeMask`) |
 
 All timing parameters are given in milliseconds; the generator converts them into numbers of `OsekNm_MainFunction` cycles according to `OSEKNM_MAIN_FUNCTION_PERIOD` (default 10 ms, overridable with a top-level `MainFunctionPeriod` in the JSON).

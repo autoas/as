@@ -47,7 +47,7 @@ typedef struct { /* see 6.12.5 E2E Profile 11 Protocol Examples */
 
 /* @PRS_E2E_00503 */
 typedef struct {
-  E2E_ProtectProfile11ContextType *context;
+  E2E_ProtectProfile11ContextType *Context;
   E2E_Profile11ConfigType P11;
 } E2E_ProtectProfile11ConfigType;
 
@@ -56,7 +56,7 @@ typedef struct {
 } E2E_CheckProfile11ContextType;
 
 typedef struct {
-  E2E_CheckProfile11ContextType *context;
+  E2E_CheckProfile11ContextType *Context;
   E2E_Profile11ConfigType P11;
   uint8_t MaxDeltaCounter;
 } E2E_CheckProfile11ConfigType;
@@ -72,7 +72,7 @@ typedef struct {
 } E2E_ProtectProfile22ContextType;
 
 typedef struct {
-  E2E_ProtectProfile22ContextType *context;
+  E2E_ProtectProfile22ContextType *Context;
   E2E_Profile22ConfigType P22;
 } E2E_ProtectProfile22ConfigType;
 
@@ -81,7 +81,7 @@ typedef struct {
 } E2E_CheckProfile22ContextType;
 
 typedef struct {
-  E2E_CheckProfile22ContextType *context;
+  E2E_CheckProfile22ContextType *Context;
   E2E_Profile22ConfigType P22;
   uint8_t MaxDeltaCounter;
 } E2E_CheckProfile22ConfigType;
@@ -97,17 +97,17 @@ typedef struct {
 } E2E_ProtectProfile44ContextType;
 
 typedef struct {
-  E2E_ProtectProfile44ContextType *context;
+  E2E_ProtectProfile44ContextType *Context;
   E2E_Profile44ConfigType P44;
 } E2E_ProtectProfile44ConfigType;
 
 typedef struct {
   uint16_t Counter;
-  boolean bSynced;
+  boolean Synced;
 } E2E_CheckProfile44ContextType;
 
 typedef struct {
-  E2E_CheckProfile44ContextType *context;
+  E2E_CheckProfile44ContextType *Context;
   E2E_Profile44ConfigType P44;
   uint8_t MaxDeltaCounter;
 } E2E_CheckProfile44ConfigType;
@@ -123,17 +123,17 @@ typedef struct {
 } E2E_ProtectProfile05ContextType;
 
 typedef struct {
-  E2E_ProtectProfile05ContextType *context;
+  E2E_ProtectProfile05ContextType *Context;
   E2E_Profile05ConfigType P05;
 } E2E_ProtectProfile05ConfigType;
 
 typedef struct {
   uint8_t Counter;
-  boolean bSynced;
+  boolean Synced;
 } E2E_CheckProfile05ContextType;
 
 typedef struct {
-  E2E_CheckProfile05ContextType *context;
+  E2E_CheckProfile05ContextType *Context;
   E2E_Profile05ConfigType P05;
   uint8_t MaxDeltaCounter;
 } E2E_CheckProfile05ConfigType;
@@ -164,28 +164,28 @@ struct E2E_Config_s {
   const E2E_CheckProfile05ConfigType *CheckP05Configs;
 #endif
 #ifdef E2E_USE_PROTECT_P11
-  uint16_t numOfProtectP11;
+  uint16_t NumOfProtectP11;
 #endif
 #ifdef E2E_USE_CHECK_P11
-  uint16_t numOfCheckP11;
+  uint16_t NumOfCheckP11;
 #endif
 #ifdef E2E_USE_PROTECT_P22
-  uint16_t numOfProtectP22;
+  uint16_t NumOfProtectP22;
 #endif
 #ifdef E2E_USE_CHECK_P22
-  uint16_t numOfCheckP22;
+  uint16_t NumOfCheckP22;
 #endif
 #ifdef E2E_USE_PROTECT_P44
-  uint16_t numOfProtectP44;
+  uint16_t NumOfProtectP44;
 #endif
 #ifdef E2E_USE_CHECK_P44
-  uint16_t numOfCheckP44;
+  uint16_t NumOfCheckP44;
 #endif
 #ifdef E2E_USE_PROTECT_P05
-  uint16_t numOfProtectP05;
+  uint16_t NumOfProtectP05;
 #endif
 #ifdef E2E_USE_CHECK_P05
-  uint16_t numOfCheckP05;
+  uint16_t NumOfCheckP05;
 #endif
 };
 /* ================================ [ DECLARES  ] ============================================== */

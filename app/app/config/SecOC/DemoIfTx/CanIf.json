@@ -1,12 +1,12 @@
 {
-  "class": "CanIf",
-  "networks": [
+  "Class": "CanIf",
+  "Networks": [
     {
-      "name": "CAN0",
-      "me": "AS",
+      "Name": "CAN0",
+      "Me": "AS",
       "RxPdus": [],
       "TxPdus": [
-        { "name": "FW_CAN0_SECOC_MSG_TX", "id": "0x99", "hoh": 0, "up": "SecOC" }
+        { "Name": "FW_CAN0_SECOC_MSG_TX", "Id": "0x99", "Hoh": 0, "Up": "SecOC" }
       ]
     }
   ]

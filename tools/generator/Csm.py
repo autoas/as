@@ -98,7 +98,7 @@ def Gen_Csm(cfg, dir):
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     for idx, job in enumerate(cfg["Jobs"]):
-        H.write("#define CSM_JOB_%s %su\n" % (toMacro(job["name"]), idx))
+        H.write("#define CSM_JOB_%s %su\n" % (toMacro(job["Name"]), idx))
     H.write("\n#ifndef CSM_MAIN_FUNCTION_PERIOD\n")
     H.write("#define CSM_MAIN_FUNCTION_PERIOD %su\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
@@ -123,8 +123,8 @@ def Gen_Csm(cfg, dir):
     C.write('#include "mbedtls/cmac.h"\n')
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     for idx, mg in enumerate(cfg.get("MacGen", [])):
-        C.write("#define CSM_MAC_GENERATE_%s %su\n" % (toMacro(mg["name"]), idx))
-        C.write("#define CSM_MAC_VERIFY_%s %su\n" % (toMacro(mg["name"]), idx))
+        C.write("#define CSM_MAC_GENERATE_%s %su\n" % (toMacro(mg["Name"]), idx))
+        C.write("#define CSM_MAC_VERIFY_%s %su\n" % (toMacro(mg["Name"]), idx))
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
@@ -138,32 +138,32 @@ def Gen_Csm(cfg, dir):
             GenMacGenPrimitive(C, Family, Mode, BitLen)
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     for mg in cfg.get("MacGen", []):
-        C.write("static mbedtls_cipher_context_t Csm_MacGen_%s_Context;\n" % (mg["name"]))
-        C.write("static const uint8_t Csm_MacGen_%s_Key[] = {%s};\n" % (mg["name"], ",".join(mg["Key"])))
+        C.write("static mbedtls_cipher_context_t Csm_MacGen_%s_Context;\n" % (mg["Name"]))
+        C.write("static const uint8_t Csm_MacGen_%s_Key[] = {%s};\n" % (mg["Name"], ",".join(mg["Key"])))
         if mg.get("Verify", False):
-            C.write("static uint8_t Csm_MacGen_%s_MacBuffer[%s];\n" % (mg["name"], BitLen // 8))
+            C.write("static uint8_t Csm_MacGen_%s_MacBuffer[%s];\n" % (mg["Name"], BitLen // 8))
     C.write("static const Csm_MacGenerateConfigType Csm_MacGenerateConfigs[] = {\n")
     for mg in cfg.get("MacGen", []):
         Family = mg["Family"]
         Mode = mg["Mode"]
         BitLen = len(mg["Key"]) * 8
         ks = "_".join([Family, Mode, str(BitLen)])
-        C.write("  { /* %s */\n" % (mg["name"]))
-        C.write("    &Csm_MacGen_%s_Context,\n" % (mg["name"]))
-        C.write("    Csm_MacGen_%s_Key,\n" % (mg["name"]))
+        C.write("  { /* %s */\n" % (mg["Name"]))
+        C.write("    &Csm_MacGen_%s_Context,\n" % (mg["Name"]))
+        C.write("    Csm_MacGen_%s_Key,\n" % (mg["Name"]))
         C.write("    &Csm_MacGenPrimitive_%s,\n" % (ks))
         if mg.get("Verify", False):
-            C.write("    Csm_MacGen_%s_MacBuffer,\n" % (mg["name"]))
+            C.write("    Csm_MacGen_%s_MacBuffer,\n" % (mg["Name"]))
         else:
             C.write("    NULL,\n")
-        C.write("    sizeof(Csm_MacGen_%s_Key),\n" % (mg["name"]))
+        C.write("    sizeof(Csm_MacGen_%s_Key),\n" % (mg["Name"]))
         C.write("    CRYPTO_ALGOFAM_%s,\n" % (Family))
         C.write("    CRYPTO_ALGOMODE_%s,\n" % (Mode))
         C.write("  },\n")
     C.write("};\n\n")
     C.write("static const Csm_JobConfigType Csm_JobConfigs[] = {\n")
     for job in cfg["Jobs"]:
-        C.write("  { /* %s */\n" % (job["name"]))
+        C.write("  { /* %s */\n" % (job["Name"]))
         C.write("    CSM_%s_%s,\n" % (job["ServiceType"], toMacro(job["AlgoRef"])))
         C.write("    CRYPTO_%s,\n" % (job["ServiceType"]))
         C.write("  },\n")

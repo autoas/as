@@ -18,21 +18,21 @@ using namespace ara::com;
 using namespace ara::core;
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-{% for struct in cfg.get('structs', []) %}
-using {{ struct['name'] }} = {{ struct['name'] }}_Type;
+{% for struct in cfg.get('Structs', []) %}
+using {{ struct['Name'] }} = {{ struct['Name'] }}_Type;
 {% endfor %}
 class {{ service_name }}Manager;
 /* ================================ [ CLASS     ] ============================================== */
 namespace events {
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-class {{ event['name'] }} {
+class {{ event['Name'] }} {
 public:
   using SampleType = {{ GetXfCType(event, allStructs) }};
 
-  {{ event['name'] }}();
-  ~{{ event['name'] }}();
+  {{ event['Name'] }}();
+  ~{{ event['Name'] }}();
 
   ara::core::Result<void> Subscribe(size_t maxSampleCount);
 
@@ -101,15 +101,15 @@ private:
 } // namespace events
 
 namespace fields {
-{% for field in service.get('fields', []) %}
-class {{ field['name'] }} {
+{% for field in Service.get('Fields', []) %}
+class {{ field['Name'] }} {
 public:
   using FieldType = {{ GetXfCType(field, allStructs) }};
 
-  {{ field['name'] }}();
-  ~{{ field['name'] }}();
+  {{ field['Name'] }}();
+  ~{{ field['Name'] }}();
 
-{% if 'event' in field %}
+{% if 'Event' in field %}
   ara::core::Result<void> Subscribe(size_t maxSampleCount);
 
   size_t GetFreeSampleCount() const noexcept;
@@ -148,36 +148,36 @@ public:
   }
 {% endif %}
 
-{% if 'get' in field %}
+{% if 'Get' in field %}
   ara::core::Future<FieldType> Get();
 {% endif %}
 
-{% if 'set' in field %}
+{% if 'Set' in field %}
   ara::core::Future<FieldType> Set(const FieldType& value);
 {% endif %}
 
 private:
-{% if 'event' in field %}
+{% if 'Event' in field %}
   void OnSubscribeAck(bool isSubscribe);
   void OnNotification(uint32_t requestId, SomeIp_MessageType* evt);
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
   Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 
-{% if 'get' in field %}
+{% if 'Get' in field %}
   Std_ReturnType OnGetResponse(uint32_t requestId, SomeIp_MessageType* res);
   Std_ReturnType OnGetError(uint32_t requestId, Std_ReturnType ercd);
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
   Std_ReturnType OnGetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
   Std_ReturnType OnGetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 
-{% if 'set' in field %}
+{% if 'Set' in field %}
   Std_ReturnType OnSetResponse(uint32_t requestId, SomeIp_MessageType* res);
   Std_ReturnType OnSetError(uint32_t requestId, Std_ReturnType ercd);
-{% if field.get('tp', False) %}
+{% if field.get('Tp', False) %}
   Std_ReturnType OnSetTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
   Std_ReturnType OnSetTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
@@ -186,27 +186,27 @@ private:
 friend class {{ service_name }}::{{ service_name }}Manager;
 
 private:
-{% if 'event' in field %}
+{% if 'Event' in field %}
   std::deque<SamplePtr<FieldType>> m_lastNSamples;
   ara::com::EventReceiveHandler m_evtRxHandler = nullptr;
   ara::com::SubscriptionStateChangeHandler m_stateChgHandler = nullptr;
   size_t m_maxSampleCount = 1;
-  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'event', 'RX') }}];
+  uint8_t m_payload[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'Event', 'RX') }}];
 {% endif %}
 
-{% if 'get' in field %}
+{% if 'Get' in field %}
   std::shared_ptr<ara::core::Promise<FieldType>> m_promiseGet = nullptr;
-{% if field.get('tp', False) %}
-  uint8_t m_responseGet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'get', 'RX') }}];
+{% if field.get('Tp', False) %}
+  uint8_t m_responseGet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'Get', 'RX') }}];
 {% endif %}
   FieldType m_fieldGet;
 {% endif %}
 
-{% if 'set' in field %}
+{% if 'Set' in field %}
   std::shared_ptr<ara::core::Promise<FieldType>> m_promiseSet = nullptr;
-  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'set', 'TX') }}];
-{% if field.get('tp', False) %}
-  uint8_t m_responseSet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'set', 'RX') }}];
+  uint8_t m_requestSet[20+{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'Set', 'TX') }}];
+{% if field.get('Tp', False) %}
+  uint8_t m_responseSet[{{ GetTypePayloadSize(field, allStructs) }} + {{ GetE2EOverhead(field, 'Set', 'RX') }}];
   bool m_requestSetInUse = false;
 {% endif %}
   FieldType m_fieldSet;
@@ -217,19 +217,19 @@ private:
 } // namespace fields
 
 namespace methods {
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-class {{ method['name'] }} {
+class {{ method['Name'] }} {
 public:
 {% set UsedTypes = [] %}
-{% set ReturnType = method.get('return', 'void') %}
+{% set ReturnType = method.get('Return', 'void') %}
 {% if ReturnType != 'void' %}
 {% do UsedTypes.append(ReturnType) %}
 {% endif %}
-{% if 'args' in method %}
-{% for arg in GetArgs(cfg, method['args']) %}
-{% if arg['type'] not in UsedTypes %}
-{% do UsedTypes.append(arg['type']) %}
+{% if 'Args' in method %}
+{% for arg in GetArgs(cfg, method['Args']) %}
+{% if arg['Type'] not in UsedTypes %}
+{% do UsedTypes.append(arg['Type']) %}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -239,13 +239,13 @@ public:
 
   ara::core::Future<{{ toMethodTypeName(ReturnType, method) }}> operator()({{ GetArgsList(method, cfg) }});
 
-  {{ method['name'] }}();
-  ~{{ method['name'] }}();
+  {{ method['Name'] }}();
+  ~{{ method['Name'] }}();
 
 private:
   Std_ReturnType OnError(uint32_t requestId, Std_ReturnType ercd);
   Std_ReturnType OnResponse(uint32_t requestId, SomeIp_MessageType *res);
-{% if method.get('tp', False) %}
+{% if method.get('Tp', False) %}
   Std_ReturnType OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
   Std_ReturnType OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
@@ -257,7 +257,7 @@ private:
 {% if ReturnType != 'void' %}
   {{ toMethodTypeName(ReturnType, method) }} m_{{ toMethodTypeName(ReturnType, method) }};
 {% endif %}
-{% if method.get('tp', False) %}
+{% if method.get('Tp', False) %}
 {% if ReturnType != 'void' %}
   uint8_t m_response[{{ GetTypePayloadSize(ReturnType, allStructs) }} + {{ GetE2EOverhead(method, 'RX') }}];
 {% endif %}
@@ -323,22 +323,22 @@ public:
   {{ service_name }}Proxy &operator=(const {{ service_name }}Proxy &other) = delete;
 
 public:
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-  events::{{ event['name'] }} {{ event['name'] }};
+  events::{{ event['Name'] }} {{ event['Name'] }};
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-  methods::{{ method['name'] }} {{ method['name'] }};
+  methods::{{ method['Name'] }} {{ method['Name'] }};
 {% endif %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-  fields::{{ field['name'] }} {{ field['name'] }};
+{% for field in Service.get('Fields', []) %}
+  fields::{{ field['Name'] }} {{ field['Name'] }};
 {% endfor %}
 
 private:

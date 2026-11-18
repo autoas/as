@@ -1,16 +1,16 @@
 {
-    "class": "SecOC",
-    "comment": "length in bits",
+    "Class": "SecOC",
+    "Comment": "length in bits",
     "FreshnessValueManager": [
         {
-            "name": "FreshnessValue0",
+            "Name": "FreshnessValue0",
             "GenDummy": true,
-            "length": 32
+            "Length": 32
         }
     ],
     "TxProc": [
         {
-            "name": "CAN0_SECOC_MSG0_TX",
+            "Name": "CAN0_SECOC_MSG0_TX",
             "DataId": "0x1234",
             "AuthInfoLength": 128,
             "AuthInfoTruncLength": 64,
@@ -23,7 +23,7 @@
     ],
     "RxProc": [
         {
-            "name": "CAN0_SECOC_MSG1_RX",
+            "Name": "CAN0_SECOC_MSG1_RX",
             "DataId": "0x1234",
             "AuthInfoLength": 128,
             "AuthInfoTruncLength": 64,

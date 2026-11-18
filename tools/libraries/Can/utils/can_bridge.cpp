@@ -42,7 +42,7 @@ static void ThreadMain(Can_Device_t device0, Can_Device_t device1) {
   int busid[2];
   bool rv;
   bool bHasMsg;
-  can_frame_t frame;
+  CanL_FrameType frame;
 
   printf("Bridge:\n");
   printf("  device 0: %s port=%d, baudrare=%d\n", device0.name.c_str(), device0.port,
@@ -50,24 +50,24 @@ static void ThreadMain(Can_Device_t device0, Can_Device_t device1) {
   printf("  device 1: %s port=%d, baudrare=%d\n", device1.name.c_str(), device1.port,
          device1.baudrate);
 
-  busid[0] = can_open(device0.name.c_str(), (uint32_t)device0.port, (uint32_t)device0.baudrate);
+  busid[0] = CanL_Open(device0.name.c_str(), (uint32_t)device0.port, (uint32_t)device0.baudrate);
   if (busid[0] >= 0) {
-    busid[1] = can_open(device1.name.c_str(), (uint32_t)device1.port, (uint32_t)device1.baudrate);
+    busid[1] = CanL_Open(device1.name.c_str(), (uint32_t)device1.port, (uint32_t)device1.baudrate);
   }
 
   if ((busid[0] >= 0) && (busid[1] >= 0)) {
     while (false == s_bStop) {
       bHasMsg = FALSE;
-      frame.canid = -1;
-      rv = can_read_v2(busid[0], &frame);
+      frame.CanId = -1;
+      rv = CanL_ReadV2(busid[0], &frame);
       if (rv) {
-        can_write_v2(busid[1], &frame);
+        CanL_WriteV2(busid[1], &frame);
         bHasMsg = TRUE;
       }
-      frame.canid = -1;
-      rv = can_read_v2(busid[1], &frame);
+      frame.CanId = -1;
+      rv = CanL_ReadV2(busid[1], &frame);
       if (rv) {
-        can_write_v2(busid[0], &frame);
+        CanL_WriteV2(busid[0], &frame);
         bHasMsg = TRUE;
       }
       if (FALSE == bHasMsg) {
@@ -77,11 +77,11 @@ static void ThreadMain(Can_Device_t device0, Can_Device_t device1) {
   }
 
   if (busid[0] >= 0) {
-    (void)can_close(busid[0]);
+    (void)CanL_Close(busid[0]);
   }
 
   if (busid[1] >= 0) {
-    (void)can_close(busid[1]);
+    (void)CanL_Close(busid[1]);
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

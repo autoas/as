@@ -58,8 +58,8 @@
 
 #define XCP_MAX_ODT_NUMBER 252
 
-#define XCP_MAX_DAQ (config->numOfDaqList)
-#define XCP_MIN_DAQ (config->numOfStaticDaqList)
+#define XCP_MAX_DAQ (config->NumOfDaqList)
+#define XCP_MIN_DAQ (config->NumOfStaticDaqList)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
@@ -69,14 +69,14 @@ static Xcp_OdtType *Xcp_AllocODT(uint16_t odtCount) {
   Xcp_OdtType *pOdts = NULL;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  for (index = 0; index < config->numOfDynOdtSlots; index++) {
-    if (0 == config->dynOdtSlots[index].EntryMaxSize) {
+  for (index = 0; index < config->NumOfDynOdtSlots; index++) {
+    if (0 == config->DynOdtSlots[index].EntryMaxSize) {
       break;
     }
   }
 
-  if ((config->numOfDynOdtSlots - index) >= odtCount) {
-    pOdts = &config->dynOdtSlots[index];
+  if ((config->NumOfDynOdtSlots - index) >= odtCount) {
+    pOdts = &config->DynOdtSlots[index];
     ASLOG(DAQ, ("Alloc %d ODT from %d\n", (int)odtCount, (int)index));
     for (index = 0; index < odtCount; index++) {
       pOdts[index].EntryMaxSize = XCP_ODT_ALLOCATED;
@@ -91,14 +91,14 @@ static Xcp_OdtEntryType *Xcp_AllocODTEntry(uint16_t odtEntryCount) {
   Xcp_OdtEntryType *pEntries = NULL;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  for (index = 0; index < config->numOfDynOdtEntrySlots; index++) {
-    if (0 == config->dynOdtEntrySlots[index].Length) {
+  for (index = 0; index < config->NumOfDynOdtEntrySlots; index++) {
+    if (0 == config->DynOdtEntrySlots[index].Length) {
       break;
     }
   }
 
-  if ((config->numOfDynOdtEntrySlots - index) >= odtEntryCount) {
-    pEntries = &config->dynOdtEntrySlots[index];
+  if ((config->NumOfDynOdtEntrySlots - index) >= odtEntryCount) {
+    pEntries = &config->DynOdtEntrySlots[index];
     ASLOG(DAQ, ("Alloc %d ODT Entry from %d\n", (int)odtEntryCount, (int)index));
     for (index = 0; index < odtEntryCount; index++) {
       pEntries[index].Length = XCP_ODT_ENTRY_ALLOCATED;
@@ -147,7 +147,7 @@ static Std_ReturnType Xcp_IsTheDaqPtrWriteValid(uint16_t daqListNumber, uint8_t 
     ret = E_NOT_OK;
     *nrc = XCP_E_WRITE_PROTECTED;
   } else {
-    pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+    pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
     if (NULL == pDaq->Odts) {
       /* ODT not allocated */
       ret = E_NOT_OK;
@@ -179,7 +179,7 @@ static Std_ReturnType Xcp_IsTheDaqPtrReadValid(uint16_t daqListNumber, uint8_t o
     ret = E_NOT_OK;
     *nrc = XCP_E_OUT_OF_RANGE;
   } else {
-    pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+    pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
     if (NULL == pDaq->Odts) {
       /* ODT not allocated */
       ret = E_NOT_OK;
@@ -203,8 +203,8 @@ static Std_ReturnType Xcp_IsTheDaqPtrReadValid(uint16_t daqListNumber, uint8_t o
 
 static void Xcp_MainFunction_DaqDriveTx(uint16_t daqListNumber, uint8_t pidBase) {
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
-  const Xcp_DaqListType *pDaq = config->daqList[daqListNumber];
-  Xcp_DaqListContextType *pDaqCtx = &config->daqContexts[daqListNumber];
+  const Xcp_DaqListType *pDaq = config->DaqList[daqListNumber];
+  Xcp_DaqListContextType *pDaqCtx = &config->DaqContexts[daqListNumber];
   uint8_t data[XCP_PATCKET_MAX_SIZE];
   PduInfoType PduInfo = {data, NULL, sizeof(data)};
   uint8_t offset = 1;
@@ -212,24 +212,24 @@ static void Xcp_MainFunction_DaqDriveTx(uint16_t daqListNumber, uint8_t pidBase)
   uint8_t nrc = 0;
   Std_ReturnType ret = E_OK;
 
-  data[0] = pidBase + pDaqCtx->curPid;
-  for (i = 0; (i < pDaq->Odts[pDaqCtx->curPid].EntryMaxSize) && (E_OK == ret); i++) {
-    if ((XCP_PATCKET_MAX_SIZE - offset) >= pDaq->Odts[pDaqCtx->curPid].OdtEntries[i].Length) {
-      ret = Xcp_MtaRead(pDaq->Odts[pDaqCtx->curPid].OdtEntries[i].Extension,
-                        pDaq->Odts[pDaqCtx->curPid].OdtEntries[i].Address, &data[offset],
-                        pDaq->Odts[pDaqCtx->curPid].OdtEntries[i].Length, &nrc);
+  data[0] = pidBase + pDaqCtx->CurPid;
+  for (i = 0; (i < pDaq->Odts[pDaqCtx->CurPid].EntryMaxSize) && (E_OK == ret); i++) {
+    if ((XCP_PATCKET_MAX_SIZE - offset) >= pDaq->Odts[pDaqCtx->CurPid].OdtEntries[i].Length) {
+      ret = Xcp_MtaRead(pDaq->Odts[pDaqCtx->CurPid].OdtEntries[i].Extension,
+                        pDaq->Odts[pDaqCtx->CurPid].OdtEntries[i].Address, &data[offset],
+                        pDaq->Odts[pDaqCtx->CurPid].OdtEntries[i].Length, &nrc);
       if (E_OK == ret) {
-        offset += pDaq->Odts[pDaqCtx->curPid].OdtEntries[i].Length;
+        offset += pDaq->Odts[pDaqCtx->CurPid].OdtEntries[i].Length;
       } else {
         ASLOG(DAQE,
-              ("DAQ %d read for PID %d Entry %d failed\n", daqListNumber, pDaqCtx->curPid, i));
-        pDaqCtx->curPid = XCP_INVALID_ODT_PID;
-        pDaqCtx->timer = 0; /* stop it */
+              ("DAQ %d read for PID %d Entry %d failed\n", daqListNumber, pDaqCtx->CurPid, i));
+        pDaqCtx->CurPid = XCP_INVALID_ODT_PID;
+        pDaqCtx->Timer = 0; /* stop it */
       }
     } else {
       ASLOG(DAQE, ("DAQ %d buffer overflow\n", daqListNumber));
-      pDaqCtx->curPid = XCP_INVALID_ODT_PID;
-      pDaqCtx->timer = 0; /* stop it */
+      pDaqCtx->CurPid = XCP_INVALID_ODT_PID;
+      pDaqCtx->Timer = 0; /* stop it */
     }
   }
 
@@ -237,21 +237,21 @@ static void Xcp_MainFunction_DaqDriveTx(uint16_t daqListNumber, uint8_t pidBase)
     PduInfo.SduLength = offset;
     ret = CanIf_Transmit(config->CanIfTxPduId, &PduInfo);
     if (E_OK == ret) {
-      pDaqCtx->curPid++;
+      pDaqCtx->CurPid++;
     }
   }
 }
 
 static void Xcp_MainFunction_DaqDriveTimer(uint16_t daqListNumber) {
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
-  Xcp_DaqListContextType *pDaqCtx = &config->daqContexts[daqListNumber];
-  if (pDaqCtx->timer > 0) {
-    pDaqCtx->timer--;
-    if (0 == pDaqCtx->timer) {
+  Xcp_DaqListContextType *pDaqCtx = &config->DaqContexts[daqListNumber];
+  if (pDaqCtx->Timer > 0) {
+    pDaqCtx->Timer--;
+    if (0 == pDaqCtx->Timer) {
       ASLOG(DAQ, ("DAQ %d trigger!\n", daqListNumber));
-      pDaqCtx->curPid = 0;
-      asAssert(pDaqCtx->evChl < config->numOfEvChls);
-      pDaqCtx->timer = config->evChls[pDaqCtx->evChl].TimeCycle * pDaqCtx->prescaler;
+      pDaqCtx->CurPid = 0;
+      asAssert(pDaqCtx->EvChl < config->NumOfEvChls);
+      pDaqCtx->Timer = config->EvChls[pDaqCtx->EvChl].TimeCycle * pDaqCtx->Prescaler;
     }
   }
 }
@@ -260,16 +260,16 @@ void Xcp_DspDaqInit(void) {
   uint16_t i;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   Xcp_DaqListType *pDaq;
-  memset(config->dynOdtSlots, 0, sizeof(Xcp_OdtType) * config->numOfDynOdtSlots);
-  memset(config->dynOdtEntrySlots, 0, sizeof(Xcp_OdtEntryType) * config->numOfDynOdtEntrySlots);
-  memset(config->daqContexts, 0, sizeof(Xcp_DaqListContextType) * XCP_MAX_DAQ);
+  memset(config->DynOdtSlots, 0, sizeof(Xcp_OdtType) * config->NumOfDynOdtSlots);
+  memset(config->DynOdtEntrySlots, 0, sizeof(Xcp_OdtEntryType) * config->NumOfDynOdtEntrySlots);
+  memset(config->DaqContexts, 0, sizeof(Xcp_DaqListContextType) * XCP_MAX_DAQ);
   for (i = XCP_MIN_DAQ; i < XCP_MAX_DAQ; i++) {
-    pDaq = (Xcp_DaqListType *)config->daqList[i];
+    pDaq = (Xcp_DaqListType *)config->DaqList[i];
     memset(pDaq, 0, sizeof(Xcp_DaqListType));
   }
   for (i = 0; i < XCP_MAX_DAQ; i++) {
-    config->daqContexts[i].evChl = config->numOfEvChls; /* mark as invalid */
-    config->daqContexts[i].curPid = XCP_INVALID_ODT_PID;
+    config->DaqContexts[i].EvChl = config->NumOfEvChls; /* mark as invalid */
+    config->DaqContexts[i].CurPid = XCP_INVALID_ODT_PID;
   }
 }
 
@@ -283,16 +283,16 @@ Std_ReturnType Xcp_DspClearDAQList(Xcp_MsgContextType *msgContext,
   uint16_t j;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  if (msgContext->reqDataLen < 3) {
+  if (msgContext->ReqDataLen < 3) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
     if (daqListNumber >= XCP_MAX_DAQ) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+      pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
       if (NULL == pDaq->Odts) {
         ret = E_NOT_OK;
         *nrc = XCP_E_OUT_OF_RANGE;
@@ -308,7 +308,7 @@ Std_ReturnType Xcp_DspClearDAQList(Xcp_MsgContextType *msgContext,
                 pEntries[j].Length = XCP_ODT_ENTRY_ALLOCATED;
               }
             }
-            config->daqContexts[daqListNumber].state = 0;
+            config->DaqContexts[daqListNumber].State = 0;
           }
         }
       }
@@ -327,17 +327,17 @@ Std_ReturnType Xcp_DspStartStopDAQList(Xcp_MsgContextType *msgContext,
   Xcp_DaqListType *pDaq;
   uint16_t i;
 
-  if (msgContext->reqDataLen < 3) {
+  if (msgContext->ReqDataLen < 3) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    mode = msgContext->reqData[0];
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
+    mode = msgContext->ReqData[0];
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
     if (daqListNumber >= XCP_MAX_DAQ) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+      pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
       ret = Xcp_IsDaqListConfigured(pDaq);
       if (E_OK != ret) {
         *nrc = XCP_E_DAQ_CONFIG;
@@ -346,14 +346,14 @@ Std_ReturnType Xcp_DspStartStopDAQList(Xcp_MsgContextType *msgContext,
     if (E_OK == ret) {
       switch (mode) {
       case XCP_DAQ_STOP:
-        config->daqContexts[daqListNumber].state = XCP_DAQ_STOP;
-        config->daqContexts[daqListNumber].curPid = XCP_INVALID_ODT_PID;
+        config->DaqContexts[daqListNumber].State = XCP_DAQ_STOP;
+        config->DaqContexts[daqListNumber].CurPid = XCP_INVALID_ODT_PID;
         break;
       case XCP_DAQ_START:
-        config->daqContexts[daqListNumber].state = XCP_DAQ_START;
+        config->DaqContexts[daqListNumber].State = XCP_DAQ_START;
         break;
       case XCP_DAQ_SELECT:
-        config->daqContexts[daqListNumber].state = XCP_DAQ_SELECT;
+        config->DaqContexts[daqListNumber].State = XCP_DAQ_SELECT;
         break;
       default:
         ret = E_NOT_OK;
@@ -364,19 +364,19 @@ Std_ReturnType Xcp_DspStartStopDAQList(Xcp_MsgContextType *msgContext,
 
     if ((E_OK == ret) && (XCP_DAQ_STOP != mode)) {
       /* calculate the first PID */
-      msgContext->resData[0] = 0;
+      msgContext->ResData[0] = 0;
       for (i = 0; (i < daqListNumber) && (E_OK == ret); i++) {
-        ret = Xcp_IsDaqListConfigured(config->daqList[i]);
+        ret = Xcp_IsDaqListConfigured(config->DaqList[i]);
         if (E_OK != ret) {
           *nrc = XCP_E_SEQUENCE;
         } else if (XCP_MAX_ODT_NUMBER >=
-                   ((uint16_t)msgContext->resData[0] + config->daqList[i]->MaxOdt)) {
-          msgContext->resData[0] += config->daqList[i]->MaxOdt;
+                   ((uint16_t)msgContext->ResData[0] + config->DaqList[i]->MaxOdt)) {
+          msgContext->ResData[0] += config->DaqList[i]->MaxOdt;
         } else {
           *nrc = XCP_E_RESOURCE_TEMPORARY_NOT_ACCESSIBLE;
         }
       }
-      msgContext->resDataLen = 1;
+      msgContext->ResDataLen = 1;
     }
   }
 
@@ -390,29 +390,29 @@ Std_ReturnType Xcp_DspDAQStartStopSynch(Xcp_MsgContextType *msgContext,
   uint16_t i;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  if (msgContext->reqDataLen < 1) {
+  if (msgContext->ReqDataLen < 1) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    mode = msgContext->reqData[0];
+    mode = msgContext->ReqData[0];
     switch (mode) {
     case XCP_DAQ_STOP_ALL:
       for (i = 0; i < XCP_MAX_DAQ; i++) {
-        config->daqContexts[i].state = XCP_DAQ_STOP;
-        config->daqContexts[i].curPid = XCP_INVALID_ODT_PID;
+        config->DaqContexts[i].State = XCP_DAQ_STOP;
+        config->DaqContexts[i].CurPid = XCP_INVALID_ODT_PID;
       }
       break;
     case XCP_DAQ_START_SELECT:
       for (i = 0; i < XCP_MAX_DAQ; i++) {
-        if (XCP_DAQ_SELECT == config->daqContexts[i].state) {
-          config->daqContexts[i].state = XCP_DAQ_START;
+        if (XCP_DAQ_SELECT == config->DaqContexts[i].State) {
+          config->DaqContexts[i].State = XCP_DAQ_START;
         }
       }
       break;
     case XCP_DAQ_STOP_SELECT:
       for (i = 0; i < XCP_MAX_DAQ; i++) {
-        if (XCP_DAQ_SELECT == config->daqContexts[i].state) {
-          config->daqContexts[i].state = XCP_DAQ_STOP;
+        if (XCP_DAQ_SELECT == config->DaqContexts[i].State) {
+          config->DaqContexts[i].State = XCP_DAQ_STOP;
         }
       }
       break;
@@ -436,15 +436,15 @@ Std_ReturnType Xcp_DspSetDAQListMode(Xcp_MsgContextType *msgContext,
   uint8_t priority;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  if (msgContext->reqDataLen < 7) {
+  if (msgContext->ReqDataLen < 7) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    mode = msgContext->reqData[0];
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
-    eventChannel = Xcp_GetU16(&msgContext->reqData[3]);
-    prescaler = msgContext->reqData[5];
-    priority = msgContext->reqData[6];
+    mode = msgContext->ReqData[0];
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
+    eventChannel = Xcp_GetU16(&msgContext->ReqData[3]);
+    prescaler = msgContext->ReqData[5];
+    priority = msgContext->ReqData[6];
     if (0 != priority) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
@@ -464,16 +464,16 @@ Std_ReturnType Xcp_DspSetDAQListMode(Xcp_MsgContextType *msgContext,
     } else if (daqListNumber >= XCP_MAX_DAQ) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
-    } else if (eventChannel >= (uint16_t)config->numOfEvChls) {
+    } else if (eventChannel >= (uint16_t)config->NumOfEvChls) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      /* config->daqContexts[daqListNumber].mode = mode; */
-      config->daqContexts[daqListNumber].prescaler = prescaler;
-      config->daqContexts[daqListNumber].evChl = (uint8_t)eventChannel;
-      if (((uint32_t)config->evChls[eventChannel].TimeCycle * prescaler) <= 0xFFFFUL) {
-        config->daqContexts[daqListNumber].timer =
-          config->evChls[eventChannel].TimeCycle * prescaler;
+      /* config->DaqContexts[daqListNumber].mode = mode; */
+      config->DaqContexts[daqListNumber].Prescaler = prescaler;
+      config->DaqContexts[daqListNumber].EvChl = (uint8_t)eventChannel;
+      if (((uint32_t)config->EvChls[eventChannel].TimeCycle * prescaler) <= 0xFFFFUL) {
+        config->DaqContexts[daqListNumber].Timer =
+          config->EvChls[eventChannel].TimeCycle * prescaler;
       }
     }
   }
@@ -487,21 +487,21 @@ Std_ReturnType Xcp_DspSetDAQPtr(Xcp_MsgContextType *msgContext, Xcp_NegativeResp
   uint8_t odtNumber;
   uint8_t odtEntryNumber;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->cache;
+  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->Cache;
 
-  if (msgContext->reqDataLen < 5) {
+  if (msgContext->ReqDataLen < 5) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
-    odtNumber = msgContext->reqData[3];
-    odtEntryNumber = msgContext->reqData[4];
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
+    odtNumber = msgContext->ReqData[3];
+    odtEntryNumber = msgContext->ReqData[4];
     ret = Xcp_IsTheDaqPtrWriteValid(daqListNumber, odtNumber, odtEntryNumber, nrc);
     if (E_OK == ret) {
-      sdpCtx->daqListNumber = daqListNumber;
-      sdpCtx->odtNumber = odtNumber;
-      sdpCtx->odtEntryNumber = odtEntryNumber;
-      context->cacheOwner = XCP_PID_CMD_DAQ_SET_DAQ_PTR;
+      sdpCtx->DaqListNumber = daqListNumber;
+      sdpCtx->OdtNumber = odtNumber;
+      sdpCtx->OdtEntryNumber = odtEntryNumber;
+      context->CacheOwner = XCP_PID_CMD_DAQ_SET_DAQ_PTR;
     }
   }
 
@@ -514,31 +514,31 @@ Std_ReturnType Xcp_DspWriteDAQ(Xcp_MsgContextType *msgContext, Xcp_NegativeRespo
   Xcp_DaqListType *pDaq;
   Xcp_OdtEntryType *pEntry;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->cache;
+  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->Cache;
   uint8_t bitOffset;
   uint8_t length;
   uint8_t extension;
   uint32_t address;
 
-  if (msgContext->reqDataLen < 7) {
+  if (msgContext->ReqDataLen < 7) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
-  } else if (XCP_PID_CMD_DAQ_SET_DAQ_PTR != context->cacheOwner) {
+  } else if (XCP_PID_CMD_DAQ_SET_DAQ_PTR != context->CacheOwner) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
-  } else if (msgContext->reqData[2] >= XCP_MTA_EXT_MAX) {
+  } else if (msgContext->ReqData[2] >= XCP_MTA_EXT_MAX) {
     ret = E_NOT_OK;
     *nrc = XCP_E_OUT_OF_RANGE;
   } else {
-    ret = Xcp_IsTheDaqPtrWriteValid(sdpCtx->daqListNumber, sdpCtx->odtNumber,
-                                    sdpCtx->odtEntryNumber, nrc);
+    ret = Xcp_IsTheDaqPtrWriteValid(sdpCtx->DaqListNumber, sdpCtx->OdtNumber,
+                                    sdpCtx->OdtEntryNumber, nrc);
     if (E_OK == ret) {
-      bitOffset = msgContext->reqData[0];
-      length = msgContext->reqData[1];
-      extension = msgContext->reqData[2];
-      address = Xcp_GetU32(&msgContext->reqData[3]);
-      pDaq = (Xcp_DaqListType *)config->daqList[sdpCtx->daqListNumber];
-      pEntry = &(pDaq->Odts[sdpCtx->odtNumber].OdtEntries[sdpCtx->odtEntryNumber]);
+      bitOffset = msgContext->ReqData[0];
+      length = msgContext->ReqData[1];
+      extension = msgContext->ReqData[2];
+      address = Xcp_GetU32(&msgContext->ReqData[3]);
+      pDaq = (Xcp_DaqListType *)config->DaqList[sdpCtx->DaqListNumber];
+      pEntry = &(pDaq->Odts[sdpCtx->OdtNumber].OdtEntries[sdpCtx->OdtEntryNumber]);
       pEntry->Address = address;
       pEntry->BitOffset = bitOffset;
       pEntry->Length = length;
@@ -555,35 +555,35 @@ Std_ReturnType Xcp_DspReadDAQ(Xcp_MsgContextType *msgContext, Xcp_NegativeRespon
   Xcp_DaqListType *pDaq;
   Xcp_OdtEntryType *pEntry;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->cache;
+  Xcp_SetDaqPtrContextType *sdpCtx = (Xcp_SetDaqPtrContextType *)context->Cache;
   uint8_t bitOffset;
   uint8_t length;
   uint8_t extension;
   uint32_t address;
 
-  if (XCP_PID_CMD_DAQ_SET_DAQ_PTR != context->cacheOwner) {
+  if (XCP_PID_CMD_DAQ_SET_DAQ_PTR != context->CacheOwner) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
   } else {
-    ret = Xcp_IsTheDaqPtrReadValid(sdpCtx->daqListNumber, sdpCtx->odtNumber, sdpCtx->odtEntryNumber,
+    ret = Xcp_IsTheDaqPtrReadValid(sdpCtx->DaqListNumber, sdpCtx->OdtNumber, sdpCtx->OdtEntryNumber,
                                    nrc);
     if (E_OK == ret) {
-      bitOffset = msgContext->reqData[0];
-      length = msgContext->reqData[1];
-      extension = msgContext->reqData[2];
-      address = Xcp_GetU32(&msgContext->reqData[3]);
-      pDaq = (Xcp_DaqListType *)config->daqList[sdpCtx->daqListNumber];
-      pEntry = &(pDaq->Odts[sdpCtx->odtNumber].OdtEntries[sdpCtx->odtEntryNumber]);
+      bitOffset = msgContext->ReqData[0];
+      length = msgContext->ReqData[1];
+      extension = msgContext->ReqData[2];
+      address = Xcp_GetU32(&msgContext->ReqData[3]);
+      pDaq = (Xcp_DaqListType *)config->DaqList[sdpCtx->DaqListNumber];
+      pEntry = &(pDaq->Odts[sdpCtx->OdtNumber].OdtEntries[sdpCtx->OdtEntryNumber]);
       pEntry->Address = address;
       pEntry->BitOffset = bitOffset;
       pEntry->Length = length;
       pEntry->Extension = extension;
 
-      msgContext->resData[0] = pEntry->BitOffset;
-      msgContext->resData[1] = pEntry->Length;
-      msgContext->resData[2] = pEntry->Extension;
-      Xcp_SetU32(&msgContext->resData[3], pEntry->Address);
-      msgContext->resDataLen = 7;
+      msgContext->ResData[0] = pEntry->BitOffset;
+      msgContext->ResData[1] = pEntry->Length;
+      msgContext->ResData[2] = pEntry->Extension;
+      Xcp_SetU32(&msgContext->ResData[3], pEntry->Address);
+      msgContext->ResDataLen = 7;
     }
   }
 
@@ -595,17 +595,17 @@ Std_ReturnType Xcp_DspGetDAQProcessorInfo(Xcp_MsgContextType *msgContext,
   Std_ReturnType ret = E_OK;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
 
-  msgContext->resData[0] = XCP_DAQ_CONFIG_TYPE_STATIC | XCP_DAQ_PRESCALER_SUPPORTED |
+  msgContext->ResData[0] = XCP_DAQ_CONFIG_TYPE_STATIC | XCP_DAQ_PRESCALER_SUPPORTED |
                            XCP_DAQ_PID_OFF_SUPPORTED; /* PROPERTIES */
   if (XCP_MAX_DAQ > XCP_MIN_DAQ) {
-    msgContext->resData[0] |= XCP_DAQ_CONFIG_TYPE_DYNAMIC;
+    msgContext->ResData[0] |= XCP_DAQ_CONFIG_TYPE_DYNAMIC;
   }
-  Xcp_SetU16(&msgContext->resData[1], XCP_MAX_DAQ);
-  msgContext->resData[3] = 0; /* MAX_EVENT_CHANNEL */
-  msgContext->resData[4] = config->numOfEvChls;
-  Xcp_SetU16(&msgContext->resData[5], XCP_MIN_DAQ);
-  msgContext->resData[7] = 0; /* DAQ_KEY_BYTE */
-  msgContext->resDataLen = 7;
+  Xcp_SetU16(&msgContext->ResData[1], XCP_MAX_DAQ);
+  msgContext->ResData[3] = 0; /* MAX_EVENT_CHANNEL */
+  msgContext->ResData[4] = config->NumOfEvChls;
+  Xcp_SetU16(&msgContext->ResData[5], XCP_MIN_DAQ);
+  msgContext->ResData[7] = 0; /* DAQ_KEY_BYTE */
+  msgContext->ResDataLen = 7;
 
   return ret;
 }
@@ -614,15 +614,15 @@ Std_ReturnType Xcp_DspGetDAQResolutionInfo(Xcp_MsgContextType *msgContext,
                                            Xcp_NegativeResponseCodeType *nrc) {
   Std_ReturnType ret = E_OK;
 
-  msgContext->resData[0] = 1; /* GRANULARITY_ODT_SIZE_DAQ_ODT */
-  msgContext->resData[1] = 8; /* MAX_SIZE_DAT_ODT */
-  msgContext->resData[2] = 0; /* GRANULARITY_ODT_SIZE_STIM_ODT */
-  msgContext->resData[3] = 0; /* MAX_SIZE_STIM_ODT */
-  msgContext->resData[4] = 0; /* TIMESTAMP_MODE */
-  msgContext->resData[5] = 0; /* MIN_DAQ */
-  msgContext->resData[6] = 0; /* TIMESTAMP_TICKS */
-  msgContext->resData[7] = 0;
-  msgContext->resDataLen = 7;
+  msgContext->ResData[0] = 1; /* GRANULARITY_ODT_SIZE_DAQ_ODT */
+  msgContext->ResData[1] = 8; /* MAX_SIZE_DAT_ODT */
+  msgContext->ResData[2] = 0; /* GRANULARITY_ODT_SIZE_STIM_ODT */
+  msgContext->ResData[3] = 0; /* MAX_SIZE_STIM_ODT */
+  msgContext->ResData[4] = 0; /* TIMESTAMP_MODE */
+  msgContext->ResData[5] = 0; /* MIN_DAQ */
+  msgContext->ResData[6] = 0; /* TIMESTAMP_TICKS */
+  msgContext->ResData[7] = 0;
+  msgContext->ResDataLen = 7;
 
   return ret;
 }
@@ -636,17 +636,17 @@ Std_ReturnType Xcp_DspGetDAQListInfo(Xcp_MsgContextType *msgContext,
   uint8_t i;
   uint8_t maxOdtEntries = 0;
 
-  if (msgContext->reqDataLen < 3) {
+  if (msgContext->ReqDataLen < 3) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
 
     if (daqListNumber >= XCP_MAX_DAQ) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+      pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
       ret = Xcp_IsDaqListConfigured(pDaq);
       if (E_OK == ret) {
         for (i = 0; i < pDaq->MaxOdt; i++) {
@@ -654,15 +654,15 @@ Std_ReturnType Xcp_DspGetDAQListInfo(Xcp_MsgContextType *msgContext,
             maxOdtEntries = pDaq->Odts[i].EntryMaxSize;
           }
         }
-        msgContext->resData[0] = XCP_DAQ_LIST_DAQ; /* PROPERTIES: only support DAQ */
+        msgContext->ResData[0] = XCP_DAQ_LIST_DAQ; /* PROPERTIES: only support DAQ */
         if (daqListNumber < XCP_MIN_DAQ) {
-          msgContext->resData[0] |= XCP_DAQ_LIST_PREDEFINED;
+          msgContext->ResData[0] |= XCP_DAQ_LIST_PREDEFINED;
         }
-        msgContext->resData[1] = pDaq->MaxOdt;  /* MAX_ODT */
-        msgContext->resData[2] = maxOdtEntries; /* MAX_ODT_ENTRIES */
-        msgContext->resData[3] = 0;             /* FIXED_EVENT */
-        msgContext->resData[4] = 0;
-        msgContext->resDataLen = 5;
+        msgContext->ResData[1] = pDaq->MaxOdt;  /* MAX_ODT */
+        msgContext->ResData[2] = maxOdtEntries; /* MAX_ODT_ENTRIES */
+        msgContext->ResData[3] = 0;             /* FIXED_EVENT */
+        msgContext->ResData[4] = 0;
+        msgContext->ResDataLen = 5;
       } else {
         ret = E_NOT_OK;
         *nrc = XCP_E_OUT_OF_RANGE;
@@ -680,31 +680,31 @@ Std_ReturnType Xcp_DspGetDAQEventInfo(Xcp_MsgContextType *msgContext,
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   uint32_t timeMs;
 
-  if (msgContext->reqDataLen < 3) {
+  if (msgContext->ReqDataLen < 3) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    eventChannelNumber = Xcp_GetU16(&msgContext->reqData[1]);
-    if (eventChannelNumber >= (uint16_t)config->numOfEvChls) {
+    eventChannelNumber = Xcp_GetU16(&msgContext->ReqData[1]);
+    if (eventChannelNumber >= (uint16_t)config->NumOfEvChls) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      msgContext->resData[0] = XCP_DAQ_LIST_DAQ; /* PROPERTIES: only support DAQ */
-      msgContext->resData[1] = 0xFF;             /* MAX_DAQ: unlimit as each DAQ has a timer */
-      msgContext->resData[2] = 0;                /* Length: event channel name is not supported */
-      timeMs = config->evChls[eventChannelNumber].TimeCycle * XCP_MAIN_FUNCTION_PERIOD;
+      msgContext->ResData[0] = XCP_DAQ_LIST_DAQ; /* PROPERTIES: only support DAQ */
+      msgContext->ResData[1] = 0xFF;             /* MAX_DAQ: unlimit as each DAQ has a timer */
+      msgContext->ResData[2] = 0;                /* Length: event channel name is not supported */
+      timeMs = config->EvChls[eventChannelNumber].TimeCycle * XCP_MAIN_FUNCTION_PERIOD;
       if (timeMs < 255) {
-        msgContext->resData[3] = timeMs;                 /* Time Cycle */
-        msgContext->resData[4] = XCP_TIMESTAMP_UNIT_1MS; /* Time Unit */
+        msgContext->ResData[3] = timeMs;                 /* Time Cycle */
+        msgContext->ResData[4] = XCP_TIMESTAMP_UNIT_1MS; /* Time Unit */
       } else if (timeMs < 2550) {
-        msgContext->resData[3] = timeMs / 10;             /* Time Cycle */
-        msgContext->resData[4] = XCP_TIMESTAMP_UNIT_10MS; /* Time Unit */
+        msgContext->ResData[3] = timeMs / 10;             /* Time Cycle */
+        msgContext->ResData[4] = XCP_TIMESTAMP_UNIT_10MS; /* Time Unit */
       } else {
-        msgContext->resData[3] = timeMs / 100;            /* Time Cycle */
-        msgContext->resData[4] = XCP_TIMESTAMP_UNIT_10MS; /* Time Unit */
+        msgContext->ResData[3] = timeMs / 100;            /* Time Cycle */
+        msgContext->ResData[4] = XCP_TIMESTAMP_UNIT_10MS; /* Time Unit */
       }
-      msgContext->resData[5] = 0; /* Priority: not supported */
-      msgContext->resDataLen = 6;
+      msgContext->ResData[5] = 0; /* Priority: not supported */
+      msgContext->ResDataLen = 6;
     }
   }
 
@@ -717,19 +717,19 @@ Std_ReturnType Xcp_DspFreeDAQ(Xcp_MsgContextType *msgContext, Xcp_NegativeRespon
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   Xcp_DaqListType *pDaq;
 
-  if (0 == config->daqList[XCP_MIN_DAQ]->MaxOdt) {
+  if (0 == config->DaqList[XCP_MIN_DAQ]->MaxOdt) {
     /* No DAQ allocated */
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
   } else {
     for (i = XCP_MIN_DAQ; i < XCP_MAX_DAQ; i++) {
-      pDaq = (Xcp_DaqListType *)config->daqList[i];
+      pDaq = (Xcp_DaqListType *)config->DaqList[i];
       memset(pDaq, 0, sizeof(Xcp_DaqListType));
-      config->daqContexts[i].state = 0;
-      config->daqContexts[i].curPid = XCP_INVALID_ODT_PID;
+      config->DaqContexts[i].State = 0;
+      config->DaqContexts[i].CurPid = XCP_INVALID_ODT_PID;
     }
-    memset(config->dynOdtSlots, 0, sizeof(Xcp_OdtType) * config->numOfDynOdtSlots);
-    memset(config->dynOdtEntrySlots, 0, sizeof(Xcp_OdtEntryType) * config->numOfDynOdtEntrySlots);
+    memset(config->DynOdtSlots, 0, sizeof(Xcp_OdtType) * config->NumOfDynOdtSlots);
+    memset(config->DynOdtEntrySlots, 0, sizeof(Xcp_OdtEntryType) * config->NumOfDynOdtEntrySlots);
   }
 
   return ret;
@@ -742,21 +742,21 @@ Std_ReturnType Xcp_DspAllocDAQ(Xcp_MsgContextType *msgContext, Xcp_NegativeRespo
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   Xcp_DaqListType *pDaq;
 
-  if (msgContext->reqDataLen < 3) {
+  if (msgContext->ReqDataLen < 3) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqCount = Xcp_GetU16(&msgContext->reqData[1]);
+    daqCount = Xcp_GetU16(&msgContext->ReqData[1]);
     if (daqCount > (XCP_MAX_DAQ - XCP_MIN_DAQ)) {
       ret = E_NOT_OK;
       *nrc = XCP_E_MEMORY_OVERFLOW;
-    } else if (0 != config->daqList[XCP_MIN_DAQ]->MaxOdt) {
+    } else if (0 != config->DaqList[XCP_MIN_DAQ]->MaxOdt) {
       /* DAT already allocated, need to be free firstly for new allocation */
       ret = E_NOT_OK;
       *nrc = XCP_E_SEQUENCE;
     } else {
       for (i = 0; i < daqCount; i++) {
-        pDaq = (Xcp_DaqListType *)config->daqList[XCP_MIN_DAQ + i];
+        pDaq = (Xcp_DaqListType *)config->DaqList[XCP_MIN_DAQ + i];
         pDaq->MaxOdt = XCP_DAQ_LIST_ALLOCATED;
         pDaq->Odts = NULL;
       }
@@ -774,12 +774,12 @@ Std_ReturnType Xcp_DspAllocODT(Xcp_MsgContextType *msgContext, Xcp_NegativeRespo
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   Xcp_DaqListType *pDaq;
 
-  if (msgContext->reqDataLen < 4) {
+  if (msgContext->ReqDataLen < 4) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
-    odtCount = msgContext->reqData[3];
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
+    odtCount = msgContext->ReqData[3];
     if ((daqListNumber >= XCP_MAX_DAQ) || (daqListNumber < XCP_MIN_DAQ)) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
@@ -787,7 +787,7 @@ Std_ReturnType Xcp_DspAllocODT(Xcp_MsgContextType *msgContext, Xcp_NegativeRespo
       ret = E_NOT_OK;
       *nrc = XCP_E_CMD_SYNTAX;
     } else {
-      pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+      pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
       if (XCP_DAQ_LIST_ALLOCATED != pDaq->MaxOdt) {
         /* DAQ not allocated or this ODT already allocated */
         ret = E_NOT_OK;
@@ -818,18 +818,18 @@ Std_ReturnType Xcp_DspAllocODTEntry(Xcp_MsgContextType *msgContext,
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   Xcp_DaqListType *pDaq;
 
-  if (msgContext->reqDataLen < 5) {
+  if (msgContext->ReqDataLen < 5) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
   } else {
-    daqListNumber = Xcp_GetU16(&msgContext->reqData[1]);
-    odtNumber = msgContext->reqData[3];
-    odtEntryCount = msgContext->reqData[4];
+    daqListNumber = Xcp_GetU16(&msgContext->ReqData[1]);
+    odtNumber = msgContext->ReqData[3];
+    odtEntryCount = msgContext->ReqData[4];
     if ((daqListNumber >= XCP_MAX_DAQ) || (daqListNumber < XCP_MIN_DAQ)) {
       ret = E_NOT_OK;
       *nrc = XCP_E_OUT_OF_RANGE;
     } else {
-      pDaq = (Xcp_DaqListType *)config->daqList[daqListNumber];
+      pDaq = (Xcp_DaqListType *)config->DaqList[daqListNumber];
       if (NULL == pDaq->Odts) {
         /* ODT not allocated */
         ret = E_NOT_OK;
@@ -864,7 +864,7 @@ void Xcp_MainFunction_Daq(void) {
 
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   for (i = 0; i < XCP_MAX_DAQ; i++) {
-    if (XCP_DAQ_START == config->daqContexts[i].state) {
+    if (XCP_DAQ_START == config->DaqContexts[i].State) {
       Xcp_MainFunction_DaqDriveTimer(i);
     }
   }
@@ -877,9 +877,9 @@ void Xcp_MainFunction_DaqWrite(void) {
   Xcp_DaqListContextType *pDaqCtx;
   P2CONST(Xcp_ConfigType, AUTOMATIC, XCP_CONST) config = Xcp_GetConfig();
   for (i = 0; i < XCP_MAX_DAQ; i++) {
-    pDaq = config->daqList[i];
-    pDaqCtx = &config->daqContexts[i];
-    if (pDaqCtx->curPid < pDaq->MaxOdt) {
+    pDaq = config->DaqList[i];
+    pDaqCtx = &config->DaqContexts[i];
+    if (pDaqCtx->CurPid < pDaq->MaxOdt) {
       Xcp_MainFunction_DaqDriveTx(i, pidBase);
       break;
     }

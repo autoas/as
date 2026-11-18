@@ -4,8 +4,8 @@
  *
  * ref: Specification of DIO Driver AUTOSAR CP Release 4.4.0
  */
-#ifndef _DIO_H_
-#define _DIO_H_
+#ifndef DIO_H
+#define DIO_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #ifdef __cplusplus
@@ -43,21 +43,21 @@ typedef uint32_t Dio_PortLevelType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Dio_00133 */
-Dio_LevelType Dio_ReadChannel(Dio_ChannelType ChannelId);
+Dio_LevelType Dio_ReadChannel(Dio_ChannelType channelId);
 
 /* @SWS_Dio_00134 */
-void Dio_WriteChannel(Dio_ChannelType ChannelId, Dio_LevelType Level);
+void Dio_WriteChannel(Dio_ChannelType channelId, Dio_LevelType level);
 
 /* @SWS_Dio_00135 */
-Dio_PortLevelType Dio_ReadPort(Dio_PortType PortId);
+Dio_PortLevelType Dio_ReadPort(Dio_PortType portId);
 
 /* @SWS_Dio_00136 */
-void Dio_WritePort(Dio_PortType PortId, Dio_PortLevelType Level);
+void Dio_WritePort(Dio_PortType portId, Dio_PortLevelType level);
 /* @SWS_Dio_00137 */
-Dio_PortLevelType Dio_ReadChannelGroup(const Dio_ChannelGroupType *ChannelGroupIdPtr);
+Dio_PortLevelType Dio_ReadChannelGroup(const Dio_ChannelGroupType *channelGroupIdPtr);
 /* @SWS_Dio_00138 */
-void Dio_WriteChannelGroup(const Dio_ChannelGroupType *ChannelGroupIdPtr, Dio_PortLevelType Level);
+void Dio_WriteChannelGroup(const Dio_ChannelGroupType *channelGroupIdPtr, Dio_PortLevelType level);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _DIO_H_ */
+#endif /* DIO_H */

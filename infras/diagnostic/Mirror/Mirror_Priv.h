@@ -82,13 +82,13 @@ typedef struct {
 
 typedef struct {
   uint8_t MaxActiveFilterId; /* The max active filter Id + 1 */
-  boolean bStarted;
+  boolean Started;
 } Mirror_SourceNetworkCanContextType;
 
 typedef struct { /* @ECUC_Mirror_00010 */
   const Mirror_SourceCanFilterType *StaticFilters;
   Mirror_SourceCanFilterType *DynamicFilters;
-  Mirror_SourceNetworkCanContextType *context;
+  Mirror_SourceNetworkCanContextType *Context;
   const Mirror_SourceCanMaskBasedIdMappingType *MaskBasedIdMappings;
   const Mirror_SourceCanSingleIdMappingType *SingleIdMappings;
   boolean *CanFiltersStatus; /* size = MaxDynamicFilters + NumStaticFilters */
@@ -102,13 +102,13 @@ typedef struct { /* @ECUC_Mirror_00010 */
 
 typedef struct {
   uint8_t MaxActiveFilterId;
-  boolean bStarted;
+  boolean Started;
 } Mirror_SourceNetworkLinContextType;
 
 typedef struct { /* @ECUC_Mirror_00029 */
   const Mirror_SourceLinFilterType *StaticFilters;
   Mirror_SourceLinFilterType *DynamicFilters;
-  Mirror_SourceNetworkLinContextType *context;
+  Mirror_SourceNetworkLinContextType *Context;
   const Mirror_SourceLinToCanIdMappingType *SourceLinToCanIdMappings;
   boolean *LinFiltersStatus; /* size = MaxDynamicFilters + NumStaticFilters */
   uint32_t SourceLinToCanBaseId;
@@ -143,44 +143,44 @@ typedef struct {
  * @note The buffer follows a ring (circular) structure for efficient FIFO operations.
  */
 typedef struct {
-  uint8_t data[8];
+  uint8_t Data[8];
 } Mirror_DataElementType;
 
 typedef struct {
-  uint16_t in;
-  uint16_t out;
+  uint16_t In;
+  uint16_t Out;
 } Mirror_RingContextType;
 
 typedef struct {
-  Mirror_RingContextType *context;
+  Mirror_RingContextType *Context;
   Mirror_DataElementType *DataElements; /* size must be power of 2 */
   uint16_t NumOfDataElements;
 } Mirror_RingBufferType;
 
 typedef struct { /* @ECUC_Mirror_00052 */
-  Mirror_DestNetworkCanContextType *context;
+  Mirror_DestNetworkCanContextType *Context;
   const Mirror_RingBufferType *RingBuffer;
   uint32_t MirrorStatusCanId;
   PduIdType TxPduId;
 } Mirror_DestNetworkCanType;
 
 typedef struct {
-  Std_TimerType timer;
+  Std_TimerType Timer;
   uint16_t TxDeadlineTimer;
-  uint8_t in;
-  uint8_t out;
+  uint8_t In;
+  uint8_t Out;
   uint8_t SequenceNumber;
-  boolean bFrameLost;
+  boolean FrameLost;
 } Mirror_DestNetworkIpContextType;
 
 typedef struct {
-  uint8_t *data;
-  uint16_t *offset;
-  uint16_t size;
+  uint8_t *Data;
+  uint16_t *Offset;
+  uint16_t Size;
 } Mirror_DestBufferType;
 
 typedef struct { /* @ECUC_Mirror_00060 */
-  Mirror_DestNetworkIpContextType *context;
+  Mirror_DestNetworkIpContextType *Context;
   const Mirror_DestBufferType *DestBuffers;
   uint16_t MirrorDestTransmissionDeadline; /* maximum 655 ms */
   PduIdType TxPduId;

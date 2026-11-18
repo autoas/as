@@ -29,16 +29,16 @@ def GetProp(first, second, attr, dft):
 
 def get_shell_basic_data_print(C, data, offset):
     C.write("  {\n")
-    if data["type"] in [
+    if data["Type"] in [
         "uint8",
         "uint16",
         "uint32",
     ]:
-        C.write("    %s_t *itsValue = (%s_t*)(data+%d);\n" % (data["type"], data["type"], offset))
-        C.write('    PRINTF("  %s = %%u (0x%%x)\\n", (uint32_t)*itsValue, (uint32_t)*itsValue);\n' % (data["name"]))
-    elif data["type"] in ["int8", "int16", "int32"]:
-        C.write("    %s_t *itsValue = (%s_t*)(data+%d);\n" % (data["type"], data["type"], offset))
-        C.write('    PRINTF("  %s = %%d (0x%%x)\\n", (int32_t)*itsValue, (int32_t)*itsValue);\n' % (data["name"]))
+        C.write("    %s_t *itsValue = (%s_t*)(data+%d);\n" % (data["Type"], data["Type"], offset))
+        C.write('    PRINTF("  %s = %%u (0x%%x)\\n", (uint32_t)*itsValue, (uint32_t)*itsValue);\n' % (data["Name"]))
+    elif data["Type"] in ["int8", "int16", "int32"]:
+        C.write("    %s_t *itsValue = (%s_t*)(data+%d);\n" % (data["Type"], data["Type"], offset))
+        C.write('    PRINTF("  %s = %%d (0x%%x)\\n", (int32_t)*itsValue, (int32_t)*itsValue);\n' % (data["Name"]))
     else:
         raise
     C.write("  }\n")
@@ -46,10 +46,10 @@ def get_shell_basic_data_print(C, data, offset):
 
 def gen_shell_data_print(C, data):
     C.write("#ifdef USE_SHELL\n")
-    C.write("static void Dem_FFD_Print%s(uint8_t* data) {\n" % (data["name"]))
-    if data["type"] == "struct":
+    C.write("static void Dem_FFD_Print%s(uint8_t* data) {\n" % (data["Name"]))
+    if data["Type"] == "struct":
         offset = 0
-        for d in data["data"]:
+        for d in data["Data"]:
             get_shell_basic_data_print(C, d, offset)
             offset += GetDataSize(d)
     else:
@@ -59,11 +59,11 @@ def gen_shell_data_print(C, data):
 
 
 def Gen_Dem(cfg, dir):
-    general = cfg.get("general", {})
+    general = cfg.get("General", {})
     envMap = {}
-    envsMapByName = {data["name"]: data for data in cfg["Environments"]}
-    envsAll = [data["name"] for data in cfg["Environments"]]
-    envsAll.sort(key=lambda x: toNum(envsMapByName[x]["id"]))
+    envsMapByName = {data["Name"]: data for data in cfg["Environments"]}
+    envsAll = [data["Name"] for data in cfg["Environments"]]
+    envsAll.sort(key=lambda x: toNum(envsMapByName[x]["Id"]))
     envsKey = ".".join(envsAll)
     envMap[envsKey] = "Default"
     H = open("%s/Dem_Cfg.h" % (dir), "w")
@@ -85,9 +85,9 @@ def Gen_Dem(cfg, dir):
     H.write("#define DEM_MAX_EXTENDED_DATA_SIZE %du\n" % (GetExtendedDataSize(cfg) + 1))
     idx = 0
     for i, dtc in enumerate(cfg["DTCs"]):
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
-            H.write("#define DEM_EVENT_ID_%s %su\n" % (event["name"], idx))
+            H.write("#define DEM_EVENT_ID_%s %su\n" % (event["Name"], idx))
             idx += 1
     H.write("#define DTC_ENVENT_NUM %du\n" % (idx))
     H.write("#ifndef DEM_MAX_FREEZE_FRAME_RECORD\n")
@@ -98,7 +98,7 @@ def Gen_Dem(cfg, dir):
     H.write("#endif\n")
     conditions = []
     for dtc in cfg["DTCs"]:
-        for c in dtc.get("conditions", []):
+        for c in dtc.get("Conditions", []):
             if c not in conditions:
                 conditions.append(c)
     if len(conditions) > 0:
@@ -110,9 +110,9 @@ def Gen_Dem(cfg, dir):
     H.write("#define DEM_RESET_CONFIRMED_BIT_ON_OVERFLOW\n\n")
     H.write("#define DEM_STATUS_BIT_HANDLING_TEST_FAILED_SINCE_LAST_CLEAR DEM_STATUS_BIT_AGING_AND_DISPLACEMENT\n\n")
     H.write("#define DEM_USE_NVM_EXTENDED_DATA\n\n")
-    memories = cfg.get("Memories", [{"name": "Primary", "origin": "0x0001"}])
+    memories = cfg.get("Memories", [{"Name": "Primary", "Origin": "0x0001"}])
     for memory in memories:
-        if toNum(memory["origin"]) == 0x0002:
+        if toNum(memory["Origin"]) == 0x0002:
             H.write("#define DEM_USE_MIRROR_MEMORY\n\n")
     H.write("%s#define DEM_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
@@ -133,53 +133,53 @@ def Gen_Dem(cfg, dir):
     C.write("#endif\n")
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     for i, data in enumerate(cfg["Environments"]):
-        C.write("#define DEM_FFD_%s %s\n" % (data["name"], i))
+        C.write("#define DEM_FFD_%s %s\n" % (data["Name"], i))
     C.write("\n")
     for i, data in enumerate(cfg["ExtendedDatas"]):
-        C.write("#define DEM_EXTD_%s %s\n" % (data["name"], i))
+        C.write("#define DEM_EXTD_%s %s\n" % (data["Name"], i))
     C.write("\n")
     for i, data in enumerate(cfg["ExtendedDatas"]):
-        C.write("#define DEM_EXTD_%s_NUMBER %s\n" % (data["name"], hex(i + 1)))
+        C.write("#define DEM_EXTD_%s_NUMBER %s\n" % (data["Name"], hex(i + 1)))
     for i, memory in enumerate(memories):
-        C.write("#define DEM_MEMORY_ID_%s %s\n" % (memory["name"], i))
+        C.write("#define DEM_MEMORY_ID_%s %s\n" % (memory["Name"], i))
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     for i, data in enumerate(cfg["Environments"]):
         C.write(
             "Std_ReturnType Dem_FFD_Get%s(Dem_DtcIdType EventId, uint8_t *data, Dem_DTCOriginType DTCOrigin);\n"
-            % (data["name"])
+            % (data["Name"])
         )
         gen_shell_data_print(C, data)
     C.write("\n")
     for i, data in enumerate(cfg["ExtendedDatas"]):
         C.write(
             "Std_ReturnType Dem_EXTD_Get%s(Dem_DtcIdType EventId, uint8_t *data, Dem_DTCOriginType DTCOrigin);\n"
-            % (data["name"])
+            % (data["Name"])
         )
     C.write("\n")
     idx = 0
     for i, dtc in enumerate(cfg["DTCs"]):
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
             C.write(
-                "extern Dem_EventStatusRecordType Dem_NvmEventStatusRecord%s_Ram; /* %s */\n" % (idx, event["name"])
+                "extern Dem_EventStatusRecordType Dem_NvmEventStatusRecord%s_Ram; /* %s */\n" % (idx, event["Name"])
             )
             idx += 1
     for i, dtc in enumerate(cfg["DTCs"]):
         for memory in memories:
             C.write(
                 "extern Dem_DtcStatusRecordType Dem_Nvm%sDtcStatusRecord%s_Ram; /* %s */\n"
-                % (memory["name"], i, dtc["name"])
+                % (memory["Name"], i, dtc["Name"])
             )
     for i, dtc in enumerate(cfg["DTCs"]):
         C.write("#if DEM_MAX_FREEZE_FRAME_RECORD > %s\n" % (i))
         for memory in memories:
-            C.write("extern Dem_FreezeFrameRecordType Dem_Nvm%sFreezeFrameRecord%s_Ram;\n" % (memory["name"], i))
+            C.write("extern Dem_FreezeFrameRecordType Dem_Nvm%sFreezeFrameRecord%s_Ram;\n" % (memory["Name"], i))
         C.write("#endif\n")
     for i, dtc in enumerate(cfg["DTCs"]):
         C.write("#if (DEM_MAX_EXTENDED_DATA_RECORD > %s) && defined(DEM_USE_NVM_EXTENDED_DATA)\n" % (i))
         for memory in memories:
-            C.write("extern Dem_ExtendedDataRecordType Dem_Nvm%sExtendedDataRecord%s_Ram;\n" % (memory["name"], i))
+            C.write("extern Dem_ExtendedDataRecordType Dem_Nvm%sExtendedDataRecord%s_Ram;\n" % (memory["Name"], i))
         C.write("#endif\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("#define DEM_START_SEC_CONST\n")
@@ -187,48 +187,48 @@ def Gen_Dem(cfg, dir):
     idx = 0
     C.write("static CONSTP2VAR(Dem_EventStatusRecordType, DEM_VAR, DEM_CONST) Dem_NvmEventStatusRecords[] = {\n")
     for i, dtc in enumerate(cfg["DTCs"]):
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
-            C.write("  &Dem_NvmEventStatusRecord%s_Ram, /* %s */\n" % (idx, event["name"]))
+            C.write("  &Dem_NvmEventStatusRecord%s_Ram, /* %s */\n" % (idx, event["Name"]))
             idx += 1
     C.write("};\n\n")
     idx = 0
     C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_NvmEventStatusRecordNvmBlockIds[] = {\n")
     for i, dtc in enumerate(cfg["DTCs"]):
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
-            C.write("  NVM_BLOCKID_Dem_NvmEventStatusRecord%s, /* %s */\n" % (idx, event["name"]))
+            C.write("  NVM_BLOCKID_Dem_NvmEventStatusRecord%s, /* %s */\n" % (idx, event["Name"]))
             idx += 1
     C.write("};\n\n")
     for memory in memories:
         C.write(
             "static CONSTP2VAR(Dem_DtcStatusRecordType, DEM_VAR, DEM_CONST) Dem_Nvm%sDtcStatusRecord[] = {\n"
-            % (memory["name"])
+            % (memory["Name"])
         )
         for i, dtc in enumerate(cfg["DTCs"]):
-            C.write("  &Dem_Nvm%sDtcStatusRecord%s_Ram,\n" % (memory["name"], i))
+            C.write("  &Dem_Nvm%sDtcStatusRecord%s_Ram,\n" % (memory["Name"], i))
         C.write("};\n\n")
         C.write("#ifdef DEM_USE_NVM\n")
-        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sDtcStatusRecordNvmBlockIds[] = {\n" % (memory["name"]))
+        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sDtcStatusRecordNvmBlockIds[] = {\n" % (memory["Name"]))
         for i, data in enumerate(cfg["DTCs"]):
-            C.write("  NVM_BLOCKID_Dem_Nvm%sDtcStatusRecord%s,\n" % (memory["name"], i))
+            C.write("  NVM_BLOCKID_Dem_Nvm%sDtcStatusRecord%s,\n" % (memory["Name"], i))
         C.write("};\n")
         C.write("#endif\n\n")
     for memory in memories:
         C.write(
             "static CONSTP2VAR(Dem_FreezeFrameRecordType, DEM_VAR, DEM_CONST) Dem_Nvm%sFreezeFrameRecord[] = {\n"
-            % (memory["name"])
+            % (memory["Name"])
         )
         for i, dtc in enumerate(cfg["DTCs"]):
             C.write("#if DEM_MAX_FREEZE_FRAME_RECORD > %s\n" % (i))
-            C.write("  &Dem_Nvm%sFreezeFrameRecord%s_Ram,\n" % (memory["name"], i))
+            C.write("  &Dem_Nvm%sFreezeFrameRecord%s_Ram,\n" % (memory["Name"], i))
             C.write("#endif\n")
         C.write("};\n\n")
         C.write("#ifdef DEM_USE_NVM\n")
-        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sFreezeFrameNvmBlockIds[] = {\n" % (memory["name"]))
+        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sFreezeFrameNvmBlockIds[] = {\n" % (memory["Name"]))
         for i, data in enumerate(cfg["DTCs"]):
             C.write("#if DEM_MAX_FREEZE_FRAME_RECORD > %s\n" % (i))
-            C.write("  NVM_BLOCKID_Dem_Nvm%sFreezeFrameRecord%s,\n" % (memory["name"], i))
+            C.write("  NVM_BLOCKID_Dem_Nvm%sFreezeFrameRecord%s,\n" % (memory["Name"], i))
             C.write("#endif\n")
         C.write("};\n")
         C.write("#endif\n\n")
@@ -236,18 +236,18 @@ def Gen_Dem(cfg, dir):
         C.write("#ifdef DEM_USE_NVM_EXTENDED_DATA\n")
         C.write(
             "static CONSTP2VAR(Dem_ExtendedDataRecordType, DEM_VAR, DEM_CONST) Dem_Nvm%sExtendedDataRecord[] = {\n"
-            % (memory["name"])
+            % (memory["Name"])
         )
         for i, dtc in enumerate(cfg["DTCs"]):
             C.write("#if DEM_MAX_EXTENDED_DATA_RECORD > %s\n" % (i))
-            C.write("  &Dem_Nvm%sExtendedDataRecord%s_Ram,\n" % (memory["name"], i))
+            C.write("  &Dem_Nvm%sExtendedDataRecord%s_Ram,\n" % (memory["Name"], i))
             C.write("#endif\n")
         C.write("};\n")
         C.write("#ifdef DEM_USE_NVM\n")
-        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sExtendedDataNvmBlockIds[] = {\n" % (memory["name"]))
+        C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_Nvm%sExtendedDataNvmBlockIds[] = {\n" % (memory["Name"]))
         for i, data in enumerate(cfg["DTCs"]):
             C.write("#if DEM_MAX_EXTENDED_DATA_RECORD > %s\n" % (i))
-            C.write("  NVM_BLOCKID_Dem_Nvm%sExtendedDataRecord%s,\n" % (memory["name"], i))
+            C.write("  NVM_BLOCKID_Dem_Nvm%sExtendedDataRecord%s,\n" % (memory["Name"], i))
             C.write("#endif\n")
         C.write("};\n")
         C.write("#endif\n")
@@ -256,46 +256,46 @@ def Gen_Dem(cfg, dir):
     for memory in memories:
         C.write(
             "static uint8_t Dem_Nvm%sDtcStatusRecordDirty[(ARRAY_SIZE(Dem_Nvm%sDtcStatusRecord)+7)/8];\n"
-            % (memory["name"], memory["name"])
+            % (memory["Name"], memory["Name"])
         )
         C.write(
             "static uint8_t Dem_Nvm%sFreezeFrameRecordDirty[(ARRAY_SIZE(Dem_Nvm%sFreezeFrameRecord)+7)/8];\n"
-            % (memory["name"], memory["name"])
+            % (memory["Name"], memory["Name"])
         )
         C.write("#ifdef DEM_USE_NVM_EXTENDED_DATA\n")
         C.write(
             "static uint8_t Dem_Nvm%sExtendedDataDirty[(ARRAY_SIZE(Dem_Nvm%sExtendedDataRecord)+7)/8];\n"
-            % (memory["name"], memory["name"])
+            % (memory["Name"], memory["Name"])
         )
         C.write("#endif\n")
     C.write("#endif\n\n")
     C.write("static CONSTANT(Dem_MemoryDestinationType, DEM_CONST) Dem_MemoryDestination[] = {\n")
     for memory in memories:
         C.write("  {\n")
-        C.write("    Dem_Nvm%sDtcStatusRecord,\n" % (memory["name"]))
-        C.write("    Dem_Nvm%sFreezeFrameRecord,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sDtcStatusRecord,\n" % (memory["Name"]))
+        C.write("    Dem_Nvm%sFreezeFrameRecord,\n" % (memory["Name"]))
         C.write("    #ifdef DEM_USE_NVM_EXTENDED_DATA\n")
-        C.write("    Dem_Nvm%sExtendedDataRecord,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sExtendedDataRecord,\n" % (memory["Name"]))
         C.write("    #endif\n")
         C.write("    #ifndef DEM_USE_NVM\n")
-        C.write("    Dem_Nvm%sDtcStatusRecordDirty,\n" % (memory["name"]))
-        C.write("    Dem_Nvm%sFreezeFrameRecordDirty,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sDtcStatusRecordDirty,\n" % (memory["Name"]))
+        C.write("    Dem_Nvm%sFreezeFrameRecordDirty,\n" % (memory["Name"]))
         C.write("    #ifdef DEM_USE_NVM_EXTENDED_DATA\n")
-        C.write("    Dem_Nvm%sExtendedDataDirty,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sExtendedDataDirty,\n" % (memory["Name"]))
         C.write("    #endif\n")
         C.write("    #else\n")
-        C.write("    Dem_Nvm%sDtcStatusRecordNvmBlockIds,\n" % (memory["name"]))
-        C.write("    Dem_Nvm%sFreezeFrameNvmBlockIds,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sDtcStatusRecordNvmBlockIds,\n" % (memory["Name"]))
+        C.write("    Dem_Nvm%sFreezeFrameNvmBlockIds,\n" % (memory["Name"]))
         C.write("    #ifdef DEM_USE_NVM_EXTENDED_DATA\n")
-        C.write("    Dem_Nvm%sExtendedDataNvmBlockIds,\n" % (memory["name"]))
+        C.write("    Dem_Nvm%sExtendedDataNvmBlockIds,\n" % (memory["Name"]))
         C.write("    #endif\n")
         C.write("    #endif\n")
-        C.write("    ARRAY_SIZE(Dem_Nvm%sDtcStatusRecord),\n" % (memory["name"]))
-        C.write("    ARRAY_SIZE(Dem_Nvm%sFreezeFrameRecord),\n" % (memory["name"]))
+        C.write("    ARRAY_SIZE(Dem_Nvm%sDtcStatusRecord),\n" % (memory["Name"]))
+        C.write("    ARRAY_SIZE(Dem_Nvm%sFreezeFrameRecord),\n" % (memory["Name"]))
         C.write("    #ifdef DEM_USE_NVM_EXTENDED_DATA\n")
-        C.write("    ARRAY_SIZE(Dem_Nvm%sExtendedDataRecord),\n" % (memory["name"]))
+        C.write("    ARRAY_SIZE(Dem_Nvm%sExtendedDataRecord),\n" % (memory["Name"]))
         C.write("    #endif\n")
-        C.write("    %s/* DTCOrigin */\n" % (memory["origin"]))
+        C.write("    %s/* DTCOrigin */\n" % (memory["Origin"]))
         C.write("  },\n")
     C.write("};\n\n")
     for i, dtc in enumerate(cfg["DTCs"]):
@@ -303,24 +303,24 @@ def Gen_Dem(cfg, dir):
             "static CONSTP2CONST(Dem_MemoryDestinationType, DEM_CONST, DEM_CONST) Dem_Dtc%sMemoryDestinations[]= {\n"
             % (i)
         )
-        for memory in dtc.get("destination", ["Primary"]):
+        for memory in dtc.get("Destination", ["Primary"]):
             C.write("  &Dem_MemoryDestination[DEM_MEMORY_ID_%s],\n" % (memory))
         C.write("};\n\n")
     C.write("static CONSTANT(Dem_FreeFrameDataConfigType, DEM_CONST) FreeFrameDataConfigs[] = {\n")
     for x in envsAll:
         data = envsMapByName[x]
         C.write("  {\n")
-        C.write("    Dem_FFD_Get%s,\n" % (data["name"]))
-        C.write("    %s,\n" % (data["id"]))
+        C.write("    Dem_FFD_Get%s,\n" % (data["Name"]))
+        C.write("    %s,\n" % (data["Id"]))
         C.write("    %s,\n" % (GetDataSize(data)))
         C.write("#ifdef USE_SHELL\n")
-        C.write("    Dem_FFD_Print%s,\n" % (data["name"]))
+        C.write("    Dem_FFD_Print%s,\n" % (data["Name"]))
         C.write("#endif\n")
         C.write("  },\n")
     C.write("};\n\n")
     C.write("static CONSTANT(Dem_ExtendedDataConfigType, DEM_CONST) ExtendedDataConfigs[] = {\n")
     for i, data in enumerate(cfg["ExtendedDatas"]):
-        C.write("  {Dem_EXTD_Get%s, DEM_EXTD_%s_NUMBER, %s},\n" % (data["name"], data["name"], GetDataSize(data)))
+        C.write("  {Dem_EXTD_Get%s, DEM_EXTD_%s_NUMBER, %s},\n" % (data["Name"], data["Name"], GetDataSize(data)))
     C.write("};\n\n")
     dbncs = {}
     dbnc_dfts = {
@@ -337,10 +337,10 @@ def Gen_Dem(cfg, dir):
         dbnc = {key: GetProp(dtc, general, key, dft) for key, dft in dbnc_dfts.items()}
         vp = "-".join([str(v) for k, v in dbnc.items()])
         if vp not in dbncs:
-            dbnc["id"] = len(dbncs.keys())
+            dbnc["Id"] = len(dbncs.keys())
             dbncs[vp] = dbnc
     for vp, dbnc in dbncs.items():
-        idx = dbnc["id"]
+        idx = dbnc["Id"]
         C.write(
             "static CONSTANT(Dem_DebounceCounterBasedConfigType, DEM_CONST) Dem_DebounceCounterBasedConfig%s = {\n"
             % (idx)
@@ -359,7 +359,7 @@ def Gen_Dem(cfg, dir):
     for dtc in cfg["DTCs"]:
         envs = dtc.get("Environments", [])
         if len(envs) > 0:
-            envs.sort(key=lambda x: toNum(envsMapByName[x]["id"]))
+            envs.sort(key=lambda x: toNum(envsMapByName[x]["Id"]))
             envsKey = ".".join(envs)
             if envsKey not in envMap:
                 idx = len(envMap)
@@ -378,12 +378,12 @@ def Gen_Dem(cfg, dir):
     C.write("static CONSTANT(uint16_t, DEM_CONST) Dem_FreezeFrameDataIndexDefault[] = {\n")
     for x in envsAll:
         data = envsMapByName[x]
-        C.write("  DEM_FFD_%s,\n" % (data["name"]))
+        C.write("  DEM_FFD_%s,\n" % (data["Name"]))
     C.write("};\n\n")
     C.write("/* each Event can have different extended data that cares about*/\n")
     C.write("static CONSTANT(uint8_t, DEM_CONST) Dem_ExtendedDataNumberIndexDefault[] = {\n")
     for data in cfg["ExtendedDatas"]:
-        C.write("  DEM_EXTD_%s,\n" % (data["name"]))
+        C.write("  DEM_EXTD_%s,\n" % (data["Name"]))
     C.write("};\n\n")
     C.write("static CONSTANT(Dem_FreezeFrameRecordClassType, DEM_CONST) Dem_FreezeFrameRecordClassDefault = {\n")
     C.write("  Dem_FreezeFrameDataIndexDefault,\n")
@@ -407,20 +407,20 @@ def Gen_Dem(cfg, dir):
         FreezeFrameRecNums = dtc.get("FreezeFrameRecNums", [str(i + 1) for i in range(MaxFreezeFrameNum)])
         C.write(
             "static CONSTANT(uint8_t, DEM_CONST) Dem_FreezeFrameRecNumsFor%s[] = {%s};\n"
-            % (dtc["name"], ", ".join(FreezeFrameRecNums))
+            % (dtc["Name"], ", ".join(FreezeFrameRecNums))
         )
     C.write("static CONSTANT(Dem_FreezeFrameRecNumClassType, DEM_CONST) Dem_FreezeFrameRecNumClass[] = {\n")
     for i, dtc in enumerate(cfg["DTCs"]):
         C.write("  {\n")
-        C.write("    Dem_FreezeFrameRecNumsFor%s,\n" % (dtc["name"]))
-        C.write("    ARRAY_SIZE(Dem_FreezeFrameRecNumsFor%s),\n" % (dtc["name"]))
+        C.write("    Dem_FreezeFrameRecNumsFor%s,\n" % (dtc["Name"]))
+        C.write("    ARRAY_SIZE(Dem_FreezeFrameRecNumsFor%s),\n" % (dtc["Name"]))
         C.write("  },\n")
     C.write("};\n\n")
     C.write("static CONSTANT(Dem_DTCAttributesType, DEM_CONST) Dem_DTCAttributes[] = {\n")
     for i, dtc in enumerate(cfg["DTCs"]):
         envs = dtc.get("Environments", [])
         if len(envs) > 0:
-            envs.sort(key=lambda x: toNum(envsMapByName[x]["id"]))
+            envs.sort(key=lambda x: toNum(envsMapByName[x]["Id"]))
             envsKey = ".".join(envs)
             FFRef = envMap[envsKey]
         else:
@@ -431,7 +431,7 @@ def Gen_Dem(cfg, dir):
         C.write("    &Dem_FreezeFrameRecNumClass[%s],\n" % (i))
         C.write("    Dem_Dtc%sMemoryDestinations,\n" % (i))
         C.write("    ARRAY_SIZE(Dem_Dtc%sMemoryDestinations),\n" % (i))
-        C.write("    /* Priority */ %s,\n" % (dtc["priority"]))
+        C.write("    /* Priority */ %s,\n" % (dtc["Priority"]))
         C.write("    /* AgingAllowed */ TRUE,\n")
         C.write("    /* AgingCycleCounterThreshold */ %s,\n" % (GetProp(dtc, general, "AgingCycleCounterThreshold", 2)))
         C.write(
@@ -454,9 +454,9 @@ def Gen_Dem(cfg, dir):
     C.write("};\n\n")
     for i, dtc in enumerate(cfg["DTCs"]):
         C.write("static CONSTANT(Dem_EventIdType, DEM_CONST) Dem_Dtc%sEventRefs[] = {\n" % (i))
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
-            C.write("  DEM_EVENT_ID_%s,\n" % (event["name"]))
+            C.write("  DEM_EVENT_ID_%s,\n" % (event["Name"]))
         C.write("};\n\n")
     C.write("\n")
     C.write("static CONSTANT(Dem_DTCType, DEM_CONST) Dem_Dtcs[] = {\n")
@@ -464,7 +464,7 @@ def Gen_Dem(cfg, dir):
         C.write("  {\n")
         C.write("    &Dem_DTCAttributes[%s],\n" % (i))
         C.write("    Dem_Dtc%sEventRefs,\n" % (i))
-        C.write("    %s,\n" % (dtc["number"]))
+        C.write("    %s,\n" % (dtc["Number"]))
         C.write("    %s, /* DtcId */\n" % (i))
         C.write("    ARRAY_SIZE(Dem_Dtc%sEventRefs),\n" % (i))
         C.write("    #if 0\n")
@@ -479,15 +479,15 @@ def Gen_Dem(cfg, dir):
     for i, dtc in enumerate(cfg["DTCs"]):
         vp = "-".join([str(GetProp(dtc, general, key, dft)) for key, dft in dbnc_dfts.items()])
         dbnc = dbncs[vp]
-        events = dtc.get("events", [dtc])
+        events = dtc.get("Events", [dtc])
         for event in events:
             C.write("  {\n")
             C.write("    &Dem_Dtcs[%s],\n" % (i))
             C.write("    /* DemCallbackInitMForE */ NULL,\n")
-            C.write("    &Dem_DebounceCounterBasedConfig%s,\n" % (dbnc["id"]))
+            C.write("    &Dem_DebounceCounterBasedConfig%s,\n" % (dbnc["Id"]))
             C.write("    #ifdef DEM_USE_ENABLE_CONDITION\n")
             mask = "0"
-            for cond in dtc.get("conditions", []):
+            for cond in dtc.get("Conditions", []):
                 mask += "|DEM_CONTIDION_%s" % (toMacro(cond))
             C.write("    %s,\n" % (mask))
             C.write("    #endif\n")

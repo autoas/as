@@ -20,37 +20,37 @@ def Gen_J1939Tp(cfg, dir):
     RxId = 0
     RxPdusInfo = []
     for i, chl in enumerate(cfg.get("TxChannels", [])):
-        name = chl["name"]
+        name = chl["Name"]
         H.write("#define J1939TP_CHL_%s_TX %su\n" % (name, i))
         H.write("#define J1939TP_%s_TX %su\n\n" % (name, i))
         H.write("#define J1939TP_%s_CM_TX %su\n" % (name, TxId))
         H.write("#define J1939TP_%s_DT_TX %su\n" % (name, TxId + 1))
         H.write("#define J1939TP_%s_DIRECT_TX %su\n" % (name, TxId + 2))
-        TxPdusInfo.append({"TxId": TxId, "chl": chl, "type": "CM", "ctype": "TX"})
-        TxPdusInfo.append({"TxId": TxId + 1, "chl": chl, "type": "DT", "ctype": "TX"})
-        TxPdusInfo.append({"TxId": TxId + 2, "chl": chl, "type": "DIRECT", "ctype": "TX"})
+        TxPdusInfo.append({"TxId": TxId, "chl": chl, "Type": "CM", "ctype": "TX"})
+        TxPdusInfo.append({"TxId": TxId + 1, "chl": chl, "Type": "DT", "ctype": "TX"})
+        TxPdusInfo.append({"TxId": TxId + 2, "chl": chl, "Type": "DIRECT", "ctype": "TX"})
         TxId = TxId + 3
         protocol = chl["Protocol"]
         if protocol == "CMDT":
             H.write("#define J1939TP_%s_CM_RX %su\n" % (name, RxId))
-            RxPdusInfo.append({"RxId": RxId, "chl": chl, "type": "CM", "ctype": "TX"})
+            RxPdusInfo.append({"RxId": RxId, "chl": chl, "Type": "CM", "ctype": "TX"})
             RxId = RxId + 1
         H.write("\n")
     for i, chl in enumerate(cfg.get("RxChannels", [])):
-        name = chl["name"]
+        name = chl["Name"]
         H.write("\n#define J1939TP_CHL_%s_RX %su\n\n" % (name, i))
         H.write("\n#define J1939TP_%s_RX %su\n\n" % (name, i))
         H.write("#define J1939TP_%s_CM_RX %su\n" % (name, RxId))
         H.write("#define J1939TP_%s_DT_RX %su\n" % (name, RxId + 1))
         H.write("#define J1939TP_%s_DIRECT_RX %su\n" % (name, RxId + 2))
-        RxPdusInfo.append({"RxId": RxId, "chl": chl, "type": "CM", "ctype": "RX"})
-        RxPdusInfo.append({"RxId": RxId + 1, "chl": chl, "type": "DT", "ctype": "RX"})
-        RxPdusInfo.append({"RxId": RxId + 2, "chl": chl, "type": "DIRECT", "ctype": "RX"})
+        RxPdusInfo.append({"RxId": RxId, "chl": chl, "Type": "CM", "ctype": "RX"})
+        RxPdusInfo.append({"RxId": RxId + 1, "chl": chl, "Type": "DT", "ctype": "RX"})
+        RxPdusInfo.append({"RxId": RxId + 2, "chl": chl, "Type": "DIRECT", "ctype": "RX"})
         RxId = RxId + 3
         protocol = chl["Protocol"]
         if protocol == "CMDT":
             H.write("#define J1939TP_%s_CM_TX %su\n" % (name, TxId))
-            TxPdusInfo.append({"TxId": TxId, "chl": chl, "type": "CM", "ctype": "RX"})
+            TxPdusInfo.append({"TxId": TxId, "chl": chl, "Type": "CM", "ctype": "RX"})
             TxId = TxId + 1
         H.write("\n")
     H.write("\n")
@@ -77,8 +77,8 @@ def Gen_J1939Tp(cfg, dir):
     C.write('#include "J1939Tp.h"\n')
     C.write('#include "J1939Tp_Priv.h"\n')
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    C.write("#ifndef J1939TP_LL_DL\n")
-    C.write("#define J1939TP_LL_DL 8\n")
+    C.write("#ifndef J1939TP_LINK_LAYER_DATA_LENGTH\n")
+    C.write("#define J1939TP_LINK_LAYER_DATA_LENGTH 8\n")
     C.write("#endif\n\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
@@ -88,13 +88,13 @@ def Gen_J1939Tp(cfg, dir):
     if numRxChls > 0:
         C.write("static J1939Tp_RxChannelContextType J1939Tp_RxChannelContexts[%s];\n" % (numRxChls))
         for chl in cfg["RxChannels"]:
-            C.write("static uint8_t u8Rx%sData[%s];\n" % (chl["name"], chl.get("LL_DL", "J1939TP_LL_DL")))
+            C.write("static uint8_t u8Rx%sData[%s];\n" % (chl["Name"], chl.get("LinkLayerDataLength", "J1939TP_LINK_LAYER_DATA_LENGTH")))
         C.write("static const J1939Tp_RxChannelType J1939Tp_RxChannels[] = {\n")
         for i, chl in enumerate(cfg["RxChannels"]):
-            name = chl["name"]
+            name = chl["Name"]
             C.write("  { /* %s */\n" % (name))
             C.write("    &J1939Tp_RxChannelContexts[%s],\n" % (i))
-            C.write("    u8Rx%sData,\n" % (chl["name"]))
+            C.write("    u8Rx%sData,\n" % (chl["Name"]))
             C.write("    /* PduR_RxPduId */ PDUR_%s_RX,\n" % (name))
             protocol = chl["Protocol"]
             if protocol == "CMDT":
@@ -108,22 +108,22 @@ def Gen_J1939Tp(cfg, dir):
             C.write("    /* T4 */ J1939TP_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (chl.get("T4", 1050)))
             C.write("    /* RxProtocol */ J1939TP_PROTOCOL_%s,\n" % (protocol))
             C.write("    /* RxPacketsPerBlock */ %su,\n" % (chl.get("PacketsPerBlock", 8)))
-            C.write("    /* LL_DL */ sizeof(u8Rx%sData),\n" % (chl["name"]))
+            C.write("    /* LinkLayerDataLength */ sizeof(u8Rx%sData),\n" % (chl["Name"]))
             C.write("    /* S */ %su,\n" % (chl.get("S", 0)))
             C.write("    /* ADType */ 0u,\n")
-            C.write("    %su, /* padding */\n" % (chl.get("padding", 0x55)))
+            C.write("    %su, /* Padding */\n" % (chl.get("Padding", 0x55)))
             C.write("  },\n")
         C.write("};\n\n")
     if numTxChls > 0:
         C.write("static J1939Tp_TxChannelContextType J1939Tp_TxChannelContexts[%s];\n" % (numTxChls))
         for chl in cfg["TxChannels"]:
-            C.write("static uint8_t u8Tx%sData[%s];\n" % (chl["name"], chl.get("LL_DL", "J1939TP_LL_DL")))
+            C.write("static uint8_t u8Tx%sData[%s];\n" % (chl["Name"], chl.get("LinkLayerDataLength", "J1939TP_LINK_LAYER_DATA_LENGTH")))
         C.write("static const J1939Tp_TxChannelType J1939Tp_TxChannels[] = {\n")
         for i, chl in enumerate(cfg["TxChannels"]):
-            name = chl["name"]
+            name = chl["Name"]
             C.write("  { /* %s */\n" % (name))
             C.write("    &J1939Tp_TxChannelContexts[%s],\n" % (i))
-            C.write("    u8Tx%sData,\n" % (chl["name"]))
+            C.write("    u8Tx%sData,\n" % (chl["Name"]))
             C.write("    /* TxPgPGN */ %su,\n" % (chl["PgPGN"]))
             C.write("    /* PduR_TxPduId */ PDUR_%s_TX,\n" % (name))
             C.write("    /* CanIf_TxDirectNPdu */ CANIF_%s_DIRECT_TX,\n" % (name))
@@ -137,34 +137,34 @@ def Gen_J1939Tp(cfg, dir):
             C.write("    /* T4 */ J1939TP_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (chl.get("T4", 1050)))
             C.write("    /* TxProtocol */ J1939TP_PROTOCOL_%s,\n" % (chl["Protocol"]))
             C.write("    /* TxPacketsPerBlock */ %su,\n" % (chl.get("PacketsPerBlock", 8)))
-            C.write("    /* LL_DL */ sizeof(u8Tx%sData),\n" % (chl["name"]))
+            C.write("    /* LinkLayerDataLength */ sizeof(u8Tx%sData),\n" % (chl["Name"]))
             C.write("    /* S */ %su,\n" % (chl.get("S", 0)))
             C.write("    /* ADType */ 0u,\n")
-            C.write("    %su, /* padding */\n" % (chl.get("padding", 0x55)))
+            C.write("    %su, /* Padding */\n" % (chl.get("Padding", 0x55)))
             C.write("  },\n")
         C.write("};\n\n")
     for pdu in TxPdusInfo + RxPdusInfo:
         if pdu["ctype"] == "TX":
             C.write(
                 "static const J1939Tp_TxPduInfoType J1939Tp_PduInfo_%s_%s_%s = {\n"
-                % (pdu["chl"]["name"], pdu["type"], pdu["ctype"])
+                % (pdu["chl"]["Name"], pdu["Type"], pdu["ctype"])
             )
-            C.write("  /* TxChannel */ J1939TP_CHL_%s_TX,\n" % (pdu["chl"]["name"]))
-            C.write("  /* PacketType */ J1939TP_PACKET_%s,\n" % (pdu["type"]))
+            C.write("  /* TxChannel */ J1939TP_CHL_%s_TX,\n" % (pdu["chl"]["Name"]))
+            C.write("  /* PacketType */ J1939TP_PACKET_%s,\n" % (pdu["Type"]))
             C.write("};\n\n")
         else:
             C.write(
                 "static const J1939Tp_RxPduInfoType J1939Tp_PduInfo_%s_%s_%s = {\n"
-                % (pdu["chl"]["name"], pdu["type"], pdu["ctype"])
+                % (pdu["chl"]["Name"], pdu["Type"], pdu["ctype"])
             )
-            C.write("    /* RxChannel */ J1939TP_CHL_%s_RX,\n" % (pdu["chl"]["name"]))
-            C.write("    /* PacketType */ J1939TP_PACKET_%s,\n" % (pdu["type"]))
+            C.write("    /* RxChannel */ J1939TP_CHL_%s_RX,\n" % (pdu["chl"]["Name"]))
+            C.write("    /* PacketType */ J1939TP_PACKET_%s,\n" % (pdu["Type"]))
             C.write("};\n\n")
     if len(TxPdusInfo) > 0:
         C.write("static const J1939Tp_PduInfoType J1939Tp_TxPduInfos[] = {\n")
         for pdu in TxPdusInfo:
             C.write("  {\n")
-            C.write("    { &J1939Tp_PduInfo_%s_%s_%s },\n" % (pdu["chl"]["name"], pdu["type"], pdu["ctype"]))
+            C.write("    { &J1939Tp_PduInfo_%s_%s_%s },\n" % (pdu["chl"]["Name"], pdu["Type"], pdu["ctype"]))
             C.write("    J1939TP_%s_CHANNEL,\n" % (pdu["ctype"]))
             C.write("  },\n")
         C.write("};\n\n")
@@ -172,7 +172,7 @@ def Gen_J1939Tp(cfg, dir):
         C.write("static J1939Tp_PduInfoType J1939Tp_RxPduInfos[] = {\n")
         for pdu in RxPdusInfo:
             C.write("  {\n")
-            C.write("    { &J1939Tp_PduInfo_%s_%s_%s },\n" % (pdu["chl"]["name"], pdu["type"], pdu["ctype"]))
+            C.write("    { &J1939Tp_PduInfo_%s_%s_%s },\n" % (pdu["chl"]["Name"], pdu["Type"], pdu["ctype"]))
             C.write("    J1939TP_%s_CHANNEL,\n" % (pdu["ctype"]))
             C.write("  },\n")
         C.write("};\n\n")

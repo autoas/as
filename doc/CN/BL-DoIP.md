@@ -7,6 +7,16 @@ comments: true
 
 # 主机模拟器上的 BL over DoIP 示例
 
+> **一句话**：`DoIPBL` 在主机模拟器上运行完整的 BL 烧写协议栈，只是把 CAN 传输换成以太网上的 DoIP（SoAd/TcpIp），`Loader` PC 工具通过 UDP/TCP 13400 端口即可烧写；它还可以作为 DoIP 转 CAN 网关，远程烧写 `CanBL` 目标。
+
+| | |
+| --- | --- |
+| 应用 | `app/bootloader`，构建为 `DoIPBL`（`USE_BL` + `USE_TCPIP`/`USE_SOAD`/`USE_DOIP`） |
+| 协议栈 | DoIP -> PduR -> Dcm -> BL，外加可选的 DoIP -> CanTp 网关 |
+| 配置 | `app/bootloader/config/Net/*.json`（Network/PduR/Dcm/Mempool/CanTp） |
+| PC 工具 | `Loader -d DOIP.<ip>` |
+| 相关 | [BL](BL.md)、[DoIP](DoIP.md)、[BL-DoIP-QEMU](BL-DoIP-QEMU.md) |
+
 ## 目录
 
 1. [简介](#1-简介)
@@ -60,7 +70,7 @@ graph TB
 DoIP 会自动创建两个 SoAd socket：
 
 - 一个 UDP socket，加入车辆识别发现多播组 `224.244.224.245:13400`。
-- 一个 TCP 服务端 socket，监听 `13400` 端口（最多 `max_connections` 个连接）。
+- 一个 TCP 服务端 socket，监听 `13400` 端口（最多 `MaxConnections` 个连接）。
 
 TCP 连接建立后，诊断仪以源地址 `0xbeef` 发送路由激活请求；激活成功后，UDS 请求以目标地址 `0xdead` 路由到 Dcm。
 
@@ -70,7 +80,7 @@ DoIP 相关的所有配置位于 `app/bootloader/config/Net`：
 
 | 文件 | 内容 |
 | --- | --- |
-| `Network.json` | DoIP 模块：发现地址、`max_connections`、名为 `P2P` 的目标（逻辑地址 `0xdead`）、`default` 例程与地址为 `0xbeef` 的 `default` 诊断仪 |
+| `Network.json` | DoIP 模块：发现地址、`MaxConnections`、名为 `P2P` 的目标（逻辑地址 `0xdead`）、`default` 例程与地址为 `0xbeef` 的 `default` 诊断仪 |
 | `Dcm.json` | DoIPBL 专用的 Dcm 配置，仅 `P2P` 物理通道用于路由（`P2A` 通道仅为满足生成器要求而保留） |
 | `PduR.json` | PduR 路由：`P2P_RX` 从 DoIP 到 Dcm，`P2P_TX` 从 Dcm 到 DoIP |
 | `Mempool.json` | SoAd/DoIP 使用的内存池（名为 `Net` 的 `MemCluster`） |
@@ -224,7 +234,7 @@ graph TB
 | --- | --- |
 | `Network.json` | 新增目标：`CAN_BL`（地址 `0x0731`，节点 CAN 发送 id `0x731`）；新增例程/诊断仪 `CANBL`，诊断仪地址 `0x0E80` |
 | `PduR.json` | TP 网关路由 `CAN_BL_RX`（DoIP -> CanTp）与 `CAN_BL_TX`（CanTp -> DoIP），并配置 `DestBufferSize: 4096`（TP 网关缓冲必须配置，否则 DoIP 回 NACK `0x08`） |
-| `CanTp.json` | 一个 TP 网关通道 `CAN_BL`（`LL_DL: 64`，路由的源/目的 PduId 由 PduR 配置推导） |
+| `CanTp.json` | 一个 TP 网关通道 `CAN_BL`（`LinkLayerDataLength: 64`，路由的源/目的 PduId 由 PduR 配置推导） |
 
 网关的 CAN 发送 id 与接收过滤 id 由 `app/bootloader/SConscript` 中的编译定义静态给出（`CAN_DIAG_P2P_TX=0x731`、`CAN_DIAG_P2P_RX=0x732`），`main.c` 的胶水逻辑以这些宏为默认值，命令行 `-t`/`-r` 可在运行时覆盖。
 
@@ -249,11 +259,16 @@ build\nt\GCC\DoIPBL\DoIPBL.exe
 # 终端 3：通过 DoIP 烧写 CAN 应用，诊断仪 SA 0xE80，目标 TA 0x731
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
 
-# 烧写 B 分区（无需重启）
+# 烧写 B 分区：先重启 CAN 目标（见下）
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.B.sign
 ```
 
 烧写成功时最后出现 `progress 100.00%`（约 2-3 kbps，每个 UDS 请求都经 CAN TP 穿过网关）。最终 ECU 复位后，CanBL 校验应用完整性、激活被烧写的分区并跳转到 `CanApp.exe`。
+
+两点注意：
+
+1. `CanBL` 与主机版 `DoIPBL` 不同，它**不忽略复位**：烧完 A 分区后它会校验并跳转到 `CanApp.exe`，因此再烧 B 分区必须先结束 `CanBL`、删除仓库根目录的 `Flash.img`、重新启动它。`DoIPBL` 自身那条链路（第 6 节）仍然可以连续烧写 A、B 而无需重启。
+2. 仓库根目录若残留上一次的 `Flash.img`，`CanBL` 一启动就判定应用有效直接跳走，此时 Loader 会停在 `level 1 security access` 并报 `loader failed`；删掉 `Flash.img` 再启动即可（`Flash.img` 是 `*.img` 忽略文件，可随时删除）。
 
 ### 7.3 Loader 端的 SA/TA 映射
 

@@ -4,8 +4,8 @@
  *
  * ref: Specification of Socket Adaptor AUTOSAR CP Release 4.4.0
  */
-#ifndef _SOAD_PRIV_H
-#define _SOAD_PRIV_H
+#ifndef SOAD_PRIV_H
+#define SOAD_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "TcpIp.h"
@@ -86,9 +86,9 @@ typedef struct {
   SoAd_SoConIdType SoConId; /* where the accepted connection socket id start from*/
   uint16_t Port;
   uint16_t LocalPort; /* only valid for client, others 0 */
-  uint16_t headerLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
+  uint16_t HeaderLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
   TcpIp_LocalAddrIdType LocalAddrId;
-  uint8_t numOfConnections; /* max number of accepted connections */
+  uint8_t NumOfConnections; /* max number of accepted connections */
   boolean AutomaticSoConSetup;
   boolean IsMulitcast; /* if True, the Remote is a multicast UDP IPv4 address */
 } SoAd_SocketConnectionGroupType;
@@ -96,30 +96,30 @@ typedef struct {
 typedef uint8_t SoAd_SocketStateType;
 
 typedef struct {
-  uint8_t *data; /* data allocated to recive a packet */
-  TcpIp_SocketIdType sock;
-  PduLengthType length; /* length of the whole packet size */
-  PduLengthType offset;
+  uint8_t *Data; /* data allocated to recive a packet */
+  TcpIp_SocketIdType Sock;
+  PduLengthType Length; /* length of the whole packet size */
+  PduLengthType Offset;
   TcpIp_SockAddrType RemoteAddr;
   TcpIp_SockAddrType LocalAddr;
-  SoAd_SocketStateType state;
-  uint8_t flag;
+  SoAd_SocketStateType State;
+  uint8_t Flag;
 #if SOAD_ERROR_COUNTER_LIMIT > 0
-  uint8_t errorCounter;
+  uint8_t ErrorCounter;
 #endif
 } SoAd_SocketContextType;
 
 struct SoAd_Config_s {
   const SoAd_SocketConnectionType *Connections;
   SoAd_SocketContextType *Contexts;
-  uint16_t numOfConnections;
+  uint16_t NumOfConnections;
   const SoAd_SoConIdType *TxPduIdToSoCondIdMap;
-  uint8_t numOfTxPduIds;
+  uint8_t NumOfTxPduIds;
   const SoAd_SocketConnectionGroupType *ConnectionGroups;
-  uint16_t numOfGroups;
+  uint16_t NumOfGroups;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _SOAD_PRIV_H */
+#endif /* SOAD_PRIV_H */

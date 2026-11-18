@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UICAN_HPP__
-#define __UICAN_HPP__
+#ifndef UICAN_HPP
+#define UICAN_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QTextEdit>
@@ -37,34 +37,34 @@ public slots:
 
 private:
   void timerEvent(QTimerEvent *event);
-  void on_btnOpen(int id);
-  void onCanSend(void);
-  void onCanRead(void);
-  void onCanStdoutRead(void);
+  void OnBtnOpen(int id);
+  void OnCanSend(void);
+  void OnCanRead(void);
+  void OnCanStdoutRead(void);
 
 private:
   static constexpr int MAX_BUS = 4;
   int m_BusID[MAX_BUS];
-  std::vector<QComboBox *> m_cmbxCanDevice;
-  std::vector<QComboBox *> m_cmbxCanPort;
-  std::vector<QComboBox *> m_cmbxCanBaud;
-  std::vector<QPushButton *> m_btnOpen;
-  QComboBox *m_cmbxBusID;
-  QLineEdit *m_leCanID;
-  QLineEdit *m_leCanData;
-  QLineEdit *m_leCanPeriod;
-  QPushButton *m_btnSend;
+  std::vector<QComboBox *> m_CmbxCanDevice;
+  std::vector<QComboBox *> m_CmbxCanPort;
+  std::vector<QComboBox *> m_CmbxCanBaud;
+  std::vector<QPushButton *> m_BtnOpen;
+  QComboBox *m_CmbxBusID;
+  QLineEdit *m_LeCanID;
+  QLineEdit *m_LeCanData;
+  QLineEdit *m_LeCanPeriod;
+  QPushButton *m_BtnSend;
   QTabWidget *m_Tab;
-  QTextEdit *m_teCanTrace;
-  QCheckBox *m_cbxCanTraceEnable;
-  QPushButton *m_btnCanTraceClear;
-  QTextEdit *m_teCanStdout;
-  QLineEdit *m_leCanStdin;
-  QCheckBox *m_cbxCanStdoutEnable;
+  QTextEdit *m_TeCanTrace;
+  QCheckBox *m_CbxCanTraceEnable;
+  QPushButton *m_BtnCanTraceClear;
+  QTextEdit *m_TeCanStdout;
+  QLineEdit *m_LeCanStdin;
+  QCheckBox *m_CbxCanStdoutEnable;
 
-  int m_traceTimer = -1;
-  int m_canSendTimer = -1;
-  int m_canStdoutTimer = -1;
+  int m_TraceTimer = -1;
+  int m_CanSendTimer = -1;
+  int m_CanStdoutTimer = -1;
 
   Std_TimerType m_Timer;
 };
@@ -72,4 +72,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UICAN_HPP__ */
+#endif /* UICAN_HPP */

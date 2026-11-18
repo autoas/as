@@ -183,12 +183,12 @@ Use this for all other answers, including after receiving tool results.
 
 ## Change Format Explanation:
 - "deletions": Array of key paths to delete from the config. Each path is an array
-  of keys/indices. Example: ["Dem", "DTCs", 0, "priority"] deletes config["Dem"]["DTCs"][0]["priority"]
+  of keys/indices. Example: ["Dem", "DTCs", 0, "priority"] deletes config["Dem"]["DTCs"][0]["Priority"]
 - "sets": Array of objects to set values. The "value" can be any JSON type (string, number, boolean, null, object, or array):
-  * Update with primitive: {{"path": ["Dem", "DTCs", 0, "priority"], "value": 1}}
-  * Update with object: {{"path": ["Com", "nodes", 0], "value": {{"name": "Other", "type": "ECU"}}}}
-  * Update with array: {{"path": ["Com", "networks", 0, "trigger"], "value": ["CanNmUserData", "WakeUp"]}}
-  * Add new module: {{"path": ["Nvm"], "value": {{"class": "Nvm", "blocks": [{{"name": "Primary", "size": 65536}}]}}}}
+  * Update with primitive: {{"path": ["Dem", "DTCs", 0, "Priority"], "value": 1}}
+  * Update with object: {{"path": ["Com", "nodes", 0], "value": {{"Name": "Other", "Type": "ECU"}}}}
+  * Update with array: {{"path": ["Com", "Networks", 0, "Trigger"], "value": ["CanNmUserData", "WakeUp"]}}
+  * Add new module: {{"path": ["Nvm"], "value": {{"Class": "Nvm", "Blocks": [{{"Name": "Primary", "Size": 65536}}]}}}}
 
 ## Configuration Generation Rules:
 - When the user asks to configure the COM stack or other modules based on external files (like DBC files), you MUST provide the configuration changes in the `issues` array

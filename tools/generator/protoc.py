@@ -14,9 +14,9 @@ def Gen(cfg):
     with open(cfg) as f:
         cfg = json.load(f)
     cmd = "protoc -I=%s" % (cwd)
-    for t in cfg.get("types", ["cpp"]):
+    for t in cfg.get("Types", ["cpp"]):
         cmd += " --%s_out=%s" % (t, dir)
-    cmd += " %s/%s" % (cwd, cfg["entry"])
+    cmd += " %s/%s" % (cwd, cfg["Entry"])
     print(cmd)
     r = os.system(cmd)
     assert 0 == r

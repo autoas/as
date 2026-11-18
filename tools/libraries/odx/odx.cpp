@@ -17,7 +17,7 @@ using namespace tinyxml2;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-template <typename T> static XMLElement *odx_find(T *root, std::vector<std::string> where) {
+template <typename T> static XMLElement *Odx_Find(T *root, std::vector<std::string> where) {
   XMLElement *next = root->FirstChildElement(where[0].c_str());
 
   for (size_t i = 1; (i < where.size()) && (nullptr != next); i++) {
@@ -37,55 +37,55 @@ template <typename T> static XMLElement *odx_find(T *root, std::vector<std::stri
 
 /* ================================ [ FUNCTIONS ] ============================================== */
 extern "C" {
-odx_t *odx_open(const char *path) {
-  odx_t *odx = nullptr;
+Odx_Type *Odx_Open(const char *path) {
+  Odx_Type *odx = nullptr;
   XMLDocument doc;
-  std::vector<odx_mem_t *> mems;
-  XMLElement *ecu_mem_ = nullptr;
+  std::vector<Odx_MemType *> mems;
+  XMLElement *ecuMem = nullptr;
   auto ret = doc.LoadFile(path);
   if (XML_SUCCESS != ret) {
     printf("ERROR: failed to load odx %s, error is %d\n", path, ret);
   } else {
-    ecu_mem_ = odx_find(&doc, {"ODX", "FLASH", "ECU-MEMS", "ECU-MEM"});
+    ecuMem = Odx_Find(&doc, {"ODX", "FLASH", "ECU-MEMS", "ECU-MEM"});
   }
 
-  while (nullptr != ecu_mem_) {
+  while (nullptr != ecuMem) {
     const char *sid = nullptr;
-    ret = ecu_mem_->QueryStringAttribute("ID", &sid);
+    ret = ecuMem->QueryStringAttribute("ID", &sid);
     if ((XML_SUCCESS == ret) && (nullptr != sid)) {
-      std::vector<odx_block_t *> blocks;
-      XMLElement *flash_data_ = odx_find(ecu_mem_, {"MEM", "FLASHDATAS", "FLASHDATA"});
-      while (nullptr != flash_data_) {
-        auto its_name = flash_data_->FirstChildElement("SHORT-NAME");
-        auto its_data = flash_data_->FirstChildElement("DATA");
-        if ((nullptr != its_name) && (nullptr != its_data)) {
-          auto name = its_name->GetText();
-          auto data = its_data->GetText();
-          odx_block_t *block = new odx_block_t;
-          block->name = strdup(name);
+      std::vector<Odx_BlockType *> blocks;
+      XMLElement *flashData = Odx_Find(ecuMem, {"MEM", "FLASHDATAS", "FLASHDATA"});
+      while (nullptr != flashData) {
+        auto itsName = flashData->FirstChildElement("SHORT-NAME");
+        auto itsData = flashData->FirstChildElement("DATA");
+        if ((nullptr != itsName) && (nullptr != itsData)) {
+          auto name = itsName->GetText();
+          auto data = itsData->GetText();
+          Odx_BlockType *block = new Odx_BlockType;
+          block->Name = strdup(name);
           size_t len = strlen(data) / 2;
-          block->data = new uint8_t[len];
-          block->size = len;
+          block->Data = new uint8_t[len];
+          block->Size = len;
           char txt[3] = {0, 0, 0};
           for (size_t i = 0; i < len; i++) {
             txt[0] = data[2 * i];
             txt[1] = data[2 * i + 1];
-            block->data[i] = strtoul(txt, nullptr, 16);
+            block->Data[i] = strtoul(txt, nullptr, 16);
           }
           blocks.push_back(block);
         } else {
           printf("ERROR: %s found FLASHDATA either has no SHORT-NAME or DATA\n", path);
         }
-        flash_data_ = flash_data_->NextSiblingElement("FLASHDATA");
+        flashData = flashData->NextSiblingElement("FLASHDATA");
       }
       if (blocks.size() > 0) {
-        odx_mem_t *mem = new odx_mem_t;
-        mem->name = strdup(sid);
-        mem->blocks = new odx_block_t *[blocks.size()];
+        Odx_MemType *mem = new Odx_MemType;
+        mem->Name = strdup(sid);
+        mem->Blocks = new Odx_BlockType *[blocks.size()];
         for (size_t i = 0; i < blocks.size(); i++) {
-          mem->blocks[i] = blocks[i];
+          mem->Blocks[i] = blocks[i];
         }
-        mem->numOfBlocks = blocks.size();
+        mem->NumOfBlocks = blocks.size();
         mems.push_back(mem);
       } else {
         printf("ERROR: %s empty FLASHDATAS\n", path);
@@ -93,32 +93,32 @@ odx_t *odx_open(const char *path) {
     } else {
       printf("ERROR: %s found ECU-MEM has no ID\n", path);
     }
-    ecu_mem_ = ecu_mem_->NextSiblingElement("ECU-MEM");
+    ecuMem = ecuMem->NextSiblingElement("ECU-MEM");
   }
 
   if (mems.size() > 0) {
-    odx = new odx_t;
-    odx->mems = new odx_mem_t *[mems.size()];
+    odx = new Odx_Type;
+    odx->Mems = new Odx_MemType *[mems.size()];
     for (size_t i = 0; i < mems.size(); i++) {
-      odx->mems[i] = mems[i];
+      odx->Mems[i] = mems[i];
     }
-    odx->numOfMems = mems.size();
+    odx->NumOfMems = mems.size();
   }
 
   return odx;
 }
 
-void odx_close(odx_t *odx) {
-  for (size_t i = 0; i < odx->numOfMems; i++) {
-    auto mem = odx->mems[i];
-    for (size_t j = 0; j < mem->numOfBlocks; j++) {
-      auto block = mem->blocks[j];
-      delete[] block->data;
-      free(block->name);
+void Odx_Close(Odx_Type *odx) {
+  for (size_t i = 0; i < odx->NumOfMems; i++) {
+    auto mem = odx->Mems[i];
+    for (size_t j = 0; j < mem->NumOfBlocks; j++) {
+      auto block = mem->Blocks[j];
+      delete[] block->Data;
+      free(block->Name);
       delete block;
     }
-    delete[] mem->blocks;
-    free(mem->name);
+    delete[] mem->Blocks;
+    free(mem->Name);
     delete mem;
   }
   delete odx;

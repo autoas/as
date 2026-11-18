@@ -14,6 +14,6 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType PduR_DcmTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr) {
-  return PduR_TpTransmit(TxPduId, PduInfoPtr);
+Std_ReturnType PduR_DcmTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr) {
+  return PduR_TpTransmit(txPduId, pduInfoPtr);
 }

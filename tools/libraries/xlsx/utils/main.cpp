@@ -43,16 +43,16 @@ int main(int argc, char *argv[]) {
 
   XLTester tester;
 
-  r = tester.start(spec);
+  r = tester.Start(spec);
 
   if (0 != r) {
-    printf("%s", tester.getMsg().c_str());
+    printf("%s", tester.GetMsg().c_str());
   } else {
     int progress = 0;
     int lastProgress = 0;
     do {
-      progress = tester.getProgress();
-      auto msg = tester.getMsg();
+      progress = tester.GetProgress();
+      auto msg = tester.GetMsg();
       if (msg.size() > 0) {
         printf("%s", msg.c_str());
       }

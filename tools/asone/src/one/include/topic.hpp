@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __TOPIC_HPP__
-#define __TOPIC_HPP__
+#ifndef TOPIC_HPP
+#define TOPIC_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <vector>
 #include <string>
@@ -19,18 +19,18 @@ namespace topic {
 /* ================================ [ TYPES     ] ============================================== */
 namespace com {
 struct Signal {
-  std::string name;
-  std::string value;
+  std::string Name;
+  std::string Value;
 };
 
 struct Message {
-  std::string name;
-  std::string network;
-  std::string dir;
-  std::string id;
-  std::string dlc;
-  std::string data;
-  std::string timestamp;
+  std::string Name;
+  std::string Network;
+  std::string Dir;
+  std::string Id;
+  std::string Dlc;
+  std::string Data;
+  std::string Timestamp;
   std::vector<Signal> Signals;
 };
 
@@ -39,7 +39,7 @@ public:
   Publisher(std::string name);
   ~Publisher();
 
-  void push(std::shared_ptr<Message> msg);
+  void Push(std::shared_ptr<Message> msg);
 
 private:
   MessagePublisher<std::shared_ptr<Message>> m_Pub;
@@ -50,19 +50,19 @@ public:
   Subscriber(std::string name, uint32_t capability = 256);
   ~Subscriber();
 
-  std::shared_ptr<Message> pop(void);
+  std::shared_ptr<Message> Pop(void);
 
 private:
   MessageSubscriber<std::shared_ptr<Message>> m_Sub;
 };
 
-std::vector<std::string> topics();
+std::vector<std::string> Topics();
 } /* namespace com */
 
 namespace figure {
 struct Point {
-  float x;
-  float y;
+  float X;
+  float Y;
 };
 
 enum LineType {
@@ -73,24 +73,24 @@ enum LineType {
 };
 
 struct LineConfig {
-  LineType type = LineType::LINE;
-  std::string name;
+  LineType Type = LineType::LINE;
+  std::string Name;
 };
 
 struct FigureConfig {
-  std::string name;
-  std::string titleX = "x";
-  std::string titleY = "y";
-  float minX = 0;
-  float maxX = 10;
-  float minY = 0;
-  float maxY = 10;
-  std::vector<LineConfig> lines;
+  std::string Name;
+  std::string TitleX = "X";
+  std::string TitleY = "Y";
+  float MinX = 0;
+  float MaxX = 10;
+  float MinY = 0;
+  float MaxY = 10;
+  std::vector<LineConfig> Lines;
 };
 
-std::shared_ptr<MessageQueue<FigureConfig>> config(void);
-std::shared_ptr<MessageQueue<Point>> line(std::string figure, std::string line);
-std::shared_ptr<MessageQueue<Point>> find_line(std::string figure, std::string line);
+std::shared_ptr<MessageQueue<FigureConfig>> Config(void);
+std::shared_ptr<MessageQueue<Point>> Line(std::string figure, std::string line);
+std::shared_ptr<MessageQueue<Point>> FindLine(std::string figure, std::string line);
 
 } /* namespace figure */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -99,4 +99,4 @@ std::shared_ptr<MessageQueue<Point>> find_line(std::string figure, std::string l
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace topic */
 } /* namespace as */
-#endif /* __TOPIC_HPP__ */
+#endif /* TOPIC_HPP */

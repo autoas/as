@@ -3,8 +3,8 @@
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  *
  */
-#ifndef _FACTORY_H
-#define _FACTORY_H
+#ifndef FACTORY_H
+#define FACTORY_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -14,7 +14,6 @@
 #define FACTORY_E_EVENT 10u
 /* Stop this factory */
 #define FACTORY_E_STOP 11u
-
 
 #define FACTORY_MAX_MACHINES 80u
 /* from 20 to 99, map machine 0 to 79, switch to that machine */
@@ -78,4 +77,4 @@ Std_ReturnType factory_on_event(const factory_t *factory, uint8_t eventId);
 Std_ReturnType factory_start_machine(const factory_t *factory, uint8_t machineId);
 
 uint8_t factory_get_state(const factory_t *factory);
-#endif /* _FACTORY_H */
+#endif /* FACTORY_H */

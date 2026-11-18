@@ -56,13 +56,13 @@ typedef struct {
 typedef struct {
   PduR_ModuleType Module;
   PduIdType PduHandleId;
-  const PduR_ApiType *api;
+  const PduR_ApiType *Api;
 } PduR_PduType;
 
 typedef struct {
-  uint8_t *data;
-  PduLengthType size;
-  PduLengthType index;
+  uint8_t *Data;
+  PduLengthType Size;
+  PduLengthType Index;
 } PduR_BufferType;
 
 /* @ECUC_PduR_00248 */
@@ -72,30 +72,30 @@ typedef struct {
   PduR_BufferType *DestTxBufferRef; /* @ECUC_PduR_00304 */
   uint8_t *GwBuffer;                /* static gateway dest buffer */
   PduLengthType GwBufferSize;
-  uint16_t numOfDestPdus;
+  uint16_t NumOfDestPdus;
 } PduR_RoutingPathType;
 
 struct PduR_Config_s {
 #if defined(PDUR_USE_MEMPOOL)
-  const mem_cluster_t *mc;
+  const mem_cluster_t *Mc;
 #endif
   const PduR_RoutingPathType *RoutingPaths;
-  uint16_t numOfRoutingPaths;
+  uint16_t NumOfRoutingPaths;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 extern const PduR_ConfigType PduR_Config;
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *PduInfoPtr);
+Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *pduInfoPtr);
 BufReq_ReturnType PduR_CopyTxData(PduIdType pathId, const PduInfoType *info,
                                   const RetryInfoType *retry, PduLengthType *availableDataPtr);
 void PduR_TxConfirmation(PduIdType pathId, Std_ReturnType result);
-void PduR_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
-Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *PduInfoPtr);
+void PduR_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
+Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *pduInfoPtr);
 
 BufReq_ReturnType PduR_StartOfReception(PduIdType pathId, const PduInfoType *info,
-                                        PduLengthType TpSduLength, PduLengthType *bufferSizePtr);
+                                        PduLengthType tpSduLength, PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_CopyRxData(PduIdType pathId, const PduInfoType *info,
                                   PduLengthType *bufferSizePtr);
 void PduR_TpRxIndication(PduIdType pathId, Std_ReturnType result);
@@ -105,7 +105,7 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
 void PduR_GwTxConfirmation(PduIdType pathId, Std_ReturnType result);
 
 BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *info,
-                                          PduLengthType TpSduLength, PduLengthType *bufferSizePtr);
+                                          PduLengthType tpSduLength, PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_GwCopyRxData(PduIdType pathId, const PduInfoType *info,
                                     PduLengthType *bufferSizePtr);
 void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result);
@@ -116,7 +116,7 @@ BufReq_ReturnType PduR_CanTpGwCopyTxData(PduIdType id, const PduInfoType *info,
 void PduR_CanTpGwTxConfirmation(PduIdType id, Std_ReturnType result);
 
 BufReq_ReturnType PduR_CanTpGwStartOfReception(PduIdType id, const PduInfoType *info,
-                                               PduLengthType TpSduLength,
+                                               PduLengthType tpSduLength,
                                                PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_CanTpGwCopyRxData(PduIdType id, const PduInfoType *info,
                                          PduLengthType *bufferSizePtr);
@@ -128,7 +128,7 @@ BufReq_ReturnType PduR_DoIPGwCopyTxData(PduIdType id, const PduInfoType *info,
 void PduR_DoIPGwTxConfirmation(PduIdType id, Std_ReturnType result);
 
 BufReq_ReturnType PduR_DoIPGwStartOfReception(PduIdType id, const PduInfoType *info,
-                                              PduLengthType TpSduLength,
+                                              PduLengthType tpSduLength,
                                               PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
                                         PduLengthType *bufferSizePtr);
@@ -140,7 +140,7 @@ BufReq_ReturnType PduR_LinTpGwCopyTxData(PduIdType id, const PduInfoType *info,
 void PduR_LinTpGwTxConfirmation(PduIdType id, Std_ReturnType result);
 
 BufReq_ReturnType PduR_LinTpGwStartOfReception(PduIdType id, const PduInfoType *info,
-                                               PduLengthType TpSduLength,
+                                               PduLengthType tpSduLength,
                                                PduLengthType *bufferSizePtr);
 BufReq_ReturnType PduR_LinTpGwCopyRxData(PduIdType id, const PduInfoType *info,
                                          PduLengthType *bufferSizePtr);

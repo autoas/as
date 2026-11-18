@@ -43,12 +43,16 @@ extern "C" {
 #ifndef PRINTF
 #if defined(linux) || defined(_WIN32)
 #define PRINTF printf
+#elif defined(__HIWARE__)
+/* CodeWarrior HC12 preprocessor does not support C99 variadic macros,
+ * all its usages are the ASLOG "PRINTF msg" double parenthesized pattern */
+#define PRINTF(msg)
 #else
 #define PRINTF(fmt, ...)
 #endif
 #endif
 
-#ifdef USE_STD_DEBUG
+#if defined(USE_STD_DEBUG) && !defined(__HIWARE__)
 #define ASLOG(level, msg)                                                                          \
   do {                                                                                             \
     if ((AS_LOG_LEVEL(level)) >= AS_LOG_DEFAULT) {                                                 \
@@ -93,7 +97,17 @@ extern "C" {
 #define ASLOG(level, msg)
 #define ASPRINT(level, msg)
 #define ASHEXDUMP(level, msg, data, size)
+#if defined(__HIWARE__)
+#define asAssert(e)                                                                                \
+  do {                                                                                             \
+    if (!(e)) {                                                                                    \
+      while (1)                                                                                    \
+        ;                                                                                          \
+    }                                                                                              \
+  } while (0)
+#else
 #define asAssert(e)
+#endif
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */

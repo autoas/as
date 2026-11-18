@@ -28,91 +28,91 @@ boolean Sd_ServerService{{ service_name }}_CRMC(PduIdType pduID, uint8_t type, u
 Std_ReturnType {{ service_name }}_OfferService(void);
 Std_ReturnType {{ service_name }}_StopOfferService(void);
 
-{% for eg in service.get('event-groups', []) %}
-{% for event in eg['events'] %}
+{% for eg in Service.get('EventGroups', []) %}
+{% for event in eg['Events'] %}
 {% if 'for' not in event %}
-Std_ReturnType {{ service_name }}_Send{{ event['name'] }}({{ GetArgTypeC(event, allStructs) }} sample);
-void {{ service_name }}_On{{ event['name'] }}Subscribed(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr);
+Std_ReturnType {{ service_name }}_Send{{ event['Name'] }}({{ GetArgTypeC(event, allStructs) }} sample);
+void {{ service_name }}_On{{ event['Name'] }}Subscribed(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr);
 {% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-{% set ReturnType = method.get('return', 'void') %}
+{% set ReturnType = method.get('Return', 'void') %}
 {% set Args = [] %}
 {% set ArgsR = [] %}
-{% if 'args' in method %}
-{% set args = GetArgs(cfg, method['args']) %}
+{% if 'Args' in method %}
+{% set args = GetArgs(cfg, method['Args']) %}
 {% for arg in args %}
-{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['name']) %}
+{% set _ = Args.append('const ' ~ GetArgTypeC(arg, allStructs) ~ ' ' ~ arg['Name']) %}
 {% endfor %}
 {% endif %}
 {% if ReturnType != 'void' %}
 {% set _ = ArgsR.append(GetXfCType(ReturnType, allStructs) ~ ' *return' ~ ReturnType) %}
 {% endif %}
-Std_ReturnType {{ service_name }}_{{ method['name'] }}({{ Args | join(', ') }}{% if Args and ArgsR %}, {% endif %}{{ ArgsR | join(', ') }});
-Std_ReturnType {{ service_name }}_{{ method['name'] }}_Async({{ ArgsR | join(', ') }});
+Std_ReturnType {{ service_name }}_{{ method['Name'] }}({{ Args | join(', ') }}{% if Args and ArgsR %}, {% endif %}{{ ArgsR | join(', ') }});
+Std_ReturnType {{ service_name }}_{{ method['Name'] }}_Async({{ ArgsR | join(', ') }});
 {% endif %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-{% if 'event' in field %}
-Std_ReturnType {{ service_name }}_Update{{ field['name'] }}({{ GetArgTypeC(field, allStructs) }} field);
-void {{ service_name }}_On{{ field['name'] }}Subscribed(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr);
+{% for field in Service.get('Fields', []) %}
+{% if 'Event' in field %}
+Std_ReturnType {{ service_name }}_Update{{ field['Name'] }}({{ GetArgTypeC(field, allStructs) }} field);
+void {{ service_name }}_On{{ field['Name'] }}Subscribed(boolean isSubscribe, TcpIp_SockAddrType *RemoteAddr);
 {% endif %}
-{% if 'get' in field %}
-Std_ReturnType {{ service_name }}_Get{{ field['name'] }}({{ GetXfCType(field, allStructs) }} *field);
-Std_ReturnType {{ service_name }}_Get{{ field['name'] }}_Async({{ GetXfCType(field, allStructs) }} *field);
+{% if 'Get' in field %}
+Std_ReturnType {{ service_name }}_Get{{ field['Name'] }}({{ GetXfCType(field, allStructs) }} *field);
+Std_ReturnType {{ service_name }}_Get{{ field['Name'] }}_Async({{ GetXfCType(field, allStructs) }} *field);
 {% endif %}
-{% if 'set' in field %}
-Std_ReturnType {{ service_name }}_Set{{ field['name'] }}({{ GetXfCType(field, allStructs) }} *field);
-Std_ReturnType {{ service_name }}_Set{{ field['name'] }}_Async({{ GetXfCType(field, allStructs) }} *field);
+{% if 'Set' in field %}
+Std_ReturnType {{ service_name }}_Set{{ field['Name'] }}({{ GetXfCType(field, allStructs) }} *field);
+Std_ReturnType {{ service_name }}_Set{{ field['Name'] }}_Async({{ GetXfCType(field, allStructs) }} *field);
 {% endif %}
 
 {% endfor %}
 
 void SomeIp_{{ service_name }}_OnConnect(uint16_t conId, boolean isConnected);
 
-{% for method in service.get('methods', []) %}
+{% for method in Service.get('Methods', []) %}
 {% if 'for' not in method %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
-{% if method.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_{{ method['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
+{% if method.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_{{ method['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 {% endfor %}
 
-{% for field in service.get('fields', []) %}
-{% if 'get' in field %}
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
-{% if field.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% for field in Service.get('Fields', []) %}
+{% if 'Get' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
+{% if field.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Get{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 
-{% if 'set' in field %}
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
-{% if field.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
-Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% if 'Set' in field %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnRequest(uint32_t requestId, SomeIp_MessageType* req, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnFireForgot(uint32_t requestId, SomeIp_MessageType* res);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnAsyncRequest(uint32_t requestId, SomeIp_MessageType* res);
+{% if field.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyRxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+Std_ReturnType SomeIp_{{ service_name }}_Set{{ field['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endif %}
 {% endfor %}
 
-{% for egroup in service.get('event-groups', []) %}
-void SomeIp_{{ service_name }}_{{ egroup['name'] }}_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);
-{% for event in egroup['events'] %}
-{% if event.get('tp', false) %}
-Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['name'] }}_{{ event['name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
+{% for egroup in Service.get('EventGroups', []) %}
+void SomeIp_{{ service_name }}_{{ egroup['Name'] }}_OnSubscribe(boolean isSubscribe, TcpIp_SockAddrType* RemoteAddr);
+{% for event in egroup['Events'] %}
+{% if event.get('Tp', false) %}
+Std_ReturnType SomeIp_{{ service_name }}_{{ egroup['Name'] }}_{{ event['Name'] }}_OnTpCopyTxData(uint32_t requestId, SomeIp_TpMessageType *msg);
 {% endif %}
 {% endfor %}
 {% endfor %}

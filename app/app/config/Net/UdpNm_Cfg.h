@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef _UDP_NM_CFG_H
-#define _UDP_NM_CFG_H
+#ifndef UDPNM_CFG_H
+#define UDPNM_CFG_H
 /* ================================ [ INCLUDES  ] ============================================== */
 /* ================================ [ MACROS    ] ============================================== */
 #ifndef UDPNM_MAIN_FUNCTION_PERIOD
@@ -32,4 +32,4 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _UDP_NM_CFG_H */
+#endif /* UDPNM_CFG_H */

@@ -211,31 +211,31 @@ void Math_add_OnResponse(Result_Type *ret);                            /* 由用
 
 ```json
 {
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
-      "SD": { "hostname": "AS", "multicast": "224.244.224.245" },
-      "structs": [
-        { "name": "Vector", "data": [
-          { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 } ] },
-        { "name": "Result", "data": [
-          { "name": "ercd", "type": "uint8" },
-          { "name": "summary", "type": "uint32" },
-          { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 } ] }
+      "Name": "SomeIp",
+      "Class": "SomeIp",
+      "SD": { "Hostname": "AS", "Multicast": "224.244.224.245" },
+      "Structs": [
+        { "Name": "Vector", "Data": [
+          { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 } ] },
+        { "Name": "Result", "Data": [
+          { "Name": "ercd", "Type": "uint8" },
+          { "Name": "summary", "Type": "uint32" },
+          { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 } ] }
       ],
-      "args": [
-        { "name": "add-args", "args": [
-          { "name": "A", "type": "Vector" }, { "name": "B", "type": "Vector" } ] }
+      "Args": [
+        { "Name": "add-args", "Args": [
+          { "Name": "A", "Type": "Vector" }, { "Name": "B", "Type": "Vector" } ] }
       ],
-      "servers": [
+      "Servers": [
         {
-          "name": "Math", "service": "0xadda", "instance": "0x1001",
-          "clientId": "0x1001", "protocol": "TCP", "reliable": 30680,
-          "methods": [
-            { "name": "add", "methodId": "0x0add", "args": "add-args",
-              "return": "Result", "tp": true, "version": "0" }
+          "Name": "Math", "Service": "0xadda", "Instance": "0x1001",
+          "ClientId": "0x1001", "Protocol": "TCP", "Reliable": 30680,
+          "Methods": [
+            { "Name": "add", "MethodId": "0x0add", "Args": "add-args",
+              "Return": "Result", "Tp": true, "Version": "0" }
           ],
           "event-groups": []
         }
@@ -250,16 +250,16 @@ void Math_add_OnResponse(Result_Type *ret);                            /* 由用
 | 元素 | 含义 |
 | --- | --- |
 | `SD.multicast` | SOME/IP-SD 使用的组播组（DoIP 发现可共用） |
-| `structs` | 用户自定义数据类型：标量/数组成员，支持定长或 `variable_array` 变长数组 |
-| `args` | 可复用的方法参数列表 |
-| `servers` / `clients` | 本节点提供/消费的服务实例，每个一条 |
-| `service` / `instance` / `clientId` | SOME/IP 服务 ID、实例 ID、客户端 ID |
-| `protocol` + `reliable` / `unreliable` | 服务使用的 TCP 端口或 UDP 端口 |
-| `methods[]` | 方法 ID、参数列表、返回结构体；`tp: true` 允许分包传输；`version` 为接口主版本 |
+| `Structs` | 用户自定义数据类型：标量/数组成员，支持定长或 `VariableArray` 变长数组 |
+| `Args` | 可复用的方法参数列表 |
+| `Servers` / `Clients` | 本节点提供/消费的服务实例，每个一条 |
+| `Service` / `Instance` / `ClientId` | SOME/IP 服务 ID、实例 ID、客户端 ID |
+| `Protocol` + `Reliable` / `Unreliable` | 服务使用的 TCP 端口或 UDP 端口 |
+| `Methods[]` | 方法 ID、参数列表、返回结构体；`tp: true` 允许分包传输；`Version` 为接口主版本 |
 | `event-groups[]` | 事件（NOTIFICATION），走 UDP，可选组播与 E2E 保护 |
 | `fields[]` | 字段的 get/set/notify 三元组（各占用一个保留方法/事件） |
 
-客户端 JSON 完全相同，只是把 `servers` 换成 `clients`。生成器据此产出 SomeIp/SomeIpXf/Sd/SoAd 的 C 配置以及 Skeleton/Proxy 代码；也可以使用 JSON Editor 工具（见 [JSON Editor 文档](./JsonEditor.md)）图形化编辑和生成。
+客户端 JSON 完全相同，只是把 `Servers` 换成 `Clients`。生成器据此产出 SomeIp/SomeIpXf/Sd/SoAd 的 C 配置以及 Skeleton/Proxy 代码；也可以使用 JSON Editor 工具（见 [JSON Editor 文档](./JsonEditor.md)）图形化编辑和生成。
 
 功能完整的示例是 [RadarService](../../app/examples/someip/ara/RadarService/Skeleton/config/Network.json)（服务 0xadaa / 实例 0x2001，UDP 端口 12345）：包含 `Adjust` 方法、`BrakeEvent` 事件组、`UpdateRate` 字段（get/set/notify）、变长数组以及 E2E P11 保护。
 

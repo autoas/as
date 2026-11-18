@@ -37,22 +37,22 @@ typedef struct {
   int s;
 } Dev_RS232ParamType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int dev_rs232_open(const char *device, const char *option, void **param);
-static int dev_rs232_read(void *param, uint8_t *data, size_t size);
-static int dev_rs232_write(void *param, const uint8_t *data, size_t size);
-static void dev_rs232_close(void *param);
-static int dev_rs232_ioctl(void *param, int type, const void *data, size_t size);
+static int Dev_Rs232Open(const char *device, const char *option, void **param);
+static int Dev_Rs232Read(void *param, uint8_t *data, size_t size);
+static int Dev_Rs232Write(void *param, const uint8_t *data, size_t size);
+static void Dev_Rs232Close(void *param);
+static int Dev_Rs232IoCtl(void *param, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Dev_DeviceOpsType rs232_dev_ops = {
-  .name = "COM",
-  .open = dev_rs232_open,
-  .read = dev_rs232_read,
-  .write = dev_rs232_write,
-  .ioctl = dev_rs232_ioctl,
-  .close = dev_rs232_close,
+extern "C" const Dev_DeviceOpsType Dev_Rs232Ops = {
+  .Name = "COM",
+  .Open = Dev_Rs232Open,
+  .Read = Dev_Rs232Read,
+  .Write = Dev_Rs232Write,
+  .IoCtl = Dev_Rs232IoCtl,
+  .Close = Dev_Rs232Close,
 };
 /* ================================ [ LOCALS    ] ============================================== */
-static int dev_rs232_open(const char *device, const char *option, void **param) {
+static int Dev_Rs232Open(const char *device, const char *option, void **param) {
   const char *modes;
   int baudrate, port;
   int s, r = 0;
@@ -116,7 +116,7 @@ static int dev_rs232_open(const char *device, const char *option, void **param) 
   return r;
 }
 
-static int dev_rs232_read(void *param, uint8_t *data, size_t size) {
+static int Dev_Rs232Read(void *param, uint8_t *data, size_t size) {
   int len;
 
   if (CAN_TCP_SERIAL_PORT == PPARAM(param)->port) {
@@ -129,7 +129,7 @@ static int dev_rs232_read(void *param, uint8_t *data, size_t size) {
 
   return len;
 }
-static int dev_rs232_write(void *param, const uint8_t *data, size_t size) {
+static int Dev_Rs232Write(void *param, const uint8_t *data, size_t size) {
   int r = 0;
 
   if (CAN_TCP_SERIAL_PORT == PPARAM(param)->port) {
@@ -146,7 +146,7 @@ static int dev_rs232_write(void *param, const uint8_t *data, size_t size) {
   return r;
 }
 
-static void dev_rs232_close(void *param) {
+static void Dev_Rs232Close(void *param) {
   if (CAN_TCP_SERIAL_PORT == PPARAM(param)->port) {
 #ifdef _WIN32
     closesocket(PPARAM(param)->s);
@@ -159,7 +159,7 @@ static void dev_rs232_close(void *param) {
   free(param);
 }
 
-static int dev_rs232_ioctl(void *param, int type, const void *data, size_t size) {
+static int Dev_Rs232IoCtl(void *param, int type, const void *data, size_t size) {
   (void)param;
   (void)type;
   (void)data;

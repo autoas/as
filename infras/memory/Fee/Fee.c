@@ -57,17 +57,17 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  /* For backup, DataBufferPtr = adminFreeAddr of full bank  */
-  uint8_t *jobDataBufferPtr;
-  uint32_t erasedNumber;  /* The maximum erased Number of all the bank */
-  uint32_t adminFreeAddr; /* bank low address */
-  uint32_t dataFreeAddr;  /* bank high address */
-  uint32_t jobNextAddr;
-  uint32_t jobLength;
-  uint16_t jobBlockId;
-  uint16_t jobBlockOffset;
-  uint8_t curWrokingBank;
-  uint8_t retryCounter;
+  /* For backup, DataBufferPtr = AdminFreeAddr of full bank  */
+  uint8_t *JobDataBufferPtr;
+  uint32_t ErasedNumber;  /* The maximum erased Number of all the bank */
+  uint32_t AdminFreeAddr; /* bank low address */
+  uint32_t DataFreeAddr;  /* bank high address */
+  uint32_t JobNextAddr;
+  uint32_t JobLength;
+  uint16_t JobBlockId;
+  uint16_t JobBlockOffset;
+  uint8_t CurWorkingBank;
+  uint8_t RetryCounter;
 } Fee_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 extern CONSTANT(Fee_ConfigType, FEE_CONST) Fee_Config;
@@ -92,7 +92,7 @@ static void Fee_Panic(uint8_t fault) {
   Std_ReturnType ret;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  uint8_t curBank = context->curWrokingBank;
+  uint8_t curBank = context->CurWorkingBank;
 #endif
   ASLOG(
     FEEE,
@@ -100,12 +100,12 @@ static void Fee_Panic(uint8_t fault) {
      Fee_Factory.machines[Fee_Factory.context->machineId].nodes[Fee_Factory.context->nodeId].name));
 
 #ifdef FEE_USE_FAULTS
-  if (curBank > config->numOfBanks) {
+  if (curBank > config->NumOfBanks) {
     curBank = 0;
   }
   Fls_AcInit();
   do {
-    ret = Fls_AcRead(config->Banks[curBank].LowAddress + offsetof(Fee_BankAdminType, faults),
+    ret = Fls_AcRead(config->Banks[curBank].LowAddress + offsetof(Fee_BankAdminType, Faults),
                      faults, FEE_FAULTS_SIZE);
   } while (E_OK != ret);
   for (i = 0; i < FEE_FAULTS_SIZE; i++) {
@@ -115,7 +115,7 @@ static void Fee_Panic(uint8_t fault) {
     }
   }
   do {
-    ret = Fls_AcWrite(config->Banks[curBank].LowAddress + offsetof(Fee_BankAdminType, faults),
+    ret = Fls_AcWrite(config->Banks[curBank].LowAddress + offsetof(Fee_BankAdminType, Faults),
                       faults, FEE_FAULTS_SIZE);
   } while (E_OK != ret);
 #endif
@@ -181,26 +181,26 @@ static Std_ReturnType Fee_DoWrite_Admin(boolean fromBackup) {
 #endif
 
 #ifdef FLS_DIRECT_ACCESS
-  if (FEE_INVALID_ADDRESS != config->blockContexts[context->jobBlockId].Address) {
-    block = (const Fee_BlockType *)FEE_ADDRESS(config->blockContexts[context->jobBlockId].Address);
+  if (FEE_INVALID_ADDRESS != config->BlockContexts[context->JobBlockId].Address) {
+    block = (const Fee_BlockType *)FEE_ADDRESS(config->BlockContexts[context->JobBlockId].Address);
     if (TRUE == fromBackup) {
       NumberOfWriteCycles = block->NumberOfWriteCycles;
     } else {
       NumberOfWriteCycles = block->NumberOfWriteCycles + 1u;
-      if (NumberOfWriteCycles > config->Blocks[context->jobBlockId].NumberOfWriteCycles) {
-        ASLOG(FEEE, ("trigger dead block %d write\n", context->jobBlockId));
+      if (NumberOfWriteCycles > config->Blocks[context->JobBlockId].NumberOfWriteCycles) {
+        ASLOG(FEEE, ("trigger dead block %d write\n", context->JobBlockId));
         r = FEE_E_FAIL;
       }
     }
   }
 #else
-  if (FEE_INVALID_ADDRESS != config->blockContexts[context->jobBlockId].Address) {
+  if (FEE_INVALID_ADDRESS != config->BlockContexts[context->JobBlockId].Address) {
     if (TRUE == fromBackup) {
-      NumberOfWriteCycles = config->blockContexts[context->jobBlockId].NumberOfWriteCycles;
+      NumberOfWriteCycles = config->BlockContexts[context->JobBlockId].NumberOfWriteCycles;
     } else {
-      NumberOfWriteCycles = config->blockContexts[context->jobBlockId].NumberOfWriteCycles + 1u;
-      if (NumberOfWriteCycles > config->Blocks[context->jobBlockId].NumberOfWriteCycles) {
-        ASLOG(FEEE, ("trigger dead block %d write\n", context->jobBlockId));
+      NumberOfWriteCycles = config->BlockContexts[context->JobBlockId].NumberOfWriteCycles + 1u;
+      if (NumberOfWriteCycles > config->Blocks[context->JobBlockId].NumberOfWriteCycles) {
+        ASLOG(FEEE, ("trigger dead block %d write\n", context->JobBlockId));
         r = FEE_E_FAIL;
       }
     }
@@ -208,20 +208,20 @@ static Std_ReturnType Fee_DoWrite_Admin(boolean fromBackup) {
 #endif
 
   if (E_OK == r) {
-    size = config->Blocks[context->jobBlockId].BlockSize;
-    address = context->dataFreeAddr - FEE_DATA_ALIGNED(size);
-    admin = (Fee_BlockType *)config->workingArea;
-    admin->BlockNumber = context->jobBlockId + 1u;
+    size = config->Blocks[context->JobBlockId].BlockSize;
+    address = context->DataFreeAddr - FEE_DATA_ALIGNED(size);
+    admin = (Fee_BlockType *)config->WorkingArea;
+    admin->BlockNumber = context->JobBlockId + 1u;
     admin->Address = address;
     admin->NumberOfWriteCycles = NumberOfWriteCycles;
     admin->BlockSize = size;
     admin->Crc = Crc_CalculateCRC16((uint8_t *)admin, offsetof(Fee_BlockType, Crc), 0, TRUE);
     admin->InvCrc = ~(admin->Crc);
-    r = Fee_FlsWrite(context->adminFreeAddr, (uint8_t *)admin, sizeof(Fee_BlockType));
+    r = Fee_FlsWrite(context->AdminFreeAddr, (uint8_t *)admin, sizeof(Fee_BlockType));
     if (E_OK == r) {
-      context->adminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
+      context->AdminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
 #ifndef FLS_DIRECT_ACCESS
-      config->blockContexts[context->jobBlockId].NumberOfWriteCycles = NumberOfWriteCycles;
+      config->BlockContexts[context->JobBlockId].NumberOfWriteCycles = NumberOfWriteCycles;
 #endif
     }
   }
@@ -233,8 +233,8 @@ static void Fee_DoWrite_UpdateDataFreeAddr(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   uint16_t size;
-  size = config->Blocks[context->jobBlockId].BlockSize;
-  context->dataFreeAddr -= FEE_DATA_ALIGNED(size);
+  size = config->Blocks[context->JobBlockId].BlockSize;
+  context->DataFreeAddr -= FEE_DATA_ALIGNED(size);
 }
 
 static Std_ReturnType Fee_DoWrite_Data(uint8_t *jobDataBufferPtr) {
@@ -247,9 +247,9 @@ static Std_ReturnType Fee_DoWrite_Data(uint8_t *jobDataBufferPtr) {
   uint16_t *crc;
   uint16_t *invCrc;
   uint16_t i;
-  size = config->Blocks[context->jobBlockId].BlockSize;
-  address = context->dataFreeAddr;
-  data = config->workingArea;
+  size = config->Blocks[context->JobBlockId].BlockSize;
+  address = context->DataFreeAddr;
+  data = config->WorkingArea;
   if (data != jobDataBufferPtr) {
     (void)memcpy(data, jobDataBufferPtr, size);
     for (i = size; i < FEE_DATA_ALIGNED(size) - 4u; i++) {
@@ -301,42 +301,42 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
     if (block->Crc == ((uint16_t)~block->InvCrc)) {
       Crc = Crc_CalculateCRC16((uint8_t *)block, offsetof(Fee_BlockType, Crc), 0, TRUE);
       if (Crc == block->Crc) {
-        if (context->dataFreeAddr > FEE_DATA_ALIGNED(block->BlockSize)) {
-          context->dataFreeAddr -= FEE_DATA_ALIGNED(block->BlockSize);
+        if (context->DataFreeAddr > FEE_DATA_ALIGNED(block->BlockSize)) {
+          context->DataFreeAddr -= FEE_DATA_ALIGNED(block->BlockSize);
         } else { /* generally impossible case */
           ASLOG(FEEE, ("dataFreeAddr underflow, data corruption\n"));
-          context->dataFreeAddr = 0;
+          context->DataFreeAddr = 0;
         }
-        if ((block->BlockNumber <= config->numOfBlocks) && (block->BlockNumber > 0u)) {
+        if ((block->BlockNumber <= config->NumOfBlocks) && (block->BlockNumber > 0u)) {
           if (block->BlockSize == config->Blocks[block->BlockNumber - 1u].BlockSize) {
-            if ((block->Address <= context->dataFreeAddr) &&
-                (block->Address >= context->adminFreeAddr)) {
+            if ((block->Address <= context->DataFreeAddr) &&
+                (block->Address >= context->AdminFreeAddr)) {
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
               Std_ReturnType r = Fee_IsDataCrcOK(block->Address, block->BlockSize);
               if (E_OK == r) {
 #if defined(FLS_DIRECT_ACCESS)
-                config->blockContexts[block->BlockNumber - 1u].Address = context->adminFreeAddr;
+                config->BlockContexts[block->BlockNumber - 1u].Address = context->AdminFreeAddr;
 #else
-                config->blockContexts[block->BlockNumber - 1u].Address = context->dataFreeAddr;
+                config->BlockContexts[block->BlockNumber - 1u].Address = context->DataFreeAddr;
 #endif
 #else
-              config->blockContexts[block->BlockNumber - 1u].Address = context->dataFreeAddr;
-              config->blockContexts[block->BlockNumber - 1u].NumberOfWriteCycles =
+              config->BlockContexts[block->BlockNumber - 1u].Address = context->DataFreeAddr;
+              config->BlockContexts[block->BlockNumber - 1u].NumberOfWriteCycles =
                 block->NumberOfWriteCycles;
 #endif
                 ASLOG(FEEI, ("Got block number %d @ %X, %X\n", block->BlockNumber,
-                             context->adminFreeAddr, context->dataFreeAddr));
+                             context->AdminFreeAddr, context->DataFreeAddr));
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
               } else {
                 ASLOG(FEEE, ("block number %d has invalid data\n", block->BlockNumber));
               }
 #endif
-              context->dataFreeAddr = block->Address; /* for robustness purpose */
+              context->DataFreeAddr = block->Address; /* for robustness purpose */
             } else {
               ASLOG(
                 FEEE,
                 ("Got block number %d with invalid address %X (!=%X), maybe FEE config update\n",
-                 block->BlockNumber, block->Address, context->dataFreeAddr));
+                 block->BlockNumber, block->Address, context->DataFreeAddr));
             }
           } else {
             ASHEXDUMP(FEEE,
@@ -354,10 +354,10 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
                      block->BlockNumber, block->Crc, Crc));
         /* Invalid Block: note, it's always write block admin firstly and then write data */
       }
-      context->adminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
+      context->AdminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
     }
 #ifdef FEE_USE_BLANK_CHECK
-    else if (E_OK == Fls_AcBlankCheck(context->adminFreeAddr, FEE_ALIGNED(sizeof(Fee_BlockType)))) {
+    else if (E_OK == Fls_AcBlankCheck(context->AdminFreeAddr, FEE_ALIGNED(sizeof(Fee_BlockType)))) {
       ending = TRUE; /* searching Free Space End */
     }
 #else
@@ -367,14 +367,14 @@ static boolean Fee_SearchFreeSpace_Analyze(const Fee_BlockType *blocks, uint16_t
 #endif
     else {
       /* also invalid block */
-      context->adminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
+      context->AdminFreeAddr += FEE_ALIGNED(sizeof(Fee_BlockType));
     }
 
-    if (context->dataFreeAddr < context->adminFreeAddr) {
-      context->dataFreeAddr = context->adminFreeAddr;
+    if (context->DataFreeAddr < context->AdminFreeAddr) {
+      context->DataFreeAddr = context->AdminFreeAddr;
     }
 
-    if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_BLOCK_ADMIN_AND_DATA_SIZE(1)) {
+    if ((context->DataFreeAddr - context->AdminFreeAddr) < FEE_BLOCK_ADMIN_AND_DATA_SIZE(1)) {
       ending = TRUE;
     }
 
@@ -395,24 +395,24 @@ static Std_ReturnType Fee_DoSearchNextValidDataStart(uint8_t bankId) {
 #ifdef FLS_DIRECT_ACCESS
   uint16_t numOfBlocks = FEE_MAX_ADMIN_READ_PER_CYCLE;
 #else
-  uint16_t numOfBlocks = config->sizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
+  uint16_t numOfBlocks = config->SizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
 #endif
-  blockAdminLow = config->Banks[bankId].LowAddress + offsetof(Fee_BankAdminType, blocks);
-  if (context->jobNextAddr > (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)))) {
-    address = context->jobNextAddr - (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
+  blockAdminLow = config->Banks[bankId].LowAddress + offsetof(Fee_BankAdminType, Blocks);
+  if (context->JobNextAddr > (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)))) {
+    address = context->JobNextAddr - (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
   } else {
     address = 0;
   }
 
   if (address < blockAdminLow) {
     address = blockAdminLow;
-    numOfBlocks = (context->jobNextAddr - blockAdminLow) / FEE_ALIGNED(sizeof(Fee_BlockType));
+    numOfBlocks = (context->JobNextAddr - blockAdminLow) / FEE_ALIGNED(sizeof(Fee_BlockType));
   }
 
   if (numOfBlocks > 0u) {
 #ifndef FLS_DIRECT_ACCESS
     ASLOG(FEE, ("  seraching from 0x%X, %d blocks\n", address, numOfBlocks));
-    r = Fls_Read(address, config->workingArea, numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
+    r = Fls_Read(address, config->WorkingArea, numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
 #else
     r = E_OK;
 #endif
@@ -432,62 +432,62 @@ static Std_ReturnType Fee_DoSearchNextValidDataEnd(uint8_t bankId) {
 #ifdef FLS_DIRECT_ACCESS
   uint16_t numOfBlocks = FEE_MAX_ADMIN_READ_PER_CYCLE;
 #else
-  uint16_t numOfBlocks = config->sizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
+  uint16_t numOfBlocks = config->SizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
 #endif
   Fee_BlockType *block;
-  blockAdminLow = config->Banks[bankId].LowAddress + offsetof(Fee_BankAdminType, blocks);
-  if (context->jobNextAddr > (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)))) {
-    address = context->jobNextAddr - (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
+  blockAdminLow = config->Banks[bankId].LowAddress + offsetof(Fee_BankAdminType, Blocks);
+  if (context->JobNextAddr > (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)))) {
+    address = context->JobNextAddr - (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
   } else {
     address = 0;
   }
 
   if (address < blockAdminLow) {
     address = blockAdminLow;
-    numOfBlocks = (context->jobNextAddr - blockAdminLow) / FEE_ALIGNED(sizeof(Fee_BlockType));
+    numOfBlocks = (context->JobNextAddr - blockAdminLow) / FEE_ALIGNED(sizeof(Fee_BlockType));
   }
 
   for (i = (int32_t)numOfBlocks - 1; i >= 0; i--) {
-    context->jobNextAddr -= FEE_ALIGNED(sizeof(Fee_BlockType));
+    context->JobNextAddr -= FEE_ALIGNED(sizeof(Fee_BlockType));
 #ifdef FLS_DIRECT_ACCESS
-    block = (Fee_BlockType *)FEE_ADDRESS(context->jobNextAddr);
+    block = (Fee_BlockType *)FEE_ADDRESS(context->JobNextAddr);
 #else
-    block = (Fee_BlockType *)(&config->workingArea[i * FEE_ALIGNED(sizeof(Fee_BlockType))]);
+    block = (Fee_BlockType *)(&config->WorkingArea[i * FEE_ALIGNED(sizeof(Fee_BlockType))]);
 #endif
-    if ((block->BlockNumber == (context->jobBlockId + 1u)) &&
+    if ((block->BlockNumber == (context->JobBlockId + 1u)) &&
         (block->Crc == ((uint16_t)~block->InvCrc))) {
       Crc = Crc_CalculateCRC16((uint8_t *)block, offsetof(Fee_BlockType, Crc), 0, TRUE);
       if (Crc == block->Crc) { /* bing go, valid block */
         if ((block->Address <= blockAdminLow) ||
             (block->Address >= config->Banks[bankId].HighAddress)) {
-          ASLOG(FEEE, ("block %d has invalid address: %x, config updated\n", context->jobBlockId,
+          ASLOG(FEEE, ("block %d has invalid address: %x, config updated\n", context->JobBlockId,
                        block->Address));
         } else if (block->BlockSize == config->Blocks[block->BlockNumber - 1u].BlockSize) {
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
           r = Fee_IsDataCrcOK(block->Address, block->BlockSize);
           if (E_OK == r) {
 #if defined(FLS_DIRECT_ACCESS)
-            config->blockContexts[context->jobBlockId].Address = context->jobNextAddr;
+            config->BlockContexts[context->JobBlockId].Address = context->JobNextAddr;
 #else
-            config->blockContexts[context->jobBlockId].Address = block->Address;
+            config->BlockContexts[context->JobBlockId].Address = block->Address;
 #endif
 #else
-          config->blockContexts[context->jobBlockId].Address = block->Address;
+          config->BlockContexts[context->JobBlockId].Address = block->Address;
 #endif
             r = E_OK;
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
           } else {
-            ASLOG(FEEE, ("block %d has invalid data\n", context->jobBlockId));
+            ASLOG(FEEE, ("block %d has invalid data\n", context->JobBlockId));
           }
 #endif
           break;
         } else {
-          ASLOG(FEEE, ("block %d size mismatch, config updated\n", context->jobBlockId));
+          ASLOG(FEEE, ("block %d size mismatch, config updated\n", context->JobBlockId));
         }
       } else {
         ASHEXDUMP(FEEE,
-                  ("block %d admin @ %X CRC NOK, E %X != R %X", context->jobBlockId,
-                   context->jobNextAddr, Crc, block->Crc),
+                  ("block %d admin @ %X CRC NOK, E %X != R %X", context->JobBlockId,
+                   context->JobNextAddr, Crc, block->Crc),
                   &block, sizeof(Fee_BlockType));
       }
     }
@@ -500,20 +500,20 @@ static Std_ReturnType Fee_DoBackup_Copy_Start(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
-  uint8_t nextBank = context->curWrokingBank + 1u;
+  uint8_t nextBank = context->CurWorkingBank + 1u;
 
-  if (nextBank >= config->numOfBanks) {
+  if (nextBank >= config->NumOfBanks) {
     nextBank = 0;
   }
   bank = &config->Banks[nextBank];
 
-  ASLOG(FEE, ("do backup copy from bank %d to bank %d\n", context->curWrokingBank, nextBank));
+  ASLOG(FEE, ("do backup copy from bank %d to bank %d\n", context->CurWorkingBank, nextBank));
   /* using DataBufferPtr to record current bank adminFreeAddr */
-  context->jobDataBufferPtr = U32_TO_U8PTR(context->adminFreeAddr);
-  context->curWrokingBank = nextBank;
-  context->adminFreeAddr = bank->LowAddress + offsetof(Fee_BankAdminType, blocks);
-  context->dataFreeAddr = bank->HighAddress;
-  context->jobBlockId = 0;
+  context->JobDataBufferPtr = U32_TO_U8PTR(context->AdminFreeAddr);
+  context->CurWorkingBank = nextBank;
+  context->AdminFreeAddr = bank->LowAddress + offsetof(Fee_BankAdminType, Blocks);
+  context->DataFreeAddr = bank->HighAddress;
+  context->JobBlockId = 0;
 
   return factory_goto(FEE_NODE_BACKUP_COPY_ADMIN);
 }
@@ -561,11 +561,11 @@ Std_ReturnType Fee_Init_ReadBankAdmin_Main(void) {
   Fee_BankAdminType *bankAdmin;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 #ifndef FLS_DIRECT_ACCESS
-  if (context->curWrokingBank >= config->numOfBanks) {
+  if (context->CurWorkingBank >= config->NumOfBanks) {
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_INFO);
   } else {
-    bank = &config->Banks[context->curWrokingBank];
-    bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+    bank = &config->Banks[context->CurWorkingBank];
+    bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
     ret = Fls_Read(bank->LowAddress, (uint8_t *)bankAdmin, sizeof(*bankAdmin));
     if (E_OK == ret) {
       ret = FACTORY_E_EVENT;
@@ -574,26 +574,26 @@ Std_ReturnType Fee_Init_ReadBankAdmin_Main(void) {
     }
   }
 #else
-  while ((context->curWrokingBank < config->numOfBanks) && (E_NOT_OK == ret)) {
-    bank = &config->Banks[context->curWrokingBank];
-    bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+  while ((context->CurWorkingBank < config->NumOfBanks) && (E_NOT_OK == ret)) {
+    bank = &config->Banks[context->CurWorkingBank];
+    bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
     (void)memcpy(bankAdmin, FEE_ADDRESS(bank->LowAddress), sizeof(*bankAdmin));
     if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
         (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
-      ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->curWrokingBank));
+      ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->CurWorkingBank));
       ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
     } else if (bankAdmin->Info.Number != ((uint32_t)~bankAdmin->Info.InvNumber)) {
-      ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->curWrokingBank));
+      ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->CurWorkingBank));
       ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
     } else {
 #ifdef FEE_USE_BLANK_CHECK
       ret = factory_goto(FEE_NODE_INIT_BLANK_CHECK_INFO);
 #else /* This Bank is valid, moving to read next bank admin data */
-      context->curWrokingBank++;
+      context->CurWorkingBank++;
 #endif
     }
   }
-  if (context->curWrokingBank >= config->numOfBanks) {
+  if (context->CurWorkingBank >= config->NumOfBanks) {
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_INFO);
   }
 #endif
@@ -607,19 +607,19 @@ Std_ReturnType Fee_Init_ReadBankAdmin_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Fee_BankAdminType *bankAdmin =
-    &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+    &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
   if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
       (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
-    ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->curWrokingBank));
+    ASLOG(FEEE, ("FEE Bank %d Magic is invalid, erase it\n", context->CurWorkingBank));
     ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
   } else if (bankAdmin->Info.Number != ((uint32_t)~bankAdmin->Info.InvNumber)) {
-    ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->curWrokingBank));
+    ASLOG(FEEE, ("FEE Bank %d Info is invalid, erase it\n", context->CurWorkingBank));
     ret = factory_goto(FEE_NODE_INIT_ERASE_INVALID_BANK);
   } else {
 #ifdef FEE_USE_BLANK_CHECK
     ret = factory_goto(FEE_NODE_INIT_BLANK_CHECK_INFO);
 #else /* This Bank is valid, moving to read next bank admin data */
-    context->curWrokingBank++;
+    context->CurWorkingBank++;
     ret = factory_goto(FEE_NODE_INIT_READ_BANK_ADMIN);
 #endif
   }
@@ -637,11 +637,11 @@ Std_ReturnType Fee_Init_BlankCheckInfo_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 
-  bank = &config->Banks[context->curWrokingBank];
+  bank = &config->Banks[context->CurWorkingBank];
   ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, Info),
                        FEE_ALIGNED(sizeof(Fee_BankInfoType)));
   if (E_OK == ret) {
-    context->retryCounter = 0;
+    context->RetryCounter = 0;
     ret = FACTORY_E_EVENT;
   } else {
     ret = FACTORY_E_RETRY;
@@ -653,7 +653,7 @@ Std_ReturnType Fee_Init_BlankCheckInfo_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Fee_BankAdminType *bankAdmin =
-    &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+    &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
   /* info is in erased state */
   (void)memset(&bankAdmin->Info, FLS_ERASED_VALUE, sizeof(bankAdmin->Info));
   return factory_goto(FEE_NODE_INIT_BLANK_CHECK_BLOCK);
@@ -662,7 +662,7 @@ Std_ReturnType Fee_Init_BlankCheckInfo_End(void) {
 Std_ReturnType Fee_Init_BlankCheckInfo_Error(void) {
   Fee_ContextType *context = &Fee_Context;
   /* info has data, trust it */
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
 
   return factory_goto(FEE_NODE_INIT_BLANK_CHECK_BLOCK);
 }
@@ -673,10 +673,10 @@ Std_ReturnType Fee_Init_BlankCheckBlock_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 
-  bank = &config->Banks[context->curWrokingBank];
-  ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, blocks), FEE_PAGE_SIZE);
+  bank = &config->Banks[context->CurWorkingBank];
+  ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, Blocks), FEE_PAGE_SIZE);
   if (E_OK == ret) {
-    context->retryCounter = 0;
+    context->RetryCounter = 0;
     ret = FACTORY_E_EVENT;
   } else {
     ret = FACTORY_E_RETRY;
@@ -689,11 +689,11 @@ Std_ReturnType Fee_Init_BlankCheckBlock_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Fee_BankAdminType *bankAdmin =
-    &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+    &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
   /* This bank has been erased, moving to read next bank admin data */
-  (void)memset(bankAdmin->blocks, FLS_ERASED_VALUE, FEE_PAGE_SIZE);
-  context->curWrokingBank++;
-  if (context->curWrokingBank >= config->numOfBanks) {
+  (void)memset(bankAdmin->Blocks, FLS_ERASED_VALUE, FEE_PAGE_SIZE);
+  context->CurWorkingBank++;
+  if (context->CurWorkingBank >= config->NumOfBanks) {
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_INFO);
   } else {
     ret = factory_goto(FEE_NODE_INIT_READ_BANK_ADMIN);
@@ -706,10 +706,10 @@ Std_ReturnType Fee_Init_BlankCheckBlock_Error(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   /* block has data, trust it */
-  context->retryCounter = 0;
-  context->curWrokingBank++;
+  context->RetryCounter = 0;
+  context->CurWorkingBank++;
 
-  if (context->curWrokingBank >= config->numOfBanks) {
+  if (context->CurWorkingBank >= config->NumOfBanks) {
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_INFO);
   } else {
     ret = factory_goto(FEE_NODE_INIT_READ_BANK_ADMIN);
@@ -723,7 +723,7 @@ Std_ReturnType Fee_Init_EraseInvalidBank_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 
-  bank = &config->Banks[context->curWrokingBank];
+  bank = &config->Banks[context->CurWorkingBank];
   ret = Fls_Erase(bank->LowAddress, bank->HighAddress - bank->LowAddress);
   if (E_OK == ret) {
     ret = FACTORY_E_EVENT;
@@ -738,12 +738,12 @@ Std_ReturnType Fee_Init_EraseInvalidBank_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Fee_BankAdminType *bankAdmin =
-    &(((Fee_BankAdminType *)config->workingArea)[context->curWrokingBank]);
+    &(((Fee_BankAdminType *)config->WorkingArea)[context->CurWorkingBank]);
   /* This bank has been erased, moving to read next bank admin data */
   (void)memset(bankAdmin, FLS_ERASED_VALUE, sizeof(*bankAdmin));
-  context->curWrokingBank++;
+  context->CurWorkingBank++;
 
-  if (context->curWrokingBank >= config->numOfBanks) {
+  if (context->CurWorkingBank >= config->NumOfBanks) {
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_INFO);
   } else {
     ret = factory_goto(FEE_NODE_INIT_READ_BANK_ADMIN);
@@ -761,15 +761,15 @@ Std_ReturnType Fee_Init_EraseInvalidBank_Error(void) {
 Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
   Std_ReturnType ret = E_NOT_OK;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
-  Fee_BankAdminType *workAdmin = &bankAdmin[config->numOfBanks];
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
+  Fee_BankAdminType *workAdmin = &bankAdmin[config->NumOfBanks];
   uint16_t i;
   uint32_t maxNumber = 0;
   int invalidBank = -1;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Fee_ContextType *context = &Fee_Context;
 
-  for (i = 0; i < config->numOfBanks; i++) {
+  for (i = 0; i < config->NumOfBanks; i++) {
     if (bankAdmin[i].Info.Number == (~bankAdmin[i].Info.InvNumber)) {
       if (maxNumber < bankAdmin[i].Info.Number) {
         maxNumber = bankAdmin[i].Info.Number;
@@ -782,10 +782,10 @@ Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
   }
 
   if (-1 != invalidBank) {
-    if (context->retryCounter > config->maxJobRetry) {
+    if (context->RetryCounter > config->MaxJobRetry) {
       /* This is an impossible case here, but let it go without info record */
       ASLOG(FEE, ("Found bank %d without info record, but reach max retry count\n", invalidBank));
-      context->erasedNumber = maxNumber;
+      context->ErasedNumber = maxNumber;
       ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_MAGIC);
     } else {
       ASLOG(FEE, ("Found bank %d without info record, set Number=%d\n", invalidBank, maxNumber));
@@ -803,7 +803,7 @@ Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
       }
     }
   } else {
-    context->erasedNumber = maxNumber;
+    context->ErasedNumber = maxNumber;
     ret = factory_goto(FEE_NODE_INIT_CHECK_BANK_MAGIC);
   }
 
@@ -812,12 +812,12 @@ Std_ReturnType Fee_Init_CheckBankInfo_Main(void) {
 
 Std_ReturnType Fee_Init_CheckBankInfo_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
-  Fee_BankAdminType *workAdmin = &bankAdmin[config->numOfBanks];
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
+  Fee_BankAdminType *workAdmin = &bankAdmin[config->NumOfBanks];
   uint16_t i;
   int invalidBank = -1;
 
-  for (i = 0; i < config->numOfBanks; i++) {
+  for (i = 0; i < config->NumOfBanks; i++) {
     if (bankAdmin[i].Info.Number != (~bankAdmin[i].Info.InvNumber)) {
       invalidBank = i;
       break;
@@ -841,13 +841,13 @@ Std_ReturnType Fee_Init_CheckBankInfo_Error(void) {
 Std_ReturnType Fee_Init_CheckBankMagic_Main(void) {
   Std_ReturnType ret = E_NOT_OK;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
-  Fee_BankAdminType *workAdmin = &bankAdmin[config->numOfBanks];
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
+  Fee_BankAdminType *workAdmin = &bankAdmin[config->NumOfBanks];
   uint16_t i;
   int invalidBank = -1;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 
-  for (i = 0; i < config->numOfBanks; i++) {
+  for (i = 0; i < config->NumOfBanks; i++) {
     if ((bankAdmin[i].HeaderMagic.MagicNumber != (~bankAdmin[i].HeaderMagic.InvMagicNumber) ||
          (FEE_MAGIC_NUMBER != bankAdmin[i].HeaderMagic.MagicNumber))) {
       if (-1 == invalidBank) {
@@ -880,12 +880,12 @@ Std_ReturnType Fee_Init_CheckBankMagic_Main(void) {
 
 Std_ReturnType Fee_Init_CheckBankMagic_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
-  Fee_BankAdminType *workAdmin = &bankAdmin[config->numOfBanks];
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
+  Fee_BankAdminType *workAdmin = &bankAdmin[config->NumOfBanks];
   uint16_t i;
   int invalidBank = -1;
 
-  for (i = 0; i < config->numOfBanks; i++) {
+  for (i = 0; i < config->NumOfBanks; i++) {
     if ((bankAdmin[i].HeaderMagic.MagicNumber != (~bankAdmin[i].HeaderMagic.InvMagicNumber) ||
          (FEE_MAGIC_NUMBER != bankAdmin[i].HeaderMagic.MagicNumber))) {
       invalidBank = i;
@@ -911,15 +911,15 @@ Std_ReturnType Fee_Init_GetWorkingBank_Main(void) {
   Std_ReturnType ret = E_OK;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   uint16_t i;
   boolean r;
   int bankWithBlocks = 0;
   int whichBank = -1; /* whichBank is the first bank has data blocks */
   int fullBank = -1;  /* fullBank is the first bank that is full */
 
-  for (i = 0; i < config->numOfBanks; i++) {
-    r = Fee_IsAllErased(bankAdmin[i].blocks, (uint16_t)sizeof(bankAdmin[i].blocks));
+  for (i = 0; i < config->NumOfBanks; i++) {
+    r = Fee_IsAllErased(bankAdmin[i].Blocks, (uint16_t)sizeof(bankAdmin[i].Blocks));
     if (TRUE != r) {
       bankWithBlocks++;
       if (-1 == whichBank) {
@@ -946,20 +946,20 @@ Std_ReturnType Fee_Init_GetWorkingBank_Main(void) {
     /* panic, do nothing */
   } else if ((0 == bankWithBlocks) || (1 == bankWithBlocks)) {
     /* no bank or only 1 bank has data, use the first bank */
-    context->adminFreeAddr =
-      config->Banks[whichBank].LowAddress + offsetof(Fee_BankAdminType, blocks);
-    context->dataFreeAddr = config->Banks[whichBank].HighAddress;
-    context->curWrokingBank = whichBank;
+    context->AdminFreeAddr =
+      config->Banks[whichBank].LowAddress + offsetof(Fee_BankAdminType, Blocks);
+    context->DataFreeAddr = config->Banks[whichBank].HighAddress;
+    context->CurWorkingBank = whichBank;
     ASLOG(FEE, ("FEE Init and Post Check Finished, activate bank is %d\n", whichBank));
     ret = factory_goto(FEE_NODE_INIT_SEARCH_FREE_SPACE);
   } else if (2 == bankWithBlocks) {
     if (fullBank != -1) {
       /* 2 banks has data, there is must be one in FULL state, and should ensure all data backed up
        * and erase it */
-      context->adminFreeAddr =
-        config->Banks[fullBank].LowAddress + offsetof(Fee_BankAdminType, blocks);
-      context->dataFreeAddr = config->Banks[fullBank].HighAddress;
-      context->curWrokingBank = fullBank;
+      context->AdminFreeAddr =
+        config->Banks[fullBank].LowAddress + offsetof(Fee_BankAdminType, Blocks);
+      context->DataFreeAddr = config->Banks[fullBank].HighAddress;
+      context->CurWorkingBank = fullBank;
       ASLOG(FEE, ("FEE Init and Post Check Finished, activate bank is %d, but which is full\n",
                   fullBank));
       ret = factory_goto(FEE_NODE_INIT_SEARCH_FREE_SPACE);
@@ -991,40 +991,40 @@ Std_ReturnType Fee_Init_SearchFreeSpace_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 #ifndef FLS_DIRECT_ACCESS
-  uint16_t numOfBlocks = config->sizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
+  uint16_t numOfBlocks = config->SizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
 #else
   boolean ending = FALSE;
   uint16_t numOfBlocks = FEE_MAX_ADMIN_READ_PER_CYCLE;
 #endif
-  uint32_t endAddress = context->adminFreeAddr + (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
-  bank = &config->Banks[context->curWrokingBank];
+  uint32_t endAddress = context->AdminFreeAddr + (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
+  bank = &config->Banks[context->CurWorkingBank];
 
   if (endAddress > bank->HighAddress) {
     endAddress = bank->HighAddress;
-    numOfBlocks = (endAddress - context->adminFreeAddr) / FEE_ALIGNED(sizeof(Fee_BlockType));
+    numOfBlocks = (endAddress - context->AdminFreeAddr) / FEE_ALIGNED(sizeof(Fee_BlockType));
   }
 
   if (numOfBlocks > 0u) {
 #ifdef FLS_DIRECT_ACCESS
-    ending = Fee_SearchFreeSpace_Analyze((const Fee_BlockType *)FEE_ADDRESS(context->adminFreeAddr),
+    ending = Fee_SearchFreeSpace_Analyze((const Fee_BlockType *)FEE_ADDRESS(context->AdminFreeAddr),
                                          numOfBlocks);
     if (FALSE == ending) {
-      context->retryCounter = 0;
+      context->RetryCounter = 0;
       ret = E_OK;
     } else {
       ASLOG(FEE,
-            ("Free space between 0x%X - 0x%X\n", context->adminFreeAddr, context->dataFreeAddr));
-      if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_MIN_FREE_SPACE) {
-        context->retryCounter = 0;
+            ("Free space between 0x%X - 0x%X\n", context->AdminFreeAddr, context->DataFreeAddr));
+      if ((context->DataFreeAddr - context->AdminFreeAddr) < FEE_MIN_FREE_SPACE) {
+        context->RetryCounter = 0;
         ret = factory_switch(FEE_MACHINE_BACKUP);
-        ASLOG(FEE, ("bank %d is full, do backup\n", context->curWrokingBank));
+        ASLOG(FEE, ("bank %d is full, do backup\n", context->CurWorkingBank));
         STD_TRACE_APP(FEE_BACKUP_B);
       } else {
         ret = FACTORY_E_STOP;
       }
     }
 #else
-    ret = Fls_Read(context->adminFreeAddr, config->workingArea,
+    ret = Fls_Read(context->AdminFreeAddr, config->WorkingArea,
                    numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
 
     if (E_OK == ret) {
@@ -1034,8 +1034,8 @@ Std_ReturnType Fee_Init_SearchFreeSpace_Main(void) {
     }
 #endif
   } else {
-    ASLOG(FEEE, ("Free space between 0x%X - 0x%X, abnormal, do backup\n", context->adminFreeAddr,
-                 context->dataFreeAddr));
+    ASLOG(FEEE, ("Free space between 0x%X - 0x%X, abnormal, do backup\n", context->AdminFreeAddr,
+                 context->DataFreeAddr));
     ret = factory_switch(FEE_MACHINE_BACKUP);
     STD_TRACE_APP(FEE_BACKUP_B);
   }
@@ -1049,15 +1049,15 @@ Std_ReturnType Fee_Init_SearchFreeSpace_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
-  uint16_t numOfBlocks = config->sizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
-  uint32_t endAddress = context->adminFreeAddr + (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
-  Fee_BlockType *blocks = (Fee_BlockType *)config->workingArea;
+  uint16_t numOfBlocks = config->SizeOfWorkingArea / FEE_ALIGNED(sizeof(Fee_BlockType));
+  uint32_t endAddress = context->AdminFreeAddr + (numOfBlocks * FEE_ALIGNED(sizeof(Fee_BlockType)));
+  Fee_BlockType *blocks = (Fee_BlockType *)config->WorkingArea;
   boolean ending;
 
-  bank = &config->Banks[context->curWrokingBank];
+  bank = &config->Banks[context->CurWorkingBank];
   if (endAddress > bank->HighAddress) {
     endAddress = bank->HighAddress;
-    numOfBlocks = (endAddress - context->adminFreeAddr) / FEE_ALIGNED(sizeof(Fee_BlockType));
+    numOfBlocks = (endAddress - context->AdminFreeAddr) / FEE_ALIGNED(sizeof(Fee_BlockType));
   }
 
   ending = Fee_SearchFreeSpace_Analyze(blocks, numOfBlocks);
@@ -1065,10 +1065,10 @@ Std_ReturnType Fee_Init_SearchFreeSpace_End(void) {
   if (FALSE == ending) {
     ret = factory_goto(FEE_NODE_INIT_SEARCH_FREE_SPACE);
   } else {
-    ASLOG(FEE, ("Free space between 0x%X - 0x%X\n", context->adminFreeAddr, context->dataFreeAddr));
-    if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_MIN_FREE_SPACE) {
+    ASLOG(FEE, ("Free space between 0x%X - 0x%X\n", context->AdminFreeAddr, context->DataFreeAddr));
+    if ((context->DataFreeAddr - context->AdminFreeAddr) < FEE_MIN_FREE_SPACE) {
       ret = factory_switch(FEE_MACHINE_BACKUP);
-      ASLOG(FEE, ("bank %d is full, do backup\n", context->curWrokingBank));
+      ASLOG(FEE, ("bank %d is full, do backup\n", context->CurWorkingBank));
       STD_TRACE_APP(FEE_BACKUP_B);
     } else {
       ret = FACTORY_E_STOP;
@@ -1089,15 +1089,15 @@ Std_ReturnType Fee_Read_ReadData_Main(void) {
   Std_ReturnType ret;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  uint32_t address = config->blockContexts[context->jobBlockId].Address;
+  uint32_t address = config->BlockContexts[context->JobBlockId].Address;
 
   if (FEE_INVALID_ADDRESS != address) {
-    ASLOG(FEEI, ("block %d goto read data @ %X\n", context->jobBlockId, address));
+    ASLOG(FEEI, ("block %d goto read data @ %X\n", context->JobBlockId, address));
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
     ret = Fee_Read_ReadData_End();
 #else
-    ret = Fls_Read(address, config->workingArea,
-                   FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize));
+    ret = Fls_Read(address, config->WorkingArea,
+                   FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize));
     if (E_OK == ret) {
       ret = FACTORY_E_EVENT;
     } else {
@@ -1107,10 +1107,10 @@ Std_ReturnType Fee_Read_ReadData_Main(void) {
 #endif
   } else {
     ret = FACTORY_E_STOP;
-    ASLOG(FEE, ("Read from ROM for block %d\n", context->jobBlockId));
-    (void)memcpy(context->jobDataBufferPtr,
-                 (uint8_t *)&(config->Blocks[context->jobBlockId].Rom[context->jobBlockOffset]),
-                 context->jobLength);
+    ASLOG(FEE, ("Read from ROM for block %d\n", context->JobBlockId));
+    (void)memcpy(context->JobDataBufferPtr,
+                 (uint8_t *)&(config->Blocks[context->JobBlockId].Rom[context->JobBlockOffset]),
+                 context->JobLength);
   }
 
   return ret;
@@ -1125,21 +1125,21 @@ Std_ReturnType Fee_Read_ReadData_End(void) {
   uint16_t Crc;
 #ifdef FLS_DIRECT_ACCESS
   const Fee_BlockType *block =
-    (const Fee_BlockType *)FEE_ADDRESS(config->blockContexts[context->jobBlockId].Address);
+    (const Fee_BlockType *)FEE_ADDRESS(config->BlockContexts[context->JobBlockId].Address);
   const uint8_t *pData = (const uint8_t *)FEE_ADDRESS(block->Address);
 #elif defined(FLS_DATA_DIRECT_ACCESS)
   const uint8_t *pData =
-    (const uint8_t *)FEE_ADDRESS(config->blockContexts[context->jobBlockId].Address);
+    (const uint8_t *)FEE_ADDRESS(config->BlockContexts[context->JobBlockId].Address);
 #else
-  const uint8_t *pData = config->workingArea;
+  const uint8_t *pData = config->WorkingArea;
 #endif
-  pCrc = (uint16_t *)&pData[FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize) - 4u];
+  pCrc = (uint16_t *)&pData[FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize) - 4u];
   pInvCrc = &pCrc[1];
 
   if (((uint16_t)~(*pCrc)) == (*pInvCrc)) {
 
     Crc = Crc_CalculateCRC16(
-      pData, FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize) - 4u, 0, TRUE);
+      pData, FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize) - 4u, 0, TRUE);
 
     if (Crc == *pCrc) {
       ret = E_OK;
@@ -1148,19 +1148,19 @@ Std_ReturnType Fee_Read_ReadData_End(void) {
 
   if (E_OK == ret) {
     ASLOG(FEE, ("Read from addres %X for block %d\n",
-                config->blockContexts[context->jobBlockId].Address, context->jobBlockId));
-    (void)memcpy(context->jobDataBufferPtr, &pData[context->jobBlockOffset], context->jobLength);
+                config->BlockContexts[context->JobBlockId].Address, context->JobBlockId));
+    (void)memcpy(context->JobDataBufferPtr, &pData[context->JobBlockOffset], context->JobLength);
     ret = FACTORY_E_STOP;
   } else {
-    if (config->blockContexts[context->jobBlockId].Address != FEE_INVALID_ADDRESS) {
+    if (config->BlockContexts[context->JobBlockId].Address != FEE_INVALID_ADDRESS) {
       ASLOG(
         FEE,
         ("Addres %X for block %d has invalid data (R %X ~ %X E %X ), searching next valid one\n",
-         config->blockContexts[context->jobBlockId].Address, context->jobBlockId, *pCrc, *pInvCrc,
+         config->BlockContexts[context->JobBlockId].Address, context->JobBlockId, *pCrc, *pInvCrc,
          Crc));
-      config->blockContexts[context->jobBlockId].Address = FEE_INVALID_ADDRESS;
+      config->BlockContexts[context->JobBlockId].Address = FEE_INVALID_ADDRESS;
     }
-    context->retryCounter = 0;
+    context->RetryCounter = 0;
     ret = factory_goto(FEE_NODE_READ_SEARCH_NEXT);
   }
 
@@ -1175,14 +1175,14 @@ Std_ReturnType Fee_Read_SearchNext_Main(void) {
   Std_ReturnType ret;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  ret = Fee_DoSearchNextValidDataStart(context->curWrokingBank);
+  ret = Fee_DoSearchNextValidDataStart(context->CurWorkingBank);
   if (FEE_E_EXIST == ret) {
-    config->blockContexts[context->jobBlockId].Address = FEE_INVALID_ADDRESS;
+    config->BlockContexts[context->JobBlockId].Address = FEE_INVALID_ADDRESS;
     ret = FACTORY_E_STOP;
-    ASLOG(FEE, ("Read from ROM for block %d\n", context->jobBlockId));
-    (void)memcpy(context->jobDataBufferPtr,
-                 (uint8_t *)&(config->Blocks[context->jobBlockId].Rom[context->jobBlockOffset]),
-                 context->jobLength);
+    ASLOG(FEE, ("Read from ROM for block %d\n", context->JobBlockId));
+    (void)memcpy(context->JobDataBufferPtr,
+                 (uint8_t *)&(config->Blocks[context->JobBlockId].Rom[context->JobBlockOffset]),
+                 context->JobLength);
   } else {
 #ifndef FLS_DIRECT_ACCESS
     if (E_OK == ret) {
@@ -1191,7 +1191,7 @@ Std_ReturnType Fee_Read_SearchNext_Main(void) {
       ret = FACTORY_E_RETRY;
     }
 #else
-    ret = Fee_DoSearchNextValidDataEnd(context->curWrokingBank);
+    ret = Fee_DoSearchNextValidDataEnd(context->CurWorkingBank);
     if (E_OK == ret) {
       ret = factory_goto(FEE_NODE_READ_READ_DATA);
     } else {
@@ -1206,7 +1206,7 @@ Std_ReturnType Fee_Read_SearchNext_End(void) {
   Std_ReturnType ret;
   Fee_ContextType *context = &Fee_Context;
 
-  ret = Fee_DoSearchNextValidDataEnd(context->curWrokingBank);
+  ret = Fee_DoSearchNextValidDataEnd(context->CurWorkingBank);
 
   if (E_OK == ret) {
     ret = factory_goto(FEE_NODE_READ_READ_DATA);
@@ -1215,7 +1215,7 @@ Std_ReturnType Fee_Read_SearchNext_End(void) {
   }
 
 #ifdef FLS_DIRECT_ACCESS
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
 #endif
 
   return ret;
@@ -1229,8 +1229,8 @@ Std_ReturnType Fee_Write_WriteCheckDataChanged_Main(void) {
   Std_ReturnType ret;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  uint32_t address = config->blockContexts[context->jobBlockId].Address;
-  uint16_t size = config->Blocks[context->jobBlockId].BlockSize;
+  uint32_t address = config->BlockContexts[context->JobBlockId].Address;
+  uint16_t size = config->Blocks[context->JobBlockId].BlockSize;
 #ifdef FLS_DIRECT_ACCESS
   const Fee_BlockType *block;
   const uint8_t *pData;
@@ -1245,11 +1245,11 @@ Std_ReturnType Fee_Write_WriteCheckDataChanged_Main(void) {
     pData = (const uint8_t *)FEE_ADDRESS(address);
 #endif
 #if defined(FLS_DIRECT_ACCESS) || defined(FLS_DATA_DIRECT_ACCESS)
-    (void)memcpy(config->workingArea, pData, FEE_DATA_ALIGNED(size));
+    (void)memcpy(config->WorkingArea, pData, FEE_DATA_ALIGNED(size));
     ret = Fee_Write_WriteCheckDataChanged_End();
 #else
-    ASLOG(FEEI, ("block %d goto read data @ %X\n", context->jobBlockId, address));
-    ret = Fls_Read(address, config->workingArea, FEE_DATA_ALIGNED(size));
+    ASLOG(FEEI, ("block %d goto read data @ %X\n", context->JobBlockId, address));
+    ret = Fls_Read(address, config->WorkingArea, FEE_DATA_ALIGNED(size));
     if (E_OK == ret) {
       ret = FACTORY_E_EVENT;
     } else {
@@ -1268,8 +1268,8 @@ Std_ReturnType Fee_Write_WriteCheckDataChanged_End(void) {
   Std_ReturnType ret = E_OK;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  uint16_t size = config->Blocks[context->jobBlockId].BlockSize;
-  const uint8_t *pData = config->workingArea;
+  uint16_t size = config->Blocks[context->JobBlockId].BlockSize;
+  const uint8_t *pData = config->WorkingArea;
 #if !defined(FLS_DIRECT_ACCESS) && !defined(FLS_DATA_DIRECT_ACCESS)
   uint16_t *pCrc;
   uint16_t *pInvCrc;
@@ -1289,7 +1289,7 @@ Std_ReturnType Fee_Write_WriteCheckDataChanged_End(void) {
 #endif
 
   if (E_OK == ret) {
-    if (0u != memcmp(context->jobDataBufferPtr, pData, size)) {
+    if (0u != memcmp(context->JobDataBufferPtr, pData, size)) {
       ret = factory_goto(FEE_NODE_WRITE_WRITE_ADMIN);
     } else { /* data unchanged, ignore this write request */
       ret = FACTORY_E_STOP;
@@ -1308,8 +1308,8 @@ Std_ReturnType Fee_Write_WriteAdmin_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
 
-  if ((context->dataFreeAddr - context->adminFreeAddr) >=
-      FEE_BLOCK_ADMIN_AND_DATA_SIZE(config->Blocks[context->jobBlockId].BlockSize)) {
+  if ((context->DataFreeAddr - context->AdminFreeAddr) >=
+      FEE_BLOCK_ADMIN_AND_DATA_SIZE(config->Blocks[context->JobBlockId].BlockSize)) {
     ret = Fee_DoWrite_Admin(FALSE);
     if (E_OK == ret) {
       ret = FACTORY_E_EVENT;
@@ -1339,7 +1339,7 @@ Std_ReturnType Fee_Write_WriteData_Main(void) {
   Std_ReturnType ret;
   Fee_ContextType *context = &Fee_Context;
 
-  ret = Fee_DoWrite_Data(context->jobDataBufferPtr);
+  ret = Fee_DoWrite_Data(context->JobDataBufferPtr);
   if (E_OK == ret) {
     ret = FACTORY_E_EVENT;
   } else {
@@ -1354,18 +1354,18 @@ Std_ReturnType Fee_Write_WriteData_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
 
-  ASLOG(FEE, ("Write block %d done, free space %X - %X\n", context->jobBlockId,
-              context->adminFreeAddr, context->dataFreeAddr));
+  ASLOG(FEE, ("Write block %d done, free space %X - %X\n", context->JobBlockId,
+              context->AdminFreeAddr, context->DataFreeAddr));
 #ifdef FLS_DIRECT_ACCESS
-  config->blockContexts[context->jobBlockId].Address =
-    context->adminFreeAddr - FEE_ALIGNED(sizeof(Fee_BlockType));
+  config->BlockContexts[context->JobBlockId].Address =
+    context->AdminFreeAddr - FEE_ALIGNED(sizeof(Fee_BlockType));
 #else
-  config->blockContexts[context->jobBlockId].Address = context->dataFreeAddr;
+  config->BlockContexts[context->JobBlockId].Address = context->DataFreeAddr;
 #endif
 
-  if ((context->dataFreeAddr - context->adminFreeAddr) < FEE_MIN_FREE_SPACE) {
+  if ((context->DataFreeAddr - context->AdminFreeAddr) < FEE_MIN_FREE_SPACE) {
     ret = factory_switch(FEE_MACHINE_BACKUP);
-    ASLOG(FEEI, ("bank %d is full, do backup\n", context->curWrokingBank));
+    ASLOG(FEEI, ("bank %d is full, do backup\n", context->CurWorkingBank));
     STD_TRACE_APP(FEE_BACKUP_B);
   } else {
     ret = FACTORY_E_STOP;
@@ -1381,8 +1381,8 @@ Std_ReturnType Fee_Write_WriteData_Error(void) {
 Std_ReturnType Fee_Backup_ReadAdmin_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
-  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->curWrokingBank];
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
+  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->CurWorkingBank];
   Std_ReturnType ret;
 
   STD_TRACE_APP(FEE_BACKUP_B);
@@ -1405,12 +1405,12 @@ Std_ReturnType Fee_Backup_ReadAdmin_Main(void) {
 Std_ReturnType Fee_Backup_ReadAdmin_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Std_ReturnType ret;
 
   if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
       (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
-    ASLOG(FEEE, ("FEE Bank %d is with invalid magic\n", context->curWrokingBank));
+    ASLOG(FEEE, ("FEE Bank %d is with invalid magic\n", context->CurWorkingBank));
     Fee_Panic(FEE_FAULT_BANK_WITH_INVALID_MAGIC);
     ret = E_NOT_OK;
   } else if (bankAdmin->Info.Number == (uint32_t)(~bankAdmin->Info.InvNumber)) {
@@ -1435,13 +1435,13 @@ Std_ReturnType Fee_Backup_ReadAdmin_Error(void) {
 Std_ReturnType Fee_Backup_CheckBankStatus_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->curWrokingBank];
+  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->CurWorkingBank];
   Std_ReturnType ret;
 
   ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, Status),
                        FEE_ALIGNED(sizeof(Fee_BankStatusType)));
   if (E_OK == ret) {
-    context->retryCounter = 0;
+    context->RetryCounter = 0;
     ret = FACTORY_E_EVENT;
   } else {
     ret = FACTORY_E_RETRY;
@@ -1452,7 +1452,7 @@ Std_ReturnType Fee_Backup_CheckBankStatus_Main(void) {
 
 Std_ReturnType Fee_Backup_CheckBankStatus_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   (void)memset(&bankAdmin->Status, FLS_ERASED_VALUE, sizeof(bankAdmin->Status));
 
   return factory_goto(FEE_NODE_BACKUP_ENSURE_FULL);
@@ -1460,7 +1460,7 @@ Std_ReturnType Fee_Backup_CheckBankStatus_End(void) {
 
 Std_ReturnType Fee_Backup_CheckBankStatus_Error(void) {
   Fee_ContextType *context = &Fee_Context;
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
   /* trust the bank status*/
   return factory_goto(FEE_NODE_BACKUP_ENSURE_FULL);
 }
@@ -1469,9 +1469,9 @@ Std_ReturnType Fee_Backup_EnsureFull_Main(void) {
   Std_ReturnType ret = E_NOT_OK;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Fee_BankAdminType *workAdmin = &bankAdmin[1];
-  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->curWrokingBank];
+  P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank = &config->Banks[context->CurWorkingBank];
 
   if (FEE_BANK_NOT_FULL_MAGIC == bankAdmin->Status.FullMagic) {
     workAdmin->Status.FullMagic = FEE_BANK_FULL_MAGIC;
@@ -1491,7 +1491,7 @@ Std_ReturnType Fee_Backup_EnsureFull_Main(void) {
 
 Std_ReturnType Fee_Backup_EnsureFull_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   bankAdmin->Status.FullMagic = FEE_BANK_FULL_MAGIC;
   return factory_goto(FEE_NODE_BACKUP_READ_NEXT_BANK_ADMIN);
 }
@@ -1503,12 +1503,12 @@ Std_ReturnType Fee_Backup_EnsureFull_Error(void) {
 Std_ReturnType Fee_Backup_ReadNextBankAdmin_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[1]);
-  uint8_t nextBank = context->curWrokingBank + 1u;
+  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[1]);
+  uint8_t nextBank = context->CurWorkingBank + 1u;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Std_ReturnType ret;
 
-  if (nextBank >= config->numOfBanks) {
+  if (nextBank >= config->NumOfBanks) {
     nextBank = 0;
   }
   bank = &config->Banks[nextBank];
@@ -1539,17 +1539,17 @@ Std_ReturnType Fee_Backup_BlankCheckNextBankEmpty_Main(void) {
   Std_ReturnType ret = E_NOT_OK;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  uint8_t nextBank = context->curWrokingBank + 1u;
+  uint8_t nextBank = context->CurWorkingBank + 1u;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
 
-  if (nextBank >= config->numOfBanks) {
+  if (nextBank >= config->NumOfBanks) {
     nextBank = 0;
   }
   bank = &config->Banks[nextBank];
 
-  ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, blocks), FEE_PAGE_SIZE);
+  ret = Fls_BlankCheck(bank->LowAddress + offsetof(Fee_BankAdminType, Blocks), FEE_PAGE_SIZE);
   if (E_OK == ret) {
-    context->retryCounter = 0;
+    context->RetryCounter = 0;
     ret = FACTORY_E_EVENT;
   } else {
     ret = FACTORY_E_RETRY;
@@ -1559,15 +1559,15 @@ Std_ReturnType Fee_Backup_BlankCheckNextBankEmpty_Main(void) {
 
 Std_ReturnType Fee_Backup_BlankCheckNextBankEmpty_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[1]);
-  (void)memset(bankAdmin->blocks, FLS_ERASED_VALUE, FEE_PAGE_SIZE);
+  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[1]);
+  (void)memset(bankAdmin->Blocks, FLS_ERASED_VALUE, FEE_PAGE_SIZE);
   return factory_goto(FEE_NODE_BACKUP_ENSURE_NEXT_BANK_EMPTY);
 }
 
 Std_ReturnType Fee_Backup_BlankCheckNextBankEmpty_Error(void) {
   Fee_ContextType *context = &Fee_Context;
   /* block has data, trust it */
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
 
   return factory_goto(FEE_NODE_BACKUP_ENSURE_NEXT_BANK_EMPTY);
 }
@@ -1576,12 +1576,12 @@ Std_ReturnType Fee_Backup_EnsureNextBankEmpty_Main(void) {
   Std_ReturnType ret;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[1]);
+  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[1]);
   if ((FEE_MAGIC_NUMBER != bankAdmin->HeaderMagic.MagicNumber) ||
       (((uint32_t)~FEE_MAGIC_NUMBER) != bankAdmin->HeaderMagic.InvMagicNumber)) {
     ASLOG(FEEE, ("FEE Next Bank Magic %d is invalid, erase it\n",
-                 (context->curWrokingBank + 1) % config->numOfBanks));
-    if (context->erasedNumber < config->NumberOfErasedCycles) {
+                 (context->CurWorkingBank + 1) % config->NumOfBanks));
+    if (context->ErasedNumber < config->NumberOfErasedCycles) {
       ret = factory_goto(FEE_NODE_BACKUP_ERASE_NEXT_BANK);
     } else {
       ASLOG(FEEE, ("flash is dead but next bank with invalid magic\n"));
@@ -1589,14 +1589,14 @@ Std_ReturnType Fee_Backup_EnsureNextBankEmpty_Main(void) {
     }
   } else if (bankAdmin->Info.Number != (~bankAdmin->Info.InvNumber)) {
     ASLOG(FEEE, ("FEE Next Bank Info %d is invalid, erase it\n",
-                 (context->curWrokingBank + 1) % config->numOfBanks));
-    if (context->erasedNumber < config->NumberOfErasedCycles) {
+                 (context->CurWorkingBank + 1) % config->NumOfBanks));
+    if (context->ErasedNumber < config->NumberOfErasedCycles) {
       ret = factory_goto(FEE_NODE_BACKUP_ERASE_NEXT_BANK);
     } else {
       ASLOG(FEEE, ("flash is dead but next bank with invalid info\n"));
       ret = FACTORY_E_STOP;
     }
-  } else if (TRUE == Fee_IsAllErased(bankAdmin->blocks, sizeof(bankAdmin->blocks))) {
+  } else if (TRUE == Fee_IsAllErased(bankAdmin->Blocks, sizeof(bankAdmin->Blocks))) {
     if (bankAdmin->Info.Number < config->NumberOfErasedCycles) {
       ret = Fee_DoBackup_Copy_Start();
     } else {
@@ -1604,7 +1604,7 @@ Std_ReturnType Fee_Backup_EnsureNextBankEmpty_Main(void) {
       ret = FACTORY_E_STOP;
     }
   } else {
-    if (context->erasedNumber < config->NumberOfErasedCycles) {
+    if (context->ErasedNumber < config->NumberOfErasedCycles) {
       ret = factory_goto(FEE_NODE_BACKUP_ERASE_NEXT_BANK);
     } else {
       ASLOG(FEEE, ("flash is dead but next bank with some data\n"));
@@ -1626,11 +1626,11 @@ Std_ReturnType Fee_Backup_EnsureNextBankEmpty_Error(void) {
 Std_ReturnType Fee_Backup_EraseNextBank_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  uint8_t nextBank = context->curWrokingBank + 1u;
+  uint8_t nextBank = context->CurWorkingBank + 1u;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Std_ReturnType ret;
 
-  if (nextBank >= config->numOfBanks) {
+  if (nextBank >= config->NumOfBanks) {
     nextBank = 0;
   }
   bank = &config->Banks[nextBank];
@@ -1647,7 +1647,7 @@ Std_ReturnType Fee_Backup_EraseNextBank_Main(void) {
 
 Std_ReturnType Fee_Backup_EraseNextBank_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->workingArea)[1]);
+  Fee_BankAdminType *bankAdmin = &(((Fee_BankAdminType *)config->WorkingArea)[1]);
 
   (void)memset(bankAdmin, FLS_ERASED_VALUE, sizeof(Fee_BankAdminType));
   return factory_goto(FEE_NODE_BACKUP_SET_NEXT_BANK_ADMIN);
@@ -1660,15 +1660,15 @@ Std_ReturnType Fee_Backup_EraseNextBank_Error(void) {
 Std_ReturnType Fee_Backup_SetNextBankAdmin_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *actAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *actAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Fee_BankAdminType *bankAdmin = &actAdmin[1];
   Fee_BankAdminType *workAdmin = &actAdmin[2];
-  uint8_t nextBank = context->curWrokingBank + 1u;
+  uint8_t nextBank = context->CurWorkingBank + 1u;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Std_ReturnType ret;
-  uint32_t Number = context->erasedNumber;
+  uint32_t Number = context->ErasedNumber;
 
-  if (nextBank >= config->numOfBanks) {
+  if (nextBank >= config->NumOfBanks) {
     nextBank = 0;
   }
   Number += 1u; /* as exception case, always increase the number by 1 */
@@ -1696,7 +1696,7 @@ Std_ReturnType Fee_Backup_SetNextBankAdmin_Main(void) {
       ret = FACTORY_E_RETRY;
     }
   } else {
-    context->erasedNumber = Number;
+    context->ErasedNumber = Number;
     ret = Fee_DoBackup_Copy_Start();
   }
 
@@ -1705,7 +1705,7 @@ Std_ReturnType Fee_Backup_SetNextBankAdmin_Main(void) {
 
 Std_ReturnType Fee_Backup_SetNextBankAdmin_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *actAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *actAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Fee_BankAdminType *bankAdmin = &actAdmin[1];
   Fee_BankAdminType *workAdmin = &actAdmin[2];
 
@@ -1730,27 +1730,27 @@ Std_ReturnType Fee_Backup_CopyAdmin_Main(void) {
   uint16_t blockId;
   Std_ReturnType ret;
 
-  blockId = context->jobBlockId;
-  if (blockId < config->numOfBlocks) {
-    if (config->blockContexts[blockId].Address == FEE_INVALID_ADDRESS) {
-      for (blockId = blockId + 1u; blockId < config->numOfBlocks; blockId++) {
-        if (config->blockContexts[blockId].Address != FEE_INVALID_ADDRESS) {
+  blockId = context->JobBlockId;
+  if (blockId < config->NumOfBlocks) {
+    if (config->BlockContexts[blockId].Address == FEE_INVALID_ADDRESS) {
+      for (blockId = blockId + 1u; blockId < config->NumOfBlocks; blockId++) {
+        if (config->BlockContexts[blockId].Address != FEE_INVALID_ADDRESS) {
           break;
         }
       }
     }
   }
 
-  if (blockId < config->numOfBlocks) {
-    context->jobBlockId = blockId;
+  if (blockId < config->NumOfBlocks) {
+    context->JobBlockId = blockId;
     /* for valid data search from */
 #ifdef FLS_DIRECT_ACCESS
-    context->jobNextAddr =
-      config->blockContexts[blockId].Address - FEE_ALIGNED(sizeof(Fee_BlockType));
+    context->JobNextAddr =
+      config->BlockContexts[blockId].Address - FEE_ALIGNED(sizeof(Fee_BlockType));
 #else
-    context->jobNextAddr = PTR_TO_U32(context->jobDataBufferPtr);
+    context->JobNextAddr = PTR_TO_U32(context->JobDataBufferPtr);
 #endif
-    if ((context->dataFreeAddr - context->adminFreeAddr) >=
+    if ((context->DataFreeAddr - context->AdminFreeAddr) >=
         FEE_BLOCK_ADMIN_AND_DATA_SIZE(config->Blocks[blockId].BlockSize)) {
       ret = Fee_DoWrite_Admin(TRUE);
       if (E_OK == ret) {
@@ -1785,13 +1785,13 @@ Std_ReturnType Fee_Backup_CopyReadData_Main(void) {
   Std_ReturnType ret;
 #ifdef FLS_DIRECT_ACCESS
   const Fee_BlockType *block =
-    (const Fee_BlockType *)FEE_ADDRESS(config->blockContexts[context->jobBlockId].Address);
-  (void)memcpy(config->workingArea, FEE_ADDRESS(block->Address),
-               FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize));
+    (const Fee_BlockType *)FEE_ADDRESS(config->BlockContexts[context->JobBlockId].Address);
+  (void)memcpy(config->WorkingArea, FEE_ADDRESS(block->Address),
+               FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize));
   ret = Fee_Backup_CopyReadData_End();
 #else
-  ret = Fls_Read(config->blockContexts[context->jobBlockId].Address, config->workingArea,
-                 FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize));
+  ret = Fls_Read(config->BlockContexts[context->JobBlockId].Address, config->WorkingArea,
+                 FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize));
   if (E_OK == ret) {
     ret = FACTORY_E_EVENT;
   } else {
@@ -1808,25 +1808,25 @@ Std_ReturnType Fee_Backup_CopyReadData_End(void) {
   uint16_t *pCrc;
   uint16_t *pInvCrc;
   uint16_t Crc = 0;
-  uint16_t alignedSize = FEE_DATA_ALIGNED(config->Blocks[context->jobBlockId].BlockSize);
+  uint16_t alignedSize = FEE_DATA_ALIGNED(config->Blocks[context->JobBlockId].BlockSize);
 
-  pCrc = (uint16_t *)&(config->workingArea)[alignedSize - 4u];
+  pCrc = (uint16_t *)&(config->WorkingArea)[alignedSize - 4u];
   pInvCrc = &pCrc[1];
   if (((uint16_t)~(*pCrc)) == (*pInvCrc)) {
-    Crc = Crc_CalculateCRC16(config->workingArea, alignedSize - 4u, 0, TRUE);
+    Crc = Crc_CalculateCRC16(config->WorkingArea, alignedSize - 4u, 0, TRUE);
     if (Crc == *pCrc) {
       ret = E_OK;
     }
   }
 
   if (ret != E_OK) {
-    if (config->blockContexts[context->jobBlockId].Address != FEE_INVALID_ADDRESS) {
+    if (config->BlockContexts[context->JobBlockId].Address != FEE_INVALID_ADDRESS) {
       ASLOG(
         FEEE,
         ("Addres %X for block %d has invalid data (R %X, ~ %X, E %X), searching next valid one\n",
-         config->blockContexts[context->jobBlockId].Address, context->jobBlockId, *pCrc, *pInvCrc,
+         config->BlockContexts[context->JobBlockId].Address, context->JobBlockId, *pCrc, *pInvCrc,
          Crc));
-      config->blockContexts[context->jobBlockId].Address = FEE_INVALID_ADDRESS;
+      config->BlockContexts[context->JobBlockId].Address = FEE_INVALID_ADDRESS;
     }
     ret = factory_goto(FEE_NODE_BACKUP_SEARCH_NEXT_DATA);
   } else {
@@ -1844,15 +1844,15 @@ Std_ReturnType Fee_Backup_SearchNextData_Main(void) {
   Std_ReturnType ret;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  uint8_t bankId = context->curWrokingBank - 1u;
-  if (bankId >= config->numOfBanks) {
-    bankId = config->numOfBanks - 1u;
+  uint8_t bankId = context->CurWorkingBank - 1u;
+  if (bankId >= config->NumOfBanks) {
+    bankId = config->NumOfBanks - 1u;
   }
 
   ret = Fee_DoSearchNextValidDataStart(bankId);
   if (FEE_E_EXIST == ret) {
-    ASLOG(FEEE, ("Fatal, can't backup for block %d\n", context->jobBlockId));
-    context->jobBlockId++;
+    ASLOG(FEEE, ("Fatal, can't backup for block %d\n", context->JobBlockId));
+    context->JobBlockId++;
     ret = factory_goto(FEE_NODE_BACKUP_COPY_ADMIN);
   } else {
 #ifndef FLS_DIRECT_ACCESS
@@ -1876,10 +1876,10 @@ Std_ReturnType Fee_Backup_SearchNextData_End(void) {
   Std_ReturnType ret;
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  uint8_t bankId = context->curWrokingBank - 1u;
+  uint8_t bankId = context->CurWorkingBank - 1u;
 
-  if (bankId >= config->numOfBanks) {
-    bankId = config->numOfBanks - 1u;
+  if (bankId >= config->NumOfBanks) {
+    bankId = config->NumOfBanks - 1u;
   }
   ret = Fee_DoSearchNextValidDataEnd(bankId);
 
@@ -1890,7 +1890,7 @@ Std_ReturnType Fee_Backup_SearchNextData_End(void) {
   }
 
 #ifdef FLS_DIRECT_ACCESS
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
 #endif
 
   return ret;
@@ -1904,7 +1904,7 @@ Std_ReturnType Fee_Backup_CopyData_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Std_ReturnType ret;
 
-  ret = Fee_DoWrite_Data(config->workingArea);
+  ret = Fee_DoWrite_Data(config->WorkingArea);
   if (E_OK == ret) {
     ret = FACTORY_E_EVENT;
   } else {
@@ -1917,12 +1917,12 @@ Std_ReturnType Fee_Backup_CopyData_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
 #ifdef FLS_DIRECT_ACCESS
-  config->blockContexts[context->jobBlockId].Address =
-    context->adminFreeAddr - FEE_ALIGNED(sizeof(Fee_BlockType));
+  config->BlockContexts[context->JobBlockId].Address =
+    context->AdminFreeAddr - FEE_ALIGNED(sizeof(Fee_BlockType));
 #else
-  config->blockContexts[context->jobBlockId].Address = context->dataFreeAddr;
+  config->BlockContexts[context->JobBlockId].Address = context->DataFreeAddr;
 #endif
-  context->jobBlockId += 1u;
+  context->JobBlockId += 1u;
   return factory_goto(FEE_NODE_BACKUP_COPY_ADMIN);
 }
 
@@ -1935,10 +1935,10 @@ Std_ReturnType Fee_Backup_EraseBank_Main(void) {
   Fee_ContextType *context = &Fee_Context;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Std_ReturnType ret;
-  uint8_t erasedBank = context->curWrokingBank - 1u;
+  uint8_t erasedBank = context->CurWorkingBank - 1u;
 
-  if (erasedBank >= config->numOfBanks) {
-    erasedBank = config->numOfBanks - 1u;
+  if (erasedBank >= config->NumOfBanks) {
+    erasedBank = config->NumOfBanks - 1u;
   }
 
   ASLOG(FEE, ("backup erase bank %d\n", erasedBank));
@@ -1955,7 +1955,7 @@ Std_ReturnType Fee_Backup_EraseBank_Main(void) {
 
 Std_ReturnType Fee_Backup_EraseBank_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
 
   (void)memset(bankAdmin, FLS_ERASED_VALUE, sizeof(Fee_BankAdminType));
   return factory_goto(FEE_NODE_BACKUP_SET_BANK_ADMIN);
@@ -1968,15 +1968,15 @@ Std_ReturnType Fee_Backup_EraseBank_Error(void) {
 Std_ReturnType Fee_Backup_SetBankAdmin_Main(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Fee_BankAdminType *workAdmin = &bankAdmin[1];
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) bank;
   Std_ReturnType ret;
-  uint32_t Number = context->erasedNumber;
-  uint8_t erasedBank = context->curWrokingBank - 1u;
+  uint32_t Number = context->ErasedNumber;
+  uint8_t erasedBank = context->CurWorkingBank - 1u;
 
-  if (erasedBank >= config->numOfBanks) {
-    erasedBank = config->numOfBanks - 1u;
+  if (erasedBank >= config->NumOfBanks) {
+    erasedBank = config->NumOfBanks - 1u;
   }
   if (0 == erasedBank) {
     Number += 1u; /* only increate Number for the first bank */
@@ -2006,7 +2006,7 @@ Std_ReturnType Fee_Backup_SetBankAdmin_Main(void) {
       ret = FACTORY_E_RETRY;
     }
   } else {
-    context->erasedNumber = Number;
+    context->ErasedNumber = Number;
     ret = FACTORY_E_STOP;
     ASLOG(FEE, ("backup done\n"));
     STD_TRACE_APP(FEE_BACKUP_E);
@@ -2017,7 +2017,7 @@ Std_ReturnType Fee_Backup_SetBankAdmin_Main(void) {
 
 Std_ReturnType Fee_Backup_SetBankAdmin_End(void) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
-  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->workingArea;
+  Fee_BankAdminType *bankAdmin = (Fee_BankAdminType *)config->WorkingArea;
   Fee_BankAdminType *workAdmin = &bankAdmin[1];
 
   if (bankAdmin->Info.Number != ((uint32_t)~bankAdmin->Info.InvNumber)) {
@@ -2037,7 +2037,7 @@ Std_ReturnType Fee_Backup_SetBankAdmin_Error(void) {
 void Fee_JobEndNotification(void) {
   Fee_ContextType *context = &Fee_Context;
   Fee_CheckContextCrc();
-  context->retryCounter = 0;
+  context->RetryCounter = 0;
   (void)factory_on_event(&Fee_Factory, FEE_EVENT_END);
   Fee_RefreshContextCrc();
 }
@@ -2061,7 +2061,7 @@ void Fee_JobErrorNotification(void) {
                    .name));
   }
 
-  if (context->retryCounter <= config->maxJobRetry) {
+  if (context->RetryCounter <= config->MaxJobRetry) {
     (void)factory_on_event(&Fee_Factory, FEE_EVENT_ERROR);
   } else {
     ASLOG(FEEE, ("reach max attempts during error:%s:%s\n",
@@ -2091,18 +2091,18 @@ MemIf_StatusType Fee_GetStatus(void) {
   return status;
 }
 
-void Fee_Init(P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) ConfigPtr) {
+void Fee_Init(P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) configPtr) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   uint16_t i;
-  (void)ConfigPtr;
+  (void)configPtr;
 
-  asAssert(config->sizeOfWorkingArea >= ((config->numOfBanks + 1) * sizeof(Fee_BankAdminType)));
+  asAssert(config->SizeOfWorkingArea >= ((config->NumOfBanks + 1) * sizeof(Fee_BankAdminType)));
 
-  for (i = 0; i < config->numOfBlocks; i++) {
-    config->blockContexts[i].Address = FEE_INVALID_ADDRESS;
+  for (i = 0; i < config->NumOfBlocks; i++) {
+    config->BlockContexts[i].Address = FEE_INVALID_ADDRESS;
 #ifndef FLS_DIRECT_ACCESS
-    config->blockContexts[i].NumberOfWriteCycles = 0;
+    config->BlockContexts[i].NumberOfWriteCycles = 0;
 #endif
   }
   (void)memset(context, 0, sizeof(Fee_ContextType));
@@ -2111,39 +2111,39 @@ void Fee_Init(P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) ConfigPtr) {
   Fee_RefreshContextCrc();
 }
 
-Std_ReturnType Fee_Read(uint16_t BlockNumber, uint16_t BlockOffset, uint8_t *DataBufferPtr,
-                        uint16_t Length) {
+Std_ReturnType Fee_Read(uint16_t blockNumber, uint16_t blockOffset, uint8_t *dataBufferPtr,
+                        uint16_t length) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Std_ReturnType r;
 
   (void)config;
 
-  DET_VALIDATE((BlockNumber > 0) && ((BlockNumber - 1) < config->numOfBlocks), 0x02,
+  DET_VALIDATE((blockNumber > 0) && ((blockNumber - 1) < config->NumOfBlocks), 0x02,
                FEE_E_INVALID_BLOCK_NO, return E_NOT_OK);
-  DET_VALIDATE(config->Blocks[BlockNumber - 1].BlockSize >= Length, 0x02, FEE_E_INVALID_BLOCK_LEN,
+  DET_VALIDATE(config->Blocks[blockNumber - 1].BlockSize >= length, 0x02, FEE_E_INVALID_BLOCK_LEN,
                return E_NOT_OK);
-  DET_VALIDATE(config->Blocks[BlockNumber - 1].BlockSize >= ((uint32_t)BlockOffset + Length), 0x02,
+  DET_VALIDATE(config->Blocks[blockNumber - 1].BlockSize >= ((uint32_t)blockOffset + length), 0x02,
                FEE_E_INVALID_BLOCK_OFS, return E_NOT_OK);
 
   Fee_CheckContextCrc();
   r = factory_start_machine(&Fee_Factory, FEE_MACHINE_READ);
   if (E_OK == r) {
-    context->retryCounter = 0;
-    context->jobBlockId = BlockNumber - 1u;
-    context->jobBlockOffset = BlockOffset;
-    context->jobDataBufferPtr = DataBufferPtr;
-    context->jobLength = Length;
+    context->RetryCounter = 0;
+    context->JobBlockId = blockNumber - 1u;
+    context->JobBlockOffset = blockOffset;
+    context->JobDataBufferPtr = dataBufferPtr;
+    context->JobLength = length;
 #ifdef FLS_DIRECT_ACCESS
-    if (FEE_INVALID_ADDRESS != config->blockContexts[context->jobBlockId].Address) {
+    if (FEE_INVALID_ADDRESS != config->BlockContexts[context->JobBlockId].Address) {
       /* valid history data before current address */
-      context->jobNextAddr =
-        config->blockContexts[context->jobBlockId].Address - FEE_ALIGNED(sizeof(Fee_BlockType));
+      context->JobNextAddr =
+        config->BlockContexts[context->JobBlockId].Address - FEE_ALIGNED(sizeof(Fee_BlockType));
     } else {
-      context->jobNextAddr = context->adminFreeAddr;
+      context->JobNextAddr = context->AdminFreeAddr;
     }
 #else
-    context->jobNextAddr = context->adminFreeAddr;
+    context->JobNextAddr = context->AdminFreeAddr;
 #endif
     Fee_RefreshContextCrc();
   }
@@ -2151,7 +2151,7 @@ Std_ReturnType Fee_Read(uint16_t BlockNumber, uint16_t BlockOffset, uint8_t *Dat
   return r;
 }
 
-Std_ReturnType Fee_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr) {
+Std_ReturnType Fee_Write(uint16_t blockNumber, const uint8_t *dataBufferPtr) {
   P2CONST(Fee_ConfigType, AUTOMATIC, FEE_CONST) config = FEE_CONFIG;
   Fee_ContextType *context = &Fee_Context;
   Std_ReturnType r = E_OK;
@@ -2161,14 +2161,14 @@ Std_ReturnType Fee_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr) {
 
   (void)config;
 
-  DET_VALIDATE((BlockNumber > 0) && ((BlockNumber - 1) < config->numOfBlocks), 0x03,
+  DET_VALIDATE((blockNumber > 0) && ((blockNumber - 1) < config->NumOfBlocks), 0x03,
                FEE_E_INVALID_BLOCK_NO, return E_NOT_OK);
 
 #ifdef FLS_DIRECT_ACCESS
-  if (FEE_INVALID_ADDRESS != config->blockContexts[BlockNumber - 1u].Address) {
-    block = (const Fee_BlockType *)FEE_ADDRESS(config->blockContexts[BlockNumber - 1u].Address);
-    if (block->NumberOfWriteCycles >= config->Blocks[BlockNumber - 1u].NumberOfWriteCycles) {
-      ASLOG(FEEE, ("block %d reach end of life %u\n", BlockNumber, block->NumberOfWriteCycles));
+  if (FEE_INVALID_ADDRESS != config->BlockContexts[blockNumber - 1u].Address) {
+    block = (const Fee_BlockType *)FEE_ADDRESS(config->BlockContexts[blockNumber - 1u].Address);
+    if (block->NumberOfWriteCycles >= config->Blocks[blockNumber - 1u].NumberOfWriteCycles) {
+      ASLOG(FEEE, ("block %d reach end of life %u\n", blockNumber, block->NumberOfWriteCycles));
       r = E_NOT_OK;
     }
   }
@@ -2180,17 +2180,17 @@ Std_ReturnType Fee_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr) {
   }
 
   if (E_OK == r) {
-    context->retryCounter = 0;
-    context->jobBlockId = BlockNumber - 1u;
-    context->jobDataBufferPtr = (uint8_t *)DataBufferPtr;
+    context->RetryCounter = 0;
+    context->JobBlockId = blockNumber - 1u;
+    context->JobDataBufferPtr = (uint8_t *)dataBufferPtr;
     Fee_RefreshContextCrc();
   }
 
   return r;
 }
 
-void Fee_SetMode(MemIf_ModeType Mode) {
-  Fls_SetMode(Mode);
+void Fee_SetMode(MemIf_ModeType mode) {
+  Fls_SetMode(mode);
 }
 
 void Fee_MainFunction(void) {
@@ -2201,11 +2201,11 @@ void Fee_MainFunction(void) {
 
   if (FACTORY_RUNNING == state) {
     Fee_CheckContextCrc();
-    if (context->retryCounter <= config->maxJobRetry) {
-      context->retryCounter++;
+    if (context->RetryCounter <= config->MaxJobRetry) {
+      context->RetryCounter++;
       ret = factory_main(&Fee_Factory);
       if ((FACTORY_E_SWITCH_TO == ret) || (FACTORY_E_GOTO == ret)) {
-        context->retryCounter = 0;
+        context->RetryCounter = 0;
         (void)factory_main(&Fee_Factory);
       }
     } else {
@@ -2223,20 +2223,20 @@ void Fee_MainFunction(void) {
 
 void Fee_GetAdminInfo(Fee_AdminInfoType *pAdminInfo) {
   Fee_ContextType *context = &Fee_Context;
-  pAdminInfo->adminFreeAddr = context->adminFreeAddr;
-  pAdminInfo->dataFreeAddr = context->dataFreeAddr;
-  pAdminInfo->curWrokingBank = context->curWrokingBank;
-  pAdminInfo->erasedNumber = context->erasedNumber;
+  pAdminInfo->AdminFreeAddr = context->AdminFreeAddr;
+  pAdminInfo->DataFreeAddr = context->DataFreeAddr;
+  pAdminInfo->CurWorkingBank = context->CurWorkingBank;
+  pAdminInfo->ErasedNumber = context->ErasedNumber;
 }
 
 void Fee_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x08, FEE_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_FEE;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 2;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_FEE;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 2;
 }
 
 /** @brief release notes

@@ -3,8 +3,8 @@
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  * Platform Abstraction Layer
  */
-#ifndef _PAL_H_
-#define _PAL_H_
+#ifndef PAL_H
+#define PAL_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,4 +29,4 @@ uint64_t PAL_Timestamp(void);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PAL_H_ */
+#endif /* PAL_H */

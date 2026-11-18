@@ -1,50 +1,50 @@
 {
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
+      "Name": "SomeIp",
+      "Class": "SomeIp",
       "SD": {
-        "hostname" : "ssas",
-        "multicast" : "224.244.224.245"
+        "Hostname" : "ssas",
+        "Multicast" : "224.244.224.245"
       },
-      "structs": [
+      "Structs": [
         {
-          "name": "Vector",
-          "data": [
-            { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 }
+          "Name": "Vector",
+          "Data": [
+            { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 }
           ]
         },
         {
-          "name": "Result",
-          "data": [
-            { "name": "ercd", "type": "uint8" },
-            { "name": "summary", "type": "uint32" },
-            { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 }
+          "Name": "Result",
+          "Data": [
+            { "Name": "ercd", "Type": "uint8" },
+            { "Name": "summary", "Type": "uint32" },
+            { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 }
           ]
         }
       ],
-      "args": [
-        { "name": "add-args", "args": [ { "name": "A", "type": "Vector" }, { "name": "B", "type": "Vector" } ] }
+      "Args": [
+        { "Name": "add-args", "Args": [ { "Name": "A", "Type": "Vector" }, { "Name": "B", "Type": "Vector" } ] }
       ],
-      "clients": [
+      "Clients": [
         {
-          "name": "Math",
-          "service": "0xadda",
-          "instance": "0x1001",
-          "clientId": "0x1001",
-          "protocol": "TCP",
-          "methods": [
+          "Name": "Math",
+          "Service": "0xadda",
+          "Instance": "0x1001",
+          "ClientId": "0x1001",
+          "Protocol": "TCP",
+          "Methods": [
             {
-              "name" : "add",
-              "methodId" : "0x0add",
-              "args": "add-args",
-              "return": "Result",
-              "tp": true,
-              "version" : "0"
+              "Name" : "add",
+              "MethodId" : "0x0add",
+              "Args": "add-args",
+              "Return": "Result",
+              "Tp": true,
+              "Version" : "0"
             }
           ],
-          "event-groups": []
+          "EventGroups": []
         }
       ]
     }

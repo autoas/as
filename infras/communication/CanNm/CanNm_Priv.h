@@ -5,8 +5,8 @@
  * ref:
  * https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CANNetworkManagement.pdf
  */
-#ifndef _CAN_NM_PRIV_H
-#define _CAN_NM_PRIV_H
+#ifndef CANNM_PRIV_H
+#define CANNM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
@@ -40,7 +40,7 @@ typedef struct {
 #endif
   PduIdType TxPdu; /* @ECUC_CanNm_00048 */
   uint8_t NodeId;  /* @ECUC_CanNm_00031 */
-  NetworkHandleType nmNetworkHandle;
+  NetworkHandleType NetworkHandle;
   uint8_t ImmediateNmTransmissions;     /* @ECUC_CanNm_00056 */
   CanNm_PduPositionType PduCbvPosition; /* @ECUC_CanNm_00026 */
   CanNm_PduPositionType PduNidPosition; /* @ECUC_CanNm_00025 */
@@ -73,29 +73,29 @@ typedef uint16_t CanNm_TimerType;
 
 typedef struct {
   struct {
-    CanNm_TimerType _Tx;
-    CanNm_TimerType _TxTimeout;
-    CanNm_TimerType _NMTimeout;
-    CanNm_TimerType _RepeatMessage;
-    CanNm_TimerType _WaitBusSleep;
+    CanNm_TimerType Tx;
+    CanNm_TimerType TxTimeout;
+    CanNm_TimerType NmTimeout;
+    CanNm_TimerType RepeatMessage;
+    CanNm_TimerType WaitBusSleep;
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-    CanNm_TimerType _RemoteSleepInd;
+    CanNm_TimerType RemoteSleepInd;
 #endif
   } Alarm;
-  uint16_t flags;
-  Nm_StateType state;
+  uint16_t Flags;
+  Nm_StateType State;
   uint8_t TxCounter;
-  uint8_t data[8];
-  uint8_t rxPdu[8];
+  uint8_t Data[8];
+  uint8_t RxPdu[8];
 } CanNm_ChannelContextType;
 
 struct CanNm_Config_s {
   const CanNm_ChannelConfigType *ChannelConfigs;
   CanNm_ChannelContextType *ChannelContexts;
-  uint8_t numOfChannels;
+  uint8_t NumOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _CAN_NM_PRIV_H */
+#endif /* CANNM_PRIV_H */

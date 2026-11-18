@@ -22,53 +22,53 @@ typedef void *HANDLE;
 using namespace std::literals::chrono_literals;
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-struct Can_VxlHandle_s {
+struct CanL_VxlHandleType {
   XLportHandle xlHandle;
   XLaccess xlAccess;
   XLdriverConfig xlDrvConfig;
-  uint32_t busid;
-  uint32_t port;
-  uint32_t baudrate;
+  uint32_t BusId;
+  uint32_t Port;
+  uint32_t Baudrate;
   std::mutex mutex;
-  std::thread rx_thread;
-  volatile bool terminated;
-  can_device_rx_notification_t rx_notification;
-  STAILQ_ENTRY(Can_VxlHandle_s) entry;
+  std::thread RxThread;
+  volatile bool Terminated;
+  CanL_DeviceRxNotificationType RxNotification;
+  STAILQ_ENTRY(CanL_VxlHandleType) entry;
 };
 
-struct Can_VxlHandleList_s {
-  bool initialized;
+struct CanL_VxlHandleListType {
+  bool Initialized;
   std::mutex mutex;
-  STAILQ_HEAD(, Can_VxlHandle_s) head;
+  STAILQ_HEAD(, CanL_VxlHandleType) head;
 };
 /* ================================ [ DECLARES  ] ============================================== */
-static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
-                      can_device_rx_notification_t rx_notification);
-static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                      uint64_t timestamp);
-static void vxl_close(uint32_t port);
-static void vxl_read(uint32_t port);
-static void rx_daemon(struct Can_VxlHandle_s *handle);
+static bool CanL_VxlProbe(int busId, uint32_t port, uint32_t baudrate,
+                          CanL_DeviceRxNotificationType rxNotification);
+static bool CanL_VxlWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                          uint64_t timestamp);
+static void CanL_VxlClose(uint32_t port);
+static void CanL_VxlRead(uint32_t port);
+static void CanL_RxDaemon(struct CanL_VxlHandleType *handle);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Can_DeviceOpsType can_vxl_ops = {
-  .name = "vxl",
-  .probe = vxl_probe,
-  .close = vxl_close,
-  .write = vxl_write,
-  .read = vxl_read,
+extern "C" const CanL_DeviceOpsType CanL_VxlOps = {
+  .Name = "vxl",
+  .Probe = CanL_VxlProbe,
+  .Close = CanL_VxlClose,
+  .Write = CanL_VxlWrite,
+  .Read = CanL_VxlRead,
 };
 
-static struct Can_VxlHandleList_s vxlH = {
-  .initialized = false,
+static struct CanL_VxlHandleListType vxlH = {
+  .Initialized = false,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 
-static struct Can_VxlHandle_s *getHandle(uint32_t port) {
-  struct Can_VxlHandle_s *handle, *h;
+static struct CanL_VxlHandleType *CanL_GetHandle(uint32_t port) {
+  struct CanL_VxlHandleType *handle, *h;
   handle = NULL;
   std::lock_guard<std::mutex> lck(vxlH.mutex);
   STAILQ_FOREACH(h, &vxlH.head, entry) {
-    if (h->port == port) {
+    if (h->Port == port) {
       handle = h;
       break;
     }
@@ -76,7 +76,7 @@ static struct Can_VxlHandle_s *getHandle(uint32_t port) {
   return handle;
 }
 
-static void vxlPrintConfig(XLdriverConfig *xlDrvConfig) {
+static void CanL_VxlPrintConfig(XLdriverConfig *xlDrvConfig) {
 
   unsigned int i;
   char str[100];
@@ -107,7 +107,7 @@ static void vxlPrintConfig(XLdriverConfig *xlDrvConfig) {
   printf("----------------------------------------------------------\n\n");
 }
 
-static bool open_vxl(struct Can_VxlHandle_s *handle) {
+static bool CanL_OpenVxl(struct CanL_VxlHandleType *handle) {
   char userName[32];
   XLstatus status;
   XLaccess accessMask;
@@ -115,14 +115,14 @@ static bool open_vxl(struct Can_VxlHandle_s *handle) {
   status = xlGetDriverConfig(&handle->xlDrvConfig);
 
   if (XL_SUCCESS == status) {
-    vxlPrintConfig(&handle->xlDrvConfig);
+    CanL_VxlPrintConfig(&handle->xlDrvConfig);
   } else {
     ASLOG(WARN, ("CAN VXL get driver config error<%d>: %s\n", status, xlGetErrorString(status)));
     return false;
   }
 
-  sprintf(userName, "port%d", (int)handle->port);
-  accessMask = 1 << handle->port;
+  sprintf(userName, "port%d", (int)handle->Port);
+  accessMask = 1 << handle->Port;
   handle->xlAccess = accessMask;
   status = xlOpenPort(&handle->xlHandle, userName, accessMask, &handle->xlAccess, 512,
                       XL_INTERFACE_VERSION, XL_BUS_TYPE_CAN);
@@ -131,7 +131,7 @@ static bool open_vxl(struct Can_VxlHandle_s *handle) {
     return false;
   }
 
-  status = xlCanSetChannelBitrate(handle->xlHandle, handle->xlAccess, handle->baudrate);
+  status = xlCanSetChannelBitrate(handle->xlHandle, handle->xlAccess, handle->Baudrate);
   if (XL_SUCCESS != status) {
     ASLOG(WARN, ("CAN VXL open error<%d>: %s\n", status, xlGetErrorString(status)));
     return false;
@@ -146,12 +146,12 @@ static bool open_vxl(struct Can_VxlHandle_s *handle) {
 
   return true;
 }
-static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
-                      can_device_rx_notification_t rx_notification) {
+static bool CanL_VxlProbe(int busId, uint32_t port, uint32_t baudrate,
+                          CanL_DeviceRxNotificationType rxNotification) {
   bool rv = true;
-  struct Can_VxlHandle_s *handle;
+  struct CanL_VxlHandleType *handle;
 
-  if (false == vxlH.initialized) {
+  if (false == vxlH.Initialized) {
     XLstatus status = xlOpenDriver();
 
     if (XL_SUCCESS != status) {
@@ -163,24 +163,24 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
 
     STAILQ_INIT(&vxlH.head);
 
-    vxlH.initialized = true;
+    vxlH.Initialized = true;
   }
 
-  handle = getHandle(port);
+  handle = CanL_GetHandle(port);
 
   if (handle) {
     ASLOG(WARN, ("CAN VXL port=%d is already on-line, no need to probe it again!\n", port));
     rv = false;
   } else {
-    handle = new struct Can_VxlHandle_s;
+    handle = new struct CanL_VxlHandleType;
     assert(handle);
-    handle->busid = busid;
-    handle->port = port;
-    handle->baudrate = baudrate;
-    handle->rx_notification = rx_notification;
-    if (open_vxl(handle)) { /* open port OK */
-      handle->terminated = false;
-      handle->rx_thread = std::thread(rx_daemon, handle);
+    handle->BusId = busId;
+    handle->Port = port;
+    handle->Baudrate = baudrate;
+    handle->RxNotification = rxNotification;
+    if (CanL_OpenVxl(handle)) { /* open port OK */
+      handle->Terminated = false;
+      handle->RxThread = std::thread(CanL_RxDaemon, handle);
       std::lock_guard<std::mutex> lck(vxlH.mutex);
       STAILQ_INSERT_TAIL(&vxlH.head, handle, entry);
     } else {
@@ -193,10 +193,10 @@ static bool vxl_probe(int busid, uint32_t port, uint32_t baudrate,
   return rv;
 }
 
-static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
-                      uint64_t timestamp) {
+static bool CanL_VxlWrite(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t *data,
+                          uint64_t timestamp) {
   bool rv = true;
-  struct Can_VxlHandle_s *handle = getHandle(port);
+  struct CanL_VxlHandleType *handle = CanL_GetHandle(port);
   (void)timestamp;
 
   if (handle != NULL) {
@@ -235,16 +235,16 @@ static bool vxl_write(uint32_t port, uint32_t canid, uint8_t dlc, const uint8_t 
   return rv;
 }
 
-static void vxl_close(uint32_t port) {
-  struct Can_VxlHandle_s *handle = getHandle(port);
+static void CanL_VxlClose(uint32_t port) {
+  struct CanL_VxlHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
     std::lock_guard<std::mutex> lck(vxlH.mutex);
-    handle->terminated = true;
-    if (handle->rx_thread.joinable()) {
-      handle->rx_thread.join();
+    handle->Terminated = true;
+    if (handle->RxThread.joinable()) {
+      handle->RxThread.join();
     }
-    STAILQ_REMOVE(&vxlH.head, handle, Can_VxlHandle_s, entry);
+    STAILQ_REMOVE(&vxlH.head, handle, CanL_VxlHandleType, entry);
 
     delete handle;
 
@@ -254,7 +254,7 @@ static void vxl_close(uint32_t port) {
   }
 }
 
-static void rx_notifiy(struct Can_VxlHandle_s *handle) {
+static void CanL_RxIndication(struct CanL_VxlHandleType *handle) {
   char *string;
   XLstatus status;
   unsigned int EventCount = 1;
@@ -271,7 +271,7 @@ static void rx_notifiy(struct Can_VxlHandle_s *handle) {
     }
 
     if (XL_SUCCESS != status) {
-      ASLOG(WARN, ("CAN VXL port=%d receive message failed: %s!\n", handle->port,
+      ASLOG(WARN, ("CAN VXL port=%d receive message failed: %s!\n", handle->Port,
                    xlGetErrorString(status)));
       break;
     }
@@ -287,25 +287,25 @@ static void rx_notifiy(struct Can_VxlHandle_s *handle) {
         sscanf(&sdata[2 * i], "%2x", &u32V);
         data[i] = (uint8_t)u32V;
       }
-      handle->rx_notification(handle->busid, canid, dlc, data, 0);
+      handle->RxNotification(handle->BusId, canid, dlc, data, 0);
     } else {
-      ASLOG(WARN, ("CAN VXL port=%d receive unknown message: '%s'!\n", handle->port, string));
+      ASLOG(WARN, ("CAN VXL port=%d receive unknown message: '%s'!\n", handle->Port, string));
     }
   } while (XL_SUCCESS == status);
 }
 
-static void vxl_read(uint32_t port) {
-  struct Can_VxlHandle_s *handle = getHandle(port);
+static void CanL_VxlRead(uint32_t port) {
+  struct CanL_VxlHandleType *handle = CanL_GetHandle(port);
 
   if (NULL != handle) {
-    rx_notifiy(handle);
+    CanL_RxIndication(handle);
   }
 }
 
-static void rx_daemon(struct Can_VxlHandle_s *handle) {
-  while (false == handle->terminated) {
-    rx_notifiy(handle);
-    if (false == can_is_perf_mode()) {
+static void CanL_RxDaemon(struct CanL_VxlHandleType *handle) {
+  while (false == handle->Terminated) {
+    CanL_RxIndication(handle);
+    if (false == CanL_IsPerfMode()) {
       std::this_thread::sleep_for(1ms);
     }
   }

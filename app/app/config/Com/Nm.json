@@ -1,13 +1,13 @@
 {
-    "class": "Nm",
-    "networks": [
+    "Class": "Nm",
+    "Networks": [
       {
-        "name": "CANNM0",
-        "type": "CANNM"
+        "Name": "CANNM0",
+        "Type": "CANNM"
       },
       {
-        "name": "CANNM1",
-        "type": "CANNM"
+        "Name": "CANNM1",
+        "Type": "CANNM"
       }
     ]
   }

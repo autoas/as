@@ -62,11 +62,11 @@ local function decode_snapshot_data(desc, d, index)
   local l = -1
   local s = ''
   local v = 0
-  if desc["type"] == "uint32" then
+  if desc["Type"] == "uint32" then
     v = (d[index]<<24) + (d[index+1]<<16) + (d[index+2]<<8) + d[index+3]
     l = 4
     s = string.format('%d(0x%x)', v, v)
-  elseif desc["type"] == "uint16" then
+  elseif desc["Type"] == "uint16" then
     v = (d[index]<<8) + d[index+1]
     l = 2
     s = string.format('%d(0x%x)', v, v)
@@ -76,7 +76,7 @@ local function decode_snapshot_data(desc, d, index)
     
   end
 
-  if desc["display"] == "hex" then
+  if desc["Display"] == "hex" then
     s = string.format('0x%x', v)
   else
     s = string.format('%d', v)
@@ -110,7 +110,7 @@ function decode_snapshot(d)
       index = index + 2
       local desc = nil
       for k, v in ipairs(Environments) do
-        if v["id"] == id then
+        if v["Id"] == id then
           desc = v
           break
         end
@@ -118,7 +118,7 @@ function decode_snapshot(d)
       if desc == nil then
         return true, {"Error"}, {string.format("data with ID 0x%X not known", id)}, 0
       end
-      if desc["name"] == "Time" and desc["type"] == "struct" then
+      if desc["Name"] == "Time" and desc["Type"] == "struct" then
         year = d[index]
         month = d[index+1]
         day = d[index+2]
@@ -131,13 +131,13 @@ function decode_snapshot(d)
           headers[Idx] = "Date"
         end
         Idx = Idx + 1
-      elseif desc["type"] == "struct" then
-        for k, desc2 in ipairs(desc["data"]) do
+      elseif desc["Type"] == "struct" then
+        for k, desc2 in ipairs(desc["Data"]) do
           local l, v = decode_snapshot_data(desc2, d, index)
           index = index + l
           values[Idx] = v
           if false == bOne then
-            headers[Idx] = desc2['name']
+            headers[Idx] = desc2['Name']
           end
           Idx = Idx + 1
         end
@@ -146,7 +146,7 @@ function decode_snapshot(d)
         index = index + l
         values[Idx] = v
         if false == bOne then
-          headers[Idx] = desc['name']
+          headers[Idx] = desc['Name']
         end
         Idx = Idx + 1
       end
@@ -255,7 +255,7 @@ function decode_extended_data(d)
       index = index + l
       values[Idx] = v
       if false == bOne then
-        headers[Idx] = desc['name']
+        headers[Idx] = desc['Name']
       end
       Idx = Idx + 1
     end

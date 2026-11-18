@@ -4,8 +4,8 @@
  *
  * ref: Specification of EEPROM Abstraction AUTOSAR CP Release 4.4.0
  */
-#ifndef _EA_PRIV_H
-#define _EA_PRIV_H
+#ifndef EA_PRIV_H
+#define EA_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #include "MemIf.h"
@@ -29,11 +29,11 @@ struct Ea_Config_s {
   void (*JobEndNotification)(void);
   void (*JobErrorNotification)(void);
   P2CONST(Ea_BlockConfigType, AUTOMATIC, EA_CONST) Blocks;
-  uint16_t numOfBlocks;
+  uint16_t NumOfBlocks;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 
-#endif /* _EA_PRIV_H */
+#endif /* EA_PRIV_H */

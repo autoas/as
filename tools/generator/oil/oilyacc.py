@@ -49,52 +49,52 @@ def p_object(p):
 
 def p_os(p):
     """os : OS ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "OS"}
+    p[0] = {"Name": p[2], "Type": "OS"}
     p[0].update(p[4])
 
 
 def p_com(p):
     """com : COM ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "COM"}
+    p[0] = {"Name": p[2], "Type": "COM"}
     p[0].update(p[4])
 
 
 def p_task(p):
     """task : TASK ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "TASK"}
+    p[0] = {"Name": p[2], "Type": "TASK"}
     p[0].update(p[4])
 
 
 def p_alarm(p):
     """alarm : ALARM ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "ALARM"}
+    p[0] = {"Name": p[2], "Type": "ALARM"}
     p[0].update(p[4])
 
 
 def p_counter(p):
     """counter : COUNTER ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "COUNTER"}
+    p[0] = {"Name": p[2], "Type": "COUNTER"}
     p[0].update(p[4])
 
 
 def p_appmode(p):
     """appmode : APPMODE ID SEMI"""
-    p[0] = {"name": p[2], "type": "APPMODE"}
+    p[0] = {"Name": p[2], "Type": "APPMODE"}
 
 
 def p_event(p):
     """event : EVENT ID SEMI"""
-    p[0] = {"name": p[2], "type": "EVENT"}
+    p[0] = {"Name": p[2], "Type": "EVENT"}
 
 
 def p_resource(p):
     """resource : RESOURCE ID SEMI"""
-    p[0] = {"name": p[2], "type": "RESOURCE"}
+    p[0] = {"Name": p[2], "Type": "RESOURCE"}
 
 
 def p_isr(p):
     """isr : ISR ID LBRACE attributes RBRACE END"""
-    p[0] = {"name": p[2], "type": "ISR"}
+    p[0] = {"Name": p[2], "Type": "ISR"}
     p[0].update(p[4])
 
 

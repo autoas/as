@@ -33,19 +33,19 @@ OSEK NM 自身又分为两种机制：
 
 ```json
 {
-  "class": "OsekNm",
-  "networks": [
+  "Class": "OsekNm",
+  "Networks": [
     {
-      "name": "OSEKNM0",
-      "tTx": 20,
-      "tTyp": 1000,
-      "tMax": 1500,
-      "tError": 1000,
-      "tWbs": 5000,
+      "Name": "OSEKNM0",
+      "TTx": 20,
+      "TTyp": 1000,
+      "TMax": 1500,
+      "TError": 1000,
+      "TWbs": 5000,
       "NodeMask": "0xFF",
       "NodeId": 0,
-      "rx_limit": 4,
-      "tx_limit": 8
+      "RxLimit": 4,
+      "TxLimit": 8
     }
   ]
 }
@@ -55,15 +55,15 @@ OSEK NM 自身又分为两种机制：
 
 | 参数 | 含义 |
 | --- | --- |
-| `name` | 网络名，用于生成对应的 txPduId（如 `CANIF_OSEKNM0_TX`） |
+| `Name` | 网络名，用于生成对应的 txPduId（如 `CANIF_OSEKNM0_TX`） |
 | `NodeId` | 本节点在逻辑环上的编号，同时决定 NM 报文 CAN ID：**`0x400 + NodeId`** |
-| `tTyp` | 正常情况下相邻两帧 ring 报文之间的典型周期（ms） |
-| `tMax` | 相邻两帧 ring 报文之间允许的最大间隔（ms），超时认为 ring 中断 |
-| `tError` | 进入 LimpHome 后，两帧 NMLimpHome 报文之间的间隔（ms） |
-| `tWbs` | 收到睡眠指示后，等待进入 NMBusSleep（总线睡眠）状态的时间（ms） |
-| `tTx` | NM 报文发送请求被底层拒绝后，重发请求的延迟（ms） |
-| `tx_limit` | 连续发送失败/异常计数超过该值后进入 LimpHome |
-| `rx_limit` | 连续接收异常计数超过该值后进入 LimpHome |
+| `TTyp` | 正常情况下相邻两帧 ring 报文之间的典型周期（ms） |
+| `TMax` | 相邻两帧 ring 报文之间允许的最大间隔（ms），超时认为 ring 中断 |
+| `TError` | 进入 LimpHome 后，两帧 NMLimpHome 报文之间的间隔（ms） |
+| `TWbs` | 收到睡眠指示后，等待进入 NMBusSleep（总线睡眠）状态的时间（ms） |
+| `TTx` | NM 报文发送请求被底层拒绝后，重发请求的延迟（ms） |
+| `TxLimit` | 连续发送失败/异常计数超过该值后进入 LimpHome |
+| `RxLimit` | 连续接收异常计数超过该值后进入 LimpHome |
 | `NodeMask` | 从 CAN ID 中提取 NodeId 用的掩码（收到报文时 `CanId & NodeMask` 得到源节点号） |
 
 时间参数都以毫秒填写，生成器按 `OSEKNM_MAIN_FUNCTION_PERIOD`（默认 10 ms，可在 JSON 顶层用 `MainFunctionPeriod` 覆盖）换算成 `OsekNm_MainFunction` 的调用周期数。

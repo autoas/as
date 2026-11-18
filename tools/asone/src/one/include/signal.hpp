@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __SIGNAL_HPP__
-#define __SIGNAL_HPP__
+#ifndef SIGNAL_HPP
+#define SIGNAL_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <vector>
 #include <memory>
@@ -34,8 +34,8 @@ public:
   };
 
   struct ViewMsg {
-    float time;
-    uint32_t value;
+    float Time;
+    uint32_t Value;
   };
 
 public:
@@ -43,22 +43,22 @@ public:
   ~Signal();
 
 public:
-  std::string name(void);
-  void write(uint32_t value, bool byLua = false);
-  uint32_t read(void);
-  uint32_t start(void);
-  uint32_t size(void);
-  Endian endian(void);
+  std::string Name(void);
+  void Write(uint32_t value, bool isFromLua = false);
+  uint32_t Read(void);
+  uint32_t Start(void);
+  uint32_t Size(void);
+  Endian GetEndian(void);
 
-  bool bylua(void);
+  bool IsByLua(void);
 
-  Message *message(void);
+  Message *GetMessage(void);
 
-  void createViewMsgQueue(void);
-  void destoryViewMsgQueue(void);
-  std::vector<ViewMsg> view(void);
+  void CreateViewMsgQueue(void);
+  void DestroyViewMsgQueue(void);
+  std::vector<ViewMsg> View(void);
 
-  static float timimg(void);
+  static float Timing(void);
 
 private:
   Message *m_Msg;
@@ -66,7 +66,7 @@ private:
   uint32_t m_StartBit;
   uint32_t m_BitSize;
   Endian m_Endian;
-  bool m_byLua = false; /* is value last updated by lua */
+  bool m_IsFromLua = false; /* is value last updated by lua */
 
   std::recursive_mutex
     &m_Lock; /* to protect when to do destory of this queue, also protect the value */
@@ -96,45 +96,45 @@ public:
 
 public:
   std::vector<std::shared_ptr<Signal>> &Signals(void);
-  std::string name(void);
-  uint32_t id(void);
-  uint32_t dlc(void);
-  uint32_t length(void);
-  uint32_t period(void);
-  void set_period(uint32_t period);
+  std::string Name(void);
+  uint32_t Id(void);
+  uint32_t Dlc(void);
+  uint32_t Length(void);
+  uint32_t Period(void);
+  void SetPeriod(uint32_t period);
   bool IsTransmit(void);
-  Network *network();
-  void backward(void);
-  void forward(void);
-  std::shared_ptr<com::Message> trace(void);
-  State state();
-  uint8_t *data();
+  Network *GetNetwork();
+  void Backward(void);
+  void Forward(void);
+  std::shared_ptr<com::Message> Trace(void);
+  State GetState();
+  uint8_t *Data();
   E2EExecutor *E2E();
-  void run(void);
+  void Run(void);
 
   /* trigger the tranmist or receive of this message */
-  bool trigger(void);
+  bool Trigger(void);
 
-  void startLua(std::string scriptFile);
-  bool isLuaRunning(void);
-  std::string luaError(void);
-  void stopLua(void);
+  void StartLua(std::string scriptFile);
+  bool IsLuaRunning(void);
+  std::string LuaError(void);
+  void StopLua(void);
 
   enum CallType {
     CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD,
     CALL_WITH_SIGNALS_RETURN_VOID,
     CALL_VOID_RETURN_VOID
   };
-  void callbackToLua(std::string api, CallType callType);
+  void CallbackToLua(std::string api, CallType callType);
 
-  std::shared_ptr<Signal> signal(std::string name);
+  std::shared_ptr<Signal> GetSignal(std::string name);
 
-  std::recursive_mutex &getLock();
+  std::recursive_mutex &GetLock();
 
 private:
-  void runLua(void);
+  void RunLua(void);
 
-  void call(std::string api, CallType callType = CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD);
+  void Call(std::string api, CallType callType = CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD);
 
 private:
   Network *m_Network;
@@ -174,32 +174,32 @@ public:
   ~Network();
 
 public:
-  std::string name(void);
-  std::string me(void);
-  Type type(void);
-  std::vector<std::shared_ptr<Message>> &messages(void);
+  std::string Name(void);
+  std::string Me(void);
+  Type GetType(void);
+  std::vector<std::shared_ptr<Message>> &Messages(void);
 
-  bool start(void);
-  void run(void);
-  bool stop(void);
+  bool Start(void);
+  void Run(void);
+  bool Stop(void);
 
-  void schedule(void);
+  void Schedule(void);
 
-  std::shared_ptr<Message> message(std::string name);
+  std::shared_ptr<Message> GetMessage(std::string name);
 
-  static std::shared_ptr<Message> find_message(std::string name);
-  static std::shared_ptr<Signal> find(std::string name);
+  static std::shared_ptr<Message> FindMessage(std::string name);
+  static std::shared_ptr<Signal> Find(std::string name);
 
-  static void startLua(std::string scriptFile);
-  static bool isLuaRunning(void);
-  static std::string luaError(void);
-  static void stopLua(void);
-  static void runLua(void);
-  static void callbackToLua(std::string api);
+  static void StartLua(std::string scriptFile);
+  static bool IsLuaRunning(void);
+  static std::string LuaError(void);
+  static void StopLua(void);
+  static void RunLua(void);
+  static void CallbackToLua(std::string api);
 
 private:
-  void transmit(std::shared_ptr<Message> msg);
-  void receive(std::shared_ptr<Message> msg);
+  void Transmit(std::shared_ptr<Message> msg);
+  void Receive(std::shared_ptr<Message> msg);
 
 private:
   std::string m_Name;
@@ -221,7 +221,7 @@ private:
 
   static std::mutex s_Lock;
   static std::map<std::string, Network *> s_Networks;
-  static const luaL_Reg s_LuaInferfaces[];
+  static const luaL_Reg s_LuaInterfaces[];
 
   static std::shared_ptr<AsLuaScript> s_Script;
   static std::chrono::time_point<std::chrono::high_resolution_clock> s_LuaTimer;
@@ -233,7 +233,7 @@ private:
   static int Get(lua_State *L);
   static int Trigger(lua_State *L);
 
-  static void call(std::string api);
+  static void Call(std::string api);
 
 public:
   static int CreateLuaInterface(lua_State *L);
@@ -243,4 +243,4 @@ public:
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace as */
-#endif /* __SIGNAL_HPP__ */
+#endif /* SIGNAL_HPP */

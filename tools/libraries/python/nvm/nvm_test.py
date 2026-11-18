@@ -88,13 +88,13 @@ def nvm_request(req, msg=""):
 def nvm_write(blockId, data):
     logger.info(f"write blockId {blockId} data {formatd(data)}")
     req = [0x31, 0x01, 0xFE, 0xEF, 0, (blockId >> 8) & 0xFF, blockId & 0xFF] + data
-    ercd, response = nvm_request(req, "write")
+    ercd, response = nvm_request(req, "Write")
     ASSERT_EQ(req[4:], [x for x in response[4:]])
 
 
 def nvm_read(blockId):
     req = [0x31, 0x01, 0xFE, 0xEF, 1, (blockId >> 8) & 0xFF, blockId & 0xFF]
-    ercd, response = nvm_request(req, "read")
+    ercd, response = nvm_request(req, "Read")
     logger.info(f"read blockId {blockId} data {formatd(response[4:])}")
     return [x for x in response[4:]]
 
@@ -132,9 +132,9 @@ def normal(blocks, nLoops=1000000):
     for n in range(nLoops):
         power_on()
         for block in blocks:
-            name = block["name"]
-            blockId = block["number"]
-            size = block["size"]
+            name = block["Name"]
+            blockId = block["Number"]
+            size = block["Size"]
             data = [random.randint(0, 255) for i in range(size)]
             if name not in history:
                 history[name] = []
@@ -144,8 +144,8 @@ def normal(blocks, nLoops=1000000):
         power_off()
         power_on()
         for block in blocks:
-            name = block["name"]
-            blockId = block["number"]
+            name = block["Name"]
+            blockId = block["Number"]
             data = nvm_read(blockId)
             if data != history[name][-1]:
                 msg = "%s loops, %s(%s): %s != last of history: %s" % (
@@ -172,9 +172,9 @@ def abnormal(blocks, nMaxSched, nLoops=1000000):
     history = {}
     power_on()
     for block in blocks:
-        name = block["name"]
-        blockId = block["number"]
-        size = block["size"]
+        name = block["Name"]
+        blockId = block["Number"]
+        size = block["Size"]
         data = [random.randint(0, 255) for i in range(size)]
         if name not in history:
             history[name] = []
@@ -185,9 +185,9 @@ def abnormal(blocks, nMaxSched, nLoops=1000000):
     power_on()
     for n in range(nLoops):
         for block in blocks:
-            name = block["name"]
-            blockId = block["number"]
-            size = block["size"]
+            name = block["Name"]
+            blockId = block["Number"]
+            size = block["Size"]
             data = [random.randint(0, 255) for i in range(size)]
             loops = random.randint(1, nMaxSched)
             r = nvm_write_abnormal(blockId, data, loops)
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         port=0,
         txid=eval(args.txid),
         rxid=eval(args.rxid),
-        ll_dl=8,
+        linkLayerDataLength=8,
         verbose=args.debug,
         log=logger,
         maxlen=1024,
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     else:
         with open(args.config) as f:
             cfg = json.load(f)
-        blocks = cfg["blocks"]
+        blocks = cfg["Blocks"]
         nMaxSched = eval(args.max_sched)
         if nMaxSched > 0:
             abnormal(blocks, nMaxSched)

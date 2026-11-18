@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023-2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UI_COMMON_HPP__
-#define __UI_COMMON_HPP__
+#ifndef UICOMMON_HPP
+#define UICOMMON_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QLineEdit>
@@ -65,35 +65,35 @@ public:
   };
 
   struct Data {
-    std::string name;
-    DataType dataType;
-    DisplayType displayType;
-    uint32_t bitSize;
-    uint32_t bitMask;
-    std::vector<uint32_t> data; /* use to hold current value of data */
-    uint32_t size = 1;
-    std::map<std::string, uint32_t> selects; /* selections for UINT_SELECT */
-    bool readonly = false;
-    bool optional = false; /* optional true can only be the last one for Rx */
-    bool visible = true;
-    bool newline = false;
-    UIData *ui = nullptr;
-    UIDataTable *uiTable = nullptr;
-    std::vector<std::shared_ptr<Data>> elements; /* if dataType is TABLE */
+    std::string Name;
+    DataType DataType;
+    DisplayType DisplayType;
+    uint32_t BitSize;
+    uint32_t BitMask;
+    std::vector<uint32_t> Datas; /* use to hold current value of data */
+    uint32_t Size = 1;
+    std::map<std::string, uint32_t> Selects; /* selections for UINT_SELECT */
+    bool Readonly = false;
+    bool Optional = false; /* optional true can only be the last one for Rx */
+    bool Visible = true;
+    bool Newline = false;
+    UIData *Ui = nullptr;
+    UIDataTable *UiTable = nullptr;
+    std::vector<std::shared_ptr<Data>> Elements; /* if dataType is TABLE */
 
-    std::shared_ptr<AsLuaScript> luaScript;
-    std::string lua; /* lua script API to create the display content */
+    std::shared_ptr<AsLuaScript> LuaScript;
+    std::string Lua; /* lua script API to create the display content */
 
   public:
-    std::string str();
-    std::string raw();
-    void put(BitArray &TxBits); /* put data to TxBits */
-    void get(BitArray &RxBits); /* get data from RxBits */
-    std::vector<uint32_t> eval(std::string s);
+    std::string Str();
+    std::string Raw();
+    void Put(BitArray &TxBits); /* put data to TxBits */
+    void Get(BitArray &RxBits); /* get data from RxBits */
+    std::vector<uint32_t> Eval(std::string s);
 
   private:
-    std::string decode();
-    std::string encode(std::string s);
+    std::string Decode();
+    std::string Encode(std::string s);
   };
 
 public:
@@ -101,15 +101,15 @@ public:
   ~UIData();
 
 public:
-  void put(std::string s);
-  std::string get(void);
+  void Put(std::string s);
+  std::string Get(void);
 
 private:
   std::shared_ptr<Data> m_Data;
 
-  QLineEdit *m_leData = nullptr;
-  QComboBox *m_cmbxData = nullptr;
-  MultiSelectComboBox *m_mscbData = nullptr;
+  QLineEdit *m_LeData = nullptr;
+  QComboBox *m_CmbxData = nullptr;
+  MultiSelectComboBox *m_MscbData = nullptr;
 };
 
 class UIDataTable : public QTableWidget {
@@ -119,11 +119,11 @@ public:
   ~UIDataTable();
 
 public:
-  void put(BitArray &ba);
-  void get(void);
+  void Put(BitArray &ba);
+  void Get(void);
 
 private:
-  void decode(BitArray &ba);
+  void Decode(BitArray &ba);
 
 private:
   std::shared_ptr<UIData::Data> m_Data;
@@ -141,19 +141,19 @@ public:
   ~UITreeItem() {
   }
 
-  QWidget *service(void) {
+  QWidget *Service(void) {
     return m_Widget;
   }
 
-  UIGroup *group(void) {
+  UIGroup *Group(void) {
     return m_Group;
   }
 
-  void setTabIndex(int tabIndex) {
+  void SetTabIndex(int tabIndex) {
     m_TabIndex = tabIndex;
   }
 
-  int tabIndex(void) {
+  int TabIndex(void) {
     return m_TabIndex;
   }
 
@@ -165,12 +165,12 @@ private:
 
 class UIServiceBase : public QGroupBox {
 public:
-  UIServiceBase(std::string name, std::shared_ptr<AsLuaScript> luaScript);
+  UIServiceBase(std::string name, std::shared_ptr<AsLuaScript> LuaScript);
   ~UIServiceBase();
 
-  std::shared_ptr<UIData::Data> parseData(json &js);
+  std::shared_ptr<UIData::Data> ParseData(json &js);
 
-  QVBoxLayout *createUI(json &js);
+  QVBoxLayout *CreateUi(json &js);
 
 protected:
   std::string m_Name;
@@ -181,16 +181,16 @@ protected:
   size_t m_RxBitSize = 0;
   size_t m_TxBitSize = 0;
 
-  QPushButton *m_btnEnter;
+  QPushButton *m_BtnEnter;
 
   std::shared_ptr<AsLuaScript> m_Lua;
-  std::regex m_reType;
+  std::regex m_ReType;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-static inline int toInteger(std::string s) {
+static inline int ToInteger(std::string s) {
   int r;
   if ((0 == strncmp(s.c_str(), "0x", 2)) || (0 == strncmp(s.c_str(), "0X", 2))) {
     r = strtoul(s.c_str(), NULL, 16);
@@ -200,7 +200,7 @@ static inline int toInteger(std::string s) {
   return r;
 }
 
-template <typename T> T get(json &obj, std::string key, T dft) {
+template <typename T> T JsonGet(json &obj, std::string key, T dft) {
   T r = dft;
   if (obj.contains(key)) {
     r = obj[key].get<T>();
@@ -208,19 +208,19 @@ template <typename T> T get(json &obj, std::string key, T dft) {
   return r;
 };
 
-template <typename T> T get2(json &obj, std::string key, T dft) {
+template <typename T> T JsonGetInt(json &obj, std::string key, T dft) {
   T r = dft;
   if (obj.contains(key)) {
     auto s = obj[key].dump();
     if (s.c_str()[0] == '"') {
       s = s.substr(1, s.size() - 2);
     }
-    r = (T)toInteger(s);
+    r = (T)ToInteger(s);
   }
   return r;
 };
 
-template <typename T> std::string to_ascii(std::vector<T> data) {
+template <typename T> std::string ToAscii(std::vector<T> data) {
   std::stringstream ss;
 
   for (size_t i = 0; i < data.size(); i++) {
@@ -230,7 +230,7 @@ template <typename T> std::string to_ascii(std::vector<T> data) {
   return ss.str();
 };
 
-template <typename T> std::string to_hex(std::vector<T> data) {
+template <typename T> std::string ToHex(std::vector<T> data) {
   std::stringstream ss;
 
   for (size_t i = 0; i < data.size(); i++) {
@@ -243,7 +243,7 @@ template <typename T> std::string to_hex(std::vector<T> data) {
   return ss.str();
 };
 
-template <typename T> std::string to_dec(std::vector<T> data) {
+template <typename T> std::string ToDec(std::vector<T> data) {
   std::stringstream ss;
 
   for (size_t i = 0; i < data.size(); i++) {
@@ -258,4 +258,4 @@ template <typename T> std::string to_dec(std::vector<T> data) {
 } /* namespace common */
 } /* namespace ui */
 } /* namespace as */
-#endif /* __UI_COMMON_HPP__ */
+#endif /* UICOMMON_HPP */

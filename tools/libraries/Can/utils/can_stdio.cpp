@@ -28,7 +28,7 @@ uint32_t txid = 0x7FE;
 uint32_t trid = 0;
 bool lStop = false;
 /* ================================ [ LOCALS    ] ============================================== */
-static void sigint_handler(int sig) {
+static void SigintHandler(int sig) {
   (void)sig;
   lStop = true;
 }
@@ -45,7 +45,7 @@ static void can_stdin(void *args) {
   while (false == lStop) {
     canid = rxid;
     dlc = sizeof(data);
-    rv = can_read(busid, &canid, &dlc, data);
+    rv = CanL_Read(busid, &canid, &dlc, data);
     if (TRUE == rv) {
       for (i = 0; i < dlc; i++) {
         if (0 != data[i]) {
@@ -76,7 +76,7 @@ static void can_trace(void *args) {
   while (false == lStop) {
     canid = trid;
     dlc = sizeof(data);
-    rv = can_read(busid, &canid, &dlc, data);
+    rv = CanL_Read(busid, &canid, &dlc, data);
     if (TRUE == rv) {
       fwrite(data, dlc, 1, fp);
     } else {
@@ -99,7 +99,7 @@ static void can_stdout(void) {
         if (dlc > 8) {
           dlc = 8;
         }
-        (void)can_write(busid, txid, dlc, (uint8_t *)&(inputs[i]));
+        (void)CanL_Write(busid, txid, dlc, (uint8_t *)&(inputs[i]));
       }
     } else {
       std::this_thread::sleep_for(1ms);
@@ -116,8 +116,8 @@ int main(int argc, char *argv[]) {
   std::thread lThIn;
   std::thread lThTrace;
 
-  signal(SIGINT, sigint_handler);
-  signal(SIGTERM, sigint_handler);
+  signal(SIGINT, SigintHandler);
+  signal(SIGTERM, SigintHandler);
 
   opterr = 0;
   while ((ch = getopt(argc, argv, "b:d:p:r:t:T:")) != -1) {
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  busid = can_open(device, (uint32_t)port, (uint32_t)baudrate);
+  busid = CanL_Open(device, (uint32_t)port, (uint32_t)baudrate);
   if (busid >= 0) {
     lStop = false;
     lThIn = std::thread(can_stdin, nullptr);
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
         lThTrace.join();
       }
     }
-    (void)can_close(busid);
+    (void)CanL_Close(busid);
   }
 
   if (FALSE == rv) {

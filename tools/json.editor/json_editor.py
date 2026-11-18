@@ -126,9 +126,9 @@ class JsonEnumRefString(QComboBox):
     def __init__(self, title, obj, root):
         assert isinstance(root, JsonModule)
         prop = obj.getProp(title)
-        self.enumref = prop["enumref"]
+        self.enumref = prop["EnumRef"]
         self.enumitems = prop.get("enum", [])
-        self.editable = prop.get("editable", False)
+        self.editable = prop.get("Editable", False)
         self.title = title
         self.obj = obj
         self.root = root
@@ -186,7 +186,7 @@ class JsonEnumString(QComboBox):
         assert isinstance(root, JsonModule)
         prop = obj.getProp(title)
         self.items = prop["enum"]
-        self.editable = prop.get("editable", False)
+        self.editable = prop.get("Editable", False)
         self.title = title
         self.obj = obj
         self.root = root
@@ -278,7 +278,7 @@ class JsonMapString(QComboBox):
         for f in self.friends:
             v2 = mp[f]
             self.obj.set(f, v2)
-        if mp.get("extend", False):
+        if mp.get("Extend", False):
             self.obj.extend(text)
         else:
             self.obj.rmExtend()
@@ -301,7 +301,7 @@ def _applyAnnotation(widget, severity, description):
 def JsonValue(title, obj, root):
     prop = obj.getProp(title)
     logging.debug("create widget with property: %s", prop)
-    if "enumref" in prop:
+    if "EnumRef" in prop:
         if prop["type"] == "string":
             widget = JsonEnumRefString(title, obj, root)
         elif prop["type"] == "integer":
@@ -408,7 +408,7 @@ class JsonBase(QTreeWidgetItem):
 
     def isEnabled(self, attr=None):
         prop = self.getProp(attr)
-        es = prop.get("enabled", "True")
+        es = prop.get("Enabled", "True")
         es = self.preproc(es)
         logging.debug("attr %s of prop %s condition: %s", attr, prop, es)
         return eval(es)
@@ -488,7 +488,7 @@ class JsonBase(QTreeWidgetItem):
             try:
                 prop = self.getProp(attr)
             except KeyError:
-                if attr == "name":
+                if attr == "Name":
                     prop = {"default": self.title}
                 else:
                     raise Exception("no attribute %s for %s" % (attr, self.schema))
@@ -508,21 +508,21 @@ class JsonBase(QTreeWidgetItem):
         if updated:
             return True
         self.schema[attr] = value
-        if attr == "name":
+        if attr == "Name":
             self.setText(0, value)
         return False
 
     def name(self):
-        if "name" not in self.schema:
+        if "Name" not in self.schema:
             if self.parent() != None:
                 logging.debug("new %s for %s, idx=%s" % (self.title, self.parent().title, self.parent().childCount()))
-                vs = self.get("name")
+                vs = self.get("Name")
                 if vs in ["TBD", 0]:
                     vs = "%s%s" % (self.title, self.parent().childCount())
-                self.schema["name"] = vs
+                self.schema["Name"] = vs
             else:
-                self.schema["name"] = self.title
-        return self.schema["name"]
+                self.schema["Name"] = self.title
+        return self.schema["Name"]
 
     def onItemSelectionChanged(self):
         logging.debug(
@@ -739,12 +739,12 @@ class JsonObject(JsonBase):
         for title, schema in self.schema["properties"].items():
             if "map" in schema:
                 value = self.get(title)
-                if schema["map"].get(value, {}).get("extend", False):
+                if schema["map"].get(value, {}).get("Extend", False):
                     self.extend(value, True)
 
     def extend(self, ext, slient=False):
-        if ext in self.schema.get("extends", {}):
-            properties = dict(self.schema["extends"][ext])
+        if ext in self.schema.get("Extends", {}):
+            properties = dict(self.schema["Extends"][ext])
             if not slient:
                 self.schema["__init__"] = self.toJSON()
             logging.debug('extend schema %s with new properties "%s":%s' % (self.schema, ext, properties))
@@ -781,7 +781,7 @@ class JsonObject(JsonBase):
                 schema = dict(schema)
                 if title in cfg:
                     schema["__init__"] = cfg[title]
-                schema["name"] = title
+                schema["Name"] = title
                 self.addChild(JsonItem(title, schema, self.root, self))
             else:
                 if title in cfg:
@@ -830,7 +830,7 @@ class JsonObject(JsonBase):
             obj1 = self.child(i)
             if obj1.isObj():
                 UIs += obj1.createUI(prefix="%s: " % (obj1.title))
-            elif obj1.isList() and self.schema.get("display_with_list", True):
+            elif obj1.isList() and self.schema.get("DisplayWithList", True):
                 num = obj1.childCount()
                 if num > 8:
                     continue
@@ -965,7 +965,7 @@ class JsonObjectTree(QTreeWidget):
         self.setMaximumWidth(600)
 
     def toJSON(self, bFind=False):
-        cfg = {"class": self.title}
+        cfg = {"Class": self.title}
         for title, schema in self.schema["properties"].items():
             jse = self.objMap[title].toJSON(bFind=bFind)
             logging.debug("tree toJSON %s %s: %s" % (schema["type"], title, jse))

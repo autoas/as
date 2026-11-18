@@ -49,18 +49,18 @@ flowchart TB
 
 ```json
 {
-  "class": "TLS",
-  "servers": [
+  "Class": "TLS",
+  "Servers": [
     {
-      "name": "DOIP_TCP",
+      "Name": "DOIP_TCP",
       "ServerCerts": "Cert/TLS0_ServerCerts.pem",
       "CasCerts": "Cert/TLS0_CasCerts.pem",
       "ServerKey": "Cert/TLS0_ServerKey.pem",
       "MaxSize": 512,
-      "up": "DoIP",
+      "Up": "DoIP",
       "SoConId": "DOIP_TCP_APT",
       "RxPduId": "DOIP_RX_PID_TCP",
-      "repeat": 3
+      "Repeat": 3
     }
   ]
 }
@@ -70,21 +70,21 @@ flowchart TB
 
 | 字段 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `name` | string | 是 | - | 服务器逻辑名，用于生成宏 `TLS_SERVER_<name>` |
-| `up` | string | 是 | - | 上层协议模块：`DoIP`、`SD` 或 `SOMEIP`。这三者会使生成器把解帧头长度设为 8 字节 |
+| `Name` | string | 是 | - | 服务器逻辑名，用于生成宏 `TLS_SERVER_<name>` |
+| `Up` | string | 是 | - | 上层协议模块：`DoIP`、`SD` 或 `SOMEIP`。这三者会使生成器把解帧头长度设为 8 字节 |
 | `SoConId` | string | 是 | - | 绑定的 SoAd 套接字，生成器展开为 `SOAD_SOCKID_<SoConId>` 和 `SOAD_TX_PID_<SoConId>` |
 | `RxPduId` | string | 是 | - | 上层接收 PDU 标识，按原文展开（例如 DoIP 的 `DOIP_RX_PID_TCP`） |
 | `ServerCerts` | string | 是 | - | 服务器证书链 PEM 文件 |
 | `CasCerts` | string | 是 | - | 所有受信 CA 证书拼接而成的 PEM 文件 |
 | `ServerKey` | string | 是 | - | 服务器私钥 PEM 文件 |
-| `repeat` | integer | 否 | 1 | 为同一份配置创建多个服务器实例。生成的名称带数字后缀（`<name>0`、`<name>1`……），与重复的 SoAd 套接字对应 |
+| `Repeat` | integer | 否 | 1 | 为同一份配置创建多个服务器实例。生成的名称带数字后缀（`<name>0`、`<name>1`……），与重复的 SoAd 套接字对应 |
 | `MaxSize` | integer | 否 | 512 | 写入生成配置的最大长度提示 |
 
 ### 2.2 顶层参数
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `servers` | array | - | TLS 服务器列表 |
+| `Servers` | array | - | TLS 服务器列表 |
 | `UsePostBuildConfig` | bool | `false` | 为 true 时生成 `#define TLS_USE_PB_CONFIG`，运行时使用传入 `TLS_Init()` 的配置指针 |
 
 ### 2.3 证书
@@ -103,7 +103,7 @@ PEM 路径相对于配置目录（即生成目录 `GEN/` 的上一级）解析�
 
 ### 3.1 宏（TLS_Cfg.h）
 
-对每个服务器（使用 `repeat` 时对每个实例）生成：
+对每个服务器（使用 `Repeat` 时对每个实例）生成：
 
 ```c
 #define TLS_SERVER_DOIP_TCP0 0u
@@ -115,7 +115,7 @@ PEM 路径相对于配置目录（即生成目录 `GEN/` 的上一级）解析�
 
 | 宏 | 说明 |
 | --- | --- |
-| `TLS_HEADER_MAX_LEN` | 解帧头最大长度。任一服务器的 `up` 为 `DoIP`/`SD`/`SOMEIP` 时为 8，否则为 1 |
+| `TLS_HEADER_MAX_LEN` | 解帧头最大长度。任一服务器的 `Up` 为 `DoIP`/`SD`/`SOMEIP` 时为 8，否则为 1 |
 | `TLS_CONVERT_MS_TO_MAIN_CYCLES(x)` | 借助应用提供的 `TLS_MAIN_FUNCTION_PERIOD`，把毫秒换算为 `TLS_MainFunction` 的调用次数 |
 | `TLS_USE_PB_CONFIG` | 仅在 `UsePostBuildConfig` 为 true 时生成 |
 

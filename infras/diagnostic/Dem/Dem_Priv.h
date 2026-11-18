@@ -122,8 +122,8 @@ typedef Std_ReturnType (*Dem_GetDataFncType)(Dem_EventIdType, uint8_t *, Dem_DTC
 
 typedef struct {
   Dem_GetDataFncType GetFrezeFrameDataFnc;
-  uint16_t id;
-  uint16_t length;
+  uint16_t Id;
+  uint16_t Length;
 #ifdef USE_SHELL
   void (*print)(uint8_t *);
 #endif
@@ -132,16 +132,16 @@ typedef struct {
 typedef struct {
   Dem_GetDataFncType GetExtendedDataFnc;
   uint8_t ExtendedDataNumber;
-  uint8_t length;
+  uint8_t Length;
 } Dem_ExtendedDataConfigType;
 
 typedef struct {
-  Dem_UdsStatusByteType status;
-  uint8_t faultOccuranceCounter;
-  uint8_t agingCounter;
-  uint8_t agedCounter;
+  Dem_UdsStatusByteType Status;
+  uint8_t FaultOccurrenceCounter;
+  uint8_t AgingCounter;
+  uint8_t AgedCounter;
 #ifdef DEM_USE_CYCLES_SINCE_LAST_FAILED
-  uint8_t cyclesSinceLastFailed; /* @SWS_Dem_00984: let's define 0xFF as not started, so the real
+  uint8_t CyclesSinceLastFailed; /* @SWS_Dem_00984: let's define 0xFF as not started, so the real
                                     max value is 0xFE */
 #endif
 } Dem_DtcStatusRecordType;
@@ -160,7 +160,7 @@ typedef struct {
 
 typedef struct {
   uint16_t *FreezeFrameDataIDs;
-  uint16_t numOfFreezeFrameDataIDs;
+  uint16_t NumOfFreezeFrameDataIDs;
 } Dem_EventFreezeFrameConfigType;
 
 /* @ECUC_Dem_00604 */
@@ -183,19 +183,19 @@ typedef struct {
 } Dem_DebounceCounterBasedConfigType;
 
 typedef struct {
-  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) freezeFrameDataIndex;
-  uint8_t numOfFreezeFrameData;
+  P2CONST(uint16_t, AUTOMATIC, DEM_CONST) FreezeFrameDataIndex;
+  uint8_t NumOfFreezeFrameData;
 } Dem_FreezeFrameRecordClassType;
 
 typedef struct {
   P2CONST(uint8_t, AUTOMATIC, DEM_CONST) ExtendedDataNumberIndex;
-  uint8_t numOfExtendedData;
+  uint8_t NumOfExtendedData;
   uint8_t ExtendedDataRecordNumber;
 } Dem_ExtendedDataRecordClassType;
 
 typedef struct {
   P2CONST(Dem_ExtendedDataRecordClassType *const, AUTOMATIC, DEM_CONST) ExtendedDataRecordClassRef;
-  uint8_t numOfExtendedDataRecordClassRef;
+  uint8_t NumOfExtendedDataRecordClassRef;
 } Dem_ExtendedDataClassType;
 
 /* @ECUC_Dem_00778 */
@@ -205,7 +205,7 @@ typedef uint8_t Dem_TypeOfFreezeFrameRecordNumerationType;
 typedef struct {
   /* 1..254, 0xFF reserved for read all records */
   P2CONST(uint8_t, AUTOMATIC, DEM_CONST) FreezeFrameRecNums;
-  uint8_t numOfFreezeFrameRecNums;
+  uint8_t NumOfFreezeFrameRecNums;
 } Dem_FreezeFrameRecNumClassType;
 
 typedef struct {
@@ -229,10 +229,10 @@ typedef struct {
   P2CONST(uint16_t, AUTOMATIC, DEM_CONST) ExtendedDataNvmBlockIds;
 #endif
 #endif
-  uint16_t numOfStatusRecords;
-  uint16_t numOfFreezeFrameRecords;
+  uint16_t NumOfStatusRecords;
+  uint16_t NumOfFreezeFrameRecords;
 #ifdef DEM_USE_NVM_EXTENDED_DATA
-  uint16_t numOfExtendedDataRecords;
+  uint16_t NumOfExtendedDataRecords;
 #endif
   Dem_DTCOriginType DTCOrigin;
 } Dem_MemoryDestinationType;
@@ -244,7 +244,7 @@ typedef struct {
   P2CONST(Dem_FreezeFrameRecNumClassType, AUTOMATIC, DEM_CONST) FreezeFrameRecNumClass;
   /* @ECUC_Dem_00890 */
   P2CONST(Dem_MemoryDestinationType *const, AUTOMATIC, DEM_CONST) MemoryDestination;
-  uint8_t numOfMemoryDestination; /* 1 or 2 */
+  uint8_t NumOfMemoryDestination; /* 1 or 2 */
   uint8_t Priority;               /* A lower value means higher priority. @ECUC_Dem_00662 */
   boolean AgingAllowed;
   uint8_t AgingCycleCounterThreshold;
@@ -267,7 +267,7 @@ typedef struct {
   P2CONST(Dem_EventIdType, AUTOMATIC, DEM_CONST) EventIdRefs;
   uint32_t DtcNumber; /* @ECUC_Dem_00887 */
   Dem_DtcIdType DtcId;
-  uint8_t numOfEvents;
+  uint8_t NumOfEvents;
 #if 0
   uint8_t FunctionalUnit;
   Dem_DTCSeverityType Severity;
@@ -291,14 +291,14 @@ typedef struct {
 typedef uint8_t Dem_EventFlagType;
 
 typedef struct {
-  Dem_EventStatusType status;
-  Dem_EventFlagType flag;
-  sint16_t debouneCounter;
+  Dem_EventStatusType Status;
+  Dem_EventFlagType Flag;
+  sint16_t DebounceCounter;
 } Dem_EventContextType;
 
 typedef struct {
-  Dem_UdsStatusByteType status;
-  uint8_t testFailedCounter;
+  Dem_UdsStatusByteType Status;
+  uint8_t TestFailedCounter;
 } Dem_EventStatusRecordType;
 
 struct Dem_Config_s {
@@ -315,12 +315,12 @@ struct Dem_Config_s {
   P2CONST(Dem_DTCType, AUTOMATIC, DEM_CONST) Dtcs;
   P2CONST(Dem_MemoryDestinationType, AUTOMATIC, DEM_CONST) MemoryDestination;
   Dem_OperationCycleStateType *OperationCycleStates;
-  uint16_t numOfFreeFrameDataConfigs;
-  uint16_t numOfEvents;
-  uint16_t numOfDtcs;
-  uint8_t numOfMemoryDestination;
-  uint8_t numOfExtendedDataConfigs;
-  uint8_t numOfOperationCycles;
+  uint16_t NumOfFreeFrameDataConfigs;
+  uint16_t NumOfEvents;
+  uint16_t NumOfDtcs;
+  uint8_t NumOfMemoryDestination;
+  uint8_t NumOfExtendedDataConfigs;
+  uint8_t NumOfOperationCycles;
   Dem_TypeOfFreezeFrameRecordNumerationType TypeOfFreezeFrameRecordNumeration;
   uint8_t StatusAvailabilityMask;
 };
@@ -330,10 +330,10 @@ struct Dem_Config_s {
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* standard EXTENDED DATA supported by DEM  */
-Std_ReturnType Dem_EXTD_GetFaultOccuranceCounter(Dem_EventIdType EventId, uint8_t *data,
-                                                 Dem_DTCOriginType DTCOrigin);
-Std_ReturnType Dem_EXTD_GetAgingCounter(Dem_EventIdType EventId, uint8_t *data,
-                                        Dem_DTCOriginType DTCOrigin);
-Std_ReturnType Dem_EXTD_GetAgedCounter(Dem_EventIdType EventId, uint8_t *data,
-                                       Dem_DTCOriginType DTCOrigin);
+Std_ReturnType Dem_EXTD_GetFaultOccurrenceCounter(Dem_EventIdType eventId, uint8_t *data,
+                                                  Dem_DTCOriginType dTCOrigin);
+Std_ReturnType Dem_EXTD_GetAgingCounter(Dem_EventIdType eventId, uint8_t *data,
+                                        Dem_DTCOriginType dTCOrigin);
+Std_ReturnType Dem_EXTD_GetAgedCounter(Dem_EventIdType eventId, uint8_t *data,
+                                       Dem_DTCOriginType dTCOrigin);
 #endif /* DEM_PRIV_H */

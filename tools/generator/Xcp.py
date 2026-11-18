@@ -67,9 +67,9 @@ def gen_program_start_api(C, service, cfg):
 def gen_program_start_config(C, service, cfg):
     C.write("static CONSTANT(Xcp_ProgramStartConfigType,XCP_CONST) Xcp_ProgramStartConfig = {\n")
     C.write("  %s,\n" % (service["API"]))
-    C.write("  /* maxBs */ %s,\n" % (service.get("maxBs", "XCP_PACKET_POOL_SIZE")))
+    C.write("  /* MaxBs */ %s,\n" % (service.get("MaxBs", "XCP_PACKET_POOL_SIZE")))
     C.write("  /* STmin */ %s,\n" % (service.get("STmin", 10)))
-    C.write("  /* queSz */ %s,\n" % (service.get("queSz", "XCP_PACKET_POOL_SIZE")))
+    C.write("  /* QueSz */ %s,\n" % (service.get("QueSz", "XCP_PACKET_POOL_SIZE")))
     C.write("};\n\n")
 
 
@@ -80,193 +80,193 @@ def gen_program_reset_api(C, service, cfg):
 def gen_program_reset_config(C, service, cfg):
     C.write("static CONSTANT(Xcp_ProgramResetConfigType,XCP_CONST) Xcp_ProgramResetConfig = {\n")
     C.write("  %s,\n" % (service["API"]))
-    C.write("  XCP_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (service.get("delay", 100)))
+    C.write("  XCP_CONVERT_MS_TO_MAIN_CYCLES(%su),\n" % (service.get("Delay", 100)))
     C.write("};\n\n")
 
 
 ServiceMap = {
     0xFF: {
-        "name": "STD_CONNECT",
+        "Name": "STD_CONNECT",
         "API": "Connect",
         "config": gen_connect_config,
         "api": gen_connect_api,
     },
     0xFE: {
-        "name": "STD_DISCONNECT",
+        "Name": "STD_DISCONNECT",
         "API": "Disconnect",
         "config": gen_disconnect_config,
         "api": gen_disconnect_api,
     },
     0xFD: {
-        "name": "STD_GET_STATUS",
+        "Name": "STD_GET_STATUS",
         "API": "GetStatus",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xF8: {
-        "name": "STD_GET_SEED",
+        "Name": "STD_GET_SEED",
         "API": "GetSeed",
         "config": gen_get_seed_config,
         "api": gen_get_seed_api,
     },
     0xF7: {
-        "name": "STD_UNLOCK",
+        "Name": "STD_UNLOCK",
         "API": "Unlock",
         "config": gen_unlock_config,
         "api": gen_unlock_api,
     },
     0xF6: {
-        "name": "STD_SET_MTA",
+        "Name": "STD_SET_MTA",
         "API": "SetMTA",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xF5: {
-        "name": "STD_UPLOAD",
+        "Name": "STD_UPLOAD",
         "API": "Upload",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xF4: {
-        "name": "STD_SHORT_UPLOAD",
+        "Name": "STD_SHORT_UPLOAD",
         "API": "ShortUpload",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xF0: {
-        "name": "CAL_DOWNLOAD",
+        "Name": "CAL_DOWNLOAD",
         "API": "Download",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xEF: {
-        "name": "CAL_DOWNLOAD_NEXT",
+        "Name": "CAL_DOWNLOAD_NEXT",
         "API": "DownloadNext",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD2: {
-        "name": "PGM_PROGRAM_START",
+        "Name": "PGM_PROGRAM_START",
         "API": "ProgramStart",
         "config": gen_program_start_config,
         "api": gen_program_start_api,
     },
     0xD1: {
-        "name": "PGM_PROGRAM_CLEAR",
+        "Name": "PGM_PROGRAM_CLEAR",
         "API": "ProgramClear",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD0: {
-        "name": "PGM_PROGRAM",
+        "Name": "PGM_PROGRAM",
         "API": "Program",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xCA: {
-        "name": "PGM_PROGRAM_NEXT",
+        "Name": "PGM_PROGRAM_NEXT",
         "API": "ProgramNext",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xCF: {
-        "name": "PGM_PROGRAM_RESET",
+        "Name": "PGM_PROGRAM_RESET",
         "API": "ProgramReset",
         "config": gen_program_reset_config,
         "api": gen_program_reset_api,
     },
     0xE3: {
-        "name": "DAQ_CLEAR_DAQ_LIST",
+        "Name": "DAQ_CLEAR_DAQ_LIST",
         "API": "ClearDAQList",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xE2: {
-        "name": "DAQ_SET_DAQ_PTR",
+        "Name": "DAQ_SET_DAQ_PTR",
         "API": "SetDAQPtr",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xE1: {
-        "name": "DAQ_WRITE_DAQ",
+        "Name": "DAQ_WRITE_DAQ",
         "API": "WriteDAQ",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xDB: {
-        "name": "DAQ_READ_DAQ",
+        "Name": "DAQ_READ_DAQ",
         "API": "ReadDAQ",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xE0: {
-        "name": "DAQ_SET_DAQ_LIST_MODE",
+        "Name": "DAQ_SET_DAQ_LIST_MODE",
         "API": "SetDAQListMode",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xDF: {
-        "name": "DAQ_GET_DAQ_LIST_MODE",
+        "Name": "DAQ_GET_DAQ_LIST_MODE",
         "API": "GetDAQListMode",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xDE: {
-        "name": "DAQ_START_STOP_DAQ_LIST",
+        "Name": "DAQ_START_STOP_DAQ_LIST",
         "API": "StartStopDAQList",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xDA: {
-        "name": "DAQ_GET_DAQ_PROCESSOR_INFO",
+        "Name": "DAQ_GET_DAQ_PROCESSOR_INFO",
         "API": "GetDAQProcessorInfo",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD9: {
-        "name": "DAQ_GET_DAQ_RESOLUTION_INFO",
+        "Name": "DAQ_GET_DAQ_RESOLUTION_INFO",
         "API": "GetDAQResolutionInfo",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD8: {
-        "name": "DAQ_GET_DAQ_LIST_INFO",
+        "Name": "DAQ_GET_DAQ_LIST_INFO",
         "API": "GetDAQListInfo",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD7: {
-        "name": "DAQ_GET_DAQ_EVENT_INFO",
+        "Name": "DAQ_GET_DAQ_EVENT_INFO",
         "API": "GetDAQEventInfo",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xDD: {
-        "name": "DAQ_START_STOP_SYNCH",
+        "Name": "DAQ_START_STOP_SYNCH",
         "API": "DAQStartStopSynch",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD6: {
-        "name": "DAQ_FREE_DAQ",
+        "Name": "DAQ_FREE_DAQ",
         "API": "FreeDAQ",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD5: {
-        "name": "DAQ_ALLOC_DAQ",
+        "Name": "DAQ_ALLOC_DAQ",
         "API": "AllocDAQ",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD4: {
-        "name": "DAQ_ALLOC_ODT",
+        "Name": "DAQ_ALLOC_ODT",
         "API": "AllocODT",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
     },
     0xD3: {
-        "name": "DAQ_ALLOC_ODT_ENTRY",
+        "Name": "DAQ_ALLOC_ODT_ENTRY",
         "API": "AllocODTEntry",
         "config": gen_dummy_config,
         "api": gen_dummy_api,
@@ -276,8 +276,8 @@ ServiceMap = {
 
 def get_resource(cfg):
     resource = []
-    for x in cfg["services"]:
-        name = ServiceMap[x["id"]]["name"]
+    for x in cfg["Services"]:
+        name = ServiceMap[x["Id"]]["Name"]
         group = name[:4]
         if group in ["CAL_", "PAG_"]:
             if "XCP_RES_CALPAG" not in resource:
@@ -296,26 +296,26 @@ def get_resource(cfg):
 
 
 def preprocess(cfg):
-    for x in cfg["services"]:
-        pid = toNum(x["id"])
-        x["id"] = pid
+    for x in cfg["Services"]:
+        pid = toNum(x["Id"])
+        x["Id"] = pid
         if pid not in ServiceMap:
             raise ValueError(
                 "Xcp: PID %s of service '%s' is not supported, supported PIDs: %s"
                 % (
                     "0x%02X" % pid if type(pid) is int else pid,
-                    x.get("name", "?"),
+                    x.get("Name", "?"),
                     ", ".join("0x%02X" % p for p in sorted(ServiceMap)),
                 )
             )
-    ids = [x["id"] for x in cfg["services"]]
+    ids = [x["Id"] for x in cfg["Services"]]
     dups = sorted(set(i for i in ids if ids.count(i) > 1))
     if len(dups) > 0:
         raise ValueError(
             "Xcp: duplicated PID(s) %s in services" % ", ".join("0x%02X" % i for i in dups)
         )
     # the service table is binary searched by Xcp_FindService(), so it must ascend numerically
-    cfg["services"].sort(key=lambda x: x["id"])
+    cfg["Services"].sort(key=lambda x: x["Id"])
 
 
 def Gen_Xcp(cfg, dir):
@@ -335,8 +335,8 @@ def Gen_Xcp(cfg, dir):
     H.write("#endif\n")
     H.write("#define XCP_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + XCP_MAIN_FUNCTION_PERIOD - 1u) / XCP_MAIN_FUNCTION_PERIOD)\n\n")
-    for service in cfg["services"]:
-        H.write("#define XCP_USE_SERVICE_%s\n" % (ServiceMap[service["id"]]["name"]))
+    for service in cfg["Services"]:
+        H.write("#define XCP_USE_SERVICE_%s\n" % (ServiceMap[service["Id"]]["Name"]))
     H.write("%s#define XCP_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", True) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
@@ -356,8 +356,8 @@ def Gen_Xcp(cfg, dir):
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    for service in cfg["services"]:
-        ServiceMap[service["id"]]["api"](C, service, cfg)
+    for service in cfg["Services"]:
+        ServiceMap[service["Id"]]["api"](C, service, cfg)
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     evChls = cfg.get("EventChannels", [])
     if len(evChls) > 0:
@@ -369,9 +369,9 @@ def Gen_Xcp(cfg, dir):
         C.write("};\n\n")
     staticDaqList = cfg.get("DaqList", {}).get("StaticDaqList", [])
     for daq in staticDaqList:
-        daqName = daq["name"]
+        daqName = daq["Name"]
         for odt in daq["ODTs"]:
-            odtName = odt["name"]
+            odtName = odt["Name"]
             C.write("static CONSTANT(Xcp_OdtEntryType, XCP_CONST) Xcp_%s_%s_OdtEntries[] = {\n" % (daqName, odtName))
             for entry in odt["Entries"]:
                 C.write("  {\n")
@@ -382,17 +382,17 @@ def Gen_Xcp(cfg, dir):
                 C.write("  },\n")
             C.write("};\n\n")
     for daq in staticDaqList:
-        daqName = daq["name"]
+        daqName = daq["Name"]
         C.write("static CONSTANT(Xcp_OdtType, XCP_CONST) Xcp_%s_Odts[] = {\n" % (daqName))
         for odt in daq["ODTs"]:
-            odtName = odt["name"]
+            odtName = odt["Name"]
             C.write("  {\n")
             C.write("    (Xcp_OdtEntryType*)Xcp_%s_%s_OdtEntries,\n" % (daqName, odtName))
             C.write("    ARRAY_SIZE(Xcp_%s_%s_OdtEntries),\n" % (daqName, odtName))
             C.write("  },\n")
         C.write("};\n\n")
     for daq in staticDaqList:
-        daqName = daq["name"]
+        daqName = daq["Name"]
         C.write("static CONSTANT(Xcp_DaqListType, XCP_CONST) Xcp_%s_Daq = {\n" % (daqName))
         C.write("  (Xcp_OdtType*)Xcp_%s_Odts,\n" % (daqName))
         C.write("  ARRAY_SIZE(Xcp_%s_Odts),\n" % (daqName))
@@ -411,26 +411,26 @@ def Gen_Xcp(cfg, dir):
         C.write("static Xcp_DaqListContextType Xcp_DaqListContexts[%s];\n" % (dynDaqNo + len(staticDaqList)))
         C.write("static CONSTANT(Xcp_DaqListType*, XCP_CONST) Xcp_DaqList[] = {\n")
         for daq in staticDaqList:
-            daqName = daq["name"]
+            daqName = daq["Name"]
             C.write("  &Xcp_%s_Daq,\n" % (daqName))
         for i in range(dynDaqNo):
             C.write("  &Xcp_DynDaq%s,\n" % (i))
         C.write("};\n\n")
 
-    for service in cfg["services"]:
-        ServiceMap[service["id"]]["config"](C, service, cfg)
+    for service in cfg["Services"]:
+        ServiceMap[service["Id"]]["config"](C, service, cfg)
     C.write("static CONSTANT(Xcp_ServiceType, XCP_CONST) Xcp_Services[] = {\n")
-    for service in cfg["services"]:
-        serInfo = ServiceMap[service["id"]]
+    for service in cfg["Services"]:
+        serInfo = ServiceMap[service["Id"]]
         C.write("  {\n")
         C.write("    Xcp_Dsp%s,\n" % (serInfo["API"]))
         if serInfo["config"] == gen_dummy_config:
             C.write("    NULL,\n")
         else:
             C.write("    (const void XCP_CONST *)&Xcp_%sConfig,\n" % (serInfo["API"]))
-        C.write("    XCP_PID_CMD_%s,\n" % (serInfo["name"]))
-        res = service.get("resource", get_resource({"services": [service]}))
-        C.write("    /* resource */ %s,\n" % (res))
+        C.write("    XCP_PID_CMD_%s,\n" % (serInfo["Name"]))
+        res = service.get("Resource", get_resource({"Services": [service]}))
+        C.write("    /* Resource */ %s,\n" % (res))
         C.write("  },\n")
     C.write("};\n\n")
 
@@ -454,14 +454,14 @@ def Gen_Xcp(cfg, dir):
         C.write("  Xcp_DynOdtEntries,\n")
     else:
         C.write("  NULL,\n")
-    C.write("  /* numOfStaticDaqList */ %s,\n" % (len(staticDaqList)))
-    C.write("  /* numOfDaqList */ %s,\n" % (dynDaqNo + len(staticDaqList)))
-    C.write("  /* numOfDynOdtSlots */ %s,\n" % (dynOdtNo))
-    C.write("  /* numOfDynOdtEntrySlots */ %s,\n" % (dynOdtEntryNo))
+    C.write("  /* NumOfStaticDaqList */ %s,\n" % (len(staticDaqList)))
+    C.write("  /* NumOfDaqList */ %s,\n" % (dynDaqNo + len(staticDaqList)))
+    C.write("  /* NumOfDynOdtSlots */ %s,\n" % (dynOdtNo))
+    C.write("  /* NumOfDynOdtEntrySlots */ %s,\n" % (dynOdtEntryNo))
     C.write("  /* CanIfTxPduId */ CANIF_XCP_ON_CAN_TX,\n")
     C.write("  ARRAY_SIZE(Xcp_Services),\n")
-    C.write("  /* numOfEvChls */ %s,\n" % (len(evChls)))
-    C.write("  /* resource */ %s,\n" % (get_resource(cfg)))
+    C.write("  /* NumOfEvChls */ %s,\n" % (len(evChls)))
+    C.write("  /* Resource */ %s,\n" % (get_resource(cfg)))
     C.write("};\n\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")

@@ -20,129 +20,129 @@ __GENNET__ = {
 def Gen_Net(cfg, dir):
     source = {}
     for mod in cfg["Modules"]:
-        if mod["class"] in __GENNET__:
-            ret = __GENNET__[mod["class"]](mod, dir)
+        if mod["Class"] in __GENNET__:
+            ret = __GENNET__[mod["Class"]](mod, dir)
             source.update(ret)
         else:
-            raise Exception("unknown class %s" % (mod["class"]))
+            raise Exception("unknown class %s" % (mod["Class"]))
     return source
 
 
 def ProcDoIp(cfg, mod):
     sock = {
-        "name": "DOIP_UDP",
-        "server": mod["discovery"],
-        "protocol": "UDP",
-        "multicast": True,
-        "up": "DoIP",
+        "Name": "DOIP_UDP",
+        "Server": mod["Discovery"],
+        "Protocol": "UDP",
+        "Multicast": True,
+        "Up": "DoIP",
         "RxPduId": "DOIP_RX_PID_UDP",
     }
-    cfg["sockets"].append(sock)
+    cfg["Sockets"].append(sock)
     sock = {
-        "name": "DOIP_TCP",
-        "server": "NULL:13400",
-        "protocol": "TCP",
-        "up": "DoIP",
-        "listen": mod["max_connections"],
+        "Name": "DOIP_TCP",
+        "Server": "NULL:13400",
+        "Protocol": "TCP",
+        "Up": "DoIP",
+        "Listen": mod["MaxConnections"],
         "RxPduId": "DOIP_RX_PID_TCP",
     }
     if mod.get("EnableTLS", False):
-        sock["up"] = "TLS"
+        sock["Up"] = "TLS"
         sock["RxPduId"] = "TLS_RX_PID_DOIP_TCP"
-    cfg["sockets"].append(sock)
+    cfg["Sockets"].append(sock)
 
 
 def ProcSomeIp(cfg, mod):
     sock = {
-        "name": "SD_MULTICAST",
-        "server": mod["SD"]["multicast"] + ":30490",
-        "multicast": True,
-        "protocol": "UDP",
-        "up": "SD",
+        "Name": "SD_MULTICAST",
+        "Server": mod["SD"]["Multicast"] + ":30490",
+        "Multicast": True,
+        "Protocol": "UDP",
+        "Up": "SD",
         "RxPduId": "SD_RX_PID_MULTICAST",
     }
-    cfg["sockets"].append(sock)
-    sock = {"name": "SD_UNICAST", "server": "NULL:30490", "protocol": "UDP", "up": "SD", "RxPduId": "SD_RX_PID_UNICAST"}
-    cfg["sockets"].append(sock)
-    for service in mod.get("servers", []):
-        name = "SOMEIP_%s" % (toMacro(service["name"]))
-        if "reliable" in service:
+    cfg["Sockets"].append(sock)
+    sock = {"Name": "SD_UNICAST", "Server": "NULL:30490", "Protocol": "UDP", "Up": "SD", "RxPduId": "SD_RX_PID_UNICAST"}
+    cfg["Sockets"].append(sock)
+    for service in mod.get("Servers", []):
+        name = "SOMEIP_%s" % (toMacro(service["Name"]))
+        if "Reliable" in service:
             protocol = "TCP"
-            port = service.get("reliable", 0)
+            port = service.get("Reliable", 0)
         else:
             protocol = "UDP"
-            port = service.get("unreliable", 0)
+            port = service.get("Unreliable", 0)
         sock = {
-            "name": name,
-            "server": "NULL:%s" % (port),
-            "protocol": protocol,
-            "up": "SOMEIP",
+            "Name": name,
+            "Server": "NULL:%s" % (port),
+            "Protocol": protocol,
+            "Up": "SOMEIP",
             "RxPduId": "SOMEIP_RX_PID_%s" % (name),
         }
-        if "reliable" in service:
-            sock["listen"] = service["listen"] if "listen" in service else 1
-        cfg["sockets"].append(sock)
-        for eg in service.get("event-groups", []):
-            if "multicast" in eg:
+        if "Reliable" in service:
+            sock["Listen"] = service["Listen"] if "Listen" in service else 1
+        cfg["Sockets"].append(sock)
+        for eg in service.get("EventGroups", []):
+            if "Multicast" in eg:
                 sock = {
-                    "name": "_".join([name, eg["name"]]),
-                    "server": "%s" % (eg["multicast"].get("addr", "NULL:0")),
-                    "multicast": True,
-                    "protocol": "UDP",
-                    "up": "SOMEIP",
+                    "Name": "_".join([name, eg["Name"]]),
+                    "Server": "%s" % (eg["Multicast"].get("Addr", "NULL:0")),
+                    "Multicast": True,
+                    "Protocol": "UDP",
+                    "Up": "SOMEIP",
                     "ModeChg": "Sd",
                     "RxPduId": "SOMEIP_RX_PID_%s" % (name),
                 }
-                cfg["sockets"].append(sock)
-    for service in mod.get("clients", []):
-        name = "SOMEIP_%s" % (toMacro(service["name"]))
-        if "protocol" in service:
-            protocol = service["protocol"]
+                cfg["Sockets"].append(sock)
+    for service in mod.get("Clients", []):
+        name = "SOMEIP_%s" % (toMacro(service["Name"]))
+        if "Protocol" in service:
+            protocol = service["Protocol"]
             if protocol == "TCP":
-                port = service.get("reliable", 0)
+                port = service.get("Reliable", 0)
             else:
-                port = service.get("unreliable", 0)
+                port = service.get("Unreliable", 0)
         else:
-            if "reliable" in service:
+            if "Reliable" in service:
                 protocol = "TCP"
-                port = service.get("reliable", 0)
+                port = service.get("Reliable", 0)
             else:
                 protocol = "UDP"
-                port = service.get("unreliable", 0)
+                port = service.get("Unreliable", 0)
         sock = {
-            "name": name,
-            "client": "NULL:%s" % (port),
-            "protocol": protocol,
-            "up": "SOMEIP",
+            "Name": name,
+            "Client": "NULL:%s" % (port),
+            "Protocol": protocol,
+            "Up": "SOMEIP",
             "RxPduId": "SOMEIP_RX_PID_%s" % (name),
         }
-        cfg["sockets"].append(sock)
-        for eg in service.get("event-groups", []):
-            if "multicast" in eg:
+        cfg["Sockets"].append(sock)
+        for eg in service.get("EventGroups", []):
+            if "Multicast" in eg:
                 sock = {
-                    "name": "_".join([name, eg["name"]]),
-                    "client": "%s" % (eg["multicast"].get("addr", "NULL:0")),
-                    "multicast": True,
-                    "protocol": "UDP",
-                    "up": "SOMEIP",
+                    "Name": "_".join([name, eg["Name"]]),
+                    "Client": "%s" % (eg["Multicast"].get("Addr", "NULL:0")),
+                    "Multicast": True,
+                    "Protocol": "UDP",
+                    "Up": "SOMEIP",
                     "ModeChg": "Sd",
                     "RxPduId": "SOMEIP_RX_PID_%s" % (name),
                 }
-                cfg["sockets"].append(sock)
+                cfg["Sockets"].append(sock)
 
 
 def ProcSoAd(netCfg, dir):
     cfg = None
     for mod in netCfg["Modules"]:
-        if mod["class"] == "SoAd":
+        if mod["Class"] == "SoAd":
             cfg = mod
     if cfg == None:
-        cfg = {"class": "SoAd", "sockets": []}
+        cfg = {"Class": "SoAd", "Sockets": []}
         netCfg["Modules"].append(cfg)
     for mod in netCfg["Modules"]:
-        if mod["class"] == "DoIp":
+        if mod["Class"] == "DoIp":
             ProcDoIp(cfg, mod)
-        elif mod["class"] == "SomeIp":
+        elif mod["Class"] == "SomeIp":
             ProcSomeIp(cfg, mod)
     with open("%s/Network.json" % (dir), "w") as f:
         json.dump(netCfg, f, indent=2)
@@ -159,22 +159,22 @@ def GenAntiTestForSomeIp(cfgj):
         cfg = json.load(f)
     someIpCfg = None
     for mod in cfg["Modules"]:
-        if mod["class"] == "SomeIp":
+        if mod["Class"] == "SomeIp":
             someIpCfg = mod
             servers = []
             clients = []
-            if "servers" in mod:
-                servers = mod["servers"]
-                del mod["servers"]
-            if "clients" in mod:
-                clients = mod["clients"]
-                del mod["clients"]
+            if "Servers" in mod:
+                servers = mod["Servers"]
+                del mod["Servers"]
+            if "Clients" in mod:
+                clients = mod["Clients"]
+                del mod["Clients"]
             for ser in servers:
-                if "unreliable" in ser:
-                    ser["unreliable"] = RandomPort
+                if "Unreliable" in ser:
+                    ser["Unreliable"] = RandomPort
                     RandomPort += 1
-            mod["clients"] = servers
-            mod["servers"] = clients
+            mod["Clients"] = servers
+            mod["Servers"] = clients
     if someIpCfg:
         cfg["Modules"] = [someIpCfg]
     ProcSoAd(cfg, dir)

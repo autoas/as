@@ -42,25 +42,25 @@ static uint8_t Dcm_DslSession2Mask(Dcm_SesCtrlType sesCtrl) {
 /* ================================ [ FUNCTIONS ] ============================================== */
 void Dcm_DslInit(void) {
   Dcm_ContextType *context = Dcm_GetContext();
-  context->currentSession = DCM_DEFAULT_SESSION;
+  context->CurrentSession = DCM_DEFAULT_SESSION;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-  context->currentLevel = DCM_SEC_LEV_LOCKED;
-  context->requestLevel = DCM_SEC_LEV_LOCKED;
+  context->CurrentLevel = DCM_SEC_LEV_LOCKED;
+  context->RequestLevel = DCM_SEC_LEV_LOCKED;
 #endif
-  context->timerS3Server = 0;
-  context->timerP2Server = 0;
-  context->opStatus = DCM_INITIAL;
+  context->TimerS3Server = 0;
+  context->TimerP2Server = 0;
+  context->OpStatus = DCM_INITIAL;
 #if defined(DCM_USE_SERVICE_REQUEST_DOWNLOAD) || defined(DCM_USE_SERVICE_REQUEST_UPLOAD)
-  context->UDTData.state = DCM_UDT_IDLE_STATE;
-  context->UDTData.blockSequenceCounter = 0;
-  context->UDTData.memoryAddress = 0;
-  context->UDTData.memorySize = 0;
-  context->UDTData.offset = 0;
+  context->UDTData.State = DCM_UDT_IDLE_STATE;
+  context->UDTData.BlockSequenceCounter = 0;
+  context->UDTData.MemoryAddress = 0;
+  context->UDTData.MemorySize = 0;
+  context->UDTData.Offset = 0;
 #endif
 
 #ifdef DCM_USE_SERVICE_ECU_RESET
-  context->resetType = 0;
-  context->timer2Reset = 0;
+  context->ResetType = 0;
+  context->Timer2Reset = 0;
 #endif
 }
 
@@ -68,47 +68,47 @@ void Dcm_DslProcessingDone(Dcm_ContextType *context,
                            P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config,
                            Dcm_NegativeResponseCodeType nrc) {
 
-  if (DCM_BUFFER_IDLE != context->txBufferState) {
+  if (DCM_BUFFER_IDLE != context->TxBufferState) {
     ASLOG(ERROR, ("Dcm Tx buffer is not idel when processing is done, drop previous response\n"));
   }
 
   ASLOG(DCM, ("Done with NRC %" PRIx8 "\n", nrc));
   if (DCM_POS_RESP == nrc) {
-    context->rxBufferState = DCM_BUFFER_IDLE;
-    if (DCM_SUPRESS_POSITIVE_RESPONCE == context->msgContext.msgAddInfo.suppressPosResponse) {
-      context->txBufferState = DCM_BUFFER_IDLE;
+    context->RxBufferState = DCM_BUFFER_IDLE;
+    if (DCM_SUPRESS_POSITIVE_RESPONCE == context->MsgContext.MsgAddInfo.SuppressPosResponse) {
+      context->TxBufferState = DCM_BUFFER_IDLE;
     } else {
-      config->txBuffer[0] = config->rxBuffer[0] | SID_RESPONSE_BIT;
-      context->TxTpSduLength = context->msgContext.resDataLen + 1u;
-      context->txBufferState = DCM_BUFFER_FULL;
+      config->TxBuffer[0] = config->RxBuffer[0] | SID_RESPONSE_BIT;
+      context->TxTpSduLength = context->MsgContext.ResDataLen + 1u;
+      context->TxBufferState = DCM_BUFFER_FULL;
     }
-    context->opStatus = DCM_INITIAL;
-    context->timerP2Server = 0;
-  } else if ((DCM_FUNCTIONAL_REQUEST == context->msgContext.msgAddInfo.reqType) &&
+    context->OpStatus = DCM_INITIAL;
+    context->TimerP2Server = 0;
+  } else if ((DCM_FUNCTIONAL_REQUEST == context->MsgContext.MsgAddInfo.ReqType) &&
              ((DCM_E_SERVICE_NOT_SUPPORTED == nrc) ||
               (DCM_E_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION == nrc) ||
               (DCM_E_SUB_FUNCTION_NOT_SUPPORTED == nrc) ||
               (DCM_E_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION == nrc) ||
               (DCM_E_REQUEST_OUT_OF_RANGE == nrc))) {
-    context->rxBufferState = DCM_BUFFER_IDLE;
+    context->RxBufferState = DCM_BUFFER_IDLE;
     /* generally no response for funtional request if service or sub function is not supported */
   } else if (DCM_E_RESPONSE_PENDING == nrc) {
-    context->opStatus = DCM_PENDING;
-    context->responsePending = DCM_RESPONSE_PENDING;
+    context->OpStatus = DCM_PENDING;
+    context->ResponsePending = DCM_RESPONSE_PENDING;
   } else {
-    config->txBuffer[0] = SID_NEGATIVE_RESPONSE;
-    config->txBuffer[1] = config->rxBuffer[0];
-    config->txBuffer[2] = nrc;
+    config->TxBuffer[0] = SID_NEGATIVE_RESPONSE;
+    config->TxBuffer[1] = config->RxBuffer[0];
+    config->TxBuffer[2] = nrc;
 
     context->TxTpSduLength = 3;
-    context->txBufferState = DCM_BUFFER_FULL;
-    context->rxBufferState = DCM_BUFFER_IDLE;
+    context->TxBufferState = DCM_BUFFER_FULL;
+    context->RxBufferState = DCM_BUFFER_IDLE;
 
-    context->opStatus = DCM_INITIAL;
-    context->timerP2Server = 0;
+    context->OpStatus = DCM_INITIAL;
+    context->TimerP2Server = 0;
   }
   /* restart S3Server if any response transmited */
-  context->timerS3Server = config->timing->S3Server;
+  context->TimerS3Server = config->Timing->S3Server;
 }
 
 Std_ReturnType Dcm_DslIsSessionSupported(Dcm_SesCtrlType sesCtrl, uint8_t sesMask) {
@@ -128,13 +128,13 @@ Std_ReturnType Dcm_DslServiceSesSecPhyFuncCheck(Dcm_ContextType *context,
                                                 Dcm_NegativeResponseCodeType *nrc) {
   Std_ReturnType r = E_NOT_OK;
 
-  r = Dcm_DslIsSessionSupported(context->currentSession, sesSecAccess->sessionMask);
+  r = Dcm_DslIsSessionSupported(context->CurrentSession, sesSecAccess->SessionMask);
   if (E_OK == r) {
     r = E_NOT_OK;
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-    if (0u != (sesSecAccess->securityMask & (1u << context->currentLevel))) {
+    if (0u != (sesSecAccess->SecurityMask & (1u << context->CurrentLevel))) {
 #endif
-      if (0u != (sesSecAccess->miscMask & (1u << context->msgContext.msgAddInfo.reqType))) {
+      if (0u != (sesSecAccess->MiscMask & (1u << context->MsgContext.MsgAddInfo.ReqType))) {
         r = E_OK;
       } else {
         *nrc = DCM_E_SERVICE_NOT_SUPPORTED;
@@ -184,19 +184,19 @@ Std_ReturnType Dcm_DslServiceDIDSesSecPhyFuncCheck(Dcm_ContextType *context,
   return r;
 }
 
-Std_ReturnType Dcm_GetSecurityLevel(Dcm_SecLevelType *SecLevel) {
+Std_ReturnType Dcm_GetSecurityLevel(Dcm_SecLevelType *secLevel) {
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
   Dcm_ContextType *context = Dcm_GetContext();
-  *SecLevel = context->currentLevel;
+  *secLevel = context->CurrentLevel;
 #else
-  *SecLevel = DCM_SEC_LEV_LOCKED;
+  *secLevel = DCM_SEC_LEV_LOCKED;
 #endif
   return E_OK;
 }
 
-Std_ReturnType Dcm_GetSesCtrlType(Dcm_SesCtrlType *SesCtrlType) {
+Std_ReturnType Dcm_GetSesCtrlType(Dcm_SesCtrlType *sesCtrlType) {
   Dcm_ContextType *context = Dcm_GetContext();
-  *SesCtrlType = context->currentSession;
+  *sesCtrlType = context->CurrentSession;
   return E_OK;
 }
 
@@ -205,19 +205,19 @@ void Dcm_DslMainFunction(void) {
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 
-  if (context->timerP2Server > 0u) { /* @SWS_Dcm_00024 */
-    context->timerP2Server--;
-    if (0u == context->timerP2Server) {
-      if (context->respPendCnt < config->dslDisgResp->MaxNumRespPend) {
+  if (context->TimerP2Server > 0u) { /* @SWS_Dcm_00024 */
+    context->TimerP2Server--;
+    if (0u == context->TimerP2Server) {
+      if (context->RespPendCnt < config->DslDisgResp->MaxNumRespPend) {
         ASLOG(DCM, ("p2server timeout!\n"));
         Dcm_DslProcessingDone(context, config, DCM_E_RESPONSE_PENDING);
-        context->respPendCnt++;
-        context->timerP2Server =
-          config->timing->P2StarServerMax - config->timing->P2StarServerAdjust;
+        context->RespPendCnt++;
+        context->TimerP2Server =
+          config->Timing->P2StarServerMax - config->Timing->P2StarServerAdjust;
       } else { /* @SWS_Dcm_00120 */
-        context->opStatus = DCM_CANCEL;
-        if (context->curService != NULL) {
-          (void)context->curService->dspServiceFnc(&context->msgContext, &nrc);
+        context->OpStatus = DCM_CANCEL;
+        if (context->CurService != NULL) {
+          (void)context->CurService->DspServiceFnc(&context->MsgContext, &nrc);
           (void)nrc;
         } else {
           ASLOG(DCME, ("Fatal ERROR as null service\n"));
@@ -227,14 +227,14 @@ void Dcm_DslMainFunction(void) {
     }
   }
 
-  if (context->timerS3Server > 0u) {
-    context->timerS3Server--;
-    if (0u == context->timerS3Server) {
-      Dcm_SessionChangeIndication(context->currentSession, DCM_DEFAULT_SESSION, TRUE);
+  if (context->TimerS3Server > 0u) {
+    context->TimerS3Server--;
+    if (0u == context->TimerS3Server) {
+      Dcm_SessionChangeIndication(context->CurrentSession, DCM_DEFAULT_SESSION, TRUE);
       (void)memset(context, 0, sizeof(Dcm_ContextType));
-      context->rxBufferState = DCM_BUFFER_IDLE;
-      context->txBufferState = DCM_BUFFER_IDLE;
-      context->curPduId = DCM_INVALID_PDU_ID;
+      context->RxBufferState = DCM_BUFFER_IDLE;
+      context->TxBufferState = DCM_BUFFER_IDLE;
+      context->CurPduId = DCM_INVALID_PDU_ID;
       Dcm_DslInit();
       Dcm_DspInit();
       ASLOG(INFO, ("DCM s3server timeout!\n"));
@@ -242,18 +242,18 @@ void Dcm_DslMainFunction(void) {
   }
 
 #ifdef DCM_USE_SERVICE_ECU_RESET
-  if (context->timer2Reset > 0u) {
-    context->timer2Reset--;
-    if (0u == context->timer2Reset) {
-      Dcm_PerformReset(context->resetType);
+  if (context->Timer2Reset > 0u) {
+    context->Timer2Reset--;
+    if (0u == context->Timer2Reset) {
+      Dcm_PerformReset(context->ResetType);
     }
   }
 #endif
 
 #ifdef DCM_USE_SERVICE_SECURITY_ACCESS
-  if (context->securityDelayTimer > 0u) {
-    context->securityDelayTimer--;
-    if (0u == context->securityDelayTimer) {
+  if (context->SecurityDelayTimer > 0u) {
+    context->SecurityDelayTimer--;
+    if (0u == context->SecurityDelayTimer) {
       ASLOG(DCM, ("DCM security timer timeout!\n"));
     }
   }
@@ -271,30 +271,30 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 #endif
 
-  if (secLevelConfig->secLevel == context->currentLevel) {
+  if (secLevelConfig->SecLevel == context->CurrentLevel) {
     /* @SWS_Dcm_00323: already unlocked send 0 seed */
     r = E_OK;
-    (void)memset(&msgContext->resData[1], 0, secLevelConfig->seedSize);
+    (void)memset(&msgContext->ResData[1], 0, secLevelConfig->SeedSize);
   } else {
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
-    if (context->requestLevel != secLevelConfig->secLevel) {
-      r = secLevelConfig->GetSeedFnc(&msgContext->resData[1], nrc);
+    if (context->RequestLevel != secLevelConfig->SecLevel) {
+      r = secLevelConfig->GetSeedFnc(&msgContext->ResData[1], nrc);
       if (E_OK == r) {
-        (void)memcpy(context->cachedSeed, &msgContext->resData[1], secLevelConfig->seedSize);
+        (void)memcpy(context->CachedSeed, &msgContext->ResData[1], secLevelConfig->SeedSize);
       }
     } else {
-      (void)memcpy(&msgContext->resData[1], context->cachedSeed, secLevelConfig->seedSize);
+      (void)memcpy(&msgContext->ResData[1], context->CachedSeed, secLevelConfig->SeedSize);
       r = E_OK; /* given the same seed for seed protection purpose */
     }
 #else
-    r = secLevelConfig->GetSeedFnc(&msgContext->resData[1], nrc);
+    r = secLevelConfig->GetSeedFnc(&msgContext->ResData[1], nrc);
 #endif
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = msgContext->reqData[0];
-    msgContext->resDataLen = 1u + secLevelConfig->seedSize;
-    context->requestLevel = secLevelConfig->secLevel;
+    msgContext->ResData[0] = msgContext->ReqData[0];
+    msgContext->ResDataLen = 1u + secLevelConfig->SeedSize;
+    context->RequestLevel = secLevelConfig->SecLevel;
 #ifdef DCM_USE_SECURITY_SEED_PROTECTION
     if (Dcm_NvmSecurityAccess_Ram.AttemptCounter < (config->SecurityNumAttDelay + 2u)) {
       Dcm_NvmSecurityAccess_Ram.AttemptCounter++;
@@ -304,11 +304,11 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
       ASLOG(DCMI, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
     }
     if (Dcm_NvmSecurityAccess_Ram.AttemptCounter > (config->SecurityNumAttDelay + 1u)) {
-      context->securityDelayTimer = config->SecurityDelayTime;
+      context->SecurityDelayTimer = config->SecurityDelayTime;
     } else if (Dcm_NvmSecurityAccess_Ram.AttemptCounter == (config->SecurityNumAttDelay + 1u)) {
-      context->securityDelayTimer = config->SecurityDelayTime;
+      context->SecurityDelayTimer = config->SecurityDelayTime;
       /* allow to generate a new seed if timer timeout */
-      context->requestLevel = DCM_SEC_LEV_LOCKED;
+      context->RequestLevel = DCM_SEC_LEV_LOCKED;
       *nrc = DCM_E_EXCEED_NUMBER_OF_ATTEMPTS;
       r = E_NOT_OK;
     } else {
@@ -316,7 +316,7 @@ Std_ReturnType Dcm_DslSecurityAccessRequestSeed(Dcm_MsgContextType *msgContext,
     }
 #endif
   } else {
-    context->requestLevel = DCM_SEC_LEV_LOCKED;
+    context->RequestLevel = DCM_SEC_LEV_LOCKED;
   }
 
   return r;
@@ -331,17 +331,17 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
 #if !defined(DCM_USE_SECURITY_SEED_PROTECTION) || defined(USE_NVM)
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
 #endif
-  if (context->requestLevel != secLevelConfig->secLevel) {
+  if (context->RequestLevel != secLevelConfig->SecLevel) {
     *nrc = DCM_E_REQUEST_SEQUENCE_ERROR;
   } else {
-    context->requestLevel = DCM_SEC_LEV_LOCKED; /* reset request level */
-    r = secLevelConfig->CompareKeyFnc(&msgContext->reqData[1], nrc);
+    context->RequestLevel = DCM_SEC_LEV_LOCKED; /* reset request level */
+    r = secLevelConfig->CompareKeyFnc(&msgContext->ReqData[1], nrc);
   }
 
   if (E_OK == r) {
-    msgContext->resData[0] = msgContext->reqData[0];
-    msgContext->resDataLen = 1;
-    context->currentLevel = secLevelConfig->secLevel;
+    msgContext->ResData[0] = msgContext->ReqData[0];
+    msgContext->ResDataLen = 1;
+    context->CurrentLevel = secLevelConfig->SecLevel;
 #ifdef DCM_USE_SERVICE_READ_DATA_BY_PERIODIC_IDENTIFIER
     Dcm_ReadPeriodicDID_OnSessionSecurityChange(); /* @SWS_Dcm_01112 */
 #endif
@@ -367,7 +367,7 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
         ASLOG(DCMI, ("Seurity Att Cnt=%" PRIu8 "\n", Dcm_NvmSecurityAccess_Ram.AttemptCounter));
       }
       if (Dcm_NvmSecurityAccess_Ram.AttemptCounter >= config->SecurityNumAttDelay) {
-        context->securityDelayTimer = config->SecurityDelayTime;
+        context->SecurityDelayTimer = config->SecurityDelayTime;
         *nrc = DCM_E_EXCEED_NUMBER_OF_ATTEMPTS;
       }
 #endif
@@ -377,31 +377,31 @@ Std_ReturnType Dcm_DslSecurityAccessCompareKey(Dcm_MsgContextType *msgContext,
   return r;
 }
 
-Std_ReturnType Dcm_SetSecurityLevel(Dcm_SecLevelType SecLevel) {
+Std_ReturnType Dcm_SetSecurityLevel(Dcm_SecLevelType secLevel) {
   Std_ReturnType r = E_OK;
   Dcm_ContextType *context = Dcm_GetContext();
 
-  context->currentLevel = SecLevel;
+  context->CurrentLevel = secLevel;
 
   return r;
 }
 #endif /* DCM_USE_SERVICE_SECURITY_ACCESS */
 
-Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType SesCtrlType) {
+Std_ReturnType Dcm_SetSesCtrlType(Dcm_SesCtrlType sesCtrlType) {
   Std_ReturnType r = E_NOT_OK;
   Dcm_ContextType *context = Dcm_GetContext();
   P2CONST(Dcm_ConfigType, AUTOMATIC, DCM_CONST) config = Dcm_GetConfig();
-  uint8_t mask = Dcm_DslSession2Mask(SesCtrlType);
+  uint8_t mask = Dcm_DslSession2Mask(sesCtrlType);
 
   if (mask != 0u) {
     (void)memset(context, 0, sizeof(Dcm_ContextType));
-    context->rxBufferState = DCM_BUFFER_IDLE;
-    context->txBufferState = DCM_BUFFER_IDLE;
-    context->curPduId = DCM_INVALID_PDU_ID;
+    context->RxBufferState = DCM_BUFFER_IDLE;
+    context->TxBufferState = DCM_BUFFER_IDLE;
+    context->CurPduId = DCM_INVALID_PDU_ID;
     Dcm_DslInit();
-    context->currentSession = SesCtrlType;
-    if (SesCtrlType != DCM_DEFAULT_SESSION) {
-      context->timerS3Server = config->timing->S3Server;
+    context->CurrentSession = sesCtrlType;
+    if (sesCtrlType != DCM_DEFAULT_SESSION) {
+      context->TimerS3Server = config->Timing->S3Server;
     }
     r = E_OK;
   }

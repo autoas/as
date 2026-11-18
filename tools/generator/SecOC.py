@@ -10,7 +10,7 @@ __all__ = ["Gen"]
 
 def GetFV(cfg, name):
     for fv in cfg["FreshnessValueManager"]:
-        if fv["name"] == name:
+        if fv["Name"] == name:
             return fv
     raise Exception("FV %s not found" % (name))
 
@@ -29,11 +29,11 @@ def Gen_Csm(cfg, dir):
     H.write("  ((x + SECOC_MAIN_FUNCTION_PERIOD - 1u) / SECOC_MAIN_FUNCTION_PERIOD)\n\n")
     H.write("%s#define SECOC_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     for idx, TxPdu in enumerate(cfg.get("TxProc", [])):
-        H.write("#define SECOC_%s %su\n" % (TxPdu["name"], idx))
-        H.write("#define SECOC_FW_%s %su\n" % (TxPdu["name"], idx))
+        H.write("#define SECOC_%s %su\n" % (TxPdu["Name"], idx))
+        H.write("#define SECOC_FW_%s %su\n" % (TxPdu["Name"], idx))
     for idx, RxPdu in enumerate(cfg.get("RxProc", [])):
-        H.write("#define SECOC_%s %su\n" % (RxPdu["name"], idx))
-        H.write("#define SECOC_FW_%s %su\n" % (RxPdu["name"], idx))
+        H.write("#define SECOC_%s %su\n" % (RxPdu["Name"], idx))
+        H.write("#define SECOC_FW_%s %su\n" % (RxPdu["Name"], idx))
     if cfg.get("SELF_TEST", False):
         H.write("#define SECOC_SELF_TEST\n")
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
@@ -55,21 +55,21 @@ def Gen_Csm(cfg, dir):
     C.write('#include <string.h>\n')
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     for idx, fv in enumerate(cfg["FreshnessValueManager"]):
-        C.write("#define FV_%s %su\n" % (toMacro(fv["name"]), idx))
+        C.write("#define FV_%s %su\n" % (toMacro(fv["Name"]), idx))
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     for fv in cfg["FreshnessValueManager"]:
         C.write(
             "Std_ReturnType SecOC_GetFreshness_%s(uint8_t *FreshnessValue,uint32_t *FreshnessValueLength);\n"
-            % (fv["name"])
+            % (fv["Name"])
         )
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("static const SecOC_FreshnessValueType SecOC_FreshnessValues[] = {\n")
     for fv in cfg["FreshnessValueManager"]:
         C.write("  {\n")
-        C.write("    SecOC_GetFreshness_%s,\n" % (fv["name"]))
-        C.write("    %su, /* length in bits */\n" % (fv["length"]))
+        C.write("    SecOC_GetFreshness_%s,\n" % (fv["Name"]))
+        C.write("    %su, /* length in bits */\n" % (fv["Length"]))
         C.write("  },\n")
     C.write("};\n\n")
     if len(cfg.get("TxProc", [])) > 0:
@@ -77,8 +77,8 @@ def Gen_Csm(cfg, dir):
         for idx, TxPdu in enumerate(cfg.get("TxProc", [])):
             AuthPduOffset = max(TxPdu.get("AuthPduHeaderLength", 0), 2)
             fv = GetFV(cfg, TxPdu["FreshnessValueId"])
-            length = AuthPduOffset + (TxPdu["AuthInfoLength"] // 8) + TxPdu["AuthenticIPduLength"] + (fv["length"] // 8)
-            C.write("static uint8_t SecOC_TxPduProc_%s_Buffer[%s];\n" % (TxPdu["name"], length))
+            length = AuthPduOffset + (TxPdu["AuthInfoLength"] // 8) + TxPdu["AuthenticIPduLength"] + (fv["Length"] // 8)
+            C.write("static uint8_t SecOC_TxPduProc_%s_Buffer[%s];\n" % (TxPdu["Name"], length))
         C.write("static const SecOC_TxPduProcessingType SecOC_TxPduProcs[] = {\n")
         for idx, TxPdu in enumerate(cfg.get("TxProc", [])):
             AuthPduHeaderLength = TxPdu.get("AuthPduHeaderLength", 0)
@@ -86,16 +86,16 @@ def Gen_Csm(cfg, dir):
             fv = GetFV(cfg, TxPdu["FreshnessValueId"])
             C.write("  {\n")
             C.write("    &SecOC_TxPduProcContexts[%s],\n" % (idx))
-            C.write("    SecOC_TxPduProc_%s_Buffer,\n" % (TxPdu["name"]))
+            C.write("    SecOC_TxPduProc_%s_Buffer,\n" % (TxPdu["Name"]))
             C.write("    CSM_JOB_%s,\n" % (TxPdu["TxAuthServiceConfigRef"]))
-            C.write("    PDUR_FW_%s, /* FwTxPduId */\n" % (TxPdu["name"]))
-            C.write("    PDUR_%s,  /* UpTxPduId */\n" % (TxPdu["name"]))
-            C.write("    ARRAY_SIZE(SecOC_TxPduProc_%s_Buffer),\n" % (TxPdu["name"]))
+            C.write("    PDUR_FW_%s, /* FwTxPduId */\n" % (TxPdu["Name"]))
+            C.write("    PDUR_%s,  /* UpTxPduId */\n" % (TxPdu["Name"]))
+            C.write("    ARRAY_SIZE(SecOC_TxPduProc_%s_Buffer),\n" % (TxPdu["Name"]))
             C.write("    %su, /* AuthInfoLength */\n" % (TxPdu["AuthInfoLength"]))
             C.write("    %su, /* AuthInfoTruncLength */\n" % (TxPdu["AuthInfoTruncLength"]))
             C.write("    %su, /* DataId */\n" % (TxPdu["DataId"]))
             C.write("    FV_%s, /* FreshnessValueId */\n" % (toMacro(TxPdu["FreshnessValueId"])))
-            C.write("    %su, /* FreshnessValueLength */\n" % (fv["length"]))
+            C.write("    %su, /* FreshnessValueLength */\n" % (fv["Length"]))
             C.write("    %su, /* FreshnessValueTruncLength */\n" % (TxPdu["FreshnessValueTruncLength"]))
             C.write("    0x%xu, /* TxPduUnusedAreasDefault */\n" % (toNum(TxPdu.get("TxPduUnusedAreasDefault", 0x55))))
             C.write("    %su, /* AuthPduHeaderLength */\n" % (AuthPduHeaderLength))
@@ -111,19 +111,19 @@ def Gen_Csm(cfg, dir):
                 + RxPdu.get("AuthPduHeaderLength", 0)
                 + (RxPdu["AuthInfoLength"] // 8)
                 + RxPdu["AuthenticIPduLength"]
-                + (fv["length"] // 8)
+                + (fv["Length"] // 8)
             )
-            C.write("static uint8_t SecOC_RxPduProc_%s_Buffer[%s];\n" % (RxPdu["name"], length))
+            C.write("static uint8_t SecOC_RxPduProc_%s_Buffer[%s];\n" % (RxPdu["Name"], length))
         C.write("static const SecOC_RxPduProcessingType SecOC_RxPduProcs[] = {\n")
         for idx, RxPdu in enumerate(cfg.get("RxProc", [])):
             AuthPduHeaderLength = RxPdu.get("AuthPduHeaderLength", 0)
             fv = GetFV(cfg, RxPdu["FreshnessValueId"])
             C.write("  {\n")
             C.write("    &SecOC_RxPduProcContexts[%s],\n" % (idx))
-            C.write("    SecOC_RxPduProc_%s_Buffer,\n" % (RxPdu["name"]))
+            C.write("    SecOC_RxPduProc_%s_Buffer,\n" % (RxPdu["Name"]))
             C.write("    CSM_JOB_%s,\n" % (RxPdu["RxAuthServiceConfigRef"]))
-            C.write("    PDUR_%s,  /* UpRxPduId */\n" % (RxPdu["name"]))
-            C.write("    ARRAY_SIZE(SecOC_RxPduProc_%s_Buffer),\n" % (RxPdu["name"]))
+            C.write("    PDUR_%s,  /* UpRxPduId */\n" % (RxPdu["Name"]))
+            C.write("    ARRAY_SIZE(SecOC_RxPduProc_%s_Buffer),\n" % (RxPdu["Name"]))
             if RxPdu.get("UseAuthDataFreshness", False):
                 C.write("    %su, /* AuthDataFreshnessLen */\n" % (RxPdu["AuthDataFreshnessLen"]))
                 C.write("    %su, /* AuthDataFreshnessStartPosition */\n" % (RxPdu["AuthDataFreshnessStartPosition"]))
@@ -134,7 +134,7 @@ def Gen_Csm(cfg, dir):
             C.write("    %su, /* AuthInfoTruncLength */\n" % (RxPdu["AuthInfoTruncLength"]))
             C.write("    %su, /* DataId */\n" % (RxPdu["DataId"]))
             C.write("    FV_%s, /* FreshnessValueId */\n" % (toMacro(RxPdu["FreshnessValueId"])))
-            C.write("    %su, /* FreshnessValueLength */\n" % (fv["length"]))
+            C.write("    %su, /* FreshnessValueLength */\n" % (fv["Length"]))
             C.write("    %su, /* FreshnessValueTruncLength */\n" % (RxPdu["FreshnessValueTruncLength"]))
             C.write("    %su, /* AuthPduHeaderLength */\n" % (AuthPduHeaderLength))
             C.write("    %s, /* UseAuthDataFreshness */\n" % (str(RxPdu.get("UseAuthDataFreshness", False)).upper()))
@@ -165,15 +165,15 @@ def Gen_Csm(cfg, dir):
         if fv.get("GenDummy", False):
             C.write(
                 "Std_ReturnType __weak SecOC_GetFreshness_%s(uint8_t *FreshnessValue,uint32_t *FreshnessValueLength) {\n"
-                % (fv["name"])
+                % (fv["Name"])
             )
             C.write("  Std_ReturnType ret = E_OK;\n")
-            C.write("  static uint16_t fv%s = 0;\n" % (fv["name"]))
-            C.write("  uint16_t fv = fv%s / 2;\n" % (fv["name"]))
+            C.write("  static uint16_t fv%s = 0;\n" % (fv["Name"]))
+            C.write("  uint16_t fv = fv%s / 2;\n" % (fv["Name"]))
             C.write("  (void)memset(FreshnessValue, 0, *FreshnessValueLength / 8);\n")
             C.write("  FreshnessValue[0] = (fv >> 8)&0xFFu;\n")
             C.write("  FreshnessValue[1] = fv&0xFFu;\n")
-            C.write("  fv%s++;\n" % (fv["name"]))
+            C.write("  fv%s++;\n" % (fv["Name"]))
             C.write("  return ret;\n")
             C.write("}\n\n")
     C.close()

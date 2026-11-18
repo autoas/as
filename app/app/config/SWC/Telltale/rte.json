@@ -1,5 +1,5 @@
 {
-  "class": "Rte",
-  "py": "rte.py",
-  "includes": ["../../Com/GEN"]
+  "Class": "Rte",
+  "Py": "rte.py",
+  "Includes": ["../../Com/GEN"]
 }

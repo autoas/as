@@ -86,13 +86,13 @@ python main.py -i path/to/jse.json   # 启动时打开一个配置文件
 整个 UI 由 `schema.json` 生成；新增模块只需添加一条 schema 条目，无需修改 Python 代码。每个属性按类型映射到对应控件。
 
 ### 4.2 跨模块引用（`enumref`）
-字段可以引用另一个模块中定义的值。例如 Dcm 服务的 `sessions` 字段使用 `"enumref": "/Dcm/sessions:name"`，下拉框始终列出当前 Dcm 模块中定义的会话名。引用每秒刷新一次。
+字段可以引用另一个模块中定义的值。例如 Dcm 服务的 `Sessions` 字段使用 `"enumref": "/Dcm/Sessions:Name"`，下拉框始终列出当前 Dcm 模块中定义的会话名。引用每秒刷新一次。
 
-### 4.3 条件可见性（`enabled`）
+### 4.3 条件可见性（`Enabled`）
 字段可用 `${path}` 模板语法的表达式控制显隐：
 
 ```json
-"enabled": "'${../use_dbc}' == 'True'"
+"Enabled": "'${../use_dbc}' == 'True'"
 ```
 
 支持的路径形式：`${/Module/path}`（绝对）、`${../field}`（父级）、`${field}`（同对象）。运算符：`==`、`!=`、`in`、`and`、`or`、`not`。
@@ -130,7 +130,7 @@ flowchart LR
     B -.->|"可选"| E["AI 校验<br/>（Ctrl+V）"]
 ```
 
-**Open**（`Ctrl+O`）：加载合并的 JSON 文件（`jse.json`），其中每个模块作为数组的一项，按 `class` 匹配 schema 的 `title`。
+**Open**（`Ctrl+O`）：加载合并的 JSON 文件（`jse.json`），其中每个模块作为数组的一项，按 `Class` 匹配 schema 的 `title`。
 
 **Load**（`Ctrl+L`）：加载单模块 JSON 文件；**Load Directory**（`Ctrl+D`）加载目录下所有 `*.json`（例如某个 `app/<platform>/config/` 目录树）。
 
@@ -147,8 +147,8 @@ flowchart LR
 | 默认值 | `default` | `"default": 100` |
 | 数值格式 | `format` | `"hex"` 或 `"dec"` |
 | 固定选项 | `enum` | `"enum": ["CAN", "CANFD", "LIN"]` |
-| 跨模块引用选项 | `enumref` | `"enumref": "/Dcm/sessions:name"` |
-| 条件可见性 | `enabled` | `"'${../use_dbc}' == 'True'"` |
+| 跨模块引用选项 | `enumref` | `"enumref": "/Dcm/Sessions:Name"` |
+| 条件可见性 | `Enabled` | `"'${../use_dbc}' == 'True'"` |
 | 命名选项 + 自动填充 | `map`、`friends` | 选择时填充兄弟字段 |
 | 选择时扩展 schema | `map` + `extend: true` | 合并 `extends` 块 |
 | 字段排序 | `orders` | `["name", "Driver", "Action"]` |
@@ -156,7 +156,7 @@ flowchart LR
 
 ## 7. 常见问题
 
-- **某个字段找不到**：检查其 `enabled` 表达式——可能依赖于另一字段的值。
+- **某个字段找不到**：检查其 `Enabled` 表达式——可能依赖于另一字段的值。
 - **`enumref` 下拉框为空**：被引用的模块（如 `Dcm`）未加载；用 **Load** 或 **Load Directory** 打开它。
 - **Generate 没有生成文件**：确保至少加载了一个模块并已保存 JSON；`Generate()` 只在哈希变化时重新生成（GUI 的 Generate 动作会传 `force=True` 强制生成）。
 - **AI 校验失败**：检查 `.spark/settings.json` 中的 `api_key`、`base_url`、`model` 是否正确；该 agent 需要 OpenAI 兼容的接口。

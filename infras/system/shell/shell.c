@@ -55,7 +55,7 @@ static uint32_t lCmdPos = 0;
 RB_DECLARE(shin, char, SHELL_CMDLINE_MAX);
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32) || defined(linux)
-static void ProcessStdio(void *arg) {
+static void Shell_ProcessStdio(void *arg) {
   char ch;
   (void)arg;
   while (1) {
@@ -77,33 +77,33 @@ static int Shell_Help(int argc, const char *argv[]) {
 
   if (1 == argc) {
 #ifdef USE_SHELL_CONFIG
-    for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
-      PRINTF("%s - %s\n", Shell_Config.cmds[cmdIt]->cmdName, Shell_Config.cmds[cmdIt]->cmdDesc);
+    for (cmdIt = 0; cmdIt < Shell_Config.NumOfCmds; cmdIt++) {
+      PRINTF("%s - %s\n", Shell_Config.Cmds[cmdIt]->CmdName, Shell_Config.Cmds[cmdIt]->CmdDesc);
     }
 #else
     for (cmdIt = __ssymtab_start; cmdIt < __ssymtab_end; cmdIt++) {
-      PRINTF("%s - %s\n", cmdIt->cmdName, cmdIt->cmdDesc);
+      PRINTF("%s - %s\n", cmdIt->CmdName, cmdIt->CmdDesc);
     }
 #endif
   } else {
     for (i = 1; i < argc; i++) {
       cmd = NULL;
 #ifdef USE_SHELL_CONFIG
-      for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
-        if (0 == strcmp(Shell_Config.cmds[cmdIt]->cmdName, argv[i])) {
-          cmd = Shell_Config.cmds[cmdIt];
+      for (cmdIt = 0; cmdIt < Shell_Config.NumOfCmds; cmdIt++) {
+        if (0 == strcmp(Shell_Config.Cmds[cmdIt]->CmdName, argv[i])) {
+          cmd = Shell_Config.Cmds[cmdIt];
         }
       }
 #else
       for (cmdIt = __ssymtab_start; (cmdIt < __ssymtab_end) && (NULL == cmd); cmdIt++) {
-        if (0 == strcmp(cmdIt->cmdName, argv[i])) {
+        if (0 == strcmp(cmdIt->CmdName, argv[i])) {
           cmd = cmdIt;
         }
       }
 
 #endif
       if (cmd) {
-        PRINTF("%s - %s\n", cmd->cmdName, cmd->cmdDesc);
+        PRINTF("%s - %s\n", cmd->CmdName, cmd->CmdDesc);
       } else {
         ASLOG(ERROR, ("command %s is not found!\n", argv[i]));
       }
@@ -170,21 +170,21 @@ static void Shell_RunCmd(void) {
 
   if (argc > 0) {
 #ifdef USE_SHELL_CONFIG
-    for (cmdIt = 0; cmdIt < Shell_Config.numOfCmds; cmdIt++) {
-      if (0 == strcmp(Shell_Config.cmds[cmdIt]->cmdName, lCmdArgv[0])) {
-        cmd = Shell_Config.cmds[cmdIt];
+    for (cmdIt = 0; cmdIt < Shell_Config.NumOfCmds; cmdIt++) {
+      if (0 == strcmp(Shell_Config.Cmds[cmdIt]->CmdName, lCmdArgv[0])) {
+        cmd = Shell_Config.Cmds[cmdIt];
       }
     }
 #else
     for (cmdIt = __ssymtab_start; (cmdIt < __ssymtab_end) && (NULL == cmd); cmdIt++) {
-      if (0 == strcmp(cmdIt->cmdName, lCmdArgv[0])) {
+      if (0 == strcmp(cmdIt->CmdName, lCmdArgv[0])) {
         cmd = cmdIt;
       }
     }
 #endif
 
     if (cmd) {
-      i = cmd->cmdFunc(argc, lCmdArgv);
+      i = cmd->CmdFunc(argc, lCmdArgv);
       if (i != 0) {
         ASLOG(ERROR, ("command error %d!\n", i));
       }
@@ -207,7 +207,7 @@ void Shell_Register(const Shell_CmdType *cmd) {
 void Shell_Init(void) {
 #if defined(_WIN32) || defined(linux)
   if (NULL == lStdinThread) {
-    lStdinThread = OSAL_ThreadCreate(ProcessStdio, NULL);
+    lStdinThread = OSAL_ThreadCreate(Shell_ProcessStdio, NULL);
   }
 #endif
   Shell_Prompt();

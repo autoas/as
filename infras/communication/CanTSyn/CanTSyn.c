@@ -53,7 +53,7 @@ extern const CanTSyn_ConfigType CanTSyn_Config;
  */
 static void CanTSyn_HandleMsgSync(const CanTSyn_GlobalTimeDomainType *domain,
                                   const uint8_t *payload, PduLengthType length) {
-  CanTSyn_SlaveContextType *context = domain->U.S.context;
+  CanTSyn_SlaveContextType *context = domain->U.S.Context;
   uint8_t D, SC;
   uint8_t crc;
   Std_ReturnType ret = E_OK;
@@ -83,9 +83,9 @@ static void CanTSyn_HandleMsgSync(const CanTSyn_GlobalTimeDomainType *domain,
   }
 
   if (E_OK == ret) {
-    if (CANTSYN_SLAVE_IDLE != context->state) {
-      ASLOG(CANTSYNE, ("Slave get SYNC when in state %d\n", context->state));
-      context->state = CANTSYN_SLAVE_IDLE;
+    if (CANTSYN_SLAVE_IDLE != context->State) {
+      ASLOG(CANTSYNE, ("Slave get SYNC when in state %d\n", context->State));
+      context->State = CANTSYN_SLAVE_IDLE;
     }
 
     D = (payload[2] >> 4) & 0xF;
@@ -115,15 +115,15 @@ static void CanTSyn_HandleMsgSync(const CanTSyn_GlobalTimeDomainType *domain,
 
   if (E_OK == ret) {
     /* @SWS_CanTSyn_00073 */
-    ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->t2r);
+    ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->T2r);
     if (E_OK == ret) {
-      context->st0r = ((uint32_t)payload[4] << 24) + ((uint32_t)payload[5] << 16) +
+      context->St0r = ((uint32_t)payload[4] << 24) + ((uint32_t)payload[5] << 16) +
                       ((uint32_t)payload[6] << 8) + payload[7];
       /* @SWS_CanTSyn_00063 */
-      context->timer = domain->U.S.Slave->GlobalTimeFollowUpTimeout;
-      context->state = CANTSYN_SLAVE_SYNC;
+      context->Timer = domain->U.S.Slave->GlobalTimeFollowUpTimeout;
+      context->State = CANTSYN_SLAVE_SYNC;
       ASLOG(CANTSYNI,
-            ("t2r is 0x%08x%08x\n", context->t2r.nanosecondsHi, context->t2r.nanosecondsLo));
+            ("t2r is 0x%08x%08x\n", context->T2r.nanosecondsHi, context->T2r.nanosecondsLo));
     }
   }
 }
@@ -169,7 +169,7 @@ CanTSyn_CalcGlobalTimestamp(StbM_TimeStampType *timestamp, uint32_t st0r /* seco
     diff = t3r->nanosecondsLo - t2r->nanosecondsLo;
     /* High part difference must be 0 */
     if (t3r->nanosecondsHi != t2r->nanosecondsHi) {
-      /* If high part differs, ¦¤t >= 2^32 ns ¡Ö 4.29s ¡ú invalid for CanTSyn */
+      /* If high part differs, Â¦Â¤t >= 2^32 ns Â¡Ã– 4.29s Â¡Ãº invalid for CanTSyn */
       ASLOG(CANTSYNE, ("t3r - t2r too large (>4.29s)\n"));
       ret = E_NOT_OK;
     }
@@ -207,7 +207,7 @@ CanTSyn_CalcGlobalTimestamp(StbM_TimeStampType *timestamp, uint32_t st0r /* seco
 
 static void CanTSyn_HandleMsgFup(const CanTSyn_GlobalTimeDomainType *domain, const uint8_t *payload,
                                  PduLengthType length) {
-  CanTSyn_SlaveContextType *context = domain->U.S.context;
+  CanTSyn_SlaveContextType *context = domain->U.S.Context;
   uint8_t D, SC;
   uint8_t crc;
   Std_ReturnType ret = E_OK;
@@ -242,8 +242,8 @@ static void CanTSyn_HandleMsgFup(const CanTSyn_GlobalTimeDomainType *domain, con
   }
 
   if (E_OK == ret) {
-    if (CANTSYN_SLAVE_SYNC != context->state) {
-      ASLOG(CANTSYNE, ("Slave get FUP when in state %d\n", context->state));
+    if (CANTSYN_SLAVE_SYNC != context->State) {
+      ASLOG(CANTSYNE, ("Slave get FUP when in state %d\n", context->State));
       ret = E_NOT_OK;
     } else {
       D = (payload[2] >> 4) & 0xF;
@@ -281,7 +281,7 @@ static void CanTSyn_HandleMsgFup(const CanTSyn_GlobalTimeDomainType *domain, con
         timestamp.timeBaseStatus |= STBM_STATUS_SYNC_TO_GATEWAY;
       }
 
-      ret = CanTSyn_CalcGlobalTimestamp(&timestamp, context->st0r, t4r, ovs, &context->t2r, &t3r);
+      ret = CanTSyn_CalcGlobalTimestamp(&timestamp, context->St0r, t4r, ovs, &context->T2r, &t3r);
       if (E_OK == ret) {
         /* @CAN Time Synchronization (Time Slave)
          * *timeStampPtr = T3diff + (T0+T4);
@@ -289,8 +289,8 @@ static void CanTSyn_HandleMsgFup(const CanTSyn_GlobalTimeDomainType *domain, con
          */
         (void)StbM_BusSetGlobalTime(domain->SynchronizedTimeBaseRef, &timestamp, NULL, NULL, &t3r);
       }
-      context->timer = 0;
-      context->state = CANTSYN_SLAVE_IDLE;
+      context->Timer = 0;
+      context->State = CANTSYN_SLAVE_IDLE;
     }
   }
 }
@@ -301,7 +301,7 @@ static void CanTSyn_TransmitSYNC(const CanTSyn_GlobalTimeDomainType *domain) {
   PduInfoType PduInfo;
   uint64_t t0rNs;
   uint32_t st0r;
-  CanTSyn_MasterContextType *context = domain->U.M.context;
+  CanTSyn_MasterContextType *context = domain->U.M.Context;
 
   if (domain->U.M.Master->GlobalTimeTxCrcSecured) {
     data[0] = CANTSYN_SYNC_WITH_CRC;
@@ -313,9 +313,9 @@ static void CanTSyn_TransmitSYNC(const CanTSyn_GlobalTimeDomainType *domain) {
   data[2] = (domain->GlobalTimeDomainId << 4) + context->SC;
   data[3] = 0x00;
 
-  ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->t0r);
+  ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->T0r);
   if (E_OK == ret) {
-    t0rNs = ((uint64_t)context->t0r.nanosecondsHi << 32) + context->t0r.nanosecondsLo;
+    t0rNs = ((uint64_t)context->T0r.nanosecondsHi << 32) + context->T0r.nanosecondsLo;
     st0r = t0rNs / CANTSYN_NANOSECONDS_PER_SECOND;
     data[4] = (st0r >> 24) & 0xFF;
     data[5] = (st0r >> 16) & 0xFF;
@@ -339,14 +339,14 @@ static void CanTSyn_TransmitSYNC(const CanTSyn_GlobalTimeDomainType *domain) {
   }
 
   if (E_OK == ret) {
-    context->state = CANTSYN_MASTER_SYNCED;
+    context->State = CANTSYN_MASTER_SYNCED;
     context->SC++;
     if (context->SC > 15) {
       context->SC = 0;
     }
 
     /* @SWS_CanTSyn_00124 */
-    context->debounceCounter = domain->U.M.Master->GlobalTimeDebounceTime;
+    context->DebounceCounter = domain->U.M.Master->GlobalTimeDebounceTime;
   }
 }
 
@@ -359,7 +359,7 @@ static void CanTSyn_TransmitFUP(const CanTSyn_GlobalTimeDomainType *domain) {
   uint64_t t0rNs;
   uint64_t t1rNs;
   uint8_t ovs = 0;
-  CanTSyn_MasterContextType *context = domain->U.M.context;
+  CanTSyn_MasterContextType *context = domain->U.M.Context;
 
   if (domain->U.M.Master->GlobalTimeTxCrcSecured) {
     data[0] = CANTSYN_FUP_WITH_CRC;
@@ -375,8 +375,8 @@ static void CanTSyn_TransmitFUP(const CanTSyn_GlobalTimeDomainType *domain) {
     data[2] = (domain->GlobalTimeDomainId << 4) + 15;
   }
 
-  t0rNs = ((uint64_t)context->t0r.nanosecondsHi << 32) + context->t0r.nanosecondsLo;
-  t1rNs = ((uint64_t)context->t1r.nanosecondsHi << 32) + context->t1r.nanosecondsLo;
+  t0rNs = ((uint64_t)context->T0r.nanosecondsHi << 32) + context->T0r.nanosecondsLo;
+  t1rNs = ((uint64_t)context->T1r.nanosecondsHi << 32) + context->T1r.nanosecondsLo;
   st0r = t0rNs / CANTSYN_NANOSECONDS_PER_SECOND;
   t4r = t1rNs - (uint64_t)st0r * CANTSYN_NANOSECONDS_PER_SECOND;
 
@@ -390,7 +390,7 @@ static void CanTSyn_TransmitFUP(const CanTSyn_GlobalTimeDomainType *domain) {
     } else {
       ASLOG(CANTSYNE, ("master FUP overflow\n"));
       ret = E_NOT_OK;
-      context->state = CANTSYN_MASTER_IDLE;
+      context->State = CANTSYN_MASTER_IDLE;
     }
   }
 
@@ -416,31 +416,31 @@ static void CanTSyn_TransmitFUP(const CanTSyn_GlobalTimeDomainType *domain) {
   }
 
   if (E_OK == ret) {
-    context->state = CANTSYN_MASTER_FUPED;
+    context->State = CANTSYN_MASTER_FUPED;
     /* @SWS_CanTSyn_00124 */
-    context->debounceCounter = domain->U.M.Master->GlobalTimeDebounceTime;
+    context->DebounceCounter = domain->U.M.Master->GlobalTimeDebounceTime;
   }
 }
 
 static void CanTSyn_MainMaster(const CanTSyn_GlobalTimeDomainType *domain) {
   uint8_t cnt;
-  CanTSyn_MasterContextType *context = domain->U.M.context;
+  CanTSyn_MasterContextType *context = domain->U.M.Context;
 
-  if (context->debounceCounter > 0) {
-    context->debounceCounter--;
+  if (context->DebounceCounter > 0) {
+    context->DebounceCounter--;
   }
 
-  if (context->timer > 0) {
-    context->timer--;
-    if (0 == context->timer) {
-      if (0 == context->debounceCounter) {
-        context->timer = domain->U.M.Master->GlobalTimeTxPeriod;
-        if (CANTSYN_MASTER_IDLE != context->state) {
-          ASLOG(CANTSYNE, ("Master period enter SYNC from state %d\n", context->state));
+  if (context->Timer > 0) {
+    context->Timer--;
+    if (0 == context->Timer) {
+      if (0 == context->DebounceCounter) {
+        context->Timer = domain->U.M.Master->GlobalTimeTxPeriod;
+        if (CANTSYN_MASTER_IDLE != context->State) {
+          ASLOG(CANTSYNE, ("Master period enter SYNC from state %d\n", context->State));
         }
-        context->state = CANTSYN_MASTER_SYNC;
+        context->State = CANTSYN_MASTER_SYNC;
       } else {
-        context->timer = 1; /* not yet ready now*/
+        context->Timer = 1; /* not yet ready now*/
       }
     }
   }
@@ -449,127 +449,127 @@ static void CanTSyn_MainMaster(const CanTSyn_GlobalTimeDomainType *domain) {
   if (domain->U.M.Master->ImmediateTimeSync) {
     cnt = StbM_GetTimeBaseUpdateCounter(domain->SynchronizedTimeBaseRef);
     /* @SWS_CanTSyn_00118 */
-    if (cnt != context->timeBaseUpdateCounter) {
-      if (0 == context->debounceCounter) {
-        if (CANTSYN_MASTER_IDLE != context->state) {
-          ASLOG(CANTSYNE, ("Master immediate enter SYNC from state %d\n", context->state));
+    if (cnt != context->TimeBaseUpdateCounter) {
+      if (0 == context->DebounceCounter) {
+        if (CANTSYN_MASTER_IDLE != context->State) {
+          ASLOG(CANTSYNE, ("Master immediate enter SYNC from state %d\n", context->State));
         }
-        context->state = CANTSYN_MASTER_SYNC;
-        context->timeBaseUpdateCounter = cnt;
+        context->State = CANTSYN_MASTER_SYNC;
+        context->TimeBaseUpdateCounter = cnt;
         /* @SWS_CanTSyn_00120 */
-        context->timer = domain->U.M.Master->CyclicMsgResumeTime;
+        context->Timer = domain->U.M.Master->CyclicMsgResumeTime;
       }
     }
   }
 
   /* @SWS_CanTSyn_00125 */
-  if (0 == context->debounceCounter) {
-    if (CANTSYN_MASTER_SYNC == context->state) {
+  if (0 == context->DebounceCounter) {
+    if (CANTSYN_MASTER_SYNC == context->State) {
       CanTSyn_TransmitSYNC(domain);
-    } else if (CANTSYN_MASTER_FUP == context->state) {
+    } else if (CANTSYN_MASTER_FUP == context->State) {
       CanTSyn_TransmitFUP(domain);
     }
   }
 }
 
 static void CanTSyn_MainSlave(const CanTSyn_GlobalTimeDomainType *domain) {
-  CanTSyn_SlaveContextType *context = domain->U.S.context;
+  CanTSyn_SlaveContextType *context = domain->U.S.Context;
 
-  if (CANTSYN_SLAVE_IDLE != context->state) {
-    if (context->timer > 0) {
-      context->timer--;
-      if (0 == context->timer) {
-        ASLOG(CANTSYNE, ("Slave timeout in state %d\n", context->state));
-        context->state = CANTSYN_SLAVE_IDLE;
+  if (CANTSYN_SLAVE_IDLE != context->State) {
+    if (context->Timer > 0) {
+      context->Timer--;
+      if (0 == context->Timer) {
+        ASLOG(CANTSYNE, ("Slave timeout in state %d\n", context->State));
+        context->State = CANTSYN_SLAVE_IDLE;
       }
     }
   }
 }
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanTSyn_Init(const CanTSyn_ConfigType *ConfigPtr) {
+void CanTSyn_Init(const CanTSyn_ConfigType *configPtr) {
   int i;
   const CanTSyn_GlobalTimeDomainType *domain;
-  for (i = 0; i < CANTSYN_CONFIG->numOfGlobalTimeDomains; i++) {
+  for (i = 0; i < CANTSYN_CONFIG->NumOfGlobalTimeDomains; i++) {
     domain = &CANTSYN_CONFIG->GlobalTimeDomains[i];
     if (CANTSYN_MASTER == domain->DomainType) {
-      memset(domain->U.M.context, 0, sizeof(CanTSyn_MasterContextType));
-      domain->U.M.context->timer = domain->U.M.Master->GlobalTimeTxPeriod;
+      memset(domain->U.M.Context, 0, sizeof(CanTSyn_MasterContextType));
+      domain->U.M.Context->Timer = domain->U.M.Master->GlobalTimeTxPeriod;
     } else {
-      memset(domain->U.S.context, 0, sizeof(CanTSyn_SlaveContextType));
+      memset(domain->U.S.Context, 0, sizeof(CanTSyn_SlaveContextType));
       /* @SWS_CanTSyn_00079 */
-      domain->U.S.context->SC = CANTSYNC_SC_UNKNOWN;
+      domain->U.S.Context->SC = CANTSYNC_SC_UNKNOWN;
     }
   }
 }
 
-void CanTSyn_SetTransmissionMode(uint8_t CtrlIdx, CanTSyn_TransmissionModeType Mode) {
+void CanTSyn_SetTransmissionMode(uint8_t ctrlIdx, CanTSyn_TransmissionModeType mode) {
 }
 
-void CanTSyn_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void CanTSyn_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_OK;
   const CanTSyn_GlobalTimeDomainType *domain;
-  ASLOG(CANTSYN, ("[%d]RX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", RxPduId,
-                  PduInfoPtr->SduLength, PduInfoPtr->SduDataPtr[0], PduInfoPtr->SduDataPtr[1],
-                  PduInfoPtr->SduDataPtr[2], PduInfoPtr->SduDataPtr[3], PduInfoPtr->SduDataPtr[4],
-                  PduInfoPtr->SduDataPtr[5], PduInfoPtr->SduDataPtr[6], PduInfoPtr->SduDataPtr[7]));
-  if (RxPduId < CANTSYN_CONFIG->numOfGlobalTimeDomains) {
-    domain = &CANTSYN_CONFIG->GlobalTimeDomains[RxPduId];
+  ASLOG(CANTSYN, ("[%d]RX len=%d data=[%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n", rxPduId,
+                  pduInfoPtr->SduLength, pduInfoPtr->SduDataPtr[0], pduInfoPtr->SduDataPtr[1],
+                  pduInfoPtr->SduDataPtr[2], pduInfoPtr->SduDataPtr[3], pduInfoPtr->SduDataPtr[4],
+                  pduInfoPtr->SduDataPtr[5], pduInfoPtr->SduDataPtr[6], pduInfoPtr->SduDataPtr[7]));
+  if (rxPduId < CANTSYN_CONFIG->NumOfGlobalTimeDomains) {
+    domain = &CANTSYN_CONFIG->GlobalTimeDomains[rxPduId];
     if (CANTSYN_SLAVE == domain->DomainType) {
       if (domain->UseExtendedMsgFormat) {
-        if (16 != PduInfoPtr->SduLength) {
+        if (16 != pduInfoPtr->SduLength) {
           ret = E_NOT_OK;
-          ASLOG(CANTSYNE, ("[%d] message length is not 16\n", (int)RxPduId));
+          ASLOG(CANTSYNE, ("[%d] message length is not 16\n", (int)rxPduId));
         }
       } else {
-        if (8 != PduInfoPtr->SduLength) {
+        if (8 != pduInfoPtr->SduLength) {
           ret = E_NOT_OK;
-          ASLOG(CANTSYNE, ("[%d] message length is not 8\n", (int)RxPduId));
+          ASLOG(CANTSYNE, ("[%d] message length is not 8\n", (int)rxPduId));
         }
       }
     } else {
       ret = E_NOT_OK;
-      ASLOG(CANTSYNE, ("[%d] domain type not slave\n", (int)RxPduId));
+      ASLOG(CANTSYNE, ("[%d] domain type not slave\n", (int)rxPduId));
     }
   } else {
-    ASLOG(CANTSYNE, ("Invalid RxPduId=%d\n", (int)RxPduId));
+    ASLOG(CANTSYNE, ("Invalid RxPduId=%d\n", (int)rxPduId));
     ret = E_NOT_OK;
   }
 
   if (E_OK == ret) {
-    switch (PduInfoPtr->SduDataPtr[0]) {
+    switch (pduInfoPtr->SduDataPtr[0]) {
     case CANTSYN_SYNC_NO_CRC:
     case CANTSYN_SYNC_WITH_CRC:
-      CanTSyn_HandleMsgSync(domain, &PduInfoPtr->SduDataPtr[0], PduInfoPtr->SduLength);
+      CanTSyn_HandleMsgSync(domain, &pduInfoPtr->SduDataPtr[0], pduInfoPtr->SduLength);
       break;
     case CANTSYN_FUP_NO_CRC:
     case CANTSYN_FUP_WITH_CRC:
-      CanTSyn_HandleMsgFup(domain, &PduInfoPtr->SduDataPtr[0], PduInfoPtr->SduLength);
+      CanTSyn_HandleMsgFup(domain, &pduInfoPtr->SduDataPtr[0], pduInfoPtr->SduLength);
       break;
     default:
       ASLOG(CANTSYNE,
-            ("[%d] invalid message type 0x%02x\n", (int)RxPduId, PduInfoPtr->SduDataPtr[0]));
+            ("[%d] invalid message type 0x%02x\n", (int)rxPduId, pduInfoPtr->SduDataPtr[0]));
       break;
     }
   }
 }
 
-void CanTSyn_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
+void CanTSyn_TxConfirmation(PduIdType txPduId, Std_ReturnType result) {
   Std_ReturnType ret;
   const CanTSyn_GlobalTimeDomainType *domain;
   CanTSyn_MasterContextType *context;
-  if (TxPduId < CANTSYN_CONFIG->numOfGlobalTimeDomains) {
-    domain = &CANTSYN_CONFIG->GlobalTimeDomains[TxPduId];
+  if (txPduId < CANTSYN_CONFIG->NumOfGlobalTimeDomains) {
+    domain = &CANTSYN_CONFIG->GlobalTimeDomains[txPduId];
     if (CANTSYN_MASTER == domain->DomainType) {
-      context = domain->U.M.context;
-      if (CANTSYN_MASTER_SYNCED == context->state) {
-        ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->t1r);
+      context = domain->U.M.Context;
+      if (CANTSYN_MASTER_SYNCED == context->State) {
+        ret = StbM_GetCurrentVirtualLocalTime(domain->SynchronizedTimeBaseRef, &context->T1r);
         if (E_OK == ret) {
-          context->state = CANTSYN_MASTER_FUP;
+          context->State = CANTSYN_MASTER_FUP;
         } else {
-          context->state = CANTSYN_MASTER_IDLE;
+          context->State = CANTSYN_MASTER_IDLE;
         }
-      } else if (CANTSYN_MASTER_FUPED == context->state) {
-        context->state = CANTSYN_MASTER_IDLE;
+      } else if (CANTSYN_MASTER_FUPED == context->State) {
+        context->State = CANTSYN_MASTER_IDLE;
       }
     }
   }
@@ -578,7 +578,7 @@ void CanTSyn_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
 void CanTSyn_MainFunction(void) {
   int i;
   const CanTSyn_GlobalTimeDomainType *domain;
-  for (i = 0; i < CANTSYN_CONFIG->numOfGlobalTimeDomains; i++) {
+  for (i = 0; i < CANTSYN_CONFIG->NumOfGlobalTimeDomains; i++) {
     domain = &CANTSYN_CONFIG->GlobalTimeDomains[i];
     if (CANTSYN_MASTER == domain->DomainType) {
       CanTSyn_MainMaster(domain);
@@ -591,11 +591,11 @@ void CanTSyn_MainFunction(void) {
 void CanTSyn_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x02, CANTSYN_E_NULL_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_CANTSYN;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 1;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_CANTSYN;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 1;
 }
 
 /** @brief release notes

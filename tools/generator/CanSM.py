@@ -41,7 +41,7 @@ def Gen_CanSM(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("static const CanSM_NetworkConfigType CanSM_NetworkConfigs[] = {\n")
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         C.write("  {\n")
         C.write("    %s, /* UserGetBusOffDelayFnc */\n" % ("NULL"))
         C.write("    CANSM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* BorTimeL1 */\n" % (network["BorTimeL1"]))

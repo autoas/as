@@ -34,11 +34,11 @@ def Gen_LinIf(cfg, dir):
     tblId = 0
     bHasMaster = False
     bHasSlave = False
-    for network in cfg["networks"]:
-        netName = network["name"]
-        if network["mode"] == "master":
+    for network in cfg["Networks"]:
+        netName = network["Name"]
+        if network["Mode"] == "master":
             for schtbl in network["ScheduleTables"]:
-                H.write("#define LINIF_SCHTBL_%s_%s %s\n" % (netName, schtbl["name"], tblId))
+                H.write("#define LINIF_SCHTBL_%s_%s %s\n" % (netName, schtbl["Name"], tblId))
                 tblId += 1
             bHasMaster = True
         else:
@@ -88,58 +88,58 @@ def Gen_LinIf(cfg, dir):
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     PduMap = {}
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         for pdu in network["RxPdus"] + network["TxPdus"]:
-            PduMap[pdu["name"]] = pdu
+            PduMap[pdu["Name"]] = pdu
             C.write(
                 "static Std_ReturnType LinIf_UserCallback_%s(uint8_t channel, Lin_PduType *frame,Std_ReturnType notifyResult);\n\n"
-                % (pdu["name"])
+                % (pdu["Name"])
             )
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    C.write("static LinIf_ChannelContextType LinIf_ChannelContexts[%s];\n\n" % (len(cfg["networks"])))
+    C.write("static LinIf_ChannelContextType LinIf_ChannelContexts[%s];\n\n" % (len(cfg["Networks"])))
     schtbls = []
     ProcessParity = cfg.get("ProcessParity", False)
-    for network in cfg["networks"]:
-        netName = network["name"]
-        if network["mode"] == "master":
+    for network in cfg["Networks"]:
+        netName = network["Name"]
+        if network["Mode"] == "master":
             for schtbl in network["ScheduleTables"]:
                 C.write(
-                    "static const LinIf_ScheduleTableEntryType %s_%s_SchTblEnts[] = {\n" % (netName, schtbl["name"])
+                    "static const LinIf_ScheduleTableEntryType %s_%s_SchTblEnts[] = {\n" % (netName, schtbl["Name"])
                 )
-                for entry in schtbl["tables"]:
-                    name = entry["name"]
+                for entry in schtbl["Tables"]:
+                    name = entry["Name"]
                     pdu = PduMap[name]
                     drc = name[-2:]
                     C.write("  { /* %s */\n" % (name))
                     if ProcessParity:
-                        C.write("    /* id */ 0x%x,\n" % (CalcParity(toNum(pdu["id"]))))
+                        C.write("    /* Id */ 0x%x,\n" % (CalcParity(toNum(pdu["Id"]))))
                     else:
-                        C.write("    /* id */ 0x%x,\n" % (toNum(pdu["id"])))
-                    C.write("    /* dlc */ %s,\n" % (pdu["dlc"]))
-                    C.write("    /* type */ LINIF_%s,\n" % (pdu["type"]))
-                    C.write("    /* Cs */ LIN_%s_CS,\n" % (pdu.get("checksum", "enhanced").upper()))
+                        C.write("    /* Id */ 0x%x,\n" % (toNum(pdu["Id"])))
+                    C.write("    /* Dlc */ %s,\n" % (pdu["Dlc"]))
+                    C.write("    /* Type */ LINIF_%s,\n" % (pdu["Type"]))
+                    C.write("    /* Cs */ LIN_%s_CS,\n" % (pdu.get("Checksum", "enhanced").upper()))
                     C.write("    /* Drc */ LIN_FRAMERESPONSE_%s,\n" % (drc))
                     C.write("    /* Callback */ LinIf_UserCallback_%s,\n" % (name))
-                    C.write("    LINIF_CONVERT_MS_TO_MAIN_CYCLES(%su * LINIF_DELAY_UINT),\n" % (toNum(entry["delay"])))
+                    C.write("    LINIF_CONVERT_MS_TO_MAIN_CYCLES(%su * LINIF_DELAY_UINT),\n" % (toNum(entry["Delay"])))
                     C.write("  },\n")
                 C.write("};\n\n")
-                schtbls.append("%s_%s_SchTblEnts" % (netName, schtbl["name"]))
+                schtbls.append("%s_%s_SchTblEnts" % (netName, schtbl["Name"]))
         else:
             pdus = network["RxPdus"] + network["TxPdus"]
-            pdus.sort(key=lambda x: toNum(x["id"]))
+            pdus.sort(key=lambda x: toNum(x["Id"]))
             C.write("static const LinIf_ScheduleTableEntryType %s_SchTblEnts[] = {\n" % (netName))
             for pdu in pdus:
-                name = pdu["name"]
+                name = pdu["Name"]
                 pdu = PduMap[name]
                 drc = name[-2:]
                 C.write("  { /* %s */\n" % (name))
                 if ProcessParity:
-                    C.write("    /* id */ 0x%x,\n" % (CalcParity(toNum(pdu["id"]))))
+                    C.write("    /* Id */ 0x%x,\n" % (CalcParity(toNum(pdu["Id"]))))
                 else:
-                    C.write("    /* id */ 0x%x,\n" % (toNum(pdu["id"])))
-                C.write("    /* dlc */ %s,\n" % (pdu["dlc"]))
-                C.write("    /* type */ LINIF_%s,\n" % (pdu["type"]))
-                C.write("    /* Cs */ LIN_%s_CS,\n" % (pdu.get("checksum", "enhanced").upper()))
+                    C.write("    /* Id */ 0x%x,\n" % (toNum(pdu["Id"])))
+                C.write("    /* Dlc */ %s,\n" % (pdu["Dlc"]))
+                C.write("    /* Type */ LINIF_%s,\n" % (pdu["Type"]))
+                C.write("    /* Cs */ LIN_%s_CS,\n" % (pdu.get("Checksum", "enhanced").upper()))
                 C.write("    /* Drc */ LIN_FRAMERESPONSE_%s,\n" % (drc))
                 C.write("    /* Callback */ LinIf_UserCallback_%s,\n" % (name))
                 C.write("    /* delay us */ 0,\n")
@@ -154,22 +154,22 @@ def Gen_LinIf(cfg, dir):
         C.write("  },\n")
     C.write("};\n\n")
     C.write("const LinIf_ChannelConfigType LinIf_ChannelConfigs[] = {\n")
-    for i, network in enumerate(cfg["networks"]):
-        netName = network["name"]
+    for i, network in enumerate(cfg["Networks"]):
+        netName = network["Name"]
         C.write("  { /* %s */\n" % (netName))
         C.write("    #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE\n")
-        if network["mode"] == "master":
+        if network["Mode"] == "master":
             C.write("    NULL,\n")
         else:
             C.write("    &LinIf_SchTbls[LINIF_SCHTBL_%s],\n" % (netName))
         C.write("    #endif\n")
         C.write(
-            "    /* timeout */ LINIF_CONVERT_MS_TO_MAIN_CYCLES(%su * LINIF_DELAY_UINT),\n"
-            % (toNum(network.get("timeout", 100)))
+            "    /* Timeout */ LINIF_CONVERT_MS_TO_MAIN_CYCLES(%su * LINIF_DELAY_UINT),\n"
+            % (toNum(network.get("Timeout", 100)))
         )
-        C.write("    /* linChannel */ %su,\n" % (i))
+        C.write("    /* LinChannel */ %su,\n" % (i))
         C.write("    #if LINIF_VARIANT == LINIF_VARIANT_BOTH\n")
-        C.write("    /* nodeType */ LINIF_%s,\n" % (network["mode"].upper()))
+        C.write("    /* NodeType */ LINIF_%s,\n" % (network["Mode"].upper()))
         C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
@@ -184,16 +184,16 @@ def Gen_LinIf(cfg, dir):
     C.write("};\n\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    for i, network in enumerate(cfg["networks"]):
+    for i, network in enumerate(cfg["Networks"]):
         for pdu in network["RxPdus"] + network["TxPdus"]:
-            name = pdu["name"]
+            name = pdu["Name"]
             drc = name[-2:]
             C.write(
                 "static Std_ReturnType LinIf_UserCallback_%s(uint8_t channel, Lin_PduType *frame,Std_ReturnType notifyResult) {\n"
                 % (name)
             )
             if "RX" == drc:
-                if "Com" == pdu["up"]:
+                if "Com" == pdu["Up"]:
                     C.write("  Std_ReturnType r = LINIF_R_NOT_OK;\n")
                     C.write("  PduInfoType pduInfo;\n")
                     C.write("  if (LINIF_R_RECEIVED_OK == notifyResult) {\n")
@@ -203,7 +203,7 @@ def Gen_LinIf(cfg, dir):
                     C.write("    r = LINIF_R_OK;\n")
                     C.write("  }\n")
                     C.write("  return r;\n")
-                elif "LinTp" == pdu["up"]:
+                elif "LinTp" == pdu["Up"]:
                     C.write("  Std_ReturnType r = LINIF_R_NOT_OK;\n")
                     C.write("  PduInfoType pduInfo;\n")
                     C.write("  if (LINIF_R_RECEIVED_OK == notifyResult) {\n")
@@ -216,7 +216,7 @@ def Gen_LinIf(cfg, dir):
                 else:
                     raise
             elif "TX" == drc:
-                if "Com" == pdu["up"]:
+                if "Com" == pdu["Up"]:
                     C.write("  Std_ReturnType r = LINIF_R_NOT_OK;\n")
                     C.write("  Std_ReturnType ret;\n")
                     C.write("  PduInfoType pduInfo;\n")
@@ -229,7 +229,7 @@ def Gen_LinIf(cfg, dir):
                     C.write("    }\n")
                     C.write("  }\n")
                     C.write("  return r;\n")
-                elif "LinTp" == pdu["up"]:
+                elif "LinTp" == pdu["Up"]:
                     C.write("  Std_ReturnType r = LINIF_R_NOT_OK;\n")
                     C.write("  Std_ReturnType ret;\n")
                     C.write("  PduInfoType pduInfo;\n")
@@ -252,36 +252,36 @@ def Gen_LinIf(cfg, dir):
 
 def extract(cfg, dir):
     cfg_ = dict(cfg)
-    cfg_["networks"] = []
+    cfg_["Networks"] = []
     bNew = False
-    for network in cfg["networks"]:
-        if "ldf" in network:
+    for network in cfg["Networks"]:
+        if "Ldf" in network:
             from .ldf import ldf
 
             network_ = dict(network)
-            path = network["ldf"]
-            del network_["ldf"]
-            me = network["me"]
-            netName = network["name"]
+            path = network["Ldf"]
+            del network_["Ldf"]
+            me = network["Me"]
+            netName = network["Name"]
             if not os.path.isfile(path):
                 path = os.path.abspath(os.path.join(dir, "..", path))
             if not os.path.isfile(path):
                 raise Exception("File %s not exists" % (path))
             p = ldf(path)
-            master = p["Nodes"]["master"]["name"]
+            master = p["Nodes"]["master"]["Name"]
             if master == me:
-                network_["mode"] = "master"
+                network_["Mode"] = "master"
             else:
-                network_["mode"] = "slave"
-            messages = p["messages"]
+                network_["Mode"] = "slave"
+            messages = p["Messages"]
             pduMap = {}
             for kl in ["TxPdus", "RxPdus"]:
                 if kl not in network_:
                     network_[kl] = []
             for msg in messages:
-                rn = "%s_%s" % (netName, toMacro(msg["name"]))
+                rn = "%s_%s" % (netName, toMacro(msg["Name"]))
                 rn = rn.upper()
-                if msg["node"] == me:
+                if msg["Node"] == me:
                     if "TX" not in rn:
                         rn += "_TX"
                     kl = "TxPdus"
@@ -290,103 +290,103 @@ def extract(cfg, dir):
                         rn += "_RX"
                     kl = "RxPdus"
                 pdu = {
-                    "name": rn,
-                    "id": msg["id"],
-                    "type": "UNCONDITIONAL",
-                    "checksum": "enhanced",
-                    "dlc": msg["dlc"],
-                    "up": "Com",
+                    "Name": rn,
+                    "Id": msg["Id"],
+                    "Type": "UNCONDITIONAL",
+                    "Checksum": "enhanced",
+                    "Dlc": msg["Dlc"],
+                    "Up": "Com",
                 }
                 network_[kl].append(pdu)
-                pduMap[msg["name"]] = pdu
+                pduMap[msg["Name"]] = pdu
             schtbl_diag = []
             if "diagnostic_frames" in p:
-                reqId = p["diagnostic_frames"]["MasterReq"]["id"]
-                resId = p["diagnostic_frames"]["SlaveResp"]["id"]
+                reqId = p["diagnostic_frames"]["MasterReq"]["Id"]
+                resId = p["diagnostic_frames"]["SlaveResp"]["Id"]
                 if master == me:  # for master, general CANTP gateway to LINTP
                     pdu = {
-                        "name": "%s_DIAG_REQ_TX" % (netName),
-                        "id": reqId,
-                        "type": "DIAG_MRF",
-                        "checksum": "classic",
-                        "dlc": 8,
-                        "up": "LinTp",
+                        "Name": "%s_DIAG_REQ_TX" % (netName),
+                        "Id": reqId,
+                        "Type": "DIAG_MRF",
+                        "Checksum": "classic",
+                        "Dlc": 8,
+                        "Up": "LinTp",
                     }
                     network_["TxPdus"].append(pdu)
                     pdu = {
-                        "name": "%s_DIAG_RES_RX" % (netName),
-                        "id": resId,
-                        "type": "DIAG_SRF",
-                        "checksum": "classic",
-                        "dlc": 8,
-                        "up": "LinTp",
+                        "Name": "%s_DIAG_RES_RX" % (netName),
+                        "Id": resId,
+                        "Type": "DIAG_SRF",
+                        "Checksum": "classic",
+                        "Dlc": 8,
+                        "Up": "LinTp",
                     }
                     network_["RxPdus"].append(pdu)
                     schtbl_diag = [
                         {
-                            "name": "DIAG_REQ",
-                            "tables": [
+                            "Name": "DIAG_REQ",
+                            "Tables": [
                                 {
-                                    "name": "%s_DIAG_REQ_TX" % (netName),
-                                    "delay": "20",
+                                    "Name": "%s_DIAG_REQ_TX" % (netName),
+                                    "Delay": "20",
                                 }
                             ],
                         },
                         {
-                            "name": "DIAG_RES",
-                            "tables": [
+                            "Name": "DIAG_RES",
+                            "Tables": [
                                 {
-                                    "name": "%s_DIAG_RES_RX" % (netName),
-                                    "delay": "20",
+                                    "Name": "%s_DIAG_RES_RX" % (netName),
+                                    "Delay": "20",
                                 }
                             ],
                         },
                     ]
                 else:
                     pdu = {
-                        "name": "%s_DIAG_REQ_RX" % (netName),
-                        "id": reqId,
-                        "type": "DIAG_MRF",
-                        "checksum": "classic",
-                        "dlc": 8,
-                        "up": "LinTp",
+                        "Name": "%s_DIAG_REQ_RX" % (netName),
+                        "Id": reqId,
+                        "Type": "DIAG_MRF",
+                        "Checksum": "classic",
+                        "Dlc": 8,
+                        "Up": "LinTp",
                     }
                     network_["RxPdus"].append(pdu)
                     pdu = {
-                        "name": "%s_DIAG_RES_TX" % (netName),
-                        "id": resId,
-                        "type": "DIAG_SRF",
-                        "checksum": "classic",
-                        "dlc": 8,
-                        "up": "LinTp",
+                        "Name": "%s_DIAG_RES_TX" % (netName),
+                        "Id": resId,
+                        "Type": "DIAG_SRF",
+                        "Checksum": "classic",
+                        "Dlc": 8,
+                        "Up": "LinTp",
                     }
                     network_["TxPdus"].append(pdu)
             if master == me:
                 # only for master, it has schedule table, for slave just 1 table with all PDU configured
-                schtbls = p["schedule_tables"]
+                schtbls = p["ScheduleTables"]
                 if "ScheduleTables" not in network_:
                     network_["ScheduleTables"] = []
                 for sname, schtbl in schtbls.items():
-                    schtbl_ = {"name": sname, "tables": []}
+                    schtbl_ = {"Name": sname, "Tables": []}
                     for entry in schtbl:
-                        pdu = pduMap[entry["name"]]
+                        pdu = pduMap[entry["Name"]]
                         entry_ = {
-                            "name": pdu["name"],
-                            "delay": entry["delay"],
+                            "Name": pdu["Name"],
+                            "Delay": entry["Delay"],
                         }
-                        schtbl_["tables"].append(entry_)
+                        schtbl_["Tables"].append(entry_)
                     network_["ScheduleTables"].append(schtbl_)
                 network_["ScheduleTables"].extend(schtbl_diag)
-            cfg_["networks"].append(network_)
+            cfg_["Networks"].append(network_)
             bNew = True
         else:
-            cfg_["networks"].append(network)
+            cfg_["Networks"].append(network)
     if bNew:
         with open("%s/LinIf.json" % (dir), "w") as f:
             json.dump(cfg_, f, indent=2)
-    for network in cfg_["networks"]:
-        network["RxPdus"].sort(key=lambda x: toNum(x["id"]) & 0x1FFFFFFF)
-        network["TxPdus"].sort(key=lambda x: toNum(x["id"]) & 0x1FFFFFFF)
+    for network in cfg_["Networks"]:
+        network["RxPdus"].sort(key=lambda x: toNum(x["Id"]) & 0x1FFFFFFF)
+        network["TxPdus"].sort(key=lambda x: toNum(x["Id"]) & 0x1FFFFFFF)
     return cfg_
 
 

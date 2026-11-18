@@ -14,8 +14,8 @@
 #define AS_LOG_SOMEIPXF 0
 #define AS_LOG_SOMEIPXFE 2
 /* ================================ [ TYPES     ] ============================================== */
-#define STRUCT_PTR(dtype, pStruct, offset) ((dtype *)(((uint8_t *)(pStruct)) + offset))
-#define STRUCT_VAL(dtype, pStruct, offset) (*STRUCT_PTR(dtype, pStruct, offset))
+#define SomeIpXfStructPtr(dtype, pStruct, offset) ((dtype *)(((uint8_t *)(pStruct)) + offset))
+#define SomeIpXfStructVal(dtype, pStruct, offset) (*SomeIpXfStructPtr(dtype, pStruct, offset))
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 #if AS_LOG_SOMEIPXF > 0 || defined(linux) || defined(_WIN32)
@@ -36,9 +36,9 @@ const char *getDataTypeName(SomIpXf_DataElementTypeType dataType) {
 #endif
 static uint32_t SomeIpXf_GetDataLength(const void *pStruct,
                                        const SomeIpXf_DataElementType *dataElement) {
-  uint32_t length = dataElement->dataSize;
+  uint32_t length = dataElement->DataSize;
 
-  switch (dataElement->dataType) {
+  switch (dataElement->DataType) {
   case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE_ARRAY:
     break;
   case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT_ARRAY:
@@ -51,20 +51,20 @@ static uint32_t SomeIpXf_GetDataLength(const void *pStruct,
     length /= sizeof(uint64_t);
     break;
   case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT_ARRAY:
-    length /= dataElement->pStructDef->structSize;
+    length /= dataElement->PStructDef->StructSize;
     break;
   default:
     length = 1;
     break;
   }
 
-  if (0 != dataElement->dataLenOffset) {
+  if (0 != dataElement->DataLenOffset) {
     if (length < 256) {
-      length = (uint32_t)STRUCT_VAL(uint8_t, pStruct, dataElement->dataLenOffset);
+      length = (uint32_t)SomeIpXfStructVal(uint8_t, pStruct, dataElement->DataLenOffset);
     } else if (length < 65536) {
-      length = (uint32_t)STRUCT_VAL(uint16_t, pStruct, dataElement->dataLenOffset);
+      length = (uint32_t)SomeIpXfStructVal(uint16_t, pStruct, dataElement->DataLenOffset);
     } else {
-      length = STRUCT_VAL(uint32_t, pStruct, dataElement->dataLenOffset);
+      length = SomeIpXfStructVal(uint32_t, pStruct, dataElement->DataLenOffset);
     }
   }
 
@@ -93,8 +93,8 @@ static boolean SomeIpXf_HasThisField(const void *pStruct,
                                      const SomeIpXf_DataElementType *dataElement) {
   boolean hasIt;
 
-  if (0 != dataElement->hasOffset) {
-    hasIt = STRUCT_VAL(boolean, pStruct, dataElement->hasOffset);
+  if (0 != dataElement->HasOffset) {
+    hasIt = SomeIpXfStructVal(boolean, pStruct, dataElement->HasOffset);
   } else {
     hasIt = TRUE;
   }
@@ -105,7 +105,7 @@ static boolean SomeIpXf_HasThisField(const void *pStruct,
 static uint16_t SomeIpXf_GetTag(const SomeIpXf_DataElementType *dataElement) {
   uint16_t tag = 0;
 
-  switch (dataElement->sizeOfDataLengthField) {
+  switch (dataElement->SizeOfDataLengthField) {
   case 1:
     tag = 0x5000;
     break;
@@ -117,7 +117,7 @@ static uint16_t SomeIpXf_GetTag(const SomeIpXf_DataElementType *dataElement) {
     break;
   default:
     /* config generator will ensure sizeOfDataLengthField is 0 for basic types */
-    switch (dataElement->dataType) {
+    switch (dataElement->DataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT:
       tag = 0x1000;
       break;
@@ -132,7 +132,7 @@ static uint16_t SomeIpXf_GetTag(const SomeIpXf_DataElementType *dataElement) {
     }
     break;
   }
-  tag = tag | (dataElement->tag & 0xFFF);
+  tag = tag | (dataElement->Tag & 0xFFF);
 
   return tag;
 }
@@ -141,10 +141,10 @@ static boolean SomeIpXf_IsTagMatched(const SomeIpXf_DataElementType *dataElement
                                      uint8_t *sizeOfDataLengthField) {
   boolean matched = TRUE;
 
-  if ((tag & 0xFFF) == dataElement->tag) {
-    if (dataElement->sizeOfDataLengthField) {
+  if ((tag & 0xFFF) == dataElement->Tag) {
+    if (dataElement->SizeOfDataLengthField) {
       if ((tag & 0xF000) == 0x4000) {
-        *sizeOfDataLengthField = dataElement->sizeOfDataLengthField;
+        *sizeOfDataLengthField = dataElement->SizeOfDataLengthField;
       } else if ((tag & 0xF000) == 0x5000) {
         *sizeOfDataLengthField = 1;
       } else if ((tag & 0xF000) == 0x6000) {
@@ -155,7 +155,7 @@ static boolean SomeIpXf_IsTagMatched(const SomeIpXf_DataElementType *dataElement
         matched = FALSE;
       }
     } else {
-      switch (dataElement->dataType) {
+      switch (dataElement->DataType) {
       case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE:
         if ((tag & 0xF000) != 0x0000) {
           matched = FALSE;
@@ -193,16 +193,16 @@ static int32_t SomeIpXf_EncodeTagAndLengthIfHave(uint8_t *buffer, uint32_t buffe
   int32_t offset = 0;
   uint16_t tag = 0;
 
-  if (SOMEIPXF_TAG_NOT_USED != dataElement->tag) {
+  if (SOMEIPXF_TAG_NOT_USED != dataElement->Tag) {
     tag = SomeIpXf_GetTag(dataElement);
     if (bufferSize >= 2) {
       buffer[0] = tag >> 8;
       buffer[1] = tag & 0xFF;
     }
     offset += 2;
-    offset += dataElement->sizeOfDataLengthField;
-  } else if (0 != dataElement->dataLenOffset) {
-    offset += dataElement->sizeOfDataLengthField;
+    offset += dataElement->SizeOfDataLengthField;
+  } else if (0 != dataElement->DataLenOffset) {
+    offset += dataElement->SizeOfDataLengthField;
   } else {
     /* pass */
   }
@@ -218,22 +218,22 @@ static int32_t SomeIpXf_EncodeTagAndLengthIfHave(uint8_t *buffer, uint32_t buffe
 static void SomeIpXf_SetLenghtIfhave(void *pStruct, const SomeIpXf_DataElementType *dataElement,
                                      uint32_t length) {
   uint32_t max = 0;
-  if (0 != dataElement->dataLenOffset) {
-    switch (dataElement->dataType) {
+  if (0 != dataElement->DataLenOffset) {
+    switch (dataElement->DataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE_ARRAY:
-      max = dataElement->dataSize;
+      max = dataElement->DataSize;
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT_ARRAY:
-      max = dataElement->dataSize / sizeof(uint16_t);
+      max = dataElement->DataSize / sizeof(uint16_t);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_ARRAY:
-      max = dataElement->dataSize / sizeof(uint32_t);
+      max = dataElement->DataSize / sizeof(uint32_t);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_LONG_ARRAY:
-      max = dataElement->dataSize / sizeof(uint64_t);
+      max = dataElement->DataSize / sizeof(uint64_t);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT_ARRAY:
-      max = dataElement->dataSize / dataElement->pStructDef->structSize;
+      max = dataElement->DataSize / dataElement->PStructDef->StructSize;
       break;
     default:
       break;
@@ -241,11 +241,11 @@ static void SomeIpXf_SetLenghtIfhave(void *pStruct, const SomeIpXf_DataElementTy
 
     if (max > 0) {
       if (max < 256) {
-        STRUCT_VAL(uint8_t, pStruct, dataElement->dataLenOffset) = (uint8_t)length;
+        SomeIpXfStructVal(uint8_t, pStruct, dataElement->DataLenOffset) = (uint8_t)length;
       } else if (max < 65536) {
-        STRUCT_VAL(uint16_t, pStruct, dataElement->dataLenOffset) = (uint16_t)length;
+        SomeIpXfStructVal(uint16_t, pStruct, dataElement->DataLenOffset) = (uint16_t)length;
       } else {
-        STRUCT_VAL(uint32_t, pStruct, dataElement->dataLenOffset) = length;
+        SomeIpXfStructVal(uint32_t, pStruct, dataElement->DataLenOffset) = length;
       }
     }
   }
@@ -379,17 +379,17 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
   const SomeIpXf_DataElementType *dataElement;
 
   /* @SWS_SomeIpXf_00218: reserve space for the length field */
-  offset += structDef->sizeOfStructLengthField;
+  offset += structDef->SizeOfStructLengthField;
 
   if ((uint32_t)offset >= bufferSize) {
     ASLOG(SOMEIPXFE, ("no space for struct length field\n"));
     r = -E_NO_DATA;
   }
 
-  ASLOG(SOMEIPXF, ("encode struct %s @%p to %p\n", structDef->name, pStruct, buffer));
+  ASLOG(SOMEIPXF, ("encode struct %s @%p to %p\n", structDef->Name, pStruct, buffer));
 
-  for (i = 0; (i < structDef->numOfDataElements) && (r >= 0); i++) {
-    dataElement = &structDef->dataElements[i];
+  for (i = 0; (i < structDef->NumOfDataElements) && (r >= 0); i++) {
+    dataElement = &structDef->DataElements[i];
     hasIt = SomeIpXf_HasThisField(pStruct, dataElement);
     if (FALSE == hasIt) {
       continue;
@@ -404,51 +404,54 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
     }
 #if AS_LOG_SOMEIPXF > 0 || defined(linux) || defined(_WIN32)
     ASLOG(SOMEIPXF,
-          ("encode data %s type=%s\n", dataElement->name, getDataTypeName(dataElement->dataType)));
+          ("encode data %s type=%s\n", dataElement->Name, getDataTypeName(dataElement->DataType)));
 #endif
-    switch (dataElement->dataType) {
+    switch (dataElement->DataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE:
       r = SomeIpXf_EncodeByte(buffer + offset, bufferSize - (uint32_t)offset,
-                              STRUCT_VAL(uint8_t, pStruct, dataElement->dataOffset));
+                              SomeIpXfStructVal(uint8_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT:
       r = SomeIpXf_EncodeShort(buffer + offset, bufferSize - (uint32_t)offset,
-                               STRUCT_VAL(uint16_t, pStruct, dataElement->dataOffset));
+                               SomeIpXfStructVal(uint16_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG:
       r = SomeIpXf_EncodeLong(buffer + offset, bufferSize - (uint32_t)offset,
-                              STRUCT_VAL(uint32_t, pStruct, dataElement->dataOffset));
+                              SomeIpXfStructVal(uint32_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_LONG:
       r = SomeIpXf_EncodeLongLong(buffer + offset, bufferSize - (uint32_t)offset,
-                                  STRUCT_VAL(uint64_t, pStruct, dataElement->dataOffset));
+                                  SomeIpXfStructVal(uint64_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT:
       r = SomeIpXf_EncodeStruct(buffer + offset, bufferSize - (uint32_t)offset,
-                                STRUCT_PTR(void, pStruct, dataElement->dataOffset),
-                                dataElement->pStructDef);
+                                SomeIpXfStructPtr(void, pStruct, dataElement->DataOffset),
+                                dataElement->PStructDef);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE_ARRAY:
       r = SomeIpXf_EncodeByteArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                   STRUCT_PTR(uint8_t, pStruct, dataElement->dataOffset), length);
+                                   SomeIpXfStructPtr(uint8_t, pStruct, dataElement->DataOffset),
+                                   length);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT_ARRAY:
       r = SomeIpXf_EncodeShortArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                    STRUCT_PTR(uint16_t, pStruct, dataElement->dataOffset), length);
+                                    SomeIpXfStructPtr(uint16_t, pStruct, dataElement->DataOffset),
+                                    length);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_ARRAY:
       r = SomeIpXf_EncodeLongArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                   STRUCT_PTR(uint32_t, pStruct, dataElement->dataOffset), length);
+                                   SomeIpXfStructPtr(uint32_t, pStruct, dataElement->DataOffset),
+                                   length);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_LONG_ARRAY:
-      r = SomeIpXf_EncodeLongLongArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                       STRUCT_PTR(uint64_t, pStruct, dataElement->dataOffset),
-                                       length);
+      r = SomeIpXf_EncodeLongLongArray(
+        buffer + offset, bufferSize - (uint32_t)offset,
+        SomeIpXfStructPtr(uint64_t, pStruct, dataElement->DataOffset), length);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT_ARRAY:
       r = SomeIpXf_EncodeStructArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                     STRUCT_PTR(void, pStruct, dataElement->dataOffset),
-                                     dataElement->pStructDef, length);
+                                     SomeIpXfStructPtr(void, pStruct, dataElement->DataOffset),
+                                     dataElement->PStructDef, length);
       break;
     default:
       r = -E_SER_GENERIC_ERROR;
@@ -456,27 +459,27 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
     }
 
     if (r < 0) {
-      ASLOG(SOMEIPXFE, ("struct %s field %s encode error %d, offset=%d\n", structDef->name,
-                        dataElement->name, r, offset));
+      ASLOG(SOMEIPXFE, ("struct %s field %s encode error %d, offset=%d\n", structDef->Name,
+                        dataElement->Name, r, offset));
       continue;
     }
 
     length = r;
 
-    if ((0 != dataElement->dataLenOffset) || (SOMEIPXF_TAG_NOT_USED != dataElement->tag)) {
-      if (0 == dataElement->sizeOfDataLengthField) {
+    if ((0 != dataElement->DataLenOffset) || (SOMEIPXF_TAG_NOT_USED != dataElement->Tag)) {
+      if (0 == dataElement->SizeOfDataLengthField) {
         /* no length field */
-      } else if (1 == dataElement->sizeOfDataLengthField) {
+      } else if (1 == dataElement->SizeOfDataLengthField) {
         asAssert(length < 256);
-        (void)SomeIpXf_EncodeByte(buffer + offset - dataElement->sizeOfDataLengthField, 1,
+        (void)SomeIpXf_EncodeByte(buffer + offset - dataElement->SizeOfDataLengthField, 1,
                                   (uint8_t)length);
-      } else if (2 == dataElement->sizeOfDataLengthField) {
+      } else if (2 == dataElement->SizeOfDataLengthField) {
         asAssert(length < 65536);
-        (void)SomeIpXf_EncodeShort(buffer + offset - dataElement->sizeOfDataLengthField, 2,
+        (void)SomeIpXf_EncodeShort(buffer + offset - dataElement->SizeOfDataLengthField, 2,
                                    (uint16_t)length);
       } else {
-        asAssert(4 == dataElement->sizeOfDataLengthField);
-        (void)SomeIpXf_EncodeLong(buffer + offset - dataElement->sizeOfDataLengthField, 4,
+        asAssert(4 == dataElement->SizeOfDataLengthField);
+        (void)SomeIpXf_EncodeLong(buffer + offset - dataElement->SizeOfDataLengthField, 4,
                                   (uint32_t)length);
       }
     }
@@ -485,13 +488,13 @@ int32_t SomeIpXf_EncodeStruct(uint8_t *buffer, uint32_t bufferSize, const void *
   }
 
   if (r >= 0) {
-    if (1 == structDef->sizeOfStructLengthField) {
+    if (1 == structDef->SizeOfStructLengthField) {
       asAssert((offset - 1) < 256);
       (void)SomeIpXf_EncodeByte(buffer, 1, (uint8_t)(offset - 1));
-    } else if (2 == structDef->sizeOfStructLengthField) {
+    } else if (2 == structDef->SizeOfStructLengthField) {
       asAssert((offset - 2) < 65536);
       (void)SomeIpXf_EncodeShort(buffer, 2, (uint16_t)(offset - 2));
-    } else if (4 == structDef->sizeOfStructLengthField) {
+    } else if (4 == structDef->SizeOfStructLengthField) {
       (void)SomeIpXf_EncodeLong(buffer, 4, offset - 4);
     } else {
       /* pass */
@@ -512,10 +515,10 @@ int32_t SomeIpXf_DecodeStruct(const uint8_t *buffer, uint32_t bufferSize, void *
   uint32_t structSize = 0;
   uint32_t dataSize;
   const SomeIpXf_DataElementType *dataElement;
-  boolean hasTag = (SOMEIPXF_TAG_NOT_USED != structDef->dataElements[0].tag);
+  boolean hasTag = (SOMEIPXF_TAG_NOT_USED != structDef->DataElements[0].Tag);
   uint8_t sizeOfDataLengthField = 0;
 
-  offset += SomeIpXf_DecodeLength(buffer, structDef->sizeOfStructLengthField, &structSize);
+  offset += SomeIpXf_DecodeLength(buffer, structDef->SizeOfStructLengthField, &structSize);
   if (structSize > bufferSize) {
     r = -E_NO_DATA;
   } else if (0 == structSize) {
@@ -525,27 +528,27 @@ int32_t SomeIpXf_DecodeStruct(const uint8_t *buffer, uint32_t bufferSize, void *
   }
 
   ASLOG(SOMEIPXF,
-        ("decode struct %s @%p from %p len=%u\n", structDef->name, pStruct, buffer, structSize));
+        ("decode struct %s @%p from %p len=%u\n", structDef->Name, pStruct, buffer, structSize));
 
   if (hasTag && (r >= 0)) {
-    for (i = 0; i < structDef->numOfDataElements; i++) {
-      dataElement = &structDef->dataElements[i];
-      if (0 != dataElement->hasOffset) {
-        STRUCT_VAL(boolean, pStruct, dataElement->hasOffset) = FALSE;
+    for (i = 0; i < structDef->NumOfDataElements; i++) {
+      dataElement = &structDef->DataElements[i];
+      if (0 != dataElement->HasOffset) {
+        SomeIpXfStructVal(boolean, pStruct, dataElement->HasOffset) = FALSE;
       }
     }
   }
 
-  for (i = 0; ((offset - (int32_t)structDef->sizeOfStructLengthField) < (int32_t)structSize) &&
-              (i < structDef->numOfDataElements) && (r >= 0);) {
+  for (i = 0; ((offset - (int32_t)structDef->SizeOfStructLengthField) < (int32_t)structSize) &&
+              (i < structDef->NumOfDataElements) && (r >= 0);) {
     sizeOfDataLengthField = 0;
     if (hasTag) {
       tag = ((uint32_t)buffer[offset + 0] << 8) + buffer[offset + 1];
       offset += 2;
       dataElement = NULL;
-      for (i = 0; i < structDef->numOfDataElements; i++) {
-        if (SomeIpXf_IsTagMatched(&structDef->dataElements[i], tag, &sizeOfDataLengthField)) {
-          dataElement = &structDef->dataElements[i];
+      for (i = 0; i < structDef->NumOfDataElements; i++) {
+        if (SomeIpXf_IsTagMatched(&structDef->DataElements[i], tag, &sizeOfDataLengthField)) {
+          dataElement = &structDef->DataElements[i];
           break;
         }
       }
@@ -571,82 +574,83 @@ int32_t SomeIpXf_DecodeStruct(const uint8_t *buffer, uint32_t bufferSize, void *
           r = -E_SER_MALFORMED_MESSAGE;
         }
         ASLOG(SOMEIPXF, ("skip data with tag=%X as not found\n", tag));
-        if ((offset - (int32_t)structDef->sizeOfStructLengthField) > (int32_t)structSize) {
+        if ((offset - (int32_t)structDef->SizeOfStructLengthField) > (int32_t)structSize) {
           r = -E_SER_MALFORMED_MESSAGE;
         }
         continue;
       } else {
-        if (0 != dataElement->hasOffset) {
-          STRUCT_VAL(boolean, pStruct, dataElement->hasOffset) = TRUE;
+        if (0 != dataElement->HasOffset) {
+          SomeIpXfStructVal(boolean, pStruct, dataElement->HasOffset) = TRUE;
         }
       }
       i = 0;
     } else {
-      dataElement = &structDef->dataElements[i];
-      sizeOfDataLengthField = dataElement->sizeOfDataLengthField;
+      dataElement = &structDef->DataElements[i];
+      sizeOfDataLengthField = dataElement->SizeOfDataLengthField;
     }
-    if (0 != dataElement->dataLenOffset) {
+    if (0 != dataElement->DataLenOffset) {
       offset += SomeIpXf_DecodeLength(buffer + offset, sizeOfDataLengthField, &dataSize);
     } else {
-      dataSize = dataElement->dataSize;
+      dataSize = dataElement->DataSize;
     }
-    if (dataSize > dataElement->dataSize) {
+    if (dataSize > dataElement->DataSize) {
       r = -E_SER_WRONG_INTERFACE_VERSION;
       continue;
     }
 #if AS_LOG_SOMEIPXF > 0 || defined(linux) || defined(_WIN32)
-    ASLOG(SOMEIPXF, ("decode data %s type=%s len=%u tag=%X\n", dataElement->name,
-                     getDataTypeName(dataElement->dataType), dataSize, tag));
+    ASLOG(SOMEIPXF, ("decode data %s type=%s len=%u tag=%X\n", dataElement->Name,
+                     getDataTypeName(dataElement->DataType), dataSize, tag));
 #endif
-    switch (dataElement->dataType) {
+    switch (dataElement->DataType) {
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE:
       r = SomeIpXf_DecodeByte(buffer + offset, bufferSize - (uint32_t)offset,
-                              STRUCT_PTR(uint8_t, pStruct, dataElement->dataOffset));
+                              SomeIpXfStructPtr(uint8_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT:
       r = SomeIpXf_DecodeShort(buffer + offset, bufferSize - (uint32_t)offset,
-                               STRUCT_PTR(uint16_t, pStruct, dataElement->dataOffset));
+                               SomeIpXfStructPtr(uint16_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG:
       r = SomeIpXf_DecodeLong(buffer + offset, bufferSize - (uint32_t)offset,
-                              STRUCT_PTR(uint32_t, pStruct, dataElement->dataOffset));
+                              SomeIpXfStructPtr(uint32_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_LONG:
       r = SomeIpXf_DecodeLongLong(buffer + offset, bufferSize - (uint32_t)offset,
-                                  STRUCT_PTR(uint64_t, pStruct, dataElement->dataOffset));
+                                  SomeIpXfStructPtr(uint64_t, pStruct, dataElement->DataOffset));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT:
       r = SomeIpXf_DecodeStruct(buffer + offset, bufferSize - (uint32_t)offset,
-                                STRUCT_PTR(void, pStruct, dataElement->dataOffset),
-                                dataElement->pStructDef);
+                                SomeIpXfStructPtr(void, pStruct, dataElement->DataOffset),
+                                dataElement->PStructDef);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_BYTE_ARRAY:
       r = SomeIpXf_DecodeByteArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                   STRUCT_PTR(uint8_t, pStruct, dataElement->dataOffset), dataSize);
+                                   SomeIpXfStructPtr(uint8_t, pStruct, dataElement->DataOffset),
+                                   dataSize);
       SomeIpXf_SetLenghtIfhave(pStruct, dataElement, dataSize);
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_SHORT_ARRAY:
       r = SomeIpXf_DecodeShortArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                    STRUCT_PTR(uint16_t, pStruct, dataElement->dataOffset),
+                                    SomeIpXfStructPtr(uint16_t, pStruct, dataElement->DataOffset),
                                     dataSize / sizeof(uint16_t));
       SomeIpXf_SetLenghtIfhave(pStruct, dataElement, dataSize / sizeof(uint16_t));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_ARRAY:
       r = SomeIpXf_DecodeLongArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                   STRUCT_PTR(uint32_t, pStruct, dataElement->dataOffset),
+                                   SomeIpXfStructPtr(uint32_t, pStruct, dataElement->DataOffset),
                                    dataSize / sizeof(uint32_t));
       SomeIpXf_SetLenghtIfhave(pStruct, dataElement, dataSize / sizeof(uint32_t));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_LONG_LONG_ARRAY:
-      r = SomeIpXf_DecodeLongLongArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                       STRUCT_PTR(uint64_t, pStruct, dataElement->dataOffset),
-                                       dataSize / sizeof(uint64_t));
+      r = SomeIpXf_DecodeLongLongArray(
+        buffer + offset, bufferSize - (uint32_t)offset,
+        SomeIpXfStructPtr(uint64_t, pStruct, dataElement->DataOffset), dataSize / sizeof(uint64_t));
       SomeIpXf_SetLenghtIfhave(pStruct, dataElement, dataSize / sizeof(uint64_t));
       break;
     case SOMEIPXF_DATA_ELEMENT_TYPE_STRUCT_ARRAY:
       r = SomeIpXf_DecodeStructArray(buffer + offset, bufferSize - (uint32_t)offset,
-                                     STRUCT_PTR(void, pStruct, dataElement->dataOffset),
-                                     dataElement->pStructDef, &dataSize);
+                                     SomeIpXfStructPtr(void, pStruct, dataElement->DataOffset),
+                                     dataElement->PStructDef, &dataSize);
       SomeIpXf_SetLenghtIfhave(pStruct, dataElement, dataSize);
       break;
     default:
@@ -655,7 +659,7 @@ int32_t SomeIpXf_DecodeStruct(const uint8_t *buffer, uint32_t bufferSize, void *
     }
     if (r < 0) {
       ASLOG(SOMEIPXFE,
-            ("struct %s field %s encode error %d\n", structDef->name, dataElement->name, r));
+            ("struct %s field %s encode error %d\n", structDef->Name, dataElement->Name, r));
       continue;
     }
 
@@ -800,7 +804,7 @@ int32_t SomeIpXf_EncodeStructArray(uint8_t *buffer, uint32_t bufferSize, const v
   ASLOG(SOMEIPXF, ("encode struct array len=%u\n", length));
   for (i = 0; (i < length) && (r >= 0); i++) {
     r = SomeIpXf_EncodeStruct(buffer + offset, bufferSize - (uint32_t)offset,
-                              ((uint8_t *)pStruct) + pStructDef->structSize * i, pStructDef);
+                              ((uint8_t *)pStruct) + pStructDef->StructSize * i, pStructDef);
     if (r >= 0) {
       offset += r;
     }
@@ -822,7 +826,7 @@ int32_t SomeIpXf_DecodeStructArray(const uint8_t *buffer, uint32_t bufferSize, v
     ASLOG(SOMEIPXF, ("decode struct array len=%u\n", *length));
     for (i = 0; ((uint32_t)offset < *length) && (r >= 0); i++) {
       r = SomeIpXf_DecodeStruct(buffer + offset, *length - offset,
-                                ((uint8_t *)pStruct) + pStructDef->structSize * i, pStructDef);
+                                ((uint8_t *)pStruct) + pStructDef->StructSize * i, pStructDef);
       if (r >= 0) {
         offset += r;
       }
@@ -842,9 +846,9 @@ int32_t SomeIpXf_DecodeStructArray(const uint8_t *buffer, uint32_t bufferSize, v
 void SomeIpXf_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0x02, SOMEIPXF_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_SOMEIPXF;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_SOMEIPXF;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

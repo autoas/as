@@ -1,11 +1,11 @@
 {
-  "class": "Mirror",
+  "Class": "Mirror",
   "SourceNetworkCan": [
     {
-      "name": "CAN0",
+      "Name": "CAN0",
       "StaticFilters": [
-         { "type": "range", "lower":0, "upper": "0x100" },
-         { "type": "mask", "code":"0x700", "mask": "0x700" }
+         { "Type": "Range", "Lower":0, "Upper": "0x100" },
+         { "Type": "Mask", "Code":"0x700", "Mask": "0x700" }
        ],
        "MaxDynamicFilters": 128,
        "ControllerId": 0,
@@ -14,10 +14,10 @@
   ],
   "SourceNetworkLin": [
     {
-      "name": "LIN0",
+      "Name": "LIN0",
       "StaticFilters": [
-         { "type": "range", "lower":0, "upper": "0x10" },
-         { "type": "mask", "code":"0x20", "mask": "0x70" }
+         { "Type": "Range", "Lower":0, "Upper": "0x10" },
+         { "Type": "Mask", "Code":"0x20", "Mask": "0x70" }
        ],
        "MaxDynamicFilters": 32,
        "ControllerId": 0,
@@ -26,7 +26,7 @@
   ],
   "DestNetworkIp": [
     {
-      "name": "AS",
+      "Name": "AS",
       "DestQueueSize": 2,
       "DestBufferSize": 1400,
       "SoAd": "SOAD_TX_PID_MIRROR_CLIENT_0"
@@ -34,7 +34,7 @@
   ],
   "DestNetworkCan": [
     {
-      "name": "AS",
+      "Name": "AS",
       "DestQueueSize": 128,
       "TxPduId": "MIRROR_TX"
     }

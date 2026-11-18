@@ -23,7 +23,7 @@ def GetProp(first, second, attr, dft):
 def proc_cfg(cfg):
     idx = 0
     for dtc in cfg["DTCs"]:
-        events = dtc.get("events", [])
+        events = dtc.get("Events", [])
         if len(events) == 0:
             dtc["idx"] = idx
             idx = idx + 1
@@ -33,13 +33,13 @@ def proc_cfg(cfg):
                 idx = idx + 1
     conditions = []
     for dtc in cfg["DTCs"]:
-        for c in dtc.get("conditions", []):
+        for c in dtc.get("Conditions", []):
             if c not in conditions:
                 conditions.append(c)
-    cfg["conditions"] = conditions
+    cfg["Conditions"] = conditions
     cfg["snapshots"] = {}
     for env in cfg["Environments"]:
-        cfg["snapshots"][eval(env["id"])] = env
+        cfg["snapshots"][eval(env["Id"])] = env
 
 
 def wait_nvm_done():
@@ -100,12 +100,12 @@ def start_all_operation_cycles():
 
 
 def enable_all_conditions(cfg):
-    for idx, condition in enumerate(cfg["conditions"]):
+    for idx, condition in enumerate(cfg["Conditions"]):
         set_condition(idx, 1)
 
 
 def disable_all_conditions(cfg):
-    for idx, condition in enumerate(cfg["conditions"]):
+    for idx, condition in enumerate(cfg["Conditions"]):
         set_condition(idx, 0)
 
 
@@ -152,27 +152,27 @@ def report_dtc_by_stats_mask(status):
 
 def check_dtc_is_status(dtc, expectedStatus):
     dtcStatus = report_dtc_by_stats_mask(0xFF)
-    status = dtcStatus.get(eval(dtc["number"]), 0)
+    status = dtcStatus.get(eval(dtc["Number"]), 0)
     if expectedStatus == status:
-        print("  PASS:", dtc["name"], "%02X == %02X OK" % (status, expectedStatus))
+        print("  PASS:", dtc["Name"], "%02X == %02X OK" % (status, expectedStatus))
     else:
-        print("  FAIL:", dtc["name"], "%02X != %02X NG" % (status, expectedStatus))
+        print("  FAIL:", dtc["Name"], "%02X != %02X NG" % (status, expectedStatus))
         raise
 
 
 def decodeData(data, record, rec):
-    assert data["type"] in ["uint8", "uint16", "uint32", "uint64"]
-    length = int(eval(data["type"][4:]) / 8)
+    assert data["Type"] in ["uint8", "uint16", "uint32", "uint64"]
+    length = int(eval(data["Type"][4:]) / 8)
     value = 0
     for j in range(length):
         value = (value << 8) + record[j]
-    print("\t    %s = %s (%s)" % (data["name"], value, [hex(s) for s in record[:length]]))
-    rec[data["name"]] = value
+    print("\t    %s = %s (%s)" % (data["Name"], value, [hex(s) for s in record[:length]]))
+    rec[data["Name"]] = value
     return record[length:]
 
 
 def check_dtc_has_snapshot(dtc, cfg):
-    number = eval(dtc["number"])
+    number = eval(dtc["Number"])
     ercd, response = uds.transmit([0x19, 0x04, (number >> 16) & 0xFF, (number >> 8) & 0xFF, number & 0xFF, 0xFF])
     assert True == ercd
     status = response[5]
@@ -190,10 +190,10 @@ def check_dtc_has_snapshot(dtc, cfg):
             idx = (record[0] << 8) + record[1]
             record = record[2:]
             data = cfg["snapshots"][idx]
-            if data["type"] in ["uint8", "uint16", "uint32", "uint64"]:
+            if data["Type"] in ["uint8", "uint16", "uint32", "uint64"]:
                 record = decodeData(data, record, rec)
-            elif data["type"] == "struct":
-                for sd in data["data"]:
+            elif data["Type"] == "struct":
+                for sd in data["Data"]:
                     record = decodeData(sd, record, rec)
         recs[recnum] = rec
     return recs
@@ -201,7 +201,7 @@ def check_dtc_has_snapshot(dtc, cfg):
 
 def check_dtc_has_extend(dtc, cfg):
     ExtendedDatas = cfg["ExtendedDatas"]
-    number = eval(dtc["number"])
+    number = eval(dtc["Number"])
     ercd, response = uds.transmit([0x19, 0x06, (number >> 16) & 0xFF, (number >> 8) & 0xFF, number & 0xFF, 0xFF])
     assert True == ercd
     status = response[5]
@@ -235,12 +235,12 @@ def test_dtc_status_case1(cfg):
     clear_all_dtc()
     start_all_operation_cycles()
     enable_all_conditions(cfg)
-    general = cfg.get("general", {})
+    general = cfg.get("General", {})
     # test DTC pre-fail with debounce
     for dtc in cfg["DTCs"]:
         if "idx" not in dtc:
             continue  # skip combined DTC
-        print("Status Test Fail for DTC", dtc["name"], dtc["number"])
+        print("Status Test Fail for DTC", dtc["Name"], dtc["Number"])
         idx = dtc["idx"]
         DebounceCounterIncrementStepSize = GetProp(dtc, general, "DebounceCounterIncrementStepSize", 1)
         DebounceCounterFailedThreshold = GetProp(dtc, general, "DebounceCounterFailedThreshold", 10)
@@ -272,7 +272,7 @@ def test_dtc_status_case1(cfg):
         if ExtendedDataRecordTrigger == "TEST_FAILED":
             recs = check_dtc_has_extend(dtc, cfg)
             ASSERT_EQ(len(recs.keys()), 1)
-            ASSERT_EQ(recs[1]["FaultOccuranceCounter"], 1)
+            ASSERT_EQ(recs[1]["FaultOccurrenceCounter"], 1)
         for i in range(ConfirmationThreshold - 1):
             stop_all_operation_cycles()
             start_all_operation_cycles()
@@ -292,10 +292,10 @@ def test_dtc_status_case1(cfg):
             recs = check_dtc_has_extend(dtc, cfg)
             ASSERT_EQ(len(recs.keys()), 1)
             if ConfirmationThreshold == 1:
-                ASSERT_EQ(recs[1]["FaultOccuranceCounter"], 2)
+                ASSERT_EQ(recs[1]["FaultOccurrenceCounter"], 2)
             else:
-                ASSERT_EQ(recs[1]["FaultOccuranceCounter"], ConfirmationThreshold)
-        print("Status Test Pass for DTC", dtc["name"], dtc["number"])
+                ASSERT_EQ(recs[1]["FaultOccurrenceCounter"], ConfirmationThreshold)
+        print("Status Test Pass for DTC", dtc["Name"], dtc["Number"])
         if DebounceCounterJumpDown:
             nTimes = 1 + (-DebounceCounterPassedThreshold) // DebounceCounterDecrementStepSize
         else:
@@ -306,7 +306,7 @@ def test_dtc_status_case1(cfg):
         check_dtc_is_status(
             dtc, DEM_UDS_STATUS_TFSLC | DEM_UDS_STATUS_PDTC | DEM_UDS_STATUS_CDTC | DEM_UDS_STATUS_TFTOC
         )
-        print("Status aging for DTC", dtc["name"], dtc["number"], "aging counter=", AgingCycleCounterThreshold)
+        print("Status aging for DTC", dtc["Name"], dtc["Number"], "aging counter=", AgingCycleCounterThreshold)
         stop_all_operation_cycles()
         for i in range(AgingCycleCounterThreshold):
             start_all_operation_cycles()
@@ -327,12 +327,12 @@ def test_dtc_status_case2(cfg):
     power_on()
     clear_all_dtc()
 
-    general = cfg.get("general", {})
+    general = cfg.get("General", {})
     # test DTC pre-fail with debounce
     for dtc in cfg["DTCs"]:
         if "idx" not in dtc:
             continue  # skip combined DTC
-        print("Status Test Fail for DTC", dtc["name"], dtc["number"])
+        print("Status Test Fail for DTC", dtc["Name"], dtc["Number"])
         idx = dtc["idx"]
         DebounceCounterIncrementStepSize = GetProp(dtc, general, "DebounceCounterIncrementStepSize", 1)
         DebounceCounterFailedThreshold = GetProp(dtc, general, "DebounceCounterFailedThreshold", 10)
@@ -371,7 +371,7 @@ if __name__ == "__main__":
         port=0,
         txid=eval(args.txid),
         rxid=eval(args.rxid),
-        LL_DL=eval(args.lldl),
+        LinkLayerDataLength=eval(args.lldl),
         verbose=False,
     )
     with open(args.config) as f:

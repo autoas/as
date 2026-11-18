@@ -138,11 +138,11 @@ public:
 
     py::list L;
     L.append(py::int_(acceptSockId));
-    std::string ip = std::to_string(RemoteAddr.addr[0]) + "." + std::to_string(RemoteAddr.addr[1]) +
-                     "." + std::to_string(RemoteAddr.addr[2]) + "." +
-                     std::to_string(RemoteAddr.addr[3]);
+    std::string ip = std::to_string(RemoteAddr.Addr[0]) + "." + std::to_string(RemoteAddr.Addr[1]) +
+                     "." + std::to_string(RemoteAddr.Addr[2]) + "." +
+                     std::to_string(RemoteAddr.Addr[3]);
     L.append(py::str(ip));
-    L.append(py::int_(RemoteAddr.port));
+    L.append(py::int_(RemoteAddr.Port));
     return L;
   }
 
@@ -240,11 +240,11 @@ public:
       throw std::runtime_error("failed to recvfrom");
     }
     py::list L;
-    std::string ip = std::to_string(RemoteAddr.addr[0]) + "." + std::to_string(RemoteAddr.addr[1]) +
-                     "." + std::to_string(RemoteAddr.addr[2]) + "." +
-                     std::to_string(RemoteAddr.addr[3]);
+    std::string ip = std::to_string(RemoteAddr.Addr[0]) + "." + std::to_string(RemoteAddr.Addr[1]) +
+                     "." + std::to_string(RemoteAddr.Addr[2]) + "." +
+                     std::to_string(RemoteAddr.Addr[3]);
     L.append(py::str(ip));
-    L.append(py::int_(RemoteAddr.port));
+    L.append(py::int_(RemoteAddr.Port));
     L.append(py::bytes((char *)data, Length));
     delete[] data;
     return L;
@@ -258,7 +258,7 @@ private:
   TcpIp_SocketIdType m_SockId = -1;
 };
 
-PYBIND11_MODULE(PyIP, m) {
+PYBIND11_MODULE(pyIP, m) {
   m.doc() = "pybind11 PyIP library";
 
   lPyMod = &m;
@@ -267,12 +267,12 @@ PYBIND11_MODULE(PyIP, m) {
     .def_readonly_static("TCP", &PYIP_TCP)
     .def_readonly_static("UDP", &PYIP_UDP)
     .def(py::init<int>())
-    .def("bind", &PySocket::bind, py::arg("addr") = "", py::arg("port"))
+    .def("bind", &PySocket::bind, py::arg("Addr") = "", py::arg("Port"))
     .def("listen", &PySocket::listen, py::arg("backlog"))
-    .def("connect", &PySocket::connect, py::arg("addr") = "", py::arg("port"))
+    .def("connect", &PySocket::connect, py::arg("Addr") = "", py::arg("Port"))
     .def("accept", &PySocket::accept)
-    .def("send", &PySocket::send, py::arg("data"), py::arg("sock") = -1)
-    .def("sendto", &PySocket::sendto, py::arg("addr") = "", py::arg("port"), py::arg("data"),
+    .def("send", &PySocket::send, py::arg("Data"), py::arg("sock") = -1)
+    .def("sendto", &PySocket::sendto, py::arg("Addr") = "", py::arg("Port"), py::arg("Data"),
          py::arg("sock") = -1)
     .def("recv", &PySocket::recv, py::arg("sock") = -1)
     .def("recvfrom", &PySocket::recvfrom, py::arg("sock") = -1);

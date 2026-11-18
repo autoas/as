@@ -1,70 +1,70 @@
 {
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
+      "Name": "SomeIp",
+      "Class": "SomeIp",
       "SD": {
-        "hostname": "ssas",
-        "multicast": "224.244.224.245"
+        "Hostname": "ssas",
+        "Multicast": "224.244.224.245"
       },
-      "structs": [
+      "Structs": [
         {
-          "name": "CanFrame",
-          "data": [
+          "Name": "CanFrame",
+          "Data": [
             {
-              "name": "busid",
-              "type": "uint32",
-              "variable_array": false
+              "Name": "busid",
+              "Type": "uint32",
+              "VariableArray": false
             },
             {
-              "name": "canid",
-              "type": "uint32",
-              "variable_array": false
+              "Name": "canid",
+              "Type": "uint32",
+              "VariableArray": false
             },
             {
-              "name": "dlc",
-              "type": "uint8",
-              "variable_array": false
+              "Name": "dlc",
+              "Type": "uint8",
+              "VariableArray": false
             },
             {
-              "name": "data",
-              "type": "uint8_n",
-              "variable_array": false,
-              "size": 64
+              "Name": "data",
+              "Type": "uint8_n",
+              "VariableArray": false,
+              "Size": 64
             }
           ]
         }
       ],
-      "args": [],
-      "servers": [
+      "Args": [],
+      "Servers": [
         {
-          "name": "CANBus",
-          "service": "0xcaab",
-          "instance": "0x1000",
-          "clientId": "0x1000",
-          "protocol": "UDP",
-          "unreliable": 30670,
-          "methods": [],
-          "event-groups": [
+          "Name": "CANBus",
+          "Service": "0xcaab",
+          "Instance": "0x1000",
+          "ClientId": "0x1000",
+          "Protocol": "UDP",
+          "Unreliable": 30670,
+          "Methods": [],
+          "EventGroups": [
             {
-              "name": "CanFrame",
-              "groupId": "0x8100",
-              "enable_multicast": true,
-              "multicast": {
-                "threshold": 1,
-                "addr": "224.244.224.245:30670"
+              "Name": "CanFrame",
+              "GroupId": "0x8100",
+              "EnableMulticast": true,
+              "Multicast": {
+                "Threshold": 1,
+                "Addr": "224.244.224.245:30670"
               },
-              "events": [
+              "Events": [
                 {
-                  "name": "CanFrame",
-                  "type": "CanFrame",
-                  "eventId": "0x8100",
-                  "tp": false,
-                  "version": 0,
-                  "useE2E": true,
+                  "Name": "CanFrame",
+                  "Type": "CanFrame",
+                  "EventId": "0x8100",
+                  "Tp": false,
+                  "Version": 0,
+                  "UseE2E": true,
                   "E2E-TX": {
-                    "profile": "P11",
+                    "Profile": "P11",
                     "DataID": 4660,
                     "DataIDMode": "NIBBLE",
                     "CRCOffset": 0,
@@ -77,7 +77,7 @@
           ]
         }
       ],
-      "clients": []
+      "Clients": []
     }
   ]
 }

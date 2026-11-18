@@ -10,47 +10,47 @@ __all__ = ["Gen_DoIp"]
 def Gen_DoIp(cfg, dir):
     H = open("%s/DoIP_Cfg.h" % (dir), "w")
     GenHeader(H)
-    H.write("#ifndef _DOIP_CFG_H\n")
-    H.write("#define _DOIP_CFG_H\n")
+    H.write("#ifndef DOIP_CFG_H\n")
+    H.write("#define DOIP_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
     ID = 0
     H.write("#define DOIP_RX_PID_UDP %s\n" % (ID))
     ID += 1
-    for i in range(cfg["max_connections"]):
+    for i in range(cfg["MaxConnections"]):
         H.write("#define DOIP_RX_PID_TCP%s %s\n" % (i, ID))
         ID += 1
-    H.write("\n#define DOIP_MAX_TESTER_CONNECTIONS %s\n\n" % (cfg["max_connections"]))
+    H.write("\n#define DOIP_MAX_TESTER_CONNECTIONS %s\n\n" % (cfg["MaxConnections"]))
     H.write("#ifndef DOIP_MAIN_FUNCTION_PERIOD\n")
     H.write("#define DOIP_MAIN_FUNCTION_PERIOD %s\n" % (cfg.get("MainFunctionPeriod", 10)))
     H.write("#endif\n")
     H.write("#define DOIP_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + DOIP_MAIN_FUNCTION_PERIOD - 1) / DOIP_MAIN_FUNCTION_PERIOD)\n\n")
     ID = 0
-    for target in cfg["targets"]:
-        name = target["name"]
-        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
-        if name not in [node["name"] for node in nodes]:
+    for target in cfg["Targets"]:
+        name = target["Name"]
+        nodes = target.get("Nodes", [{"Name": name, "Address": target["Address"]}])
+        if name not in [node["Name"] for node in nodes]:
             H.write("#define DOIP_%s_RX %s\n" % (toMacro(name), ID))
         for node in nodes:
-            H.write("#define DOIP_%s_RX %s\n" % (toMacro(node["name"]), ID))
+            H.write("#define DOIP_%s_RX %s\n" % (toMacro(node["Name"]), ID))
         ID += 1
     H.write("\n")
     ID = 0
-    for target in cfg["targets"]:
-        name = target["name"]
-        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
-        if name not in [node["name"] for node in nodes]:
+    for target in cfg["Targets"]:
+        name = target["Name"]
+        nodes = target.get("Nodes", [{"Name": name, "Address": target["Address"]}])
+        if name not in [node["Name"] for node in nodes]:
             H.write("#define DOIP_%s_TX %s\n" % (toMacro(name), ID))
         for node in nodes:
-            H.write("#define DOIP_%s_TX %s\n" % (toMacro(node["name"]), ID))
+            H.write("#define DOIP_%s_TX %s\n" % (toMacro(node["Name"]), ID))
             ID += 1
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
     H.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /* _DOIP_CFG_H */\n")
+    H.write("#endif /* DOIP_CFG_H */\n")
     H.close()
 
     C = open("%s/DoIP_Cfg.c" % (dir), "w")
@@ -70,18 +70,18 @@ def Gen_DoIp(cfg, dir):
     C.write("#define DOIP_GENERAL_INACTIVITY_TIME 5000\n")
     C.write("#define DOIP_ALIVE_CHECK_RESPONSE_TIMEOUT 50\n")
     C.write("\n")
-    for i, target in enumerate(cfg["targets"]):
-        C.write("#define DOIP_TID_%s %s\n" % (target["name"], i))
+    for i, target in enumerate(cfg["Targets"]):
+        C.write("#define DOIP_TID_%s %s\n" % (target["Name"], i))
     C.write("\n")
-    for i, rt in enumerate(cfg["routines"]):
-        C.write("#define DOIP_RID_%s %s\n" % (rt["name"], i))
+    for i, rt in enumerate(cfg["Routines"]):
+        C.write("#define DOIP_RID_%s %s\n" % (rt["Name"], i))
     C.write("\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    for rt in cfg["routines"]:
-        C.write("extern Std_ReturnType DoIP_%s_RoutingActivationAuthenticationCallback(\n" % (rt["name"]))
+    for rt in cfg["Routines"]:
+        C.write("extern Std_ReturnType DoIP_%s_RoutingActivationAuthenticationCallback(\n" % (rt["Name"]))
         C.write("  boolean *Authentified, const uint8_t *AuthenticationReqData, uint8_t *AuthenticationResData);\n")
-        C.write("extern Std_ReturnType DoIP_%s_RoutingActivationConfirmationCallback(\n" % (rt["name"]))
+        C.write("extern Std_ReturnType DoIP_%s_RoutingActivationConfirmationCallback(\n" % (rt["Name"]))
         C.write("  boolean *Confirmed, const uint8_t *ConfirmationReqData, uint8_t *ConfirmationResData);\n")
     C.write("static const DoIP_TesterType DoIP_Testers[];\n")
 
@@ -90,70 +90,70 @@ def Gen_DoIp(cfg, dir):
     C.write("extern Std_ReturnType DoIP_UserGetPowerModeStatus(uint8_t *PowerState);\n")
     C.write("extern Std_ReturnType DoIP_UserGetRoutingActivationResponseOem(uint8_t *Data);\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    for target in cfg["targets"]:
-        name = target["name"]
-        nodes = target.get("nodes", [{"name": name, "address": target["address"]}])
+    for target in cfg["Targets"]:
+        name = target["Name"]
+        nodes = target.get("Nodes", [{"Name": name, "Address": target["Address"]}])
         for node in nodes:
-            C.write("static DoIP_TargetNodeContextType DoIp_%s_%s_TargetNodeContext;\n" % (name, node["name"]))
+            C.write("static DoIP_TargetNodeContextType DoIp_%s_%s_TargetNodeContext;\n" % (name, node["Name"]))
         C.write("static const DoIP_TargetNodeType DoIp_%s_TargetNodes[] = {\n" % (name))
         for node in nodes:
             C.write("  {\n")
-            C.write("    &DoIp_%s_%s_TargetNodeContext,\n" % (name, node["name"]))
-            C.write("    PDUR_%s_TX, /* TxPduId */\n" % (toMacro(node["name"])))
-            C.write("    DOIP_%s_TX, /* doipTxPduId */\n" % (toMacro(node["name"])))
-            C.write("    %s, /* TargetAddress */\n" % (node["address"]))
+            C.write("    &DoIp_%s_%s_TargetNodeContext,\n" % (name, node["Name"]))
+            C.write("    PDUR_%s_TX, /* TxPduId */\n" % (toMacro(node["Name"])))
+            C.write("    DOIP_%s_TX, /* DoipTxPduId */\n" % (toMacro(node["Name"])))
+            C.write("    %s, /* TargetAddress */\n" % (node["Address"]))
             C.write("  },\n")
         C.write("};\n\n")
     C.write("static const DoIP_TargetAddressType DoIp_TargetAddress[] = {\n")
-    for target in cfg["targets"]:
+    for target in cfg["Targets"]:
         C.write("  {\n")
-        C.write("    DoIp_%s_TargetNodes,\n" % (target["name"]))
-        C.write("    ARRAY_SIZE(DoIp_%s_TargetNodes),\n" % (target["name"]))
-        C.write("    %s, /* TargetAddress */\n" % (target["address"]))
-        C.write("    PDUR_%s_RX, /* RxPduId */\n" % (toMacro(target["name"])))
+        C.write("    DoIp_%s_TargetNodes,\n" % (target["Name"]))
+        C.write("    ARRAY_SIZE(DoIp_%s_TargetNodes),\n" % (target["Name"]))
+        C.write("    %s, /* TargetAddress */\n" % (target["Address"]))
+        C.write("    PDUR_%s_RX, /* RxPduId */\n" % (toMacro(target["Name"])))
         C.write("  },\n")
     C.write("};\n\n")
 
-    for rt in cfg["routines"]:
-        C.write("static const DoIP_TargetAddressType *const DoIP_%s_TargetAddressRefs[] = {\n" % (rt["name"]))
-        for ta in rt["targets"]:
+    for rt in cfg["Routines"]:
+        C.write("static const DoIP_TargetAddressType *const DoIP_%s_TargetAddressRefs[] = {\n" % (rt["Name"]))
+        for ta in rt["Targets"]:
             C.write("  &DoIp_TargetAddress[DOIP_TID_%s],\n" % (ta))
         C.write("};\n\n")
     C.write("static const DoIP_RoutingActivationType DoIP_RoutingActivations[] = {\n")
-    for rt in cfg["routines"]:
+    for rt in cfg["Routines"]:
         C.write("  {\n")
-        C.write("    %s, /* %s */\n" % (rt["number"], rt["name"]))
+        C.write("    %s, /* %s */\n" % (rt["Number"], rt["Name"]))
         C.write("    0, /* OEMReqLen */\n")
         C.write("    0, /* OEMResLen */\n")
-        C.write("    DoIP_%s_TargetAddressRefs, /* TargetAddressRefs */\n" % (rt["name"]))
-        C.write("    ARRAY_SIZE(DoIP_%s_TargetAddressRefs),\n" % (rt["name"]))
-        C.write("    DoIP_%s_RoutingActivationAuthenticationCallback,\n" % (rt["name"]))
-        C.write("    DoIP_%s_RoutingActivationConfirmationCallback,\n" % (rt["name"]))
+        C.write("    DoIP_%s_TargetAddressRefs, /* TargetAddressRefs */\n" % (rt["Name"]))
+        C.write("    ARRAY_SIZE(DoIP_%s_TargetAddressRefs),\n" % (rt["Name"]))
+        C.write("    DoIP_%s_RoutingActivationAuthenticationCallback,\n" % (rt["Name"]))
+        C.write("    DoIP_%s_RoutingActivationConfirmationCallback,\n" % (rt["Name"]))
         C.write("  },\n")
     C.write("};\n\n")
 
-    for tester in cfg["testers"]:
+    for tester in cfg["Testers"]:
         C.write(
-            "static const DoIP_RoutingActivationType * const DoIP_%s_RoutingActivationRefs[] = {\n" % (tester["name"])
+            "static const DoIP_RoutingActivationType * const DoIP_%s_RoutingActivationRefs[] = {\n" % (tester["Name"])
         )
-        for rt in tester["routines"]:
+        for rt in tester["Routines"]:
             C.write("  &DoIP_RoutingActivations[DOIP_RID_%s],\n" % (rt))
         C.write("};\n\n")
 
     C.write("static const DoIP_TesterType DoIP_Testers[] = {\n")
-    for tester in cfg["testers"]:
+    for tester in cfg["Testers"]:
         C.write("  {\n")
         C.write("    8, /* NumByteDiagAckNack */\n")
-        C.write("    %s, /* TesterSA */\n" % (tester["address"]))
-        C.write("    DoIP_%s_RoutingActivationRefs,\n" % (tester["name"]))
-        C.write("    ARRAY_SIZE(DoIP_%s_RoutingActivationRefs),\n" % (tester["name"]))
+        C.write("    %s, /* TesterSA */\n" % (tester["Address"]))
+        C.write("    DoIP_%s_RoutingActivationRefs,\n" % (tester["Name"]))
+        C.write("    ARRAY_SIZE(DoIP_%s_RoutingActivationRefs),\n" % (tester["Name"]))
         C.write("  },\n")
     C.write("};\n\n")
 
     C.write("static DoIP_TesterConnectionContextType DoIP_TesterConnectionContext[DOIP_MAX_TESTER_CONNECTIONS];\n\n")
     C.write("static const DoIP_TesterConnectionType DoIP_TesterConnections[DOIP_MAX_TESTER_CONNECTIONS] = {\n")
     bEnableTLS = cfg.get("EnableTLS", False)
-    for i in range(cfg["max_connections"]):
+    for i in range(cfg["MaxConnections"]):
         C.write("  {\n")
         C.write("    &DoIP_TesterConnectionContext[%s],\n" % (i))
         C.write("    SOAD_SOCKID_DOIP_TCP_APT%s,\n" % (i))
@@ -162,7 +162,7 @@ def Gen_DoIp(cfg, dir):
         else:
             C.write("    SOAD_TX_PID_DOIP_TCP_APT%s,\n" % (i))
         C.write("    #ifdef USE_TLS\n")
-        C.write("    %s, /* bEnableTLS */\n" % (str(bEnableTLS).upper()))
+        C.write("    %s, /* EnableTLS */\n" % (str(bEnableTLS).upper()))
         C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
@@ -183,7 +183,7 @@ def Gen_DoIp(cfg, dir):
 
     C.write("static const DoIP_UdpVehicleAnnouncementConnectionType DoIP_UdpVehicleAnnouncementConnections[] = {\n")
     C.write("  {\n")
-    C.write("    &UdpVehicleAnnouncementConnectionContexts[0], /* context */\n")
+    C.write("    &UdpVehicleAnnouncementConnectionContexts[0], /* Context */\n")
     C.write("    SOAD_SOCKID_DOIP_UDP,                         /* SoConId */\n")
     C.write("    SOAD_TX_PID_DOIP_UDP,                         /* SoAdTxPdu */\n")
     C.write("    FALSE,                                        /* RequestAddressAssignment */\n")
@@ -192,7 +192,7 @@ def Gen_DoIp(cfg, dir):
 
     C.write("static const uint16_t RxPduIdToConnectionMap[] = {\n")
     C.write("  DOIP_INVALID_INDEX, /* DOIP_RX_PID_UDP */\n")
-    for i in range(cfg["max_connections"]):
+    for i in range(cfg["MaxConnections"]):
         C.write("  %s,                  /* DOIP_RX_PID_TCP%s */\n" % (i, i))
     C.write("};\n\n")
 

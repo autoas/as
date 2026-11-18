@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef _STD_BIT_H
-#define _STD_BIT_H
+#ifndef STD_BIT_H
+#define STD_BIT_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #ifdef __cplusplus
@@ -57,4 +57,4 @@ void Std_BitCopyG(uint8_t *dst, uint16_t dstBitPos, uint8_t *src, uint16_t srcBi
 #ifdef __cplusplus
 }
 #endif
-#endif /* _STD_BIT_H */
+#endif /* STD_BIT_H */

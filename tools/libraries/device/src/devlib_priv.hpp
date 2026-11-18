@@ -2,29 +2,29 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef DEV_LIB_PRIV_H
-#define DEV_LIB_PRIV_H
+#ifndef DEVLIB_PRIV_H
+#define DEVLIB_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #include <string>
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
-typedef int (*dev_open_t)(const char *device, const char *option, void **param);
-typedef int (*dev_read_t)(void *param, uint8_t *data, size_t size);
-typedef int (*dev_write_t)(void *param, const uint8_t *data, size_t size);
-typedef int (*dev_ioctl_t)(void *param, int type, const void *data, size_t size);
-typedef void (*dev_close_t)(void *param);
+typedef int (*Dev_OpenFuncType)(const char *device, const char *option, void **param);
+typedef int (*Dev_ReadFuncType)(void *param, uint8_t *data, size_t size);
+typedef int (*Dev_WriteFuncType)(void *param, const uint8_t *data, size_t size);
+typedef int (*Dev_IoCtlFuncType)(void *param, int type, const void *data, size_t size);
+typedef void (*Dev_CloseFuncType)(void *param);
 
 typedef struct {
-  std::string name;
-  dev_open_t open;
-  dev_read_t read;
-  dev_write_t write;
-  dev_ioctl_t ioctl;
-  dev_close_t close;
+  std::string Name;
+  Dev_OpenFuncType Open;
+  Dev_ReadFuncType Read;
+  Dev_WriteFuncType Write;
+  Dev_IoCtlFuncType IoCtl;
+  Dev_CloseFuncType Close;
 } Dev_DeviceOpsType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* DEV_LIB_PRIV_H */
+#endif /* DEVLIB_PRIV_H */

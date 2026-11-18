@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef _BUFFER_HPP_
-#define _BUFFER_HPP_
+#ifndef BUFFER_HPP
+#define BUFFER_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdlib.h>
 #include <stdint.h>
@@ -11,32 +11,32 @@ namespace as {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 struct Buffer {
-  Buffer(void *data, size_t size, size_t idx = 0) : data(data), size(size), idx(idx) {
+  Buffer(void *data, size_t size, size_t idx = 0) : Data(data), Size(size), Idx(idx) {
   }
 
-  Buffer(size_t size, size_t idx = 0) : size(size), idx(idx) {
-    data = malloc(size);
-    if (nullptr != data) {
-      allocated = true;
+  Buffer(size_t size, size_t idx = 0) : Size(size), Idx(idx) {
+    Data = malloc(size);
+    if (nullptr != Data) {
+      m_IsAllocated = true;
     }
   }
 
   ~Buffer() {
-    if (allocated and (nullptr != data)) {
-      free(data);
+    if (m_IsAllocated and (nullptr != Data)) {
+      free(Data);
     }
   }
 
-  void *data;
-  size_t size;
-  size_t idx;
+  void *Data;
+  size_t Size;
+  size_t Idx;
 
 private:
-  bool allocated = false;
+  bool m_IsAllocated = false;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace as */
-#endif /* _BUFFER_HPP_ */
+#endif /* BUFFER_HPP */

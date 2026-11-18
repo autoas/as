@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  */
-#ifndef _LOG_HPP_
-#define _LOG_HPP_
+#ifndef LOG_HPP
+#define LOG_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <inttypes.h>
 #include <stdio.h>
@@ -12,7 +12,7 @@
 #include <string>
 namespace as {
 /* ================================ [ MACROS    ] ============================================== */
-#define LOG(level, ...) Log::print(Logger::level, #level ": " __VA_ARGS__)
+#define LOG(level, ...) Log::Print(Logger::level, #level ": " __VA_ARGS__)
 /* ================================ [ TYPES     ] ============================================== */
 class Logger {
 public:
@@ -27,31 +27,31 @@ public:
   Logger();
   Logger(std::string name, std::string format = "txt");
 
-  void setName(std::string name, std::string format = "txt");
-  void setMaxSize(int sz);
-  void setMaxNum(int num);
-  void setLogLevel(int level);
-  int getLogLevel();
+  void SetName(std::string name, std::string format = "txt");
+  void SetMaxSize(int sz);
+  void SetMaxNum(int num);
+  void SetLogLevel(int level);
+  int GetLogLevel();
 
-  void write(const char *fmt, ...);
-  void check(void);
+  void Write(const char *fmt, ...);
+  void Check(void);
 
-  void print(const char *fmt, ...);
-  void print(int level, const char *fmt, ...);
-  void vprint(int level, const char *fmt, va_list args);
+  void Print(const char *fmt, ...);
+  void Print(int level, const char *fmt, ...);
+  void VPrint(int level, const char *fmt, va_list args);
 
-  void hexdump(int level, const char *prefix, const void *data, size_t size, size_t len = 16);
-  void vprint(const char *fmt, va_list args);
-  void putc(char chr);
+  void HexDump(int level, const char *prefix, const void *data, size_t size, size_t len = 16);
+  void VPrint(const char *fmt, va_list args);
+  void PutChar(char chr);
 
-  FILE *getFile();
+  FILE *GetFile();
 
   ~Logger();
 
 private:
-  void open(void);
-  int getFileIndex(void);
-  void setFileIndex(int index);
+  void Open(void);
+  int GetFileIndex(void);
+  void SetFileIndex(int index);
 
 private:
   int m_Level = INFO;
@@ -67,15 +67,15 @@ private:
 
 class Log {
 public:
-  static void setLogLevel(int level);
-  static int getLogLevel();
-  static void setName(std::string name);
-  static void print(int level, const char *fmt, ...);
-  static void hexdump(int level, const char *prefix, const void *data, size_t size,
+  static void SetLogLevel(int level);
+  static int GetLogLevel();
+  static void SetName(std::string name);
+  static void Print(int level, const char *fmt, ...);
+  static void HexDump(int level, const char *prefix, const void *data, size_t size,
                       size_t len = 16);
-  static void vprint(const char *fmt, va_list args);
-  static void putc(char chr);
-  static FILE *getFile();
+  static void VPrint(const char *fmt, va_list args);
+  static void PutChar(char chr);
+  static FILE *GetFile();
 
 private:
   static std::shared_ptr<Logger> s_Logger;
@@ -85,4 +85,4 @@ private:
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace as */
-#endif /* _LOG_HPP_ */
+#endif /* LOG_HPP */

@@ -45,24 +45,24 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  srec_t *srec = srec_open(srecF);
+  Srec_FileType *srec = Srec_Open(srecF);
   if (nullptr != srec) {
-    srec_print(srec);
-    for (size_t i = 0; i < srec->numOfBlks; i++) {
+    Srec_Print(srec);
+    for (size_t i = 0; i < srec->NumOfBlks; i++) {
       std::string binaryF_ = binaryF;
       if (i != 0) {
         binaryF_ += "." + std::to_string(i);
       }
       FILE *fp = fopen(binaryF_.c_str(), "wb");
       if (nullptr != fp) {
-        fwrite(srec->blks[i].data, srec->blks[i].length, 1, fp);
+        fwrite(srec->Blks[i].Data, srec->Blks[i].Length, 1, fp);
         fclose(fp);
         printf("SAVE binary file: %s\n", binaryF_.c_str());
       } else {
         printf("Failed to create binary file: %s\n", binaryF_.c_str());
       }
     }
-    srec_close(srec);
+    Srec_Close(srec);
   }
 
   return 0;

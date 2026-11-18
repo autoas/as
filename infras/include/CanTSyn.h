@@ -4,8 +4,8 @@
  *
  * ref: https://www.autosar.org/fileadmin/standards/R20-11/CP/AUTOSAR_SWS_TimeSyncOverCAN.pdf
  */
-#ifndef __CAN_TSYNC_H__
-#define __CAN_TSYNC_H__
+#ifndef CANTSYN_H
+#define CANTSYN_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -29,20 +29,20 @@ typedef uint8_t CanTSyn_TransmissionModeType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_CanTSyn_00093 */
-void CanTSyn_Init(const CanTSyn_ConfigType *ConfigPtr);
+void CanTSyn_Init(const CanTSyn_ConfigType *configPtr);
 
 /* @SWS_CanTSyn_00095 */
-void CanTSyn_SetTransmissionMode(uint8_t CtrlIdx, CanTSyn_TransmissionModeType Mode);
+void CanTSyn_SetTransmissionMode(uint8_t ctrlIdx, CanTSyn_TransmissionModeType mode);
 
 /* @SWS_CanTSyn_00096 */
-void CanTSyn_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void CanTSyn_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_CanTSyn_00099 */
-void CanTSyn_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void CanTSyn_TxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_CanTSyn_00102s */
 void CanTSyn_MainFunction(void);
 
 /* @SWS_CanTSyn_00094 */
 void CanTSyn_GetVersionInfo(Std_VersionInfoType *versionInfo);
-#endif /* __CAN_TSYNC_H__ */
+#endif /* CANTSYN_H */

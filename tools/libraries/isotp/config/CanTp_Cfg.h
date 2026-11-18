@@ -23,16 +23,16 @@ typedef struct {
   uint32_t RxCanId;
   uint32_t TxCanId;
   uint16_t N_TA; /* if 0xFFFF, means no target address used */
-  uint8_t ll_dl;
+  uint8_t LinkLayerDataLength;
   uint8_t STmin; /* ms */
 } CanTp_ParamType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType *params);
-uint32_t CanIf_CanTpGetTxCanId(uint8_t Channel);
-uint32_t CanIf_CanTpGetRxCanId(uint8_t Channel);
+void CanTp_ReConfig(uint8_t channel, CanTp_ParamType *params);
+uint32_t CanIf_CanTpGetTxCanId(uint8_t channel);
+uint32_t CanIf_CanTpGetRxCanId(uint8_t channel);
 #ifdef __cplusplus
 }
 #endif

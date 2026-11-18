@@ -34,54 +34,54 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 struct lin_frame {
-  Lin_FrameType frame;
+  Dev_LinFrameType frame;
   uint8_t uuid[LIN_UUID_LENGTH];
 };
 
 typedef struct {
-  uint32_t busid;
-  uint32_t port;
-  TcpIp_SocketIdType sockRd;
-  TcpIp_SocketIdType sockWt;
-  uint8_t uuid[LIN_UUID_LENGTH];
-} Lin_SocketBusType;
+  uint32_t BusId;
+  uint32_t Port;
+  TcpIp_SocketIdType SockRd;
+  TcpIp_SocketIdType SockWt;
+  uint8_t Uuid[LIN_UUID_LENGTH];
+} Dev_LinSocketBusType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int socket_open(Lin_DeviceType *dev, const char *option);
-static int socket_write(Lin_DeviceType *dev, Lin_FrameType *frame);
-static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame);
-static void socket_close(Lin_DeviceType *dev);
-static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size);
+static int Dev_SocketOpen(Dev_LinDeviceType *dev, const char *option);
+static int Dev_SocketWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static int Dev_SocketRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static void Dev_SocketClose(Dev_LinDeviceType *dev);
+static int Dev_SocketIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Lin_DeviceOpsType lin_simulator_v2_ops = {
-  .name = "simulator_v2/",
-  .open = socket_open,
-  .close = socket_close,
-  .write = socket_write,
-  .read = socket_read,
-  .ioctl = socket_ioctl,
+extern "C" const Dev_LinDeviceOpsType Dev_LinSimulatorV2Ops = {
+  .Name = "simulator_v2/",
+  .Open = Dev_SocketOpen,
+  .Close = Dev_SocketClose,
+  .Write = Dev_SocketWrite,
+  .Read = Dev_SocketRead,
+  .IoCtl = Dev_SocketIoctl,
 };
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
-static void get_uuid(uint8_t *uuid, size_t length) {
+static void Dev_GetUuid(uint8_t *uuid, size_t length) {
   GUID guid;
   CoCreateGuid(&guid);
   memcpy(uuid, &guid, length);
 }
 #else
-static void get_uuid(uint8_t *uuid, size_t length) {
+static void Dev_GetUuid(uint8_t *uuid, size_t length) {
   uuid_t uu;
   uuid_generate(uu);
   memcpy(uuid, uu, length);
 }
 #endif
 
-static int socket_open(Lin_DeviceType *dev, const char *option) {
+static int Dev_SocketOpen(Dev_LinDeviceType *dev, const char *option) {
   Std_ReturnType ret = E_NOT_OK;
-  uint32_t busid = (uint32_t)atoi(&dev->name.c_str()[17]);
+  uint32_t busid = (uint32_t)atoi(&dev->Name.c_str()[17]);
   TcpIp_SocketIdType sockRd, sockWt;
   TcpIp_SockAddrType ipv4Addr;
   uint16_t Port;
-  Lin_SocketBusType *bus;
+  Dev_LinSocketBusType *bus;
 
   TcpIp_Init(nullptr);
   sockRd = TcpIp_Create(TCPIP_IPPROTO_UDP);
@@ -117,14 +117,14 @@ static int socket_open(Lin_DeviceType *dev, const char *option) {
   }
 
   if (E_OK == ret) {
-    bus = new Lin_SocketBusType;
+    bus = new Dev_LinSocketBusType;
     if (bus != nullptr) {
-      bus->busid = busid;
-      bus->port = Port;
-      dev->param = (void *)bus;
-      bus->sockRd = sockRd;
-      bus->sockWt = sockWt;
-      get_uuid(bus->uuid, sizeof(bus->uuid));
+      bus->BusId = busid;
+      bus->Port = Port;
+      dev->Param = (void *)bus;
+      bus->SockRd = sockRd;
+      bus->SockWt = sockWt;
+      Dev_GetUuid(bus->Uuid, sizeof(bus->Uuid));
     } else {
       ret = E_NOT_OK;
     }
@@ -133,38 +133,38 @@ static int socket_open(Lin_DeviceType *dev, const char *option) {
   return (int)ret;
 }
 
-static int socket_write(Lin_DeviceType *dev, Lin_FrameType *frame) {
-  int r = LIN_MTU;
+static int Dev_SocketWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
+  int r = DEVLIN_MTU;
   Std_ReturnType ercd;
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
   struct lin_frame lframe;
   TcpIp_SockAddrType RemoteAddr;
 
   lframe.frame = *frame;
-  memcpy(lframe.uuid, bus->uuid, sizeof(lframe.uuid));
-  TcpIp_SetupAddrFrom(&RemoteAddr, LIN_CAST_IP, bus->port);
-  ercd = TcpIp_SendTo(bus->sockWt, &RemoteAddr, (const uint8_t *)&lframe, sizeof(lframe));
+  memcpy(lframe.uuid, bus->Uuid, sizeof(lframe.uuid));
+  TcpIp_SetupAddrFrom(&RemoteAddr, LIN_CAST_IP, bus->Port);
+  ercd = TcpIp_SendTo(bus->SockWt, &RemoteAddr, (const uint8_t *)&lframe, sizeof(lframe));
   if (ercd != E_OK) {
-    ASLOG(ERROR, ("LIN Socket %s send message failed!\n", dev->name.c_str()));
+    ASLOG(ERROR, ("LIN Socket %s send message failed!\n", dev->Name.c_str()));
     r = -1;
   }
 
   return r;
 }
 
-static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
+static int Dev_SocketRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
   int r = 0;
   Std_ReturnType ercd;
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
   struct lin_frame lframe;
   TcpIp_SockAddrType RemoteAddr;
   uint32_t len = sizeof(lframe);
 
-  ercd = TcpIp_RecvFrom(bus->sockRd, &RemoteAddr, (uint8_t *)&lframe, &len);
+  ercd = TcpIp_RecvFrom(bus->SockRd, &RemoteAddr, (uint8_t *)&lframe, &len);
   if ((len == sizeof(lframe)) && (E_OK == ercd)) {
-    if (0 != memcmp(lframe.uuid, bus->uuid, sizeof(lframe.uuid))) {
+    if (0 != memcmp(lframe.uuid, bus->Uuid, sizeof(lframe.uuid))) {
       *frame = lframe.frame;
-      r = LIN_MTU;
+      r = DEVLIN_MTU;
     } else {
       /* pass, send by me */
     }
@@ -175,20 +175,20 @@ static int socket_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
   }
 
   if (r < 0) {
-    ASLOG(ERROR, ("LIN Socket %s read message failed!\n", dev->name.c_str()));
+    ASLOG(ERROR, ("LIN Socket %s read message failed!\n", dev->Name.c_str()));
   }
 
   return r;
 }
 
-static void socket_close(Lin_DeviceType *dev) {
-  Lin_SocketBusType *bus = (Lin_SocketBusType *)dev->param;
-  TcpIp_Close(bus->sockRd, TRUE);
-  TcpIp_Close(bus->sockWt, TRUE);
+static void Dev_SocketClose(Dev_LinDeviceType *dev) {
+  Dev_LinSocketBusType *bus = (Dev_LinSocketBusType *)dev->Param;
+  TcpIp_Close(bus->SockRd, TRUE);
+  TcpIp_Close(bus->SockWt, TRUE);
   delete bus;
 }
 
-static int socket_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size) {
+static int Dev_SocketIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size) {
   int r = -__LINE__;
 
   switch (type) {

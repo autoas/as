@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UITRACE_HPP__
-#define __UITRACE_HPP__
+#ifndef UITRACE_HPP
+#define UITRACE_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <QWidget>
 #include <QTimerEvent>
@@ -33,13 +33,13 @@ class TraceFilterProxyModel : public QSortFilterProxyModel {
 public:
   TraceFilterProxyModel(QObject *parent = nullptr);
   ~TraceFilterProxyModel();
-  bool setFilterPatten(QString patten);
+  bool SetFilterPatten(QString patten);
 
 protected:
   bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
 
 private:
-  QRegularExpression m_rePatten;
+  QRegularExpression m_RePatten;
   QRegularExpression m_IdPatten;
   QRegularExpression *m_NamePatten = nullptr;
   QRegularExpression *m_NetworkPatten = nullptr;
@@ -63,18 +63,18 @@ private:
   void timerEvent(QTimerEvent *event);
 
 private:
-  QComboBox *m_cmbxTopic;
-  QPushButton *m_btnStart;
-  QPushButton *m_btnClear;
-  QCheckBox *m_cbxLog;
-  QComboBox *m_cmbxFilter;
-  QPushButton *m_btnApplyFilter;
+  QComboBox *m_CmbxTopic;
+  QPushButton *m_BtnStart;
+  QPushButton *m_BtnClear;
+  QCheckBox *m_CbxLog;
+  QComboBox *m_CmbxFilter;
+  QPushButton *m_BtnApplyFilter;
   QStandardItemModel *m_Model;
   TraceFilterProxyModel *m_ProxyModel;
   QTreeView *m_TreeView;
   uint64_t m_Number = 0;
   struct TraceInfo {
-    std::shared_ptr<com::Subscriber> sub;
+    std::shared_ptr<com::Subscriber> Sub;
   };
   std::map<std::string, TraceInfo> m_Traces;
 
@@ -84,4 +84,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UITRACE_HPP__ */
+#endif /* UITRACE_HPP */

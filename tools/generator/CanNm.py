@@ -83,12 +83,12 @@ def Gen_CanNm(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("#ifdef CANNM_GLOBAL_PN_SUPPORT\n")
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         if network.get("PnEnabled", False):
-            C.write("static const uint8_t nm%sPnFilterMaskByte[] = {%s};\n" % (idx, ", ".join(network["PnFilterMask"])))
+            C.write("static const uint8_t cannmPnFilterMaskByte%s[] = {%s};\n" % (idx, ", ".join(network["PnFilterMask"])))
     C.write("#endif\n")
     C.write("static L_CONST CanNm_ChannelConfigType CanNm_ChannelConfigs[] = {\n")
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         C.write("  {\n")
         C.write("    CANNM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* ImmediateNmCycleTime */\n" % (network["ImmediateNmCycleTime"]))
         C.write("    CANNM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* MsgCycleOffset */\n" % (network["MsgCycleOffset"]))
@@ -105,12 +105,12 @@ def Gen_CanNm(cfg, dir):
         C.write("    %s, /* UserDataTxPdu */\n" % (network["UserDataTxPdu"]))
         C.write("    #endif\n")
         C.write("    #ifdef USE_CANIF\n")
-        C.write("    CANIF_%s_TX, /* TxPdu */\n" % (network["name"]))
+        C.write("    CANIF_%s_TX, /* TxPdu */\n" % (network["Name"]))
         C.write("    #else\n")
         C.write("    %su, /* TxPdu */\n" % (idx))
         C.write("    #endif\n")
         C.write("    %su, /* NodeId */\n" % (network["NodeId"]))
-        C.write("    %su, /* nmNetworkHandle */\n" % (idx))
+        C.write("    %su, /* NetworkHandle */\n" % (idx))
         C.write("    %su, /* ImmediateNmTransmissions */\n" % (network["ImmediateNmTransmissions"]))
         C.write("    CANNM_PDU_BYTE_%s, /* PduCbvPosition */\n" % (network.get("PduCbvPosition", 1)))
         C.write("    CANNM_PDU_BYTE_%s, /* PduNidPosition */\n" % (network.get("PduNidPosition", 0)))
@@ -123,8 +123,8 @@ def Gen_CanNm(cfg, dir):
         C.write("    %s, /* AllNmMessagesKeepAwake */\n" % (str(network.get("AllNmMessagesKeepAwake", True)).upper()))
         if network.get("PnEnabled", False):
             C.write("    %su, /* PnInfoOffset */\n" % (network["PnInfoOffset"]))
-            C.write("    sizeof(nm%sPnFilterMaskByte), /* PnInfoLength */\n" % (idx))
-            C.write("    nm%sPnFilterMaskByte, /* PnFilterMaskByte */\n" % (idx))
+            C.write("    sizeof(cannmPnFilterMaskByte%s), /* PnInfoLength */\n" % (idx))
+            C.write("    cannmPnFilterMaskByte%s, /* PnFilterMaskByte */\n" % (idx))
         else:
             C.write("    %s, /* PnInfoOffset */\n" % (0))
             C.write("    %s, /* PnInfoLength */\n" % (0))
@@ -163,7 +163,7 @@ def Gen_CanNm(cfg, dir):
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write(
         """#ifdef _WIN32
-static void __attribute__((constructor)) _cannm_start(void) {
+static void __attribute__((constructor)) CanNm_Start(void) {
   char *nodeStr = getenv("CANNM_NODE_ID");
   if (nodeStr != NULL) {
     CanNm_ChannelConfigs[0].NodeId = atoi(nodeStr);

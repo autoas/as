@@ -64,27 +64,27 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  srec_t *srec = srec_open(srecF);
+  Srec_FileType *srec = Srec_Open(srecF);
   if (nullptr != srec) {
-    srec_print(srec);
-    for (size_t i = 0; i < srec->numOfBlks; i++) {
+    Srec_Print(srec);
+    for (size_t i = 0; i < srec->NumOfBlks; i++) {
       if (address == UINT32_MAX) {
-        Log::hexdump(Logger::INFO, "", srec->blks[i].data, srec->blks[i].length, 16);
+        Log::HexDump(Logger::INFO, "", srec->Blks[i].Data, srec->Blks[i].Length, 16);
       } else {
-        if (address >= srec->blks[i].address) {
-          uint32_t offset = address - srec->blks[i].address;
-          if (offset < srec->blks[i].length) {
-            uint32_t avail = srec->blks[i].length - offset;
+        if (address >= srec->Blks[i].Address) {
+          uint32_t offset = address - srec->Blks[i].Address;
+          if (offset < srec->Blks[i].Length) {
+            uint32_t avail = srec->Blks[i].Length - offset;
             if (avail > length) {
               length = avail;
             }
             snprintf(prefix, sizeof(prefix), "%08X", address);
-            Log::hexdump(Logger::INFO, prefix, srec->blks[i].data + offset, length, 16);
+            Log::HexDump(Logger::INFO, prefix, srec->Blks[i].Data + offset, length, 16);
           }
         }
       }
     }
-    srec_close(srec);
+    Srec_Close(srec);
   } else {
     printf("Failed to open srec file: %s\n", srecF);
   }

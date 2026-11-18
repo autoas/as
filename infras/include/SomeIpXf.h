@@ -4,8 +4,8 @@
  *
  * ref: Specification of SOME/IP Transformer AUTOSAR CP Release 4.4.0
  */
-#ifndef _SOMEIP_XF_H_
-#define _SOMEIP_XF_H_
+#ifndef SOMEIPXF_H
+#define SOMEIPXF_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #ifdef __cplusplus
@@ -89,4 +89,4 @@ void SomeIpXf_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _SOMEIP_XF_H_ */
+#endif /* SOMEIPXF_H */

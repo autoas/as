@@ -53,21 +53,21 @@ def Gen_OsekNm(cfg, dir):
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
     C.write("static L_CONST OsekNm_ChannelConfigType OsekNm_ChannelConfigs[] = {\n")
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         C.write("  {\n")
-        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* tTx */\n" % (network["tTx"]))
-        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* tTyp */\n" % (network["tTyp"]))
-        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* tMax */\n" % (network["tMax"]))
-        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* tError */\n" % (network["tError"]))
-        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* tWbs */\n" % (network["tWbs"]))
+        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* TTx */\n" % (network["TTx"]))
+        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* TTyp */\n" % (network["TTyp"]))
+        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* TMax */\n" % (network["TMax"]))
+        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* TError */\n" % (network["TError"]))
+        C.write("    OSEKNM_CONVERT_MS_TO_MAIN_CYCLES(%s), /* TWbs */\n" % (network["TWbs"]))
         C.write("    %s, /* NodeMask */\n" % (network["NodeMask"]))
         C.write("    %s, /* NodeId */\n" % (network["NodeId"]))
-        C.write("    %s, /* rx_limit */\n" % (network["rx_limit"]))
-        C.write("    %s, /* tx_limit */\n" % (network["tx_limit"]))
+        C.write("    %s, /* RxLimit */\n" % (network["RxLimit"]))
+        C.write("    %s, /* TxLimit */\n" % (network["TxLimit"]))
         C.write("    #ifdef USE_CANIF\n")
-        C.write("    CANIF_%s_TX, /* txPduId */\n" % (network["name"]))
+        C.write("    CANIF_%s_TX, /* TxPduId */\n" % (network["Name"]))
         C.write("    #else\n")
-        C.write("    %s, /* txPduId */\n" % (idx))
+        C.write("    %s, /* TxPduId */\n" % (idx))
         C.write("    #endif\n")
         C.write("  },\n")
     C.write("};\n\n")
@@ -80,7 +80,7 @@ def Gen_OsekNm(cfg, dir):
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write(
         """#ifdef _WIN32
-static void __attribute__((constructor)) _oseknm_start(void) {
+static void __attribute__((constructor)) OsekNm_CfgStart(void) {
   char *nodeStr = getenv("OSEKNM_NODE_ID");
   if (nodeStr != NULL) {
     OsekNm_ChannelConfigs[0].NodeId = atoi(nodeStr);
@@ -90,7 +90,7 @@ static void __attribute__((constructor)) _oseknm_start(void) {
   }
 }
 #endif\n"""
-        % (cfg["networks"][0]["name"])
+        % (cfg["Networks"][0]["Name"])
     )
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     C.write("""

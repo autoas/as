@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef _AS_LUA_HPP_
-#define _AS_LUA_HPP_
+#ifndef ASLUA_HPP
+#define ASLUA_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #include <stdlib.h>
@@ -69,63 +69,63 @@ typedef enum {
 
   LUA_ARG_TYPE_TABLE_STRING_MAP,
   LUA_ARG_TYPE_NIL,
-} lua_arg_type_t;
+} Lua_ArgTypeType;
 
-typedef struct lua_arg_s lua_arg_t;
+typedef struct Lua_Arg_s Lua_ArgType;
 
-struct lua_arg_s {
-  lua_arg_type_t type = LUA_ARG_TYPE_NIL;
+struct Lua_Arg_s {
+  Lua_ArgTypeType Type = LUA_ARG_TYPE_NIL;
 
-  std::string string;
+  std::string String;
 
-  bool b;
-  float f;
-  double d;
+  bool Bool;
+  float Float;
+  double Double;
 
-  int8_t s8;
-  int16_t s16;
-  int32_t s32;
-  int64_t s64;
+  int8_t S8;
+  int16_t S16;
+  int32_t S32;
+  int64_t S64;
 
-  uint8_t u8;
-  uint16_t u16;
-  uint32_t u32;
-  uint64_t u64;
+  uint8_t U8;
+  uint16_t U16;
+  uint32_t U32;
+  uint64_t U64;
 
-  std::vector<int8_t> s8N;
-  std::vector<int16_t> s16N;
-  std::vector<int32_t> s32N;
-  std::vector<int64_t> s64N;
+  std::vector<int8_t> S8N;
+  std::vector<int16_t> S16N;
+  std::vector<int32_t> S32N;
+  std::vector<int64_t> S64N;
 
-  std::vector<uint8_t> u8N;
-  std::vector<uint16_t> u16N;
-  std::vector<uint32_t> u32N;
-  std::vector<uint64_t> u64N;
+  std::vector<uint8_t> U8N;
+  std::vector<uint16_t> U16N;
+  std::vector<uint32_t> U32N;
+  std::vector<uint64_t> U64N;
 
-  std::vector<float> fN;
-  std::vector<double> dN;
+  std::vector<float> FN;
+  std::vector<double> DN;
 
-  std::vector<std::string> stringN;
+  std::vector<std::string> StringN;
 
-  std::map<std::string, int8_t> stringSint8Map;
-  std::map<std::string, int16_t> stringSint16Map;
-  std::map<std::string, int32_t> stringSint32Map;
-  std::map<std::string, int64_t> stringSint64Map;
+  std::map<std::string, int8_t> StringSint8Map;
+  std::map<std::string, int16_t> StringSint16Map;
+  std::map<std::string, int32_t> StringSint32Map;
+  std::map<std::string, int64_t> StringSint64Map;
 
-  std::map<std::string, uint8_t> stringUint8Map;
-  std::map<std::string, uint16_t> stringUint16Map;
-  std::map<std::string, uint32_t> stringUint32Map;
-  std::map<std::string, uint64_t> stringUint64Map;
+  std::map<std::string, uint8_t> StringUint8Map;
+  std::map<std::string, uint16_t> StringUint16Map;
+  std::map<std::string, uint32_t> StringUint32Map;
+  std::map<std::string, uint64_t> StringUint64Map;
 
-  std::map<std::string, float> stringFloatMap;
-  std::map<std::string, double> stringDoubleMap;
+  std::map<std::string, float> StringFloatMap;
+  std::map<std::string, double> StringDoubleMap;
 
-  std::map<std::string, lua_arg_t> stringMap;
+  std::map<std::string, Lua_ArgType> StringMap;
 
-  bool get(std::string key, std::string &value);
-  bool get(std::string key, float &value);
-  bool get(std::string key, bool &value);
-  bool get(std::string key, std::vector<lua_arg_t> &args);
+  bool Get(std::string key, std::string &value);
+  bool Get(std::string key, float &value);
+  bool Get(std::string key, bool &value);
+  bool Get(std::string key, std::vector<Lua_ArgType> &args);
 };
 
 class AsLuaScript {
@@ -133,19 +133,19 @@ class AsLuaScript {
 public:
   struct Library {
     std::string name;
-    lua_CFunction createLibFnc;
+    lua_CFunction CreateLibFnc;
   };
 
 public:
   AsLuaScript(std::string scriptFile, std::vector<Library> libraries = {});
   AsLuaScript(const char *scripts, std::vector<Library> libraries = {});
   ~AsLuaScript();
-  bool hasApi(std::string api);
-  int call(std::string api, std::vector<lua_arg_t> &inputs, std::vector<lua_arg_t> &outputs);
-  int call(std::string api, const lua_arg_t *inputs, int numIn, lua_arg_t *outputs, int numOut);
+  bool HasApi(std::string api);
+  int Call(std::string api, std::vector<Lua_ArgType> &inputs, std::vector<Lua_ArgType> &outputs);
+  int Call(std::string api, const Lua_ArgType *inputs, int numIn, Lua_ArgType *outputs, int numOut);
 
 private:
-  void load(const char *scripts, std::vector<Library> libraries);
+  void Load(const char *scripts, std::vector<Library> libraries);
 
 private:
   void *m_Context = nullptr;
@@ -154,7 +154,7 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int aslua_call(const char *scripts, const char *api, const lua_arg_t *inputs, int numIn,
-               lua_arg_t *outputs, int numOut);
-int aslua_parse(lua_State *L, int index, lua_arg_t &arg);
-#endif /* _AS_LUA_HPP_ */
+int AsLua_Call(const char *scripts, const char *api, const Lua_ArgType *inputs, int numIn,
+               Lua_ArgType *outputs, int numOut);
+int AsLua_Parse(lua_State *L, int index, Lua_ArgType &arg);
+#endif /* ASLUA_HPP */

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef __XL_TESTER_HPP__
-#define __XL_TESTER_HPP__
+#ifndef XLTESTER_HPP
+#define XLTESTER_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <OpenXLSX.hpp>
 
@@ -36,74 +36,74 @@ public:
   ~XLTester();
 
 public:
-  int start(std::string filePath);
-  std::string getMsg();
-  int getProgress(); /* return progress if no error, else negative error code */
+  int Start(std::string filePath);
+  std::string GetMsg();
+  int GetProgress(); /* return progress if no error, else negative error code */
 
 private:
-  int udsRequestService(std::vector<uint8_t> &req, std::vector<uint8_t> &res, std::string address);
-  int initIsoTp();
-  int init(std::string filePath);
-  void addMsg(int level, const char *fmt, ...);
-  std::string getCellValue(XLWorksheet &sheet, int row, int col);
+  int UdsRequestService(std::vector<uint8_t> &req, std::vector<uint8_t> &res, std::string address);
+  int InitIsoTp();
+  int Init(std::string filePath);
+  void AddMsg(int level, const char *fmt, ...);
+  std::string GetCellValue(XLWorksheet &sheet, int row, int col);
 
-  void threadMain();
+  void ThreadMain();
 
 private:
   struct TestCase {
-    std::string name;
-    std::string type;
-    std::string address;
-    std::string request;
-    std::string expectedResponse; /* For CAN message, let's use this to define the repeat times */
-    std::string actualResponse;
-    std::string comments;
-    int repeat = 1;
-    int delayMs;
-    bool result;
+    std::string Name;
+    std::string Type;
+    std::string Address;
+    std::string Request;
+    std::string ExpectedResponse; /* For CAN message, let's use this to define the repeat times */
+    std::string ActualResponse;
+    std::string Comments;
+    int Repeat = 1;
+    int DelayMs;
+    bool Result;
     /* position of the Result cell */
-    int row;
+    int Row;
   };
 
   struct TestList {
-    XLWorksheet sheet;
-    std::string name;
-    std::string type;
-    int actualResponseCol;
-    int resultCol;
-    std::vector<TestCase> cases;
+    XLWorksheet Sheet;
+    std::string Name;
+    std::string Type;
+    int ActualResponseCol;
+    int ResultCol;
+    std::vector<TestCase> Cases;
   };
 
 private:
-  int lookup(XLWorksheet &sheet, std::string key, int row, int &col);
-  int getTestCases(TestList &testList);
-  int executeCANCase(TestCase &tstCase);
-  int executeUDSCase(TestCase &tstCase);
-  int executeTestCase(TestCase &tstCase);
+  int Lookup(XLWorksheet &sheet, std::string key, int row, int &col);
+  int GetTestCases(TestList &testList);
+  int ExecuteCanCase(TestCase &tstCase);
+  int ExecuteUdsCase(TestCase &tstCase);
+  int ExecuteTestCase(TestCase &tstCase);
 
-  int luaRequest(std::string api, std::vector<uint8_t> &req);
-  int luaResponse(std::string api, std::vector<uint8_t> res);
+  int LuaRequest(std::string api, std::vector<uint8_t> &req);
+  int LuaResponse(std::string api, std::vector<uint8_t> res);
 
 private:
-  std::shared_ptr<XLDocument> m_doc;
+  std::shared_ptr<XLDocument> m_Doc;
 
-  XLT_ConfigType m_dcmCfg;
-  std::mutex m_lock;
-  char m_logs[XLTESTER_MSG_SIZE];
-  int m_lsz = 0;      /* log size */
-  int m_progress = 0; /* unit 0.01% */
-  int m_step = 1;     /* add on value to progress if a test case done */
+  XLT_ConfigType m_DcmCfg;
+  std::mutex m_Lock;
+  char m_Logs[XLTESTER_MSG_SIZE];
+  int m_LogSize = 0;      /* log size */
+  int m_Progress = 0; /* unit 0.01% */
+  int m_Step = 1;     /* add on value to progress if a test case done */
 
-  std::vector<TestList> m_testLists;
+  std::vector<TestList> m_TestLists;
 
-  std::thread m_thread;
+  std::thread m_Thread;
 
-  isotp_parameter_t m_Params;
-  uint32_t m_funcAddr;
-  isotp_t *m_IsoTp = nullptr;
+  IsoTp_ParameterType m_Params;
+  uint32_t m_FuncAddr;
+  IsoTp_Type *m_IsoTp = nullptr;
   uint8_t m_Buffer[4096];
 
-  int m_canBusId = -1;
+  int m_CanBusId = -1;
 
   std::shared_ptr<AsLuaScript> m_Lua = nullptr;
 };
@@ -112,4 +112,4 @@ private:
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 } /* namespace as */
-#endif /* __XL_TESTER_HPP__ */
+#endif /* XLTESTER_HPP */

@@ -29,11 +29,11 @@ static std::vector<std::string> s_UIs;
 /* ================================ [ FUNCTIONS ] ============================================== */
 Action::Action(std::string name, QWidget *parent)
   : QAction(tr(name.c_str()), parent), m_Name(name) {
-  connect(this, SIGNAL(triggered()), SLOT(onAction()));
+  connect(this, SIGNAL(triggered()), SLOT(OnTriggered()));
 }
 
-void Action::onAction(void) {
-  emit action(m_Name);
+void Action::OnTriggered(void) {
+  emit ActionRequested(m_Name);
 }
 
 Action::~Action() {
@@ -41,23 +41,23 @@ Action::~Action() {
 
 Window::Window() : QMainWindow() {
   setWindowTitle(tr("AsOne"));
-  loadUIs();
-  creGui();
+  LoadUis();
+  CreateGui();
 }
 
-void Window::loadUIs(void) {
+void Window::LoadUis(void) {
   DIR *d = opendir(".");
   struct dirent *file;
   while ((file = readdir(d)) != NULL) {
     if (strstr(file->d_name, DLL)) {
       UIInfo uinfo;
-      uinfo.dll = PAL_DlOpen(file->d_name);
-      if (nullptr != uinfo.dll) {
-        uinfo.createUIFnc = (CreateUIFncType)PAL_DlSym(uinfo.dll, "create");
-        uinfo.getNameFnc = (GetNameFncType)PAL_DlSym(uinfo.dll, "name");
-        if ((nullptr != uinfo.createUIFnc) && (nullptr != uinfo.getNameFnc)) {
-          uinfo.rpath = file->d_name;
-          uinfo.name = uinfo.getNameFnc();
+      uinfo.Dll = PAL_DlOpen(file->d_name);
+      if (nullptr != uinfo.Dll) {
+        uinfo.CreateUiFnc = (CreateUIFncType)PAL_DlSym(uinfo.Dll, "Create");
+        uinfo.GetNameFnc = (GetNameFncType)PAL_DlSym(uinfo.Dll, "Name");
+        if ((nullptr != uinfo.CreateUiFnc) && (nullptr != uinfo.GetNameFnc)) {
+          uinfo.Rpath = file->d_name;
+          uinfo.Name = uinfo.GetNameFnc();
           if (m_UINum < MAX_UI) {
             m_UIs[m_UINum++] = uinfo;
           }
@@ -70,41 +70,41 @@ void Window::loadUIs(void) {
   closedir(d);
 }
 
-void Window::creGui(void) {
+void Window::CreateGui(void) {
   auto wid = new QWidget();
   auto grid = new QVBoxLayout();
   m_Tab = new QTabWidget(this);
   grid->addWidget(m_Tab);
   wid->setLayout(grid);
   setCentralWidget(wid);
-  creMenu();
+  CreateMenu();
   // setMinimumSize(1000, 800);
   if (s_UIs.size() > 0) {
     for (auto &name : s_UIs) {
-      onAction(name);
+      OnAction(name);
     }
   } else {
-    onAction("Trace");
+    OnAction("Trace");
     for (size_t i = 0; i < m_UINum; i++) {
       auto &uinfo = m_UIs[i];
-      if (uinfo.name != "VIC") {
-        onAction(uinfo.name);
+      if (uinfo.Name != "VIC") {
+        OnAction(uinfo.Name);
       }
     }
   }
 }
 
-void Window::creMenu(void) {
+void Window::CreateMenu(void) {
   m_MenuApp = menuBar()->addMenu(tr("App"));
   for (size_t i = 0; i < m_UINum; i++) {
     auto &uinfo = m_UIs[i];
-    auto sItem = new Action(uinfo.name, this);
-    connect(sItem, SIGNAL(action(std::string)), this, SLOT(onAction(std::string)));
+    auto sItem = new Action(uinfo.Name, this);
+    connect(sItem, SIGNAL(ActionRequested(std::string)), this, SLOT(OnAction(std::string)));
     m_MenuApp->addAction(sItem);
   }
 }
 
-void Window::onAction(std::string name) {
+void Window::OnAction(std::string name) {
   for (int i = 0; i < m_Tab->count(); i++) {
     if (name == m_Tab->tabText(i).toStdString()) {
       return;
@@ -112,8 +112,8 @@ void Window::onAction(std::string name) {
   }
   for (size_t i = 0; i < m_UINum; i++) {
     auto &uinfo = m_UIs[i];
-    if (uinfo.name == name) {
-      m_Tab->addTab(uinfo.createUIFnc(), tr(name.c_str()));
+    if (uinfo.Name == name) {
+      m_Tab->addTab(uinfo.CreateUiFnc(), tr(name.c_str()));
     }
   }
 }
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
       d = 0;
       break;
     case 'v':
-      Log::setLogLevel(Logger::DEBUG);
+      Log::SetLogLevel(Logger::DEBUG);
       break;
     case 'u':
       s_UIs.push_back(optarg);
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
   }
   QApplication a(argc, argv);
   if (d) {
-    Log::setName("AsOne");
+    Log::SetName("AsOne");
   }
   Window w;
   w.show();

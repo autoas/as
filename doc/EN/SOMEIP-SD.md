@@ -211,31 +211,31 @@ All networking modules are configured from a single `Network.json` (class `Net`)
 
 ```json
 {
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
-      "SD": { "hostname": "ssas", "multicast": "224.244.224.245" },
-      "structs": [
-        { "name": "Vector", "data": [
-          { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 } ] },
-        { "name": "Result", "data": [
-          { "name": "ercd", "type": "uint8" },
-          { "name": "summary", "type": "uint32" },
-          { "name": "number", "type": "uint8_n", "variable_array": true, "size": 2048 } ] }
+      "Name": "SomeIp",
+      "Class": "SomeIp",
+      "SD": { "Hostname": "ssas", "Multicast": "224.244.224.245" },
+      "Structs": [
+        { "Name": "Vector", "Data": [
+          { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 } ] },
+        { "Name": "Result", "Data": [
+          { "Name": "ercd", "Type": "uint8" },
+          { "Name": "summary", "Type": "uint32" },
+          { "Name": "number", "Type": "uint8_n", "VariableArray": true, "Size": 2048 } ] }
       ],
-      "args": [
-        { "name": "add-args", "args": [
-          { "name": "A", "type": "Vector" }, { "name": "B", "type": "Vector" } ] }
+      "Args": [
+        { "Name": "add-args", "Args": [
+          { "Name": "A", "Type": "Vector" }, { "Name": "B", "Type": "Vector" } ] }
       ],
-      "servers": [
+      "Servers": [
         {
-          "name": "Math", "service": "0xadda", "instance": "0x1001",
-          "clientId": "0x1001", "protocol": "TCP", "reliable": 30680,
-          "methods": [
-            { "name": "add", "methodId": "0x0add", "args": "add-args",
-              "return": "Result", "tp": true, "version": "0" }
+          "Name": "Math", "Service": "0xadda", "Instance": "0x1001",
+          "ClientId": "0x1001", "Protocol": "TCP", "Reliable": 30680,
+          "Methods": [
+            { "Name": "add", "MethodId": "0x0add", "Args": "add-args",
+              "Return": "Result", "Tp": true, "Version": "0" }
           ],
           "event-groups": []
         }
@@ -250,16 +250,16 @@ Configuration elements:
 | Element | Meaning |
 | --- | --- |
 | `SD.multicast` | multicast group used by SOME/IP-SD (and DoIP discovery can share it) |
-| `structs` | user data types; scalar/array members, fixed or `variable_array` |
-| `args` | reusable argument lists for methods |
-| `servers` / `clients` | one entry per provided/consumed service instance |
-| `service` / `instance` / `clientId` | SOME/IP Service ID, Instance ID and Client ID |
-| `protocol` + `reliable` / `unreliable` | TCP port or UDP port the service is reachable on |
-| `methods[]` | methodId, args, return struct, `tp: true` to allow segmented transport, interface `version` |
+| `Structs` | user data types; scalar/array members, fixed or `VariableArray` |
+| `Args` | reusable argument lists for methods |
+| `Servers` / `Clients` | one entry per provided/consumed service instance |
+| `Service` / `Instance` / `ClientId` | SOME/IP Service ID, Instance ID and Client ID |
+| `Protocol` + `Reliable` / `Unreliable` | TCP port or UDP port the service is reachable on |
+| `Methods[]` | methodId, args, return struct, `tp: true` to allow segmented transport, interface `Version` |
 | `event-groups[]` | events (NOTIFICATION); UDP, with optional multicast and E2E protection |
 | `fields[]` | getter/setter/notifier triplet (each is a reserved method/event) |
 
-The client-side JSON is identical except that `servers` is replaced by `clients`. The generator turns it into C configuration for SomeIp/SomeIpXf/Sd/SoAd plus the Skeleton/Proxy code; the JSON Editor tool (see [JSON Editor doc](./JsonEditor.md)) can edit and generate these files graphically.
+The client-side JSON is identical except that `Servers` is replaced by `Clients`. The generator turns it into C configuration for SomeIp/SomeIpXf/Sd/SoAd plus the Skeleton/Proxy code; the JSON Editor tool (see [JSON Editor doc](./JsonEditor.md)) can edit and generate these files graphically.
 
 A full-featured example is [RadarService](../../app/examples/someip/ara/RadarService/Skeleton/config/Network.json) (service 0xadaa / instance 0x2001 over UDP port 12345): it shows an `Adjust` method, a `BrakeEvent` event group, a `UpdateRate` field (get/set/notify), variable-length arrays and E2E profile P11 protection.
 

@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __LIN_SLAVE_H__
-#define __LIN_SLAVE_H__
+#ifndef LIN_SLAVE_H
+#define LIN_SLAVE_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Lin.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -19,4 +19,4 @@
 void Lin_Slave_Init(const Lin_ConfigType *config);
 void Lin_Slave_MainFunction(void);
 void Lin_Slave_MainFunction_Read(void);
-#endif /* __LIN_SLAVE_H__ */
+#endif /* LIN_SLAVE_H */

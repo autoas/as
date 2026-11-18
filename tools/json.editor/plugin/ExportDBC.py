@@ -54,11 +54,11 @@ class Plugin(QAction):
 
     def GenBO(self, fp, message):
         fp.write('\nBO_ %s %s: %s %s\n' %
-                 (message['id'], message['name'], message['dlc'], message['node']))
-        for sig in message.get('signals', []):
-            endian = 0 if sig['endian'] == 'big' else 1
+                 (message['Id'], message['Name'], message['Dlc'], message['Node']))
+        for sig in message.get('Signals', []):
+            endian = 0 if sig['Endian'] == 'big' else 1
             fp.write('SG_ %s : %s|%s@%s+ (1,0) [0|4294967295] "" %s\n' % (
-                sig['name'], sig['start'], sig['size'], endian, message['node']))
+                sig['Name'], sig['Start'], sig['Size'], endian, message['Node']))
 
     def onAction(self):
         com = self.root.find('Com')
@@ -66,16 +66,16 @@ class Plugin(QAction):
             None, 'Save as Vector CAN DBC', '.', QFileDialog.ShowDirsOnly)
         if (not os.path.exists(dir)):
             return
-        for network in com.get('networks', []):
-            fp = open('%s/%s.dbc' % (dir, network['name']), 'w')
+        for network in com.get('Networks', []):
+            fp = open('%s/%s.dbc' % (dir, network['Name']), 'w')
             fp.write(_dbc_header)
             nodes = []
-            for message in network.get('messages', []):
-                n = message['node']
+            for message in network.get('Messages', []):
+                n = message['Node']
                 if n not in nodes:
                     nodes.append(n)
             fp.write('%s\n' % (' '.join(nodes)))
-            for message in network.get('messages', []):
+            for message in network.get('Messages', []):
                 self.GenBO(fp, message)
             fp.write('\n\n\n\n')
             fp.close()

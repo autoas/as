@@ -45,7 +45,7 @@ extern "C" {
 #define FEE_DATA_ALIGNED(sz) FEE_ALIGNED(ALIGNED(sz, 2u) + 4u)
 
 #define FEE_MIN_FREE_SPACE                                                                         \
-  (FEE_DATA_ALIGNED(FEE_CONFIG->maxDataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
+  (FEE_DATA_ALIGNED(FEE_CONFIG->MaxDataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
 
 #define FEE_BLOCK_ADMIN_AND_DATA_SIZE(dataSize)                                                    \
   (FEE_DATA_ALIGNED(dataSize) + FEE_ALIGNED(sizeof(Fee_BlockType)))
@@ -119,9 +119,9 @@ typedef struct {
 #endif
 #ifdef FEE_USE_FAULTS
   /* a space used to track FEE faults, support up to 255 fault: 0-254 */
-  uint8_t faults[FEE_FAULTS_SIZE];
+  uint8_t Faults[FEE_FAULTS_SIZE];
 #endif
-  uint8_t blocks[FEE_PAGE_SIZE];
+  uint8_t Blocks[FEE_PAGE_SIZE];
 } Fee_BankAdminType;
 
 typedef struct {
@@ -148,15 +148,15 @@ typedef struct {
 struct Fee_Config_s {
   void (*JobEndNotification)(void);
   void (*JobErrorNotification)(void);
-  Fee_BlockContextType *blockContexts;
+  Fee_BlockContextType *BlockContexts;
   P2CONST(Fee_BlockConfigType, AUTOMATIC, FEE_CONST) Blocks;
-  uint16_t numOfBlocks;
+  uint16_t NumOfBlocks;
   P2CONST(Fee_BankType, AUTOMATIC, FEE_CONST) Banks;
-  uint16_t numOfBanks;
-  uint8_t *workingArea;
-  uint16_t sizeOfWorkingArea;
-  uint8_t maxJobRetry;
-  uint16_t maxDataSize;
+  uint16_t NumOfBanks;
+  uint8_t *WorkingArea;
+  uint16_t SizeOfWorkingArea;
+  uint8_t MaxJobRetry;
+  uint16_t MaxDataSize;
   uint32_t NumberOfErasedCycles;
 };
 /* ================================ [ DECLARES  ] ============================================== */

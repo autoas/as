@@ -120,31 +120,31 @@ typedef uint8_t DoIP_MessageStateType;
 
 typedef struct {
   PduLengthType TpSduLength;
-  PduLengthType index;
-  DoIP_MessageStateType state;
+  PduLengthType Index;
+  DoIP_MessageStateType State;
 } DoIP_TargetNodeContextType;
 
 typedef struct {
-  DoIP_TargetNodeContextType *context;
+  DoIP_TargetNodeContextType *Context;
   PduIdType TxPduId;     /* PduR ID */
-  PduIdType doipTxPduId; /* DoIP ID called by PduR */
+  PduIdType DoipTxPduId; /* DoIP ID called by PduR */
   uint16_t TargetAddress;
 } DoIP_TargetNodeType;
 
 /* @ECUC_DoIP_00053 */
 typedef struct {
-  const DoIP_TargetNodeType *targetNodes;
-  uint16_t numTargetNodes;
+  const DoIP_TargetNodeType *TargetNodes;
+  uint16_t NumTargetNodes;
   uint16_t TargetAddress;
   PduIdType RxPduId; /* PduR ID */
 } DoIP_TargetAddressType;
 
 typedef struct {
-  uint8_t *req; /* len = NumByteDiagAckNack */
+  uint8_t *Req; /* len = NumByteDiagAckNack */
   const DoIP_TargetAddressType *TargetAddressRef;
   PduLengthType TpSduLength;
-  PduLengthType index;
-  DoIP_MessageStateType state;
+  PduLengthType Index;
+  DoIP_MessageStateType State;
 } DoIP_MessageContextType;
 
 typedef struct DoIP_Tester_s DoIP_TesterType;
@@ -155,7 +155,7 @@ typedef struct {
   uint8_t OEMReqLen;
   uint8_t OEMResLen;
   const DoIP_TargetAddressType *const *TargetAddressRefs; /* @ECUC_DoIP_00034 */
-  uint16_t numOfTargetAddressRefs;
+  uint16_t NumOfTargetAddressRefs;
   DoIP_RoutingActivationAuthenticationCallbackType AuthenticationCallback;
   DoIP_RoutingActivationConfirmationCallbackType ConfirmationCallback;
 } DoIP_RoutingActivationType;
@@ -169,29 +169,29 @@ typedef enum {
 } DoIP_RoutineActivationStateType;
 
 typedef struct {
-  DoIP_RoutineActivationStateType state;
-  const DoIP_TesterType *tester;
-  uint8_t raid;
+  DoIP_RoutineActivationStateType State;
+  const DoIP_TesterType *Tester;
+  uint8_t Raid;
   uint8_t OEM[4];
 } DoIP_RoutineActivationManagerType;
 
 typedef struct {
-  DoIP_ConnectionStateType state;
-  DoIP_MessageContextType msg;
-  DoIP_RoutineActivationManagerType ramgr;
+  DoIP_ConnectionStateType State;
+  DoIP_MessageContextType Msg;
+  DoIP_RoutineActivationManagerType Ramgr;
   uint32_t RAMask; /* maximum 32 Routine can be activated per tester */
   const DoIP_TesterType *TesterRef;
   uint16_t InactivityTimer;
   uint16_t AliveCheckResponseTimer;
-  boolean isAlive;
+  boolean IsAlive;
 } DoIP_TesterConnectionContextType;
 
 typedef struct {
-  DoIP_TesterConnectionContextType *context;
+  DoIP_TesterConnectionContextType *Context;
   SoAd_SoConIdType SoConId;
   PduIdType SoAdTxPdu;
 #ifdef USE_TLS
-  boolean bEnableTLS;
+  boolean EnableTLS;
 #endif
 } DoIP_TesterConnectionType;
 
@@ -200,7 +200,7 @@ struct DoIP_Tester_s {
   uint16_t NumByteDiagAckNack;                                    /* @ECUC_DoIP_00042 */
   uint16_t TesterSA;                                              /* @ECUC_DoIP_00043 */
   const DoIP_RoutingActivationType *const *RoutingActivationRefs; /* @ECUC_DoIP_00062 */
-  uint8_t numOfRoutingActivations;
+  uint8_t NumOfRoutingActivations;
 };
 
 /* @ECUC_DoIP_00045 */
@@ -217,14 +217,14 @@ typedef struct {
 } DoIP_UdpConnectionType;
 
 typedef struct {
-  DoIP_ConnectionStateType state;
+  DoIP_ConnectionStateType State;
   uint16_t AnnouncementTimer;
   uint8_t AnnouncementCounter;
 } DoIP_UdpVehicleAnnouncementConnectionContextType;
 
 /* @ECUC_DoIP_00076 */
 typedef struct {
-  DoIP_UdpVehicleAnnouncementConnectionContextType *context;
+  DoIP_UdpVehicleAnnouncementConnectionContextType *Context;
   SoAd_SoConIdType SoConId;
   PduIdType SoAdTxPdu;
   boolean RequestAddressAssignment; /* @ECUC_DoIP_00095 */
@@ -263,24 +263,24 @@ struct DoIP_Config_s {
 
   /* @ECUC_DoIP_00032 */
   const DoIP_TargetAddressType *TargetAddresss;
-  uint16_t numOfTargetAddresss;
+  uint16_t NumOfTargetAddresss;
   const DoIP_TcpConnectionType *TcpConnections;
-  uint16_t numOfTcpConnections;
+  uint16_t NumOfTcpConnections;
   const DoIP_UdpConnectionType *UdpConnections;
-  uint16_t numOfUdpConnections;
+  uint16_t NumOfUdpConnections;
   const DoIP_UdpVehicleAnnouncementConnectionType *UdpVehicleAnnouncementConnections;
-  uint16_t numOfUdpVehicleAnnouncementConnections;
-  const DoIP_TesterConnectionType *testerConnections;
+  uint16_t NumOfUdpVehicleAnnouncementConnections;
+  const DoIP_TesterConnectionType *TesterConnections;
   uint16_t MaxTesterConnections; /* @ECUC_DoIP_00012 */
 
-  const DoIP_RoutingActivationType *routingActivations;
-  uint16_t numOfRoutingActivations;
+  const DoIP_RoutingActivationType *RoutingActivations;
+  uint16_t NumOfRoutingActivations;
 
-  const DoIP_TesterType *testers;
-  uint16_t numOfTesters;
+  const DoIP_TesterType *Testers;
+  uint16_t NumOfTesters;
 
   const uint16_t *RxPduIdToConnectionMap;
-  uint16_t numOfRxPduIds;
+  uint16_t NumOfRxPduIds;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

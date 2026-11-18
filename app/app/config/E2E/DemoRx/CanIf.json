@@ -1,11 +1,11 @@
 {
-  "class": "CanIf",
-  "networks": [
+  "Class": "CanIf",
+  "Networks": [
     {
-      "name": "CAN0",
-      "me": "AS",
+      "Name": "CAN0",
+      "Me": "AS",
       "RxPdus": [
-        { "name": "CAN0_MSG_TIME_RX", "id": "0x123", "hoh": 0, "up": "Com" }
+        { "Name": "CAN0_MSG_TIME_RX", "Id": "0x123", "Hoh": 0, "Up": "Com" }
       ],
       "TxPdus": []
     }

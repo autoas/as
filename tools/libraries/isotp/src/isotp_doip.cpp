@@ -16,40 +16,40 @@ using namespace as;
 #define AS_LOG_DOIPE AS_LOG_ERROR
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  doip_client_t *client;
-  doip_node_t *node;
-} isotp_doip_t;
+  DoIp_ClientType *Client;
+  DoIp_NodeType *Node;
+} IsoTp_DoIpContextType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-isotp_t *isotp_doip_create(isotp_parameter_t *params) {
+IsoTp_Type *IsoTp_DoIpCreate(IsoTp_ParameterType *params) {
   int r = 0;
-  isotp_t *isotp = new isotp_t;
-  isotp_doip_t *doip = (isotp_doip_t *)malloc(sizeof(isotp_doip_t));
+  IsoTp_Type *isotp = new IsoTp_Type;
+  IsoTp_DoIpContextType *doip = (IsoTp_DoIpContextType *)malloc(sizeof(IsoTp_DoIpContextType));
 
   if ((NULL != isotp) && (NULL != doip)) {
-    memset(doip, 0, sizeof(isotp_doip_t));
-    isotp->priv = doip;
-    isotp->params = *params;
+    memset(doip, 0, sizeof(IsoTp_DoIpContextType));
+    isotp->Priv = doip;
+    isotp->Params = *params;
   } else {
     r = -ENOMEM;
   }
 
   if (0 == r) {
-    doip->client = doip_create_client(params->device, params->port, NULL);
-    if (NULL == doip->client) {
-      ASLOG(DOIPE, ("Failed to clreate doip client <%s:%d>\n", params->device, params->port));
+    doip->Client = DoIp_CreateClient(params->Device, params->Port, NULL);
+    if (NULL == doip->Client) {
+      ASLOG(DOIPE, ("Failed to clreate doip client <%s:%d>\n", params->Device, params->Port));
       r = -__LINE__;
     }
   }
 
   if (0 == r) {
-    r = doip_await_vehicle_announcement(doip->client, &doip->node, 1, 100);
+    r = DoIp_AwaitVehicleAnnouncement(doip->Client, &doip->Node, 1, 100);
 
     if (r <= 0) {
-      doip->node = doip_request(doip->client);
-      if (NULL == doip->node) {
+      doip->Node = DoIp_Request(doip->Client);
+      if (NULL == doip->Node) {
         r = -__LINE__;
         ASLOG(DOIPE, ("target is not reachable\n"));
       } else {
@@ -62,19 +62,19 @@ isotp_t *isotp_doip_create(isotp_parameter_t *params) {
 
   if (0 == r) {
     ASLOG(DOIP, ("Found Vehicle:\n"));
-    Log::hexdump(Logger::INFO, "  VIN: ", doip->node->VIN, 17, 17);
-    Log::hexdump(Logger::INFO, "  EID: ", doip->node->EID, 6);
-    Log::hexdump(Logger::INFO, "  GID: ", doip->node->GID, 6);
-    ASLOG(DOIP, ("  LA: %X\n", doip->node->LA));
-    r = doip_connect(doip->node);
+    Log::HexDump(Logger::INFO, "  VIN: ", doip->Node->VIN, 17, 17);
+    Log::HexDump(Logger::INFO, "  EID: ", doip->Node->EID, 6);
+    Log::HexDump(Logger::INFO, "  GID: ", doip->Node->GID, 6);
+    ASLOG(DOIP, ("  LA: %X\n", doip->Node->LA));
+    r = DoIp_Connect(doip->Node);
     if (0 != r) {
       ASLOG(DOIPE, ("connect failed\n"));
     }
   }
 
   if (0 == r) {
-    r = doip_activate(doip->node, isotp->params.U.DoIP.sourceAddress,
-                      isotp->params.U.DoIP.activationType, NULL, 0);
+    r = DoIp_Activate(doip->Node, isotp->Params.U.DoIP.SourceAddress,
+                      isotp->Params.U.DoIP.ActivationType, NULL, 0);
     if (0 != r) {
       ASLOG(DOIPE, ("activate failed\n"));
     }
@@ -85,8 +85,8 @@ isotp_t *isotp_doip_create(isotp_parameter_t *params) {
       delete isotp;
       isotp = NULL;
     }
-    if (NULL != doip->client) {
-      doip_destory_client(doip->client);
+    if (NULL != doip->Client) {
+      DoIp_DestroyClient(doip->Client);
     }
     if (NULL != doip) {
       free(doip);
@@ -96,30 +96,30 @@ isotp_t *isotp_doip_create(isotp_parameter_t *params) {
   return isotp;
 }
 
-int isotp_doip_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
-                        size_t rxSize) {
+int IsoTp_DoIpTransmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
+                       size_t rxSize) {
   int r = 0;
-  isotp_doip_t *doip = (isotp_doip_t *)isotp->priv;
-  r = doip_transmit(doip->node, isotp->params.U.DoIP.targetAddress, txBuffer, txSize, rxBuffer,
+  IsoTp_DoIpContextType *doip = (IsoTp_DoIpContextType *)isotp->Priv;
+  r = DoIp_Transmit(doip->Node, isotp->Params.U.DoIP.TargetAddress, txBuffer, txSize, rxBuffer,
                     rxSize);
   return r;
 }
 
-int isotp_doip_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
+int IsoTp_DoIpReceive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = 0;
-  isotp_doip_t *doip = (isotp_doip_t *)isotp->priv;
-  r = doip_receive(doip->node, rxBuffer, rxSize);
+  IsoTp_DoIpContextType *doip = (IsoTp_DoIpContextType *)isotp->Priv;
+  r = DoIp_Receive(doip->Node, rxBuffer, rxSize);
   return r;
 }
 
-int isotp_doip_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+int IsoTp_DoIpIoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size) {
   return -EACCES;
 }
 
-void isotp_doip_destory(isotp_t *isotp) {
-  isotp_doip_t *doip = (isotp_doip_t *)isotp->priv;
+void IsoTp_DoIpDestroy(IsoTp_Type *isotp) {
+  IsoTp_DoIpContextType *doip = (IsoTp_DoIpContextType *)isotp->Priv;
 
-  doip_destory_client(doip->client);
+  DoIp_DestroyClient(doip->Client);
   free(doip);
   delete isotp;
 }

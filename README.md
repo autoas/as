@@ -32,8 +32,8 @@ MCU/ECU platforms currently supported by AS:
 
 - **CanBusSimulator**: CAN bus simulator over IP socket.
 - **LinBusSimulator**: LIN bus simulator over IP socket.
-- **CanLib**: CAN library to access CAN hardware (Vector CanCaseXL, PeakCan, ZLGCAN, etc.).
-- **LinLib**: LIN library to access LIN hardware (COM, USB2I2C, USB2SPI, etc.).
+- **CanL**: CAN library to access CAN hardware (Vector CanCaseXL, PeakCan, ZLGCAN, etc.).
+- **LinL**: LIN library to access LIN hardware (COM, USB2I2C, USB2SPI, etc.).
 - **DevLib**: abstract device libraries to access any other kind of automotive devices.
 
 ### Protocol & Middleware
@@ -69,6 +69,7 @@ MCU/ECU platforms currently supported by AS:
 | Virtual LIN environment | [CN](doc/CN/virtual-lin-env.md) | [EN](doc/EN/virtual-lin-env.md) |
 | CAN bootloader | [CN: boot over QEMU](doc/CN/can-bootloader.md)<br>[CN: BL config & host sim](doc/CN/BL.md) | [EN: boot over QEMU](doc/EN/can-bootloader.md)<br>[EN: BL config & host sim](doc/EN/BL.md) |
 | BL over DoIP demo | [CN](doc/CN/BL-DoIP.md) | [EN](doc/EN/BL-DoIP.md) |
+| BL over DoIP on QEMU (versatilepb) | [CN](doc/CN/BL-DoIP-QEMU.md) | [EN](doc/EN/BL-DoIP-QEMU.md) |
 | CAN OSEK NM | [CN](doc/CN/can-oseknm.md) | [EN](doc/EN/can-oseknm.md) |
 | NvM | [CN](doc/CN/nvm.md) | [EN](doc/EN/NvM.md) |
 | CAN Interface (CanIf) | [CN](doc/CN/CanIf.md) | [EN](doc/EN/CanIf.md) |
@@ -92,6 +93,8 @@ MCU/ECU platforms currently supported by AS:
 
 | Topic | CN | EN |
 | --- | --- | --- |
+| C/C++ coding style | [CN](doc/CN/CCodingStyle.md) | [EN](doc/EN/CCodingStyle.md) |
+| Python coding style | [CN](doc/CN/PyCodingStyle.md) | [EN](doc/EN/PyCodingStyle.md) |
 | JSON Editor | [CN](doc/CN/JsonEditor.md) | [EN](doc/EN/JsonEditor.md) |
 | How to create CA (X.509) | [CN](doc/CN/HowToCreateCA.md) | [EN](doc/EN/HowToCreateCA.md) |
 | UICom Lua scripting | [CN](doc/CN/UICom.md) | [EN](doc/EN/UICom.md) |

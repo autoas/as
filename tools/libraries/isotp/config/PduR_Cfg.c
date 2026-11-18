@@ -65,8 +65,8 @@ static PduR_RoutingPathType PduR_RoutingPaths[CANTP_MAX_CHANNELS * 2 + J1939TP_M
  *     Rx Path from CanTp to ISOTP
  * from 2*CANTP_MAX_CHANNELS to 2*CANTP_MAX_CHANNELS + J1939TP_MAX_CHANNELS:
  *     Tx Path from ISOTP to J1939Tp
- * from CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS to CANTP_MAX_CHANNELS * 2 + 2*J1939TP_MAX_CHANNELS:
- *     Rx Path from J1939Tp to ISOTP */
+ * from CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS to CANTP_MAX_CHANNELS * 2 +
+ * 2*J1939TP_MAX_CHANNELS: Rx Path from J1939Tp to ISOTP */
 const PduR_ConfigType PduR_Config = {
 #if defined(PDUR_USE_MEMPOOL)
   NULL,
@@ -80,26 +80,26 @@ void PduR_CanTpReConfig(uint8_t Channel) {
   if (Channel < CANTP_MAX_CHANNELS) {
     PduR_SrcPdu[Channel].Module = PDUR_MODULE_ISOTP;
     PduR_SrcPdu[Channel].PduHandleId = Channel;
-    PduR_SrcPdu[Channel].api = &PduR_IsoTpCanTpApi;
+    PduR_SrcPdu[Channel].Api = &PduR_IsoTpCanTpApi;
     PduR_DstPdu[Channel][0].Module = PDUR_MODULE_CANTP;
     PduR_DstPdu[Channel][0].PduHandleId = Channel;
-    PduR_DstPdu[Channel][0].api = &PduR_CanTpApi;
+    PduR_DstPdu[Channel][0].Api = &PduR_CanTpApi;
     PduR_RoutingPaths[Channel].SrcPduRef = &PduR_SrcPdu[Channel];
     PduR_RoutingPaths[Channel].DestPduRef = PduR_DstPdu[Channel];
-    PduR_RoutingPaths[Channel].numOfDestPdus = 1;
+    PduR_RoutingPaths[Channel].NumOfDestPdus = 1;
     PduR_RoutingPaths[Channel].DestTxBufferRef = NULL;
 
     PduR_SrcPdu[CANTP_MAX_CHANNELS + Channel].Module = PDUR_MODULE_CANTP;
     PduR_SrcPdu[CANTP_MAX_CHANNELS + Channel].PduHandleId = Channel;
-    PduR_SrcPdu[CANTP_MAX_CHANNELS + Channel].api = &PduR_CanTpApi;
+    PduR_SrcPdu[CANTP_MAX_CHANNELS + Channel].Api = &PduR_CanTpApi;
     PduR_DstPdu[CANTP_MAX_CHANNELS + Channel][0].Module = PDUR_MODULE_ISOTP;
     PduR_DstPdu[CANTP_MAX_CHANNELS + Channel][0].PduHandleId = Channel;
-    PduR_DstPdu[CANTP_MAX_CHANNELS + Channel][0].api = &PduR_IsoTpCanTpApi;
+    PduR_DstPdu[CANTP_MAX_CHANNELS + Channel][0].Api = &PduR_IsoTpCanTpApi;
     PduR_RoutingPaths[CANTP_MAX_CHANNELS + Channel].SrcPduRef =
       &PduR_SrcPdu[CANTP_MAX_CHANNELS + Channel];
     PduR_RoutingPaths[CANTP_MAX_CHANNELS + Channel].DestPduRef =
       PduR_DstPdu[CANTP_MAX_CHANNELS + Channel];
-    PduR_RoutingPaths[CANTP_MAX_CHANNELS + Channel].numOfDestPdus = 1;
+    PduR_RoutingPaths[CANTP_MAX_CHANNELS + Channel].NumOfDestPdus = 1;
     PduR_RoutingPaths[CANTP_MAX_CHANNELS + Channel].DestTxBufferRef = NULL;
   }
 }
@@ -110,25 +110,25 @@ void PduR_J1939TpReConfig(uint8_t Channel) {
     index = CANTP_MAX_CHANNELS * 2 + Channel;
     PduR_SrcPdu[index].Module = PDUR_MODULE_ISOTP;
     PduR_SrcPdu[index].PduHandleId = Channel;
-    PduR_SrcPdu[index].api = &PduR_IsoTpJ1939TpApi;
+    PduR_SrcPdu[index].Api = &PduR_IsoTpJ1939TpApi;
     PduR_DstPdu[index][0].Module = PDUR_MODULE_J1939TP;
     PduR_DstPdu[index][0].PduHandleId = Channel;
-    PduR_DstPdu[index][0].api = &PduR_J1939TpApi;
+    PduR_DstPdu[index][0].Api = &PduR_J1939TpApi;
     PduR_RoutingPaths[index].SrcPduRef = &PduR_SrcPdu[index];
     PduR_RoutingPaths[index].DestPduRef = PduR_DstPdu[index];
-    PduR_RoutingPaths[index].numOfDestPdus = 1;
+    PduR_RoutingPaths[index].NumOfDestPdus = 1;
     PduR_RoutingPaths[index].DestTxBufferRef = NULL;
 
     index = CANTP_MAX_CHANNELS * 2 + J1939TP_MAX_CHANNELS + Channel;
     PduR_SrcPdu[index].Module = PDUR_MODULE_J1939TP;
     PduR_SrcPdu[index].PduHandleId = Channel;
-    PduR_SrcPdu[index].api = &PduR_J1939TpApi;
+    PduR_SrcPdu[index].Api = &PduR_J1939TpApi;
     PduR_DstPdu[index][0].Module = PDUR_MODULE_ISOTP;
     PduR_DstPdu[index][0].PduHandleId = Channel;
-    PduR_DstPdu[index][0].api = &PduR_IsoTpJ1939TpApi;
+    PduR_DstPdu[index][0].Api = &PduR_IsoTpJ1939TpApi;
     PduR_RoutingPaths[index].SrcPduRef = &PduR_SrcPdu[index];
     PduR_RoutingPaths[index].DestPduRef = PduR_DstPdu[index];
-    PduR_RoutingPaths[index].numOfDestPdus = 1;
+    PduR_RoutingPaths[index].NumOfDestPdus = 1;
     PduR_RoutingPaths[index].DestTxBufferRef = NULL;
   }
 }

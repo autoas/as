@@ -11,7 +11,14 @@ CWD = GetCurrentDir()
 
 objsApp = Glob("*.c") + Glob("src/*.c")
 
-LL_DL = os.getenv("LL_DL")
+# overrides the link layer data length baked into the generated GEN files.
+# LINK_LAYER_DATA_LENGTH and LL_DL are the old transport agnostic names, still honoured.
+canTpLinkLayerDataLength = (
+    os.getenv("CANTP_LINK_LAYER_DATA_LENGTH") or os.getenv("LINK_LAYER_DATA_LENGTH") or os.getenv("LL_DL")
+)
+linTpLinkLayerDataLength = (
+    os.getenv("LINTP_LINK_LAYER_DATA_LENGTH") or os.getenv("LINK_LAYER_DATA_LENGTH") or os.getenv("LL_DL")
+)
 
 
 class ApplicationApp(Application):
@@ -34,7 +41,7 @@ libsCommon = {
 
 with open(Glob("config/NvM/NvM.json")[0].rstr()) as f:
     cfg = json.load(f)
-    nvmTarget = os.getenv("NVM_TARGET", cfg.get("target", "Ea"))
+    nvmTarget = os.getenv("NVM_TARGET", cfg.get("Target", "Ea"))
 
 if "Fee" == nvmTarget:
     libsCommon["Fls"] = Glob("config/NvM/Fls_Cfg.c")
@@ -94,8 +101,8 @@ class ApplicationCanApp(ApplicationApp):
     def config(self):
         if "Mirror" in libsForCanApp:
             self.gencfg()
-        if LL_DL != None:
-            self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
+        if canTpLinkLayerDataLength != None:
+            self.Append(CPPDEFINES=["CANTP_LINK_LAYER_DATA_LENGTH=%s" % (canTpLinkLayerDataLength)])
         self.libsForApp = libsForCanApp
         super().config()
         self.Append(CPPDEFINES=["USE_CAN"])
@@ -162,8 +169,8 @@ class ApplicationLinApp(ApplicationApp):
         self.LIBS += ["Simulator", "RingBuffer"]
 
     def config(self):
-        if LL_DL != None:
-            self.Append(CPPDEFINES=["LINTP_LL_DL=%s" % (LL_DL)])
+        if linTpLinkLayerDataLength != None:
+            self.Append(CPPDEFINES=["LINTP_LINK_LAYER_DATA_LENGTH=%s" % (linTpLinkLayerDataLength)])
         self.libsForApp = libsForLinApp
         super().config()
         self.CPPPATH += ["$LinIf_Cfg"]
@@ -190,8 +197,8 @@ class ApplicationNetApp(Application):
     def platform_config(self):
         self.Append(CPPDEFINES=["USE_STD_PRINTF", "USE_STD_DEBUG", "USE_PLUGIN"])
         # self.Append(CPPDEFINES=['DISABLE_NET_MEM'])
-        if LL_DL != None:
-            self.Append(CPPDEFINES=["CANTP_LL_DL=%s" % (LL_DL)])
+        if canTpLinkLayerDataLength != None:
+            self.Append(CPPDEFINES=["CANTP_LINK_LAYER_DATA_LENGTH=%s" % (canTpLinkLayerDataLength)])
         self.Append(CPPDEFINES=["USE_CAN"])
         self.LIBS += ["Simulator", "Plugin"]
 

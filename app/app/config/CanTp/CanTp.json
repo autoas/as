@@ -1,21 +1,21 @@
 {
-  "class": "CanTp",
-  "channels": [
+  "Class": "CanTp",
+  "Channels": [
     {
-      "name": "P2P"
+      "Name": "P2P"
     },
     {
-      "name": "P2A",
+      "Name": "P2A",
       "ComType": "FUNCTIONAL"
     },
     {
-      "name": "P2A_FW",
+      "Name": "P2A_FW",
       "ComType": "FUNCTIONAL"
     }
   ],
-  "backup-channels": [
+  "BackupChannels": [
     {
-      "name": "FW_CAN0_SECOC_MSG0"
+      "Name": "FW_CAN0_SECOC_MSG0"
     }
   ]
 }

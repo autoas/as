@@ -17,7 +17,7 @@ typedef void (*EcuM_DriverMainFncType)(void);
 /* @ECUC_EcuM_00110 */
 typedef struct {
   EcuM_DriverInitFncType InitFnc;
-  const void *config;
+  const void *Config;
 } EcuM_DriverInitItemType;
 
 typedef struct {
@@ -27,19 +27,19 @@ typedef struct {
   const EcuM_DriverMainFncType *DriverMainList;
   const EcuM_DriverMainFncType *DriverMemMainList;
   const EcuM_DriverMainFncType *DriverMainFastList;
-  uint16_t numOfZero;
-  uint16_t numOfOne;
-  uint16_t numOfTwo;
-  uint16_t numOfMain;
-  uint16_t numOfMainMem;
-  uint16_t numOfMainFast;
+  uint16_t NumOfZero;
+  uint16_t NumOfOne;
+  uint16_t NumOfTwo;
+  uint16_t NumOfMain;
+  uint16_t NumOfMainMem;
+  uint16_t NumOfMainFast;
   uint16_t TMinWakup; /* the minimum time to be kept in wake up state */
 } EcuM_ConfigType;
 
 typedef struct {
-  EcuM_StateType state;
-  boolean bRequestRun;
-  boolean bRequestPostRun;
+  EcuM_StateType State;
+  boolean RequestRun;
+  boolean RequestPostRun;
   uint16_t Twakeup; /* Timer to hold EcuM in wakeup */
 } EcuM_ContextType;
 /* ================================ [ DECLARES  ] ============================================== */

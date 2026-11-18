@@ -27,7 +27,7 @@
 
 #define CH341_LOAD(sym)                                                                            \
   if (0 == r) {                                                                                    \
-    *(void **)&CH341_SPI_Interface.CH341##sym = PAL_DlSym(CH341_SPI_Interface.dll, "CH341" #sym); \
+    *(void **)&CH341_SPI_Interface.CH341##sym = PAL_DlSym(CH341_SPI_Interface.dll, "CH341" #sym);  \
     if (NULL == CH341_SPI_Interface.CH341##sym) {                                                  \
       r = -__LINE__;                                                                               \
       ASLOG(ERROR, ("Can't find symbold " #sym "\n"));                                             \
@@ -48,7 +48,7 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  int port;
+  int Port;
   int cs;
   uint8_t buffer[CH341_SPI_MAX_SIZE];
 } Dev_CH341SPIParamType;
@@ -62,19 +62,19 @@ typedef struct {
   BOOL (*CH341Set_D5_D0)(ULONG, ULONG, ULONG);
 } CH341_SPI_InterfaceType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int dev_ch341_spi_open(const char *device, const char *option, void **param);
-static int dev_ch341_spi_read(void *param, uint8_t *data, size_t size);
-static int dev_ch341_spi_write(void *param, const uint8_t *data, size_t size);
-static void dev_ch341_spi_close(void *param);
-static int dev_ch341_spi_ioctl(void *param, int type, const void *data, size_t size);
+static int Dev_Ch341SpiOpen(const char *device, const char *option, void **param);
+static int Dev_Ch341SpiRead(void *param, uint8_t *data, size_t size);
+static int Dev_Ch341SpiWrite(void *param, const uint8_t *data, size_t size);
+static void Dev_Ch341SpiClose(void *param);
+static int Dev_Ch341SpiIoCtl(void *param, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Dev_DeviceOpsType ch341_spi_dev_ops = {
-  .name = "CH341_SPI/",
-  .open = dev_ch341_spi_open,
-  .read = dev_ch341_spi_read,
-  .write = dev_ch341_spi_write,
-  .ioctl = dev_ch341_spi_ioctl,
-  .close = dev_ch341_spi_close,
+extern "C" const Dev_DeviceOpsType Dev_Ch341SpiOps = {
+  .Name = "CH341_SPI/",
+  .Open = Dev_Ch341SpiOpen,
+  .Read = Dev_Ch341SpiRead,
+  .Write = Dev_Ch341SpiWrite,
+  .IoCtl = Dev_Ch341SpiIoCtl,
+  .Close = Dev_Ch341SpiClose,
 };
 
 static CH341_SPI_InterfaceType CH341_SPI_Interface = {
@@ -104,7 +104,7 @@ static int openDriver(void) {
   return r;
 }
 
-static int dev_ch341_spi_open(const char *device, const char *option, void **param) {
+static int Dev_Ch341SpiOpen(const char *device, const char *option, void **param) {
   int baudrate, port = 0, cs = 0, bitOrder = 1;
   int r = 0;
   int len = strlen(device);
@@ -148,7 +148,7 @@ static int dev_ch341_spi_open(const char *device, const char *option, void **par
            device));
   }
 
-  /* option format "baudrate", e.g. "544000" */
+  /* option format "Baudrate", e.g. "544000" */
   baudrate = atoi(option);
 
   switch (baudrate) {
@@ -206,7 +206,7 @@ static int dev_ch341_spi_open(const char *device, const char *option, void **par
   if (0 == r) {
     *param = malloc(sizeof(Dev_CH341SPIParamType));
     memset(*param, 0, sizeof(Dev_CH341SPIParamType));
-    PPARAM(*param)->port = port;
+    PPARAM(*param)->Port = port;
     PPARAM(*param)->cs = cs;
     ASLOG(INFO, ("ch341_spi open(%d, baudrate=%d, cs=%d, %sSB) OK\n", port, baudrate, cs,
                  bitOrder ? "M" : "L"));
@@ -219,107 +219,107 @@ static int dev_ch341_spi_open(const char *device, const char *option, void **par
   return r;
 }
 
-static int dev_ch341_spi_read(void *param, uint8_t *data, size_t size) {
+static int Dev_Ch341SpiRead(void *param, uint8_t *data, size_t size) {
   int len = -1;
   BOOL ret;
   Dev_CH341SPIParamType *dev = PPARAM(param);
 
   if (size <= CH341_SPI_MAX_SIZE) {
     memset(dev->buffer, 0xFF, size);
-    ret = CH341_CALL(StreamSPI4)((ULONG)dev->port, 0x80 | dev->cs, (ULONG)size, dev->buffer);
+    ret = CH341_CALL(StreamSPI4)((ULONG)dev->Port, 0x80 | dev->cs, (ULONG)size, dev->buffer);
     if (TRUE == ret) {
       memcpy(data, dev->buffer, size);
       len = (int)size;
     } else {
-      ASLOG(ERROR, ("CH341 port %d read failed\n", dev->port));
+      ASLOG(ERROR, ("CH341 port %d read failed\n", dev->Port));
     }
   } else {
-    ASLOG(ERROR, ("CH341 port %d read failed as buffer too small\n", dev->port));
+    ASLOG(ERROR, ("CH341 port %d read failed as buffer too small\n", dev->Port));
   }
 
   return len;
 }
 
-static int dev_ch341_spi_write(void *param, const uint8_t *data, size_t size) {
+static int Dev_Ch341SpiWrite(void *param, const uint8_t *data, size_t size) {
   int len = -1;
   BOOL ret;
   Dev_CH341SPIParamType *dev = PPARAM(param);
 
   if (size <= CH341_SPI_MAX_SIZE) {
     memcpy(dev->buffer, data, size);
-    ret = CH341_CALL(StreamSPI4)((ULONG)dev->port, 0x80 | dev->cs, (ULONG)size, dev->buffer);
+    ret = CH341_CALL(StreamSPI4)((ULONG)dev->Port, 0x80 | dev->cs, (ULONG)size, dev->buffer);
     if (TRUE == ret) {
       len = (int)size;
     } else {
-      ASLOG(ERROR, ("CH341 port %d write failed\n", dev->port));
+      ASLOG(ERROR, ("CH341 port %d write failed\n", dev->Port));
     }
   } else {
-    ASLOG(ERROR, ("CH341 port %d write failed as buffer too small\n", dev->port));
+    ASLOG(ERROR, ("CH341 port %d write failed as buffer too small\n", dev->Port));
   }
 
   return len;
 }
 
-static void dev_ch341_spi_close(void *param) {
-  CH341_CALL(CloseDevice)((ULONG)PPARAM(param)->port);
+static void Dev_Ch341SpiClose(void *param) {
+  CH341_CALL(CloseDevice)((ULONG)PPARAM(param)->Port);
   free(param);
 }
 
-static int dev_ch341_spi_transfer(Dev_CH341SPIParamType *dev, dev_spi_msg_t *msgs, uint32_t num) {
+static int dev_ch341_spi_transfer(Dev_CH341SPIParamType *dev, Dev_SpiMsgType *msgs, uint32_t num) {
   int r = 0;
   BOOL ret;
   uint32_t i;
-  dev_spi_msg_t *msg;
+  Dev_SpiMsgType *msg;
 #ifdef CH341_SPI_CS_BY_PIN
-  ret = CH341_CALL(Set_D5_D0)((ULONG)dev->port, 0xFF, (~(1 << dev->cs)) & 0xFF);
+  ret = CH341_CALL(Set_D5_D0)((ULONG)dev->Port, 0xFF, (~(1 << dev->cs)) & 0xFF);
   if (TRUE != ret) {
-    ASLOG(ERROR, ("Can't do chip select %d for CH341 port %d\n", dev->cs, dev->port));
+    ASLOG(ERROR, ("Can't do chip select %d for CH341 port %d\n", dev->cs, dev->Port));
     r = -1;
   }
 #endif
   for (i = 0; (i < num) && (0 == r); i++) {
     msg = &msgs[i];
-    if (msg->src) {
-      if (msg->len <= CH341_SPI_MAX_SIZE) {
-        memcpy(dev->buffer, msg->src, msg->len);
-        ret = CH341_CALL(StreamSPI4)((ULONG)dev->port, CH341_SPI_CS, (ULONG)msg->len, dev->buffer);
+    if (msg->Src) {
+      if (msg->Len <= CH341_SPI_MAX_SIZE) {
+        memcpy(dev->buffer, msg->Src, msg->Len);
+        ret = CH341_CALL(StreamSPI4)((ULONG)dev->Port, CH341_SPI_CS, (ULONG)msg->Len, dev->buffer);
         if (TRUE == ret) {
-          if (msg->dst) {
-            memcpy(msg->dst, dev->buffer, msg->len);
+          if (msg->Dst) {
+            memcpy(msg->Dst, dev->buffer, msg->Len);
           }
         } else {
-          ASLOG(ERROR, ("CH341 port %d transfer with source failed\n", dev->port));
+          ASLOG(ERROR, ("CH341 port %d transfer with source failed\n", dev->Port));
           r = -1;
         }
       } else {
         r = -1;
-        ASLOG(ERROR, ("CH341 port %d transfer failed as buffer too small\n", dev->port));
+        ASLOG(ERROR, ("CH341 port %d transfer failed as buffer too small\n", dev->Port));
       }
     } else {
-      if (msg->len <= CH341_SPI_MAX_SIZE) {
-        memset(dev->buffer, 0xFF, msg->len);
-        ret = CH341_CALL(StreamSPI4)((ULONG)dev->port, CH341_SPI_CS, (ULONG)msg->len, dev->buffer);
+      if (msg->Len <= CH341_SPI_MAX_SIZE) {
+        memset(dev->buffer, 0xFF, msg->Len);
+        ret = CH341_CALL(StreamSPI4)((ULONG)dev->Port, CH341_SPI_CS, (ULONG)msg->Len, dev->buffer);
         if (TRUE != ret) {
-          ASLOG(ERROR, ("CH341 port %d transfer without source failed\n", dev->port));
+          ASLOG(ERROR, ("CH341 port %d transfer without source failed\n", dev->Port));
           r = -1;
         } else {
-          memcpy(msg->dst, dev->buffer, msg->len);
+          memcpy(msg->Dst, dev->buffer, msg->Len);
         }
       } else {
         r = -1;
-        ASLOG(ERROR, ("CH341 port %d transfer failed as buffer too small\n", dev->port));
+        ASLOG(ERROR, ("CH341 port %d transfer failed as buffer too small\n", dev->Port));
       }
     }
   }
 
 #ifdef CH341_SPI_CS_BY_PIN
-  CH341_CALL(Set_D5_D0)((ULONG)dev->port, 0xFF, 0xFF);
+  CH341_CALL(Set_D5_D0)((ULONG)dev->Port, 0xFF, 0xFF);
 #endif
 
   return r;
 }
 
-static int dev_ch341_spi_ioctl(void *param, int type, const void *data, size_t size) {
+static int Dev_Ch341SpiIoCtl(void *param, int type, const void *data, size_t size) {
   int r = -__LINE__;
   uint32_t num;
 
@@ -328,9 +328,9 @@ static int dev_ch341_spi_ioctl(void *param, int type, const void *data, size_t s
     r = 0;
     break;
   case DEV_IOCTL_TRANSFER:
-    num = size / sizeof(dev_spi_msg_t);
-    if ((data != NULL) && (size == (num * sizeof(dev_spi_msg_t)))) {
-      r = dev_ch341_spi_transfer(PPARAM(param), (dev_spi_msg_t *)data, num);
+    num = size / sizeof(Dev_SpiMsgType);
+    if ((data != NULL) && (size == (num * sizeof(Dev_SpiMsgType)))) {
+      r = dev_ch341_spi_transfer(PPARAM(param), (Dev_SpiMsgType *)data, num);
     } else {
       r = -__LINE__;
     }

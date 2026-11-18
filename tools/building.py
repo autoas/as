@@ -467,7 +467,11 @@ def Package(url, **parameters):
         flag = pkg + "/.installed"
         if not os.path.isfile(flag):
             print("please install with the default")
-            RunCommand("cd %s && %s" % (download, pkgBaseName))
+            # NSIS installer: install silently with the default directory
+            if IsPlatformWindows():
+                RunCommand("cd %s && %s /S" % (download, pkgBaseName))
+            else:
+                RunCommand("cd %s && %s" % (download, pkgBaseName))
             MKDir(pkg)
             MKFile(flag, url)
     else:
@@ -1167,6 +1171,8 @@ def CompilerArm64GCC(**kwargs):
     env["AS"] = "%s/bin/aarch64-elf-gcc -c" % (cpl)
     env["LINK"] = "%s/bin/aarch64-elf-ld" % (cpl)
     env["S19"] = "%s/bin/aarch64-elf-objcopy -O srec --srec-forceS3 --srec-len 32 {0} {1}" % (cpl)
+    # newer newlib no longer ships the default syscall stubs (_getpid, _kill, ...)
+    env.Append(LIBS=["nosys"])
     env.Append(CPPFLAGS=["-ffunction-sections", "-fdata-sections"])
     env.Append(LINKFLAGS=["--gc-sections"])
     return env
@@ -1301,6 +1307,8 @@ def CompilerCM0PGCC(**kwargs):
     env["LINK"] = env["LINK"][:-2] + "gcc"
     env["LINKFLAGS"].remove("--gc-sections")
     env.Append(LINKFLAGS=["-Wl,--gc-sections"])
+    # newer newlib no longer ships the default syscall stubs (_getpid, _kill, ...)
+    env.Append(LINKFLAGS=["-specs=nosys.specs"])
     return env
 
 
@@ -1313,6 +1321,8 @@ def CompilerCM3GCC(**kwargs):
     env["LINK"] = env["LINK"][:-2] + "gcc"
     env["LINKFLAGS"].remove("--gc-sections")
     env.Append(LINKFLAGS=["-Wl,--gc-sections"])
+    # newer newlib no longer ships the default syscall stubs (_getpid, _kill, ...)
+    env.Append(LINKFLAGS=["-specs=nosys.specs"])
     return env
 
 
@@ -2210,7 +2220,7 @@ class Library(BuildBase):
         env = self.ensure_env()
         CPPPATH = getattr(self, "CPPPATH", [])
         CPPDEFINES = getattr(self, "CPPDEFINES", []) + list(env.get("CPPDEFINES", []))
-        CFLAGS = list(env.get("CFLAGS", []))
+        CFLAGS = getattr(self, "CFLAGS", []) + list(env.get("CFLAGS", []))
         ASFLAGS = list(env.get("ASFLAGS", []))
         CPPFLAGS = getattr(self, "CPPFLAGS", []) + list(env.get("CPPFLAGS", []))
         CXXFLAGS = getattr(self, "CXXFLAGS", []) + list(env.get("CXXFLAGS", []))
@@ -2292,11 +2302,17 @@ class Library(BuildBase):
         objs += self.objs()
         if self.is_shared_library():
             LINKFLAGS = getattr(self, "LINKFLAGS", []) + list(env.get("LINKFLAGS", []))
+            if not IsBuildForWindows():
+                LINKFLAGS = LINKFLAGS + ["-Wl,-soname,lib%s.so" % libName]
             objs2 = []
             for obj in objs:
                 if type(obj) is SCons.Node.FS.File:
                     if obj.rstr().endswith(".a"):
                         name = os.path.basename(obj.rstr())[3:-2]
+                        LIBPATH.append(os.path.dirname(obj.rstr()))
+                        LIBS.append(name)
+                    elif obj.rstr().endswith(".so"):
+                        name = os.path.basename(obj.rstr())[3:-3]
                         LIBPATH.append(os.path.dirname(obj.rstr()))
                         LIBS.append(name)
                     else:
@@ -2307,6 +2323,10 @@ class Library(BuildBase):
                     LIBS.append(name)
                 elif str(obj).endswith(".dll"):
                     name = os.path.basename(obj)[:-4]
+                    LIBPATH.append(os.path.dirname(obj))
+                    LIBS.append(name)
+                elif str(obj).endswith(".so"):
+                    name = os.path.basename(obj)[3:-3]
                     LIBPATH.append(os.path.dirname(obj))
                     LIBS.append(name)
                 else:
@@ -2396,6 +2416,12 @@ class Application(BuildBase):
                     LIBS.append(libName)
                 elif str(obj).endswith(".dll"):
                     libName = os.path.basename(str(obj))[:-4]
+                    p = os.path.dirname(str(obj))
+                    if p not in LIBPATH:
+                        LIBPATH.append(p)
+                    LIBS.append(libName)
+                elif str(obj).endswith(".so"):
+                    libName = os.path.basename(str(obj))[3:-3]
                     p = os.path.dirname(str(obj))
                     if p not in LIBPATH:
                         LIBPATH.append(p)
@@ -2567,6 +2593,9 @@ class Qemu:
         return qemu
 
     def Run(self, params):
+        if os.getenv("SSAS_SKIP_RUN", "NO") == "YES":
+            print("skip qemu run (SSAS_SKIP_RUN)")
+            return
         cmd = "%s %s %s" % (self.qemu, params, self.params)
         print(cmd)
         RunCommand(cmd)

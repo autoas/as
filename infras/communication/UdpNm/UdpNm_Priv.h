@@ -4,8 +4,8 @@
  *
  * ref: Specification of UDP Network Management AUTOSAR CP Release 4.4.0
  */
-#ifndef _CAN_NM_PRIV_H
-#define _CAN_NM_PRIV_H
+#ifndef UDPNM_PRIV_H
+#define UDPNM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
@@ -35,7 +35,7 @@ typedef struct {
 #endif
   PduIdType TxPdu; /* @ECUC_UdpNm_00036 */
   uint8_t NodeId;  /* @SWS_UdpNm_00013 */
-  NetworkHandleType nmNetworkHandle;
+  NetworkHandleType NmNetworkHandle;
   uint8_t ImmediateNmTransmissions;     /* @ECUC_UdpNm_00075 */
   UdpNm_PduPositionType PduCbvPosition; /* @ECUC_UdpNm_00026 */
   UdpNm_PduPositionType PduNidPosition; /* @ECUC_UdpNm_00025 */
@@ -60,31 +60,31 @@ typedef uint16_t UdpNm_TimerType;
 
 typedef struct {
   struct {
-    UdpNm_TimerType _Tx;
-    UdpNm_TimerType _TxTimeout;
-    UdpNm_TimerType _NMTimeout;
+    UdpNm_TimerType Tx;
+    UdpNm_TimerType TxTimeout;
+    UdpNm_TimerType NmTimeout;
     union {
-      UdpNm_TimerType _RepeatMessage;
-      UdpNm_TimerType _WaitBusSleep;
+      UdpNm_TimerType RepeatMessage;
+      UdpNm_TimerType WaitBusSleep;
     };
 #ifdef UDPNM_REMOTE_SLEEP_IND_ENABLED
-    UdpNm_TimerType _RemoteSleepInd;
+    UdpNm_TimerType RemoteSleepInd;
 #endif
   } Alarm;
-  uint16_t flags;
-  Nm_StateType state;
+  uint16_t Flags;
+  Nm_StateType State;
   uint8_t TxCounter;
-  uint8_t data[UDPNM_PDU_LENGTH];
-  uint8_t rxPdu[UDPNM_PDU_LENGTH];
+  uint8_t Data[UDPNM_PDU_LENGTH];
+  uint8_t RxPdu[UDPNM_PDU_LENGTH];
 } UdpNm_ChannelContextType;
 
 struct UdpNm_Config_s {
   const UdpNm_ChannelConfigType *ChannelConfigs;
   UdpNm_ChannelContextType *ChannelContexts;
-  uint8_t numOfChannels;
+  uint8_t NumOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _CAN_NM_PRIV_H */
+#endif /* UDPNM_PRIV_H */

@@ -56,18 +56,18 @@ Std_ReturnType Xcp_DspProgramStart(Xcp_MsgContextType *msgContext,
   P2CONST(Xcp_ProgramStartConfigType, AUTOMATIC, XCP_CONST)
   serCfg = (P2CONST(Xcp_ProgramStartConfigType, AUTOMATIC, XCP_CONST))Xcp_GetCurServiceConfig();
 
-  ret = serCfg->GetProgramStartPermissionFnc(msgContext->opStatus, nrc);
+  ret = serCfg->GetProgramStartPermissionFnc(msgContext->OpStatus, nrc);
 
   if (E_OK == ret) {
-    msgContext->resData[0] = 0; /* Reserved */
+    msgContext->ResData[0] = 0; /* Reserved */
     /* no special communication mode supported during programming */
-    msgContext->resData[1] = 0;                    /* COMM_MODE_PGM */
-    msgContext->resData[2] = XCP_PATCKET_MAX_SIZE; /* MAX_CTO_PGM */
-    msgContext->resData[3] = serCfg->maxBs;        /* MAX_BS_PGM */
-    msgContext->resData[4] = serCfg->STmin;        /* MIN_ST_PGM */
-    msgContext->resData[5] = serCfg->queSz;        /* QUEUE_SIZE */
-    msgContext->resDataLen = 6;
-    context->pgmFlags |= XCP_PGM_FLAG_STARTED;
+    msgContext->ResData[1] = 0;                    /* COMM_MODE_PGM */
+    msgContext->ResData[2] = XCP_PATCKET_MAX_SIZE; /* MAX_CTO_PGM */
+    msgContext->ResData[3] = serCfg->MaxBs;        /* MAX_BS_PGM */
+    msgContext->ResData[4] = serCfg->STmin;        /* MIN_ST_PGM */
+    msgContext->ResData[5] = serCfg->QueSz;        /* QUEUE_SIZE */
+    msgContext->ResDataLen = 6;
+    context->PgmFlags |= XCP_PGM_FLAG_STARTED;
   }
 
   return ret;
@@ -78,27 +78,27 @@ Std_ReturnType Xcp_DspProgramClear(Xcp_MsgContextType *msgContext,
                                    Xcp_NegativeResponseCodeType *nrc) {
   Std_ReturnType ret = E_OK;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_MtaContextType *mtaCtx = (Xcp_MtaContextType *)context->cache;
+  Xcp_MtaContextType *mtaCtx = (Xcp_MtaContextType *)context->Cache;
   uint8_t mode = 0;
   uint32_t range = 0;
 
-  if (msgContext->reqDataLen < 7) {
+  if (msgContext->ReqDataLen < 7) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
-  } else if (0 == (XCP_PGM_FLAG_STARTED & context->pgmFlags)) {
+  } else if (0 == (XCP_PGM_FLAG_STARTED & context->PgmFlags)) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
   } else {
-    mode = msgContext->reqData[0];
-    range = Xcp_GetU32(&msgContext->reqData[3]);
+    mode = msgContext->ReqData[0];
+    range = Xcp_GetU32(&msgContext->ReqData[3]);
     if (XCP_PGM_FUNCTIONAL_ACCESS_MODE == mode) {
       ret = Xcp_FunctionalProgramClear(range, nrc);
     } else if (XCP_PGM_ABSOLUTE_ACCESS_MODE == mode) {
-      if (XCP_PID_CMD_STD_SET_MTA != context->cacheOwner) {
+      if (XCP_PID_CMD_STD_SET_MTA != context->CacheOwner) {
         ret = E_NOT_OK;
         *nrc = XCP_E_SEQUENCE;
       } else {
-        ret = Xcp_AbsoluteProgramClear(mtaCtx->extension, mtaCtx->address, range, nrc);
+        ret = Xcp_AbsoluteProgramClear(mtaCtx->Extension, mtaCtx->Address, range, nrc);
       }
     } else {
       ret = E_NOT_OK;
@@ -112,37 +112,37 @@ Std_ReturnType Xcp_DspProgramClear(Xcp_MsgContextType *msgContext,
 Std_ReturnType Xcp_DspProgram(Xcp_MsgContextType *msgContext, Xcp_NegativeResponseCodeType *nrc) {
   Std_ReturnType ret = E_OK;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_ProgramContextType *pgmCtx = (Xcp_ProgramContextType *)context->cache;
+  Xcp_ProgramContextType *pgmCtx = (Xcp_ProgramContextType *)context->Cache;
   uint8_t length = 0;
 
-  if (msgContext->reqDataLen < 2) {
+  if (msgContext->ReqDataLen < 2) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
-  } else if (0 == (XCP_PGM_FLAG_STARTED & context->pgmFlags)) {
+  } else if (0 == (XCP_PGM_FLAG_STARTED & context->PgmFlags)) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
-  } else if (XCP_PID_CMD_STD_SET_MTA != context->cacheOwner) {
+  } else if (XCP_PID_CMD_STD_SET_MTA != context->CacheOwner) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
   } else {
-    length = msgContext->reqData[0];
-    if (XCP_INITIAL == msgContext->opStatus) {
-      pgmCtx->length = length;
-      pgmCtx->offset = 0;
-      context->cacheOwner = XCP_PID_CMD_PGM_PROGRAM;
+    length = msgContext->ReqData[0];
+    if (XCP_INITIAL == msgContext->OpStatus) {
+      pgmCtx->Length = length;
+      pgmCtx->Offset = 0;
+      context->CacheOwner = XCP_PID_CMD_PGM_PROGRAM;
     }
-    if (length > (msgContext->reqDataLen - 1)) {
-      length = msgContext->reqDataLen - 1;
+    if (length > (msgContext->ReqDataLen - 1)) {
+      length = msgContext->ReqDataLen - 1;
     }
-    ret = Xcp_MtaWrite(pgmCtx->extension, pgmCtx->address, &msgContext->reqData[1], length, nrc);
+    ret = Xcp_MtaWrite(pgmCtx->Extension, pgmCtx->Address, &msgContext->ReqData[1], length, nrc);
     if (E_OK == ret) {
-      pgmCtx->offset += length;
-      if (pgmCtx->offset >= pgmCtx->length) {
+      pgmCtx->Offset += length;
+      if (pgmCtx->Offset >= pgmCtx->Length) {
         ret = E_OK;
       } else {
         ret = XCP_E_OK_NO_RES; /* Also OK but expecting Program Next */
       }
-      msgContext->resDataLen = 0;
+      msgContext->ResDataLen = 0;
     }
   }
 
@@ -153,32 +153,32 @@ Std_ReturnType Xcp_DspProgramNext(Xcp_MsgContextType *msgContext,
                                   Xcp_NegativeResponseCodeType *nrc) {
   Std_ReturnType ret = E_OK;
   Xcp_ContextType *context = Xcp_GetContext();
-  Xcp_ProgramContextType *pgmCtx = (Xcp_ProgramContextType *)context->cache;
+  Xcp_ProgramContextType *pgmCtx = (Xcp_ProgramContextType *)context->Cache;
   uint8_t length = 0;
 
-  if (msgContext->reqDataLen < 2) {
+  if (msgContext->ReqDataLen < 2) {
     ret = E_NOT_OK;
     *nrc = XCP_E_CMD_SYNTAX;
-  } else if (0 == (XCP_PGM_FLAG_STARTED & context->pgmFlags)) {
+  } else if (0 == (XCP_PGM_FLAG_STARTED & context->PgmFlags)) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
-  } else if (XCP_PID_CMD_PGM_PROGRAM != context->cacheOwner) {
+  } else if (XCP_PID_CMD_PGM_PROGRAM != context->CacheOwner) {
     ret = E_NOT_OK;
     *nrc = XCP_E_SEQUENCE;
   } else {
-    length = msgContext->reqData[0];
-    if (length == (msgContext->reqDataLen - 1)) {
-      if (length <= (pgmCtx->length - pgmCtx->offset)) {
-        ret = Xcp_MtaWrite(pgmCtx->extension, pgmCtx->address + pgmCtx->offset,
-                           &msgContext->reqData[1], length, nrc);
+    length = msgContext->ReqData[0];
+    if (length == (msgContext->ReqDataLen - 1)) {
+      if (length <= (pgmCtx->Length - pgmCtx->Offset)) {
+        ret = Xcp_MtaWrite(pgmCtx->Extension, pgmCtx->Address + pgmCtx->Offset,
+                           &msgContext->ReqData[1], length, nrc);
         if (E_OK == ret) {
-          pgmCtx->offset += length;
-          if (pgmCtx->offset >= pgmCtx->length) {
+          pgmCtx->Offset += length;
+          if (pgmCtx->Offset >= pgmCtx->Length) {
             ret = E_OK;
           } else {
             ret = XCP_E_OK_NO_RES; /* Also OK but expecting Program Next */
           }
-          msgContext->resDataLen = 0;
+          msgContext->ResDataLen = 0;
         }
       } else {
         /* given too much data */
@@ -202,13 +202,13 @@ Std_ReturnType Xcp_DspProgramReset(Xcp_MsgContextType *msgContext,
   P2CONST(Xcp_ProgramResetConfigType, AUTOMATIC, XCP_CONST)
   serCfg = (P2CONST(Xcp_ProgramResetConfigType, AUTOMATIC, XCP_CONST))Xcp_GetCurServiceConfig();
 
-  ret = serCfg->GetProgramResetPermissionFnc(msgContext->opStatus, nrc);
+  ret = serCfg->GetProgramResetPermissionFnc(msgContext->OpStatus, nrc);
 
   if (E_OK == ret) {
 #ifdef XCP_USE_SERVICE_PGM_PROGRAM_START
-    context->pgmFlags = 0;
+    context->PgmFlags = 0;
 #endif
-    context->timer2Reset = serCfg->delay;
+    context->Timer2Reset = serCfg->Delay;
   }
 
   return ret;

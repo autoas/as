@@ -13,43 +13,43 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int enter_extend_session(loader_t *loader) {
+int Loader_EnterExtendSession(Loader_Type *loader) {
   static const uint8_t data[] = {0x10, 0x03 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0x50, 0x03, -1, -1, -1, -1};
-  return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_BroadcastService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int control_dtc_setting_off(loader_t *loader) {
+int Loader_ControlDtcSettingOff(Loader_Type *loader) {
   static const uint8_t data[] = {0x85, 0x02 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0xC5, 0x02};
-  return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_BroadcastService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int control_dtc_setting_on(loader_t *loader) {
+int Loader_ControlDtcSettingOn(Loader_Type *loader) {
   static const uint8_t data[] = {0x85, 0x01 | SUPPRESS_POS_RESP_BIT};
   static const int expected[] = {0xC5, 0x01};
-  return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_BroadcastService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int communicaiton_disable(loader_t *loader) {
+int Loader_CommunicationDisable(Loader_Type *loader) {
   static const uint8_t data[] = {0x28, 0x03 | SUPPRESS_POS_RESP_BIT, 0x03};
   static const int expected[] = {0x68, 0x03};
-  return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_BroadcastService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int communicaiton_enable(loader_t *loader) {
+int Loader_CommunicationEnable(Loader_Type *loader) {
   static const uint8_t data[] = {0x28, 0x00 | SUPPRESS_POS_RESP_BIT, 0x03};
   static const int expected[] = {0x68, 0x00};
-  return uds_broadcast_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_BroadcastService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int enter_program_session(loader_t *loader) {
+int Loader_EnterProgramSession(Loader_Type *loader) {
   static const uint8_t data[] = {0x10, 0x02};
   static const int expected[] = {0x50, 0x02, -1, -1, -1, -1};
-  return uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_RequestService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int request_download(loader_t *loader, uint32_t address, size_t length) {
+int Loader_RequestDownload(Loader_Type *loader, uint32_t address, size_t length) {
   int r;
   uint8_t data[11];
   static const int expected[] = {0x74};
@@ -67,21 +67,21 @@ int request_download(loader_t *loader, uint32_t address, size_t length) {
   data[9] = (length >> 8) & 0xFF;
   data[10] = length & 0xFF;
 
-  r = uds_request_service(loader, data, 11, expected, ARRAY_SIZE(expected));
+  r = Loader_RequestService(loader, data, 11, expected, ARRAY_SIZE(expected));
 
   return r;
 }
 
-int transfer_data(loader_t *loader, uint32_t ability, uint8_t *data, size_t length) {
+int Loader_TransferData(Loader_Type *loader, uint32_t ability, uint8_t *data, size_t length) {
   int r = L_R_OK;
   uint8_t blockSequenceCounter = 1;
   size_t leftSize = length;
   size_t doSz;
   size_t curPos = 0;
   int expected[] = {0x76, 0};
-  uint8_t *request = loader_get_request(loader);
+  uint8_t *request = Loader_GetRequest(loader);
 
-  while ((leftSize > 0) && (L_R_OK == r) && (FALSE == loader_is_stopt(loader))) {
+  while ((leftSize > 0) && (L_R_OK == r) && (FALSE == Loader_IsStopped(loader))) {
     request[0] = 0x36;
     request[1] = blockSequenceCounter;
     expected[1] = blockSequenceCounter;
@@ -96,10 +96,10 @@ int transfer_data(loader_t *loader, uint32_t ability, uint8_t *data, size_t leng
 
     memcpy(&request[2], &data[curPos], doSz);
 
-    r = uds_request_service(loader, request, 2 + doSz, expected, ARRAY_SIZE(expected));
+    r = Loader_RequestService(loader, request, 2 + doSz, expected, ARRAY_SIZE(expected));
 
     if (L_R_OK == r) {
-      loader_add_progress(loader, doSz);
+      Loader_AddProgress(loader, doSz);
     }
 
     blockSequenceCounter = (blockSequenceCounter + 1) & 0xFF;
@@ -109,19 +109,19 @@ int transfer_data(loader_t *loader, uint32_t ability, uint8_t *data, size_t leng
   return r;
 }
 
-int transfer_exit(loader_t *loader) {
+int Loader_TransferExit(Loader_Type *loader) {
   static const uint8_t data[] = {0x37};
   static const int expected[] = {0x77};
-  return uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_RequestService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int download_one_section(loader_t *loader, sblk_t *blk) {
+int Loader_DownloadOneSection(Loader_Type *loader, Srec_BlockType *blk) {
   int r;
   uint32_t ability = LOADER_MSG_SIZE;
-  uint8_t *response = loader_get_response(loader);
+  uint8_t *response = Loader_GetResponse(loader);
   uint32_t lengthFormatIdentifier;
 
-  r = request_download(loader, blk->address, blk->length);
+  r = Loader_RequestDownload(loader, blk->Address, blk->Length);
 
   if (L_R_OK == r) {
     lengthFormatIdentifier = response[1] >> 4u;
@@ -131,7 +131,7 @@ int download_one_section(loader_t *loader, sblk_t *blk) {
     }
     if ((ability >= FL_MIN_ABILITY) && ((ability + 2) < LOADER_MSG_SIZE)) {
       LDLOG(DEBUG, "\n  ability %" PRIu32 "\n", ability);
-      r = transfer_data(loader, ability - 2, blk->data, blk->length);
+      r = Loader_TransferData(loader, ability - 2, blk->Data, blk->Length);
     } else {
       LDLOG(ERROR, "server ability error %" PRIu32, ability);
       r = L_R_NOK;
@@ -139,38 +139,38 @@ int download_one_section(loader_t *loader, sblk_t *blk) {
   }
 
   if (L_R_OK == r) {
-    r = transfer_exit(loader);
+    r = Loader_TransferExit(loader);
   }
 
   return r;
 }
 
-int download_application(loader_t *loader) {
+int Loader_DownloadApplication(Loader_Type *loader) {
   int r = L_R_OK;
   size_t i;
-  srec_t *appSRec = loader_get_app_srec(loader);
+  Srec_FileType *appSRec = Loader_GetAppSrec(loader);
   auto begin = std::chrono::high_resolution_clock::now();
-  for (i = 0; (L_R_OK == r) && (i < appSRec->numOfBlks); i++) {
-    r = download_one_section(loader, &appSRec->blks[i]);
+  for (i = 0; (L_R_OK == r) && (i < appSRec->NumOfBlks); i++) {
+    r = Loader_DownloadOneSection(loader, &appSRec->Blks[i]);
   }
   float cost = std::chrono::duration_cast<std::chrono::milliseconds>(
                  std::chrono::high_resolution_clock::now() - begin)
                  .count() /
                1000.f;
-  float speed = appSRec->totalSize / 1024.0 / cost;
+  float speed = appSRec->TotalSize / 1024.0 / cost;
   LDLOG(INFO, "\n\taverage speed %.2f kbps cost %.2f seconds\n", speed, cost);
   return r;
 }
 
-int download_flash_driver(loader_t *loader) {
+int Loader_DownloadFlashDriver(Loader_Type *loader) {
   int r = L_R_OK;
   size_t i;
-  srec_t *flsSRec = loader_get_flsdrv_srec(loader);
+  Srec_FileType *flsSRec = Loader_GetFlsDrvSrec(loader);
 
   if (NULL != flsSRec) {
     LDLOG(INFO, "download flash driver");
-    for (i = 0; (L_R_OK == r) && (i < flsSRec->numOfBlks); i++) {
-      r = download_one_section(loader, &flsSRec->blks[i]);
+    for (i = 0; (L_R_OK == r) && (i < flsSRec->NumOfBlks); i++) {
+      r = Loader_DownloadOneSection(loader, &flsSRec->Blks[i]);
     }
     if (L_R_OK == r) {
       LDLOG(INFO, " okay\n");
@@ -180,22 +180,22 @@ int download_flash_driver(loader_t *loader) {
   return r;
 }
 
-int ecu_reset(loader_t *loader) {
+int Loader_EcuReset(Loader_Type *loader) {
   static const uint8_t data[] = {0x11, 0x03};
   static const int expected[] = {0x51, 0x03};
-  return uds_request_service(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
+  return Loader_RequestService(loader, data, sizeof(data), expected, ARRAY_SIZE(expected));
 }
 
-int security_extds_access(loader_t *loader) {
+int Loader_SecurityExtdsAccess(Loader_Type *loader) {
   static const uint8_t data[] = {0x27, 0x01};
   uint8_t data2[6];
   static const int expected1[] = {0x67, 0x01, -1, -1, -1, -1};
   static const int expected2[] = {0x67, 0x02};
   uint32_t seed, key;
   int r;
-  uint8_t *response = loader_get_response(loader);
+  uint8_t *response = Loader_GetResponse(loader);
 
-  r = uds_request_service(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
+  r = Loader_RequestService(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
   if (L_R_OK == r) {
     seed = ((uint32_t)response[2] << 24) + ((uint32_t)response[3] << 16) +
            ((uint32_t)response[4] << 8) + response[5];
@@ -207,22 +207,22 @@ int security_extds_access(loader_t *loader) {
     data2[3] = (key >> 16) & 0xFF;
     data2[4] = (key >> 8) & 0xFF;
     data2[5] = key & 0xFF;
-    r = uds_request_service(loader, data2, 6, expected2, ARRAY_SIZE(expected2));
+    r = Loader_RequestService(loader, data2, 6, expected2, ARRAY_SIZE(expected2));
   }
 
   return r;
 }
 
-int security_prgs_access(loader_t *loader) {
+int Loader_SecurityPrgsAccess(Loader_Type *loader) {
   static const uint8_t data[] = {0x27, 0x03};
   uint8_t data2[6];
   static const int expected1[] = {0x67, 0x03, -1, -1, -1, -1};
   static const int expected2[] = {0x67, 0x04};
   uint32_t seed, key;
   int r;
-  uint8_t *response = loader_get_response(loader);
+  uint8_t *response = Loader_GetResponse(loader);
 
-  r = uds_request_service(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
+  r = Loader_RequestService(loader, data, sizeof(data), expected1, ARRAY_SIZE(expected1));
   if (L_R_OK == r) {
     seed = ((uint32_t)response[2] << 24) + ((uint32_t)response[3] << 16) +
            ((uint32_t)response[4] << 8) + response[5];
@@ -234,7 +234,7 @@ int security_prgs_access(loader_t *loader) {
     data2[3] = (key >> 16) & 0xFF;
     data2[4] = (key >> 8) & 0xFF;
     data2[5] = key & 0xFF;
-    r = uds_request_service(loader, data2, 6, expected2, ARRAY_SIZE(expected2));
+    r = Loader_RequestService(loader, data2, 6, expected2, ARRAY_SIZE(expected2));
   }
 
   return r;

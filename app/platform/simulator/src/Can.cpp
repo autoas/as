@@ -145,7 +145,7 @@ Std_ReturnType CanAc_WritePin(const Can_CtrlPinType *pin, uint8_t value) {
 Std_ReturnType CanAc_Init(uint8_t Controller, const Can_ChannelConfigType *config) {
   Std_ReturnType ret = E_NOT_OK;
   if (0 == (lOpenFlag & ((uint64_t)1 << Controller))) {
-    lBusIdMap[Controller] = can_open(config->device, config->hwInstanceId, config->baudrate);
+    lBusIdMap[Controller] = CanL_Open(config->device, config->hwInstanceId, config->baudrate);
     if (lBusIdMap[Controller] >= 0) {
       ret = E_OK;
       lOpenFlag |= ((uint64_t)1 << Controller);
@@ -167,7 +167,7 @@ Std_ReturnType CanAc_DeInit(uint8_t Controller, const Can_ChannelConfigType *con
   Std_ReturnType ret = E_NOT_OK;
   int rv;
   if (0 != (lOpenFlag & ((uint64_t)1 << Controller))) {
-    rv = can_close(lBusIdMap[Controller]);
+    rv = CanL_Close(lBusIdMap[Controller]);
     if (TRUE == rv) {
       ret = E_OK;
       lOpenFlag &= ~((uint64_t)1 << Controller);
@@ -198,7 +198,7 @@ Std_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo) {
     if (0 == (lWriteFlag & ((uint64_t)1 << Hth))) {
       lWriteFlag |= ((uint64_t)1 << Hth);
       InterLeaveCritical();
-      r = can_write(lBusIdMap[Hth], PduInfo->id, PduInfo->length, PduInfo->sdu);
+      r = CanL_Write(lBusIdMap[Hth], PduInfo->id, PduInfo->length, PduInfo->sdu);
       InterEnterCritical();
       if (TRUE == r) {
         logCan(FALSE, Hth, PduInfo->id, PduInfo->length, PduInfo->sdu);
@@ -238,7 +238,7 @@ void Can_MainFunction_WriteChannel(uint8_t Channel) {
     auto ret = pop_from_queue(Channel, frame);
     if (ret) {
       InterLeaveCritical();
-      auto r = can_write(lBusIdMap[Channel], frame.canid, frame.dlc, frame.data);
+      auto r = CanL_Write(lBusIdMap[Channel], frame.canid, frame.dlc, frame.data);
       InterEnterCritical();
       if (TRUE == r) {
         logCan(FALSE, Channel, frame.canid, frame.dlc, frame.data);
@@ -277,7 +277,7 @@ extern "C" int Can_MainFunction_ReadChannelById(uint8_t Channel, uint32_t byId) 
       canid = byId;
       dlc = sizeof(data);
       InterLeaveCritical();
-      r = can_read(lBusIdMap[Channel], &canid, &dlc, data);
+      r = CanL_Read(lBusIdMap[Channel], &canid, &dlc, data);
       InterEnterCritical();
 #if defined(USE_STDIO_CAN) && defined(USE_SHELL)
       if ((TRUE == r) && (STDIO_RX_CANID == canid)) {
@@ -332,7 +332,7 @@ extern "C" boolean Can_WakeupCheck() { /* polling method to check wakeup CAN mes
       canid = -1;
       dlc = sizeof(data);
       InterLeaveCritical();
-      r = can_read(lBusIdMap[Channel], &canid, &dlc, data);
+      r = CanL_Read(lBusIdMap[Channel], &canid, &dlc, data);
       InterEnterCritical();
       if (TRUE == r) {
         bWakeup = TRUE;
@@ -362,7 +362,7 @@ extern "C" void Can_Wait(uint8_t Channel, uint32_t canid, uint32_t timeoutMs) {
   if (Channel < CAN_MAX_HOH) {
     if (lOpenFlag & ((uint64_t)1 << Channel)) {
       InterLeaveCritical();
-      (void)can_wait(lBusIdMap[Channel], canid, timeoutMs);
+      (void)CanL_Wait(lBusIdMap[Channel], canid, timeoutMs);
       InterEnterCritical();
     }
   }

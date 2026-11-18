@@ -14,9 +14,9 @@ class LibraryIsoTp(Library):
         self.CPPDEFINES = []
         self.include = "%s/include" % (CWD)
         if IsBuildForMSVC():
-            self.LIBS = ["StdTimer", "Simulator", "CanLib"]
+            self.LIBS = ["StdTimer", "Simulator", "CanL"]
         else:
-            self.LIBS = ["StdTimer", "Simulator", "CanLib", "LinLib", "DevLib", "DoIPClient"]
+            self.LIBS = ["StdTimer", "Simulator", "CanL", "LinL", "DevLib", "DoIPClient"]
             self.Append(CPPDEFINES=["USE_DOIP_CLIENT"])
         for libName, source in libsForIsoTp.items():
             if IsBuildForMSVC():

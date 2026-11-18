@@ -2,7 +2,7 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2022 Parai Wang <parai@foxmail->com>
  */
-/* ================================ { INCLUDES  ] ============================================== */
+/* ================================ [ INCLUDES  ] ============================================== */
 #include "signal.hpp"
 #include "Log.hpp"
 #include "Std_Bit.h"
@@ -12,7 +12,7 @@
 #include "Std_Timer.h"
 
 namespace as {
-/* ================================ { MACROS    ] ============================================== */
+/* ================================ [ MACROS    ] ============================================== */
 template <typename T> T get(json &obj, std::string key, T dft) {
   T r = dft;
   if (obj.contains(key)) {
@@ -20,22 +20,22 @@ template <typename T> T get(json &obj, std::string key, T dft) {
   }
   return r;
 };
-/* ================================ { TYPES     ] ============================================== */
-/* ================================ { DECLARES  ] ============================================== */
+/* ================================ [ TYPES     ] ============================================== */
+/* ================================ [ DECLARES  ] ============================================== */
 extern E2EExecutor *E2E_New(json &js, bool bProtect);
 extern void E2E_Free(E2EExecutor *e2e);
 extern bool E2E_Execute(E2EExecutor *e2e, uint8_t *data, uint16_t length);
 
-static int figure_create(lua_State *L);
-static int figure_add_point(lua_State *L);
-/* ================================ { DATAS     ] ============================================== */
+static int Figure_Create(lua_State *L);
+static int Figure_AddPoint(lua_State *L);
+/* ================================ [ DATAS     ] ============================================== */
 std::chrono::high_resolution_clock::time_point Signal::s_StartTimePoint =
   std::chrono::high_resolution_clock::now();
 
 std::mutex Network::s_Lock;
 std::map<std::string, Network *> Network::s_Networks;
 
-const luaL_Reg Network::s_LuaInferfaces[] = {
+const luaL_Reg Network::s_LuaInterfaces[] = {
   {"set", Network::Set},
   {"get", Network::Get},
   {"trigger", Network::Trigger},
@@ -43,8 +43,8 @@ const luaL_Reg Network::s_LuaInferfaces[] = {
 };
 
 static const luaL_Reg s_FigureInterfaces[] = {
-  {"create", figure_create},
-  {"add_point", figure_add_point},
+  {"create", Figure_Create},
+  {"add_point", Figure_AddPoint},
   {nullptr, nullptr},
 };
 
@@ -52,7 +52,7 @@ std::shared_ptr<AsLuaScript> Network::s_Script = nullptr;
 std::chrono::time_point<std::chrono::high_resolution_clock> Network::s_LuaTimer;
 std::string Network::s_LuaErrorMsg;
 uint32_t Network::s_LuaNextCycle;
-/* ================================ { LOCALS    ] ============================================== */
+/* ================================ [ LOCALS    ] ============================================== */
 std::vector<std::string> split(std::string s, char del) {
   std::vector<std::string> results;
   std::stringstream ss(s);
@@ -69,50 +69,50 @@ static int CreateFigureInterface(lua_State *L) {
   return 1;
 }
 
-static int figure_create(lua_State *L) {
+static int Figure_Create(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (1 == n) {
     figure::FigureConfig figCfg;
-    lua_arg_t arg;
-    auto r = aslua_parse(L, 1, arg);
-    if ((0 == r) && (LUA_ARG_TYPE_TABLE_STRING_MAP == arg.type)) {
-      if (false == arg.get("name", figCfg.name)) {
+    Lua_ArgType arg;
+    auto r = AsLua_Parse(L, 1, arg);
+    if ((0 == r) && (LUA_ARG_TYPE_TABLE_STRING_MAP == arg.Type)) {
+      if (false == arg.Get("Name", figCfg.Name)) {
         return luaL_error(L, "figure name not provided");
       }
-      arg.get("titleX", figCfg.titleX);
-      arg.get("titleY", figCfg.titleY);
-      arg.get("minX", figCfg.minX);
-      arg.get("maxX", figCfg.maxX);
-      arg.get("minY", figCfg.minY);
-      arg.get("maxY", figCfg.maxY);
-      std::vector<lua_arg_t> lineArgs;
-      if (false == arg.get("lines", lineArgs)) {
+      arg.Get("titleX", figCfg.TitleX);
+      arg.Get("titleY", figCfg.TitleY);
+      arg.Get("minX", figCfg.MinX);
+      arg.Get("maxX", figCfg.MaxX);
+      arg.Get("minY", figCfg.MinY);
+      arg.Get("maxY", figCfg.MaxY);
+      std::vector<Lua_ArgType> lineArgs;
+      if (false == arg.Get("lines", lineArgs)) {
         return luaL_error(L, "figure lines not provided");
       }
       for (auto &lineArg : lineArgs) {
         figure::LineConfig line;
-        if (false == lineArg.get("name", line.name)) {
-          return luaL_error(L, "line name not provided for figure %s", figCfg.name.c_str());
+        if (false == lineArg.Get("Name", line.Name)) {
+          return luaL_error(L, "line name not provided for figure %s", figCfg.Name.c_str());
         }
         std::string ltype = "line";
-        lineArg.get("type", ltype);
+        lineArg.Get("Type", ltype);
         if ("line" == ltype) {
-          line.type = figure::LineType::LINE;
+          line.Type = figure::LineType::LINE;
         } else if ("spline" == ltype) {
-          line.type = figure::LineType::SPLINE;
+          line.Type = figure::LineType::SPLINE;
         } else if ("scatter" == ltype) {
-          line.type = figure::LineType::SCATTER;
+          line.Type = figure::LineType::SCATTER;
         } else if ("dot" == ltype) {
-          line.type = figure::LineType::DOT;
+          line.Type = figure::LineType::DOT;
         } else {
           return luaL_error(L, "line type %s invalide for figure %s line %s", ltype.c_str(),
-                            figCfg.name.c_str(), line.name.c_str());
+                            figCfg.Name.c_str(), line.Name.c_str());
         }
-        figCfg.lines.push_back(line);
+        figCfg.Lines.push_back(line);
       }
 
-      auto topic = figure::config();
-      topic->put(figCfg);
+      auto topic = figure::Config();
+      topic->Put(figCfg);
     } else {
       return luaL_error(L, "figure with invalid arguments");
     }
@@ -122,7 +122,7 @@ static int figure_create(lua_State *L) {
   return 1;
 }
 
-static int figure_add_point(lua_State *L) {
+static int Figure_AddPoint(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (4 == n) {
     std::string figure = lua_tostring(L, 1);
@@ -147,34 +147,34 @@ static int figure_add_point(lua_State *L) {
       return luaL_error(L, "y not given");
     }
 
-    auto topic = figure::line(figure, line);
+    auto topic = figure::Line(figure, line);
     if (nullptr == topic) {
       return luaL_error(L, "%s %s not found", figure.c_str(), line.c_str());
     }
 
     figure::Point p = {x, y};
-    topic->put(p);
-    if (topic->size() >= 256) { /* NOTE: consume too slow or no consumer */
-      topic->get(p);
+    topic->Put(p);
+    if (topic->Size() >= 256) { /* NOTE: consume too slow or no consumer */
+      topic->Get(p);
     }
   } else {
     return luaL_error(L, "figure config with invalid number of arguments: %d", n);
   }
   return 1;
 }
-/* ================================ { FUNCTIONS ] ============================================== */
-float Signal::timimg(void) {
+/* ================================ [ FUNCTIONS ] ============================================== */
+float Signal::Timing(void) {
   auto now = std::chrono::high_resolution_clock::now();
   auto elapsed =
     std::chrono::duration_cast<std::chrono::milliseconds>(now - s_StartTimePoint).count();
   return (float)elapsed / 1000.0;
 }
 
-Signal::Signal(json &js, Message *msg) : m_Msg(msg), m_Lock(msg->getLock()) {
-  m_Name = js["name"].get<std::string>();
-  m_StartBit = js["start"].get<uint32_t>();
-  m_BitSize = js["size"].get<uint32_t>();
-  auto endian = js["endian"].get<std::string>();
+Signal::Signal(json &js, Message *msg) : m_Msg(msg), m_Lock(msg->GetLock()) {
+  m_Name = js["Name"].get<std::string>();
+  m_StartBit = js["Start"].get<uint32_t>();
+  m_BitSize = js["Size"].get<uint32_t>();
+  auto endian = js["Endian"].get<std::string>();
   if ("big" == endian) {
     m_Endian = Endian::BIG;
   } else {
@@ -185,84 +185,84 @@ Signal::Signal(json &js, Message *msg) : m_Msg(msg), m_Lock(msg->getLock()) {
       endian.c_str());
 }
 
-std::string Signal::name(void) {
+std::string Signal::Name(void) {
   return m_Name;
 }
 
-void Signal::write(uint32_t value, bool byLua) {
+void Signal::Write(uint32_t value, bool isFromLua) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   m_Value = m_Mask & value;
   if (m_ViewMsgQ != nullptr) {
     if (m_LastValue != m_Value) { /* only need to push to the queue if there is a change */
-      if (m_ViewMsgQ->size() > 64) {
-        m_ViewMsgQ->clear();
+      if (m_ViewMsgQ->Size() > 64) {
+        m_ViewMsgQ->Clear();
       }
-      ViewMsg vmsg = {timimg(), m_Value};
-      m_ViewMsgQ->put(vmsg);
+      ViewMsg vmsg = {Timing(), m_Value};
+      m_ViewMsgQ->Put(vmsg);
     }
     m_LastValue = m_Value;
   }
-  m_byLua = byLua;
+  m_IsFromLua = isFromLua;
 }
 
-bool Signal::bylua(void) {
+bool Signal::IsByLua(void) {
   bool ret;
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
-  ret = m_byLua;
-  m_byLua = false;
+  ret = m_IsFromLua;
+  m_IsFromLua = false;
   return ret;
 }
 
-uint32_t Signal::read(void) {
+uint32_t Signal::Read(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   return m_Value;
 }
 
-void Signal::createViewMsgQueue(void) {
+void Signal::CreateViewMsgQueue(void) {
   if (m_ViewMsgQ == nullptr) {
-    m_ViewMsgQ = std::make_shared<MessageQueue<ViewMsg>>(name());
+    m_ViewMsgQ = std::make_shared<MessageQueue<ViewMsg>>(Name());
   }
 }
 
-void Signal::destoryViewMsgQueue(void) {
+void Signal::DestroyViewMsgQueue(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   m_ViewMsgQ = nullptr;
 }
 
-std::vector<Signal::ViewMsg> Signal::view(void) {
+std::vector<Signal::ViewMsg> Signal::View(void) {
   std::vector<ViewMsg> vmsgs;
   ViewMsg vmsg;
 
   bool r = true;
   while (r && m_ViewMsgQ) {
-    r = m_ViewMsgQ->get(vmsg, true, 0);
+    r = m_ViewMsgQ->Get(vmsg, true, 0);
     if (r) {
       vmsgs.push_back(vmsg);
     }
   }
 
   if (0 == vmsgs.size()) {
-    vmsg.time = timimg();
-    vmsg.value = read();
+    vmsg.Time = Timing();
+    vmsg.Value = Read();
     vmsgs.push_back(vmsg);
   }
 
   return vmsgs;
 }
 
-uint32_t Signal::start(void) {
+uint32_t Signal::Start(void) {
   return m_StartBit;
 }
 
-uint32_t Signal::size(void) {
+uint32_t Signal::Size(void) {
   return m_BitSize;
 }
 
-Signal::Endian Signal::endian(void) {
+Signal::Endian Signal::GetEndian(void) {
   return m_Endian;
 }
 
-Message *Signal::message(void) {
+Message *Signal::GetMessage(void) {
   return m_Msg;
 }
 
@@ -271,26 +271,26 @@ Signal::~Signal() {
 
 Message::Message(json &js, Network *network) {
   m_Network = network;
-  m_Name = js["name"].get<std::string>();
-  m_Node = js["node"].get<std::string>();
-  m_Dlc = js["dlc"].get<uint32_t>();
-  m_Id = js["id"].get<uint32_t>();
+  m_Name = js["Name"].get<std::string>();
+  m_Node = js["Node"].get<std::string>();
+  m_Dlc = js["Dlc"].get<uint32_t>();
+  m_Id = js["Id"].get<uint32_t>();
   m_Period = get<uint32_t>(js, "period", 1000);
   LOG(INFO, "messgae %s id=0x%x dlc=%d from node %s\n", m_Name.c_str(), m_Id, m_Dlc,
       m_Node.c_str());
-  for (auto &cfg : js["signals"]) {
+  for (auto &cfg : js["Signals"]) {
     auto sig = std::make_shared<Signal>(cfg, this);
     m_Signals.push_back(sig);
   }
 
-  if (Network::Type::CAN == network->type()) {
+  if (Network::Type::CAN == network->GetType()) {
     /* for CAN, the me is the DUT(Device Under Test) */
-    if (m_Node != network->me()) {
+    if (m_Node != network->Me()) {
       m_IsTx = true;
     }
   } else {
     /* for LIN, the me is the tester */
-    if (m_Node == network->me()) {
+    if (m_Node == network->Me()) {
       m_IsTx = true;
     }
   }
@@ -306,31 +306,31 @@ Message::Message(json &js, Network *network) {
   m_Requested.store(false);
 }
 
-Network *Message::network() {
+Network *Message::GetNetwork() {
   return m_Network;
 }
 
-std::string Message::name(void) {
+std::string Message::Name(void) {
   return m_Name;
 }
 
-uint32_t Message::id(void) {
+uint32_t Message::Id(void) {
   return m_Id;
 }
 
-uint32_t Message::dlc(void) {
+uint32_t Message::Dlc(void) {
   return m_Dlc;
 }
 
-uint32_t Message::length(void) {
+uint32_t Message::Length(void) {
   return sizeof(m_Buffer);
 }
 
-uint32_t Message::period(void) {
+uint32_t Message::Period(void) {
   return m_Period;
 }
 
-void Message::set_period(uint32_t period) {
+void Message::SetPeriod(uint32_t period) {
   m_Period = period;
 }
 
@@ -338,11 +338,11 @@ std::vector<std::shared_ptr<Signal>> &Message::Signals(void) {
   return m_Signals;
 }
 
-std::shared_ptr<Signal> Message::signal(std::string name) {
+std::shared_ptr<Signal> Message::GetSignal(std::string name) {
   std::shared_ptr<Signal> sig = nullptr;
 
   for (auto s : m_Signals) {
-    if (s->name() == name) {
+    if (s->Name() == name) {
       sig = s;
       break;
     }
@@ -351,7 +351,7 @@ std::shared_ptr<Signal> Message::signal(std::string name) {
   return sig;
 }
 
-std::recursive_mutex &Message::getLock() {
+std::recursive_mutex &Message::GetLock() {
   return m_Lock;
 }
 
@@ -359,8 +359,8 @@ bool Message::IsTransmit(void) {
   return m_IsTx;
 }
 
-void Message::run(void) {
-  runLua();
+void Message::Run(void) {
+  RunLua();
 
   if (m_IsTx) {
     if (m_Period > 0) {
@@ -368,61 +368,61 @@ void Message::run(void) {
       auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_Timer);
       if (elapsed.count() >= m_Period) {
         m_Timer += std::chrono::milliseconds(m_Period);
-        trigger();
+        Trigger();
       }
     }
   } else {
-    if (Network::Type::LIN == m_Network->type()) {
+    if (Network::Type::LIN == m_Network->GetType()) {
       if (m_Period > 0) {
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_Timer);
         if (elapsed.count() >= m_Period) {
           m_Timer += std::chrono::milliseconds(m_Period);
-          trigger();
+          Trigger();
         }
       }
     } else {
-      trigger();
+      Trigger();
     }
   }
 }
 
-bool Message::trigger(void) {
+bool Message::Trigger(void) {
   m_Requested.store(true);
-  m_Network->schedule();
+  m_Network->Schedule();
   return true;
 }
 
-void Message::call(std::string api, CallType callType) {
-  std::vector<lua_arg_t> outArgs;
-  std::vector<lua_arg_t> inArgs;
+void Message::Call(std::string api, CallType callType) {
+  std::vector<Lua_ArgType> outArgs;
+  std::vector<Lua_ArgType> inArgs;
   if ((CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD == callType) ||
       (CALL_WITH_SIGNALS_RETURN_VOID == callType)) {
     inArgs.resize(1);
-    inArgs[0].type = LUA_ARG_TYPE_TABLE_STRING_UINT32;
+    inArgs[0].Type = LUA_ARG_TYPE_TABLE_STRING_UINT32;
     for (auto sig : m_Signals) {
-      inArgs[0].stringUint32Map[sig->name()] = sig->read();
+      inArgs[0].StringUint32Map[sig->Name()] = sig->Read();
     }
   }
 
   if (CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD == callType) {
     outArgs.resize(2);
-    outArgs[0].type = LUA_ARG_TYPE_TABLE_STRING_UINT32; /* new values of the signals */
-    outArgs[1].type = LUA_ARG_TYPE_UINT32;              /* next period to call this exec again */
+    outArgs[0].Type = LUA_ARG_TYPE_TABLE_STRING_UINT32; /* new values of the signals */
+    outArgs[1].Type = LUA_ARG_TYPE_UINT32;              /* next period to call this exec again */
   }
 
-  auto r = m_Script->call(api, inArgs, outArgs);
+  auto r = m_Script->Call(api, inArgs, outArgs);
   if (0 == r) {
     if (CALL_WITH_SIGNALS_RETURN_SIGNALS_AND_PERIOD == callType) {
       int index = 0;
       for (auto sig : m_Signals) {
-        auto it = outArgs[0].stringUint32Map.find(sig->name());
-        if (it != outArgs[0].stringUint32Map.end()) {
-          sig->write(it->second, true);
+        auto it = outArgs[0].StringUint32Map.find(sig->Name());
+        if (it != outArgs[0].StringUint32Map.end()) {
+          sig->Write(it->second, true);
         }
         index++;
       }
-      m_LuaNextCycle = outArgs[1].u32;
+      m_LuaNextCycle = outArgs[1].U32;
       if (0 == m_LuaNextCycle) {
         m_Script = nullptr;
       }
@@ -434,15 +434,15 @@ void Message::call(std::string api, CallType callType) {
   }
 }
 
-void Message::callbackToLua(std::string api, CallType callType) {
+void Message::CallbackToLua(std::string api, CallType callType) {
   if (nullptr != m_Script) {
-    if (m_Script->hasApi(api)) {
-      call(api, callType);
+    if (m_Script->HasApi(api)) {
+      Call(api, callType);
     }
   }
 }
 
-void Message::startLua(std::string scriptFile) {
+void Message::StartLua(std::string scriptFile) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   std::vector<AsLuaScript::Library> libs = {{"com", Network::CreateLuaInterface},
                                             {"figure", CreateFigureInterface}};
@@ -455,7 +455,7 @@ void Message::startLua(std::string scriptFile) {
   m_LuaNextCycle = 0;
 }
 
-void Message::runLua(void) {
+void Message::RunLua(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   if (nullptr == m_Script) {
     return;
@@ -463,35 +463,35 @@ void Message::runLua(void) {
 
   if (0 == m_LuaNextCycle) {
     m_LuaTimer = std::chrono::high_resolution_clock::now();
-    call("init");
+    Call("init");
   } else {
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_LuaTimer);
     if (elapsed.count() >= m_LuaNextCycle) {
       m_LuaTimer += std::chrono::milliseconds(m_LuaNextCycle);
-      call("main");
+      Call("main");
     }
   }
 }
 
-std::string Message::luaError(void) {
+std::string Message::LuaError(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   std::string err = m_LuaErrorMsg;
   m_LuaErrorMsg.clear();
   return err;
 }
 
-bool Message::isLuaRunning(void) {
+bool Message::IsLuaRunning(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   return m_Script != nullptr;
 }
 
-void Message::stopLua(void) {
+void Message::StopLua(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   m_Script = nullptr;
 }
 
-uint8_t *Message::data() {
+uint8_t *Message::Data() {
   return m_Buffer;
 }
 
@@ -499,47 +499,47 @@ E2EExecutor *Message::E2E() {
   return m_E2E;
 };
 
-void Message::backward(void) {
+void Message::Backward(void) {
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   if (m_IsTx) {
     for (auto sig : m_Signals) {
-      if (Signal::Endian::BIG == sig->endian()) {
-        Std_BitSetBigEndian(m_Buffer, sig->read(), (uint16_t)sig->start(), (uint8_t)sig->size());
+      if (Signal::Endian::BIG == sig->GetEndian()) {
+        Std_BitSetBigEndian(m_Buffer, sig->Read(), (uint16_t)sig->Start(), (uint8_t)sig->Size());
       } else {
-        Std_BitSetLittleEndian(m_Buffer, sig->read(), (uint16_t)sig->start(), (uint8_t)sig->size());
+        Std_BitSetLittleEndian(m_Buffer, sig->Read(), (uint16_t)sig->Start(), (uint8_t)sig->Size());
       }
     }
   }
 }
 
-std::shared_ptr<com::Message> Message::trace(void) {
+std::shared_ptr<com::Message> Message::Trace(void) {
   std::shared_ptr<com::Message> msg = std::make_shared<com::Message>();
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   {
     char date[64];
     Std_GetDateTime(date, sizeof(date));
-    msg->timestamp = std::string(date);
+    msg->Timestamp = std::string(date);
   }
 
-  msg->name = name();
-  msg->network = m_Network->name();
+  msg->Name = Name();
+  msg->Network = m_Network->Name();
 
   if (m_IsTx) {
-    msg->dir = "TX";
+    msg->Dir = "TX";
   } else {
-    msg->dir = "RX";
+    msg->Dir = "RX";
   }
 
   {
     std::stringstream ss;
-    ss << "0x" << std::hex << (m_Id & (~CAN_ID_EXTENDED));
-    msg->id = ss.str();
+    ss << "0x" << std::hex << (m_Id & (~CANL_ID_EXTENDED));
+    msg->Id = ss.str();
   }
 
   {
     std::stringstream ss;
     ss << m_Dlc;
-    msg->dlc = ss.str();
+    msg->Dlc = ss.str();
   }
 
   {
@@ -550,37 +550,37 @@ std::shared_ptr<com::Message> Message::trace(void) {
         ss << " ";
       }
     }
-    msg->data = ss.str();
+    msg->Data = ss.str();
   }
 
   for (auto sig : m_Signals) {
-    auto v = sig->read();
+    auto v = sig->Read();
     std::stringstream ss;
     ss << v << " ( 0x" << std::hex << v << " )";
-    msg->Signals.push_back({sig->name(), ss.str()});
+    msg->Signals.push_back({sig->Name(), ss.str()});
   }
 
   return msg;
 }
 
-void Message::forward(void) {
+void Message::Forward(void) {
   uint32_t value;
   std::unique_lock<std::recursive_mutex> lck(m_Lock);
   if (false == m_IsTx) {
     for (auto sig : m_Signals) {
-      if (Signal::Endian::BIG == sig->endian()) {
-        value = Std_BitGetBigEndian(m_Buffer, (uint16_t)sig->start(), (uint8_t)sig->size());
+      if (Signal::Endian::BIG == sig->GetEndian()) {
+        value = Std_BitGetBigEndian(m_Buffer, (uint16_t)sig->Start(), (uint8_t)sig->Size());
       } else {
-        value = Std_BitGetLittleEndian(m_Buffer, (uint16_t)sig->start(), (uint8_t)sig->size());
+        value = Std_BitGetLittleEndian(m_Buffer, (uint16_t)sig->Start(), (uint8_t)sig->Size());
       }
-      sig->write(value);
+      sig->Write(value);
     }
 
-    callbackToLua("on_rx", CallType::CALL_WITH_SIGNALS_RETURN_VOID);
+    CallbackToLua("on_rx", CallType::CALL_WITH_SIGNALS_RETURN_VOID);
   }
 }
 
-Message::State Message::state() {
+Message::State Message::GetState() {
   Message::State st = Message::State::IDLE;
   if (m_Requested.load()) {
     m_Requested.store(false);
@@ -601,12 +601,12 @@ Message::~Message() {
 }
 
 Network::Network(json &js) {
-  m_Name = get<std::string>(js, "name", "unknown");
-  m_Device = get<std::string>(js, "device", "simulator_v2");
-  m_Me = get<std::string>(js, "me", "AS");
-  m_Port = get<uint32_t>(js, "port", 0);
-  m_Baudrate = get<uint32_t>(js, "baudrate", 500000);
-  auto type = get<std::string>(js, "network", "CAN");
+  m_Name = get<std::string>(js, "Name", "unknown");
+  m_Device = get<std::string>(js, "Device", "simulator_v2");
+  m_Me = get<std::string>(js, "Me", "AS");
+  m_Port = get<uint32_t>(js, "Port", 0);
+  m_Baudrate = get<uint32_t>(js, "Baudrate", 500000);
+  auto type = get<std::string>(js, "Network", "CAN");
   if (type == "CAN") {
     m_Type = Type::CAN;
   } else if (type == "LIN") {
@@ -615,7 +615,7 @@ Network::Network(json &js) {
     throw std::runtime_error("failed to create network with type " + type);
   }
 
-  for (auto &cfg : js["messages"]) {
+  for (auto &cfg : js["Messages"]) {
     auto msg = std::make_shared<Message>(cfg, this);
     m_Messages.push_back(msg);
   }
@@ -631,7 +631,7 @@ Network::Network(json &js) {
   m_Pub = std::make_shared<com::Publisher>(m_Name);
 }
 
-std::shared_ptr<Signal> Network::find(std::string name) {
+std::shared_ptr<Signal> Network::Find(std::string name) {
   std::shared_ptr<Signal> sig = nullptr;
 
   std::string netName;
@@ -658,13 +658,13 @@ std::shared_ptr<Signal> Network::find(std::string name) {
         continue;
       }
     }
-    for (auto msg : it.second->messages()) {
+    for (auto msg : it.second->Messages()) {
       if (false == msgName.empty()) {
-        if (msg->name() != msgName) {
+        if (msg->Name() != msgName) {
           continue;
         }
       }
-      sig = msg->signal(sigName);
+      sig = msg->GetSignal(sigName);
       if (nullptr != sig) {
         break;
       }
@@ -677,7 +677,7 @@ std::shared_ptr<Signal> Network::find(std::string name) {
   return sig;
 }
 
-std::shared_ptr<Message> Network::find_message(std::string name) {
+std::shared_ptr<Message> Network::FindMessage(std::string name) {
   std::shared_ptr<Message> msg = nullptr;
 
   std::string netName;
@@ -699,7 +699,7 @@ std::shared_ptr<Message> Network::find_message(std::string name) {
         continue;
       }
     }
-    msg = it.second->message(msgName);
+    msg = it.second->GetMessage(msgName);
     if (nullptr != msg) {
       break;
     }
@@ -708,27 +708,27 @@ std::shared_ptr<Message> Network::find_message(std::string name) {
   return msg;
 }
 
-std::string Network::name(void) {
+std::string Network::Name(void) {
   return m_Name;
 }
 
-std::string Network::me(void) {
+std::string Network::Me(void) {
   return m_Me;
 }
 
-Network::Type Network::type(void) {
+Network::Type Network::GetType(void) {
   return m_Type;
 }
 
-std::vector<std::shared_ptr<Message>> &Network::messages(void) {
+std::vector<std::shared_ptr<Message>> &Network::Messages(void) {
   return m_Messages;
 }
 
-std::shared_ptr<Message> Network::message(std::string name) {
+std::shared_ptr<Message> Network::GetMessage(std::string name) {
   std::shared_ptr<Message> msg = nullptr;
 
   for (auto m : m_Messages) {
-    if (m->name() == name) {
+    if (m->Name() == name) {
       msg = m;
       break;
     }
@@ -737,47 +737,47 @@ std::shared_ptr<Message> Network::message(std::string name) {
   return msg;
 }
 
-bool Network::start(void) {
+bool Network::Start(void) {
   bool ret = false;
   if (Type::CAN == m_Type) {
-    m_Fd = can_open(m_Device.c_str(), m_Port, m_Baudrate);
+    m_Fd = CanL_Open(m_Device.c_str(), m_Port, m_Baudrate);
   } else {
-    m_Fd = lin_open(m_Device.c_str(), m_Port, m_Baudrate);
+    m_Fd = LinL_Open(m_Device.c_str(), m_Port, m_Baudrate);
   }
 
   if (m_Fd >= 0) {
     m_Stop = false;
-    m_Thread = std::thread(&Network::run, this);
+    m_Thread = std::thread(&Network::Run, this);
     ret = true;
   }
 
   return ret;
 }
 
-void Network::schedule(void) {
+void Network::Schedule(void) {
   m_CondVar.notify_one();
 }
 
-void Network::run(void) {
+void Network::Run(void) {
   LOG(INFO, "network %s online: %s:%d:%d\n", m_Name.c_str(), m_Device.c_str(), m_Port, m_Baudrate);
   while (false == m_Stop) {
     for (auto msg : m_Messages) {
-      msg->run();
-      auto state = msg->state();
+      msg->Run();
+      auto state = msg->GetState();
       if (Message::State::TRANSMIT == state) {
-        transmit(msg);
+        Transmit(msg);
       } else if (Message::State::RECEIVE == state) {
-        receive(msg);
+        Receive(msg);
       }
     }
-    Network::runLua();
+    Network::RunLua();
     std::unique_lock<std::mutex> lck(m_Lock);
     m_CondVar.wait_for(lck, std::chrono::milliseconds(1));
   }
   LOG(INFO, "network %s offline\n", m_Name.c_str());
 }
 
-bool Network::stop(void) {
+bool Network::Stop(void) {
   m_Stop = true;
 
   if (m_Thread.joinable()) {
@@ -786,9 +786,9 @@ bool Network::stop(void) {
 
   if (m_Fd >= 0) {
     if (Type::CAN == m_Type) {
-      can_close(m_Fd);
+      CanL_Close(m_Fd);
     } else {
-      lin_close(m_Fd);
+      LinL_Close(m_Fd);
     }
     m_Fd = -1;
   }
@@ -799,62 +799,62 @@ bool Network::stop(void) {
   return true;
 }
 
-void Network::transmit(std::shared_ptr<Message> msg) {
+void Network::Transmit(std::shared_ptr<Message> msg) {
   bool r = true;
-  auto &lock = msg->getLock();
+  auto &lock = msg->GetLock();
   std::unique_lock<std::recursive_mutex> lck(lock);
-  msg->backward();
+  msg->Backward();
   if (nullptr != msg->E2E()) {
-    r = E2E_Execute(msg->E2E(), msg->data(), (uint16_t)msg->dlc());
+    r = E2E_Execute(msg->E2E(), msg->Data(), (uint16_t)msg->Dlc());
   }
   if (true == r) {
     if (Type::CAN == m_Type) {
-      r = can_write(m_Fd, msg->id(), (uint8_t)msg->dlc(), msg->data());
+      r = CanL_Write(m_Fd, msg->Id(), (uint8_t)msg->Dlc(), msg->Data());
     } else {
-      r = lin_write(m_Fd, msg->id(), (uint8_t)msg->dlc(), msg->data(), true);
+      r = LinL_Write(m_Fd, msg->Id(), (uint8_t)msg->Dlc(), msg->Data(), true);
     }
   }
 
   if (false == r) {
     LOG(ERROR, "network %s transmit for message %s id=0x%x dlc=%d failed\n", m_Name.c_str(),
-        msg->name().c_str(), msg->id(), msg->dlc());
+        msg->Name().c_str(), msg->Id(), msg->Dlc());
   } else {
-    m_Pub->push(msg->trace());
-    msg->callbackToLua("on_tx", Message::CallType::CALL_VOID_RETURN_VOID);
-    std::string api = "on_tx_" + m_Name + "_" + msg->name();
-    Network::callbackToLua(api);
+    m_Pub->Push(msg->Trace());
+    msg->CallbackToLua("on_tx", Message::CallType::CALL_VOID_RETURN_VOID);
+    std::string api = "on_tx_" + m_Name + "_" + msg->Name();
+    Network::CallbackToLua(api);
   }
 }
 
-void Network::receive(std::shared_ptr<Message> msg) {
+void Network::Receive(std::shared_ptr<Message> msg) {
   bool r;
   if (Type::CAN == m_Type) {
-    uint32_t canid = msg->id();
-    uint8_t dlc = msg->length();
-    r = can_read(m_Fd, &canid, &dlc, msg->data());
+    uint32_t canid = msg->Id();
+    uint8_t dlc = msg->Length();
+    r = CanL_Read(m_Fd, &canid, &dlc, msg->Data());
   } else {
-    r = lin_read(m_Fd, msg->id(), (uint8_t)msg->dlc(), msg->data(), true, 1000);
+    r = LinL_Read(m_Fd, msg->Id(), (uint8_t)msg->Dlc(), msg->Data(), true, 1000);
   }
   if (true == r) {
     if (nullptr != msg->E2E()) {
-      r = E2E_Execute(msg->E2E(), msg->data(), (uint16_t)msg->dlc());
+      r = E2E_Execute(msg->E2E(), msg->Data(), (uint16_t)msg->Dlc());
       if (false == r) {
         LOG(ERROR, "network %s receive message %s with invalid E2E\n", m_Name.c_str(),
-            msg->name().c_str());
+            msg->Name().c_str());
       }
     }
   }
 
   if (true == r) {
-    msg->forward();
-    m_Pub->push(msg->trace());
-    std::string api = "on_rx_" + m_Name + "_" + msg->name();
-    Network::callbackToLua(api);
+    msg->Forward();
+    m_Pub->Push(msg->Trace());
+    std::string api = "on_rx_" + m_Name + "_" + msg->Name();
+    Network::CallbackToLua(api);
   }
 }
 
 Network::~Network() {
-  stop();
+  Stop();
 }
 
 int Network::Set(lua_State *L) {
@@ -867,9 +867,9 @@ int Network::Set(lua_State *L) {
       return luaL_error(L, "set with invalid arguments");
     }
 
-    auto sig = find(std::string(s));
+    auto sig = Find(std::string(s));
     if (sig != nullptr) {
-      sig->write(value, true);
+      sig->Write(value, true);
     } else {
       return luaL_error(L, "signal %s not found", s);
     }
@@ -887,9 +887,9 @@ int Network::Get(lua_State *L) {
       return luaL_error(L, "get with invalid arguments");
     }
 
-    auto sig = find(std::string(s));
+    auto sig = Find(std::string(s));
     if (sig != nullptr) {
-      auto value = sig->read();
+      auto value = sig->Read();
       lua_pushinteger(L, value);
     } else {
       return luaL_error(L, "signal %s not found", s);
@@ -908,9 +908,9 @@ int Network::Trigger(lua_State *L) {
       return luaL_error(L, "get with invalid arguments");
     }
 
-    std::shared_ptr<Message> msg = find_message(std::string(s));
+    std::shared_ptr<Message> msg = FindMessage(std::string(s));
     if (msg != nullptr) {
-      lua_pushboolean(L, msg->trigger());
+      lua_pushboolean(L, msg->Trigger());
     } else {
       return luaL_error(L, "signal %s not found", s);
     }
@@ -921,11 +921,11 @@ int Network::Trigger(lua_State *L) {
 }
 
 int Network::CreateLuaInterface(lua_State *L) {
-  luaL_newlib(L, s_LuaInferfaces);
+  luaL_newlib(L, s_LuaInterfaces);
   return 1;
 }
 
-void Network::startLua(std::string scriptFile) {
+void Network::StartLua(std::string scriptFile) {
   std::unique_lock<std::mutex> lck(s_Lock);
   std::vector<AsLuaScript::Library> libs = {{"com", Network::CreateLuaInterface},
                                             {"figure", CreateFigureInterface}};
@@ -938,17 +938,17 @@ void Network::startLua(std::string scriptFile) {
   s_LuaNextCycle = 0;
 }
 
-void Network::callbackToLua(std::string api) {
+void Network::CallbackToLua(std::string api) {
   std::unique_lock<std::mutex> lck(s_Lock);
 
   if (nullptr == s_Script) {
     return;
   }
 
-  std::vector<lua_arg_t> inArgs;
-  std::vector<lua_arg_t> outArgs;
-  if (s_Script->hasApi(api)) {
-    auto r = s_Script->call(api, inArgs, outArgs);
+  std::vector<Lua_ArgType> inArgs;
+  std::vector<Lua_ArgType> outArgs;
+  if (s_Script->HasApi(api)) {
+    auto r = s_Script->Call(api, inArgs, outArgs);
     if (0 != r) {
       s_Script = nullptr;
       s_LuaErrorMsg = "callback '" + api + "' failed, error is " + std::to_string(r);
@@ -956,15 +956,15 @@ void Network::callbackToLua(std::string api) {
   }
 }
 
-void Network::call(std::string api) {
-  std::vector<lua_arg_t> inArgs;
-  std::vector<lua_arg_t> outArgs;
+void Network::Call(std::string api) {
+  std::vector<Lua_ArgType> inArgs;
+  std::vector<Lua_ArgType> outArgs;
   outArgs.resize(1);
-  outArgs[0].type = LUA_ARG_TYPE_UINT32; /* next period to call this exec again */
+  outArgs[0].Type = LUA_ARG_TYPE_UINT32; /* next period to call this exec again */
 
-  auto r = s_Script->call(api, inArgs, outArgs);
+  auto r = s_Script->Call(api, inArgs, outArgs);
   if (0 == r) {
-    s_LuaNextCycle = outArgs[0].u32;
+    s_LuaNextCycle = outArgs[0].U32;
     if (0 == s_LuaNextCycle) {
       s_Script = nullptr;
     }
@@ -974,7 +974,7 @@ void Network::call(std::string api) {
   }
 }
 
-void Network::runLua(void) {
+void Network::RunLua(void) {
   std::unique_lock<std::mutex> lck(s_Lock);
 
   if (nullptr == s_Script) {
@@ -982,30 +982,30 @@ void Network::runLua(void) {
   }
   if (0 == s_LuaNextCycle) {
     s_LuaTimer = std::chrono::high_resolution_clock::now();
-    call("init");
+    Call("init");
   } else {
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - s_LuaTimer);
     if (elapsed.count() >= s_LuaNextCycle) {
       s_LuaTimer += std::chrono::milliseconds(s_LuaNextCycle);
-      call("main");
+      Call("main");
     }
   }
 }
 
-std::string Network::luaError(void) {
+std::string Network::LuaError(void) {
   std::unique_lock<std::mutex> lck(s_Lock);
   std::string err = s_LuaErrorMsg;
   s_LuaErrorMsg.clear();
   return err;
 }
 
-bool Network::isLuaRunning(void) {
+bool Network::IsLuaRunning(void) {
   std::unique_lock<std::mutex> lck(s_Lock);
   return s_Script != nullptr;
 }
 
-void Network::stopLua(void) {
+void Network::StopLua(void) {
   std::unique_lock<std::mutex> lck(s_Lock);
   s_Script = nullptr;
 }

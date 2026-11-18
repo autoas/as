@@ -4,8 +4,8 @@
  *
  * ref: Specification of Communication AUTOSAR CP Release 4.4.0
  */
-#ifndef _COM_PRIV_H
-#define _COM_PRIV_H
+#ifndef COM_PRIV_H
+#define COM_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -70,11 +70,11 @@ typedef uint8_t Com_SignalEndiannessType;
 typedef uint16_t Com_DataLengthType;
 
 typedef struct {
-  uint16_t timer;
+  uint16_t Timer;
 } Com_SignalRxContextType;
 
 typedef struct {
-  Com_SignalRxContextType *context;
+  Com_SignalRxContextType *Context;
 #ifdef COM_USE_SIGNAL_RX_INVALID_NOTIFICATION
   Com_CbkInvFncType InvalidNotification;
 #endif
@@ -99,7 +99,7 @@ typedef struct {
   Com_CbkTxAckFncType TxNotification;
 #endif
 #if !defined(COM_USE_SIGNAL_TX_ERROR_NOTIFICATION) && !defined(COM_USE_SIGNAL_TX_NOTIFICATION)
-  uint8_t dummy;
+  uint8_t Dummy;
 #endif
 } Com_SignalTxConfigType;
 
@@ -109,13 +109,13 @@ typedef uint8_t Com_SignalTypeType;
 /* @ECUC_Com_00344 */
 typedef struct {
 #ifdef USE_SHELL
-  char *name;
+  char *Name;
 #endif
-  void *ptr;
-  const void *initPtr; /* or shadowPtr for group signal */
+  void *Ptr;
+  const void *InitPtr; /* or shadowPtr for group signal */
 #ifdef COM_USE_SIGNAL_CONFIG
-  const Com_SignalRxConfigType *rxConfig;
-  const Com_SignalTxConfigType *txConfig;
+  const Com_SignalRxConfigType *RxConfig;
+  const Com_SignalTxConfigType *TxConfig;
 #endif
   Com_SignalIdType HandleId;
   PduIdType PduId;
@@ -124,17 +124,17 @@ typedef struct {
 #ifdef COM_USE_SIGNAL_UPDATE_BIT
   uint16_t UpdateBit;
 #endif
-  Com_SignalTypeType type;
+  Com_SignalTypeType Type;
   Com_SignalEndiannessType Endianness;
-  boolean isGroupSignal;
+  boolean IsGroupSignal;
 } Com_SignalConfigType;
 
 typedef struct {
-  uint16_t timer;
+  uint16_t Timer;
 } Com_IPduRxContextType;
 
 typedef struct {
-  Com_IPduRxContextType *context;
+  Com_IPduRxContextType *Context;
 #ifdef COM_USE_RX_NOTIFICATION
   Com_CbkRxAckFncType RxNotification;
 #endif
@@ -149,15 +149,15 @@ typedef struct {
 } Com_IPduRxConfigType;
 
 typedef struct {
-  uint16_t timer;
+  uint16_t Timer;
 #ifdef COM_USE_MAIN_FAST
-  boolean bTxRetry;
+  boolean TxRetry;
 #endif
 } Com_IPduTxContextType;
 
 typedef struct {
   /* For LIN, context is NULL */
-  Com_IPduTxContextType *context;
+  Com_IPduTxContextType *Context;
 #ifdef COM_USE_TX_ERROR_NOTIFICATION
   Com_CbkTxErrFncType ErrorNotification;
 #endif
@@ -174,35 +174,35 @@ typedef struct {
 
 typedef struct {
 #ifdef USE_SHELL
-  char *name;
+  char *Name;
 #endif
-  void *ptr;
-  Com_DataLengthType *dynLen;
-  const Com_SignalConfigType **signals;
-  const Com_IPduRxConfigType *rxConfig;
-  const Com_IPduTxConfigType *txConfig;
+  void *Ptr;
+  Com_DataLengthType *DynLen;
+  const Com_SignalConfigType **Signals;
+  const Com_IPduRxConfigType *RxConfig;
+  const Com_IPduTxConfigType *TxConfig;
   Com_GroupMaskType GroupRefMask;
-  Com_DataLengthType length;
-  uint8_t numOfSignals;
+  Com_DataLengthType Length;
+  uint8_t NumOfSignals;
 } Com_IPduConfigType;
 
 typedef struct {
   Com_GroupMaskType GroupStatus;
 #ifdef USE_DCM
-  Com_DcmComModeType dcmComMode;
+  Com_DcmComModeType DcmComMode;
 #endif
 } Com_GlobalContextType;
 
 struct Com_Config_s {
   const Com_IPduConfigType *IPduConfigs;
   const Com_SignalConfigType *SignalConfigs;
-  Com_GlobalContextType *context;
-  uint16_t numOfIPdus;
-  uint16_t numOfSignals;
-  uint8_t numOfGroups;
+  Com_GlobalContextType *Context;
+  uint16_t NumOfIPdus;
+  uint16_t NumOfSignals;
+  uint8_t NumOfGroups;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _COM_PRIV_H */
+#endif /* COM_PRIV_H */

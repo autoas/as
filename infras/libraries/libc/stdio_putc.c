@@ -42,7 +42,7 @@ RB_DECLARE(stdio_can, char, STDIO_CAN_IBUFFER_SIZE);
 static uint32_t wmissing = 0;
 #endif
 #if STDIO_CAN_DLC > 8
-static const uint8_t lLL_DLs[] = {8, 12, 16, 20, 24, 32, 48, 64};
+static const uint8_t lLinkLayerDataLengths[] = {8, 12, 16, 20, 24, 32, 48, 64};
 #else
 #define stdio_get_dlc(sz) sz
 #endif
@@ -52,9 +52,9 @@ static PduLengthType stdio_get_dlc(PduLengthType len) {
   PduLengthType dl = len;
   int i;
   if (len > 8) {
-    for (i = 0; i < ARRAY_SIZE(lLL_DLs); i++) {
-      if (len <= lLL_DLs[i]) {
-        dl = lLL_DLs[i];
+    for (i = 0; i < ARRAY_SIZE(lLinkLayerDataLengths); i++) {
+      if (len <= lLinkLayerDataLengths[i]) {
+        dl = lLinkLayerDataLengths[i];
         break;
       }
     }
@@ -167,10 +167,10 @@ void stdio_main_function(void) {
 }
 
 #if defined(USE_STDIO_CAN) && defined(USE_SHELL)
-void UserStdin_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void UserStdin_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   int i;
-  for (i = 0; i < PduInfoPtr->SduLength; i++) {
-    Shell_Input((char)PduInfoPtr->SduDataPtr[i]);
+  for (i = 0; i < pduInfoPtr->SduLength; i++) {
+    Shell_Input((char)pduInfoPtr->SduDataPtr[i]);
   }
 }
 #endif

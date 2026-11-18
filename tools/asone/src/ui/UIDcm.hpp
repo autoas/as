@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UIDCM_HPP__
-#define __UIDCM_HPP__
+#ifndef UIDCM_HPP
+#define UIDCM_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "UICommon.hpp"
 using namespace as::ui ::common;
@@ -21,13 +21,13 @@ public slots:
   void on_btnEnter_clicked(void);
 
 private:
-  QComboBox *m_cmbxSessions;
-  QPushButton *m_btnEnter;
+  QComboBox *m_CmbxSessions;
+  QPushButton *m_BtnEnter;
   std::map<std::string, uint8_t> m_SessionMap;
   UIDcm *m_Dcm;
 };
 
-typedef std::vector<uint8_t> (*calculate_key_t)(std::vector<uint8_t> res);
+typedef std::vector<uint8_t> (*CalculateKeyType)(std::vector<uint8_t> res);
 
 class UISecurityAccess : public QGroupBox {
   Q_OBJECT
@@ -40,13 +40,13 @@ public slots:
 
 private:
   struct Info {
-    uint8_t level;
-    std::string m_Scripts;
-    void *dll = nullptr;
-    calculate_key_t calculate_key = nullptr;
+    uint8_t Level;
+    std::string Scripts;
+    void *Dll = nullptr;
+    CalculateKeyType CalculateKey = nullptr;
   };
-  QComboBox *m_cmbxSecurityLevels;
-  QPushButton *m_btnUnlock;
+  QComboBox *m_CmbxSecurityLevels;
+  QPushButton *m_BtnUnlock;
   std::map<std::string, Info> m_SecurityMap;
   UIDcm *m_Dcm;
 
@@ -83,11 +83,11 @@ public:
   ~UIDcm();
 
 public:
-  int transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res);
-  std::shared_ptr<AsLuaScript> luaScript() {
+  int Transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res);
+  std::shared_ptr<AsLuaScript> LuaScript() {
     return m_Lua;
   }
-  QTreeWidget *tree(void);
+  QTreeWidget *Tree(void);
 
 public slots:
   void on_btnOpenDcmJs_clicked(void);
@@ -99,18 +99,18 @@ private:
   void timerEvent(QTimerEvent *event);
 
 private:
-  bool load(std::string cfgPath);
-  bool loadUI(void);
-  bool loadScript(void);
+  bool Load(std::string cfgPath);
+  bool LoadUi(void);
+  bool LoadScript(void);
 
 private:
-  QLineEdit *m_leDcmJs;
-  QPushButton *m_btnOpenDcmJs;
-  QPushButton *m_btnStart;
-  QTabWidget *m_tabWidget;
+  QLineEdit *m_LeDcmJs;
+  QPushButton *m_BtnOpenDcmJs;
+  QPushButton *m_BtnStart;
+  QTabWidget *m_TabWidget;
   QTreeWidget *m_Tree;
-  QComboBox *m_cmbxTarget;
-  QCheckBox *m_cbxTesterPresent;
+  QComboBox *m_CmbxTarget;
+  QCheckBox *m_CbxTesterPresent;
 
   int m_TPtimer = 0;
 
@@ -124,4 +124,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UIDCM_HPP__ */
+#endif /* UIDCM_HPP */

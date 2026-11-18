@@ -8,44 +8,44 @@
 #include "Std_Topic.h"
 /* ================================ [ MACROS    ] ============================================== */
 #define ISOTP_DECLARE_API(x)                                                                       \
-  extern isotp_t *isotp_##x##_create(isotp_parameter_t *params);                                   \
-  extern int isotp_##x##_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize,          \
-                                  uint8_t *rxBuffer, size_t rxSize);                               \
-  extern int isotp_##x##_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize);                \
-  extern int isotp_##x##_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size);            \
-  extern void isotp_##x##_destory(isotp_t *isotp)
+  extern IsoTp_Type *IsoTp_##x##Create(IsoTp_ParameterType *params);                               \
+  extern int IsoTp_##x##Transmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize,        \
+                                 uint8_t *rxBuffer, size_t rxSize);                                \
+  extern int IsoTp_##x##Receive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize);              \
+  extern int IsoTp_##x##IoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size);          \
+  extern void IsoTp_##x##Destroy(IsoTp_Type *isotp)
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-ISOTP_DECLARE_API(can);
-ISOTP_DECLARE_API(can_v2);
-ISOTP_DECLARE_API(lin);
-ISOTP_DECLARE_API(doip);
-ISOTP_DECLARE_API(j1939tp);
+ISOTP_DECLARE_API(Can);
+ISOTP_DECLARE_API(CanV2);
+ISOTP_DECLARE_API(Lin);
+ISOTP_DECLARE_API(DoIp);
+ISOTP_DECLARE_API(J1939Tp);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-isotp_t *isotp_create(isotp_parameter_t *params) {
-  isotp_t *isotp = NULL;
+IsoTp_Type *IsoTp_Create(IsoTp_ParameterType *params) {
+  IsoTp_Type *isotp = NULL;
 
-  switch (params->protocol) {
+  switch (params->Protocol) {
   case ISOTP_OVER_CAN:
-    if (ISOTP_CAN_V1 == params->U.CAN.version) {
-      isotp = isotp_can_create(params);
+    if (ISOTP_CAN_V1 == params->U.CAN.Version) {
+      isotp = IsoTp_CanCreate(params);
     } else {
-      isotp = isotp_can_v2_create(params);
+      isotp = IsoTp_CanV2Create(params);
     }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
-    isotp = isotp_lin_create(params);
+    isotp = IsoTp_LinCreate(params);
     break;
 #endif
   case ISOTP_OVER_J1939TP:
-    isotp = isotp_j1939tp_create(params);
+    isotp = IsoTp_J1939TpCreate(params);
     break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
-    isotp = isotp_doip_create(params);
+    isotp = IsoTp_DoIpCreate(params);
     break;
 #endif
   default:
@@ -55,30 +55,30 @@ isotp_t *isotp_create(isotp_parameter_t *params) {
   return isotp;
 }
 
-int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
+int IsoTp_Transmit(IsoTp_Type *isotp, const uint8_t *txBuffer, size_t txSize, uint8_t *rxBuffer,
                    size_t rxSize) {
   int r = -1;
 
-  STD_TOPIC_UDS(&isotp->params, FALSE, (uint32_t)txSize, txBuffer);
-  switch (isotp->params.protocol) {
+  STD_TOPIC_UDS(&isotp->Params, FALSE, (uint32_t)txSize, txBuffer);
+  switch (isotp->Params.Protocol) {
   case ISOTP_OVER_CAN:
-    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
-      r = isotp_can_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    if (ISOTP_CAN_V1 == isotp->Params.U.CAN.Version) {
+      r = IsoTp_CanTransmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     } else {
-      r = isotp_can_v2_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+      r = IsoTp_CanV2Transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
-    r = isotp_lin_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    r = IsoTp_LinTransmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
 #endif
   case ISOTP_OVER_J1939TP:
-    r = isotp_j1939tp_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    r = IsoTp_J1939TpTransmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
-    r = isotp_doip_transmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
+    r = IsoTp_DoIpTransmit(isotp, txBuffer, txSize, rxBuffer, rxSize);
     break;
 #endif
   default:
@@ -87,34 +87,34 @@ int isotp_transmit(isotp_t *isotp, const uint8_t *txBuffer, size_t txSize, uint8
 
 #ifdef USE_STD_TOPIC
   if ((r > 0) && (rxBuffer != NULL)) {
-    STD_TOPIC_UDS(&isotp->params, TRUE, (uint32_t)r, rxBuffer);
+    STD_TOPIC_UDS(&isotp->Params, TRUE, (uint32_t)r, rxBuffer);
   }
 #endif
 
   return r;
 }
 
-int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
+int IsoTp_Receive(IsoTp_Type *isotp, uint8_t *rxBuffer, size_t rxSize) {
   int r = -1;
-  switch (isotp->params.protocol) {
+  switch (isotp->Params.Protocol) {
   case ISOTP_OVER_CAN:
-    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
-      r = isotp_can_receive(isotp, rxBuffer, rxSize);
+    if (ISOTP_CAN_V1 == isotp->Params.U.CAN.Version) {
+      r = IsoTp_CanReceive(isotp, rxBuffer, rxSize);
     } else {
-      r = isotp_can_v2_receive(isotp, rxBuffer, rxSize);
+      r = IsoTp_CanV2Receive(isotp, rxBuffer, rxSize);
     }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
-    r = isotp_lin_receive(isotp, rxBuffer, rxSize);
+    r = IsoTp_LinReceive(isotp, rxBuffer, rxSize);
     break;
 #endif
   case ISOTP_OVER_J1939TP:
-    r = isotp_j1939tp_receive(isotp, rxBuffer, rxSize);
+    r = IsoTp_J1939TpReceive(isotp, rxBuffer, rxSize);
     break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
-    r = isotp_doip_receive(isotp, rxBuffer, rxSize);
+    r = IsoTp_DoIpReceive(isotp, rxBuffer, rxSize);
     break;
 #endif
   default:
@@ -122,33 +122,33 @@ int isotp_receive(isotp_t *isotp, uint8_t *rxBuffer, size_t rxSize) {
   }
 #ifdef USE_STD_TOPIC
   if (r > 0) {
-    STD_TOPIC_UDS(&isotp->params, TRUE, (uint32_t)r, rxBuffer);
+    STD_TOPIC_UDS(&isotp->Params, TRUE, (uint32_t)r, rxBuffer);
   }
 #endif
   return r;
 }
 
-int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
+int IsoTp_IoCtl(IsoTp_Type *isotp, int cmd, const void *data, size_t size) {
   int r = -1;
-  switch (isotp->params.protocol) {
+  switch (isotp->Params.Protocol) {
   case ISOTP_OVER_CAN:
-    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
-      r = isotp_can_ioctl(isotp, cmd, data, size);
+    if (ISOTP_CAN_V1 == isotp->Params.U.CAN.Version) {
+      r = IsoTp_CanIoCtl(isotp, cmd, data, size);
     } else {
-      r = isotp_can_v2_ioctl(isotp, cmd, data, size);
+      r = IsoTp_CanV2IoCtl(isotp, cmd, data, size);
     }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
-    r = isotp_lin_ioctl(isotp, cmd, data, size);
+    r = IsoTp_LinIoCtl(isotp, cmd, data, size);
     break;
 #endif
   case ISOTP_OVER_J1939TP:
-    r = isotp_j1939tp_ioctl(isotp, cmd, data, size);
+    r = IsoTp_J1939TpIoCtl(isotp, cmd, data, size);
     break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
-    r = isotp_doip_ioctl(isotp, cmd, data, size);
+    r = IsoTp_DoIpIoCtl(isotp, cmd, data, size);
     break;
 #endif
   default:
@@ -157,26 +157,26 @@ int isotp_ioctl(isotp_t *isotp, int cmd, const void *data, size_t size) {
   return r;
 }
 
-void isotp_destory(isotp_t *isotp) {
-  switch (isotp->params.protocol) {
+void IsoTp_Destroy(IsoTp_Type *isotp) {
+  switch (isotp->Params.Protocol) {
   case ISOTP_OVER_CAN:
-    if (ISOTP_CAN_V1 == isotp->params.U.CAN.version) {
-      isotp_can_destory(isotp);
+    if (ISOTP_CAN_V1 == isotp->Params.U.CAN.Version) {
+      IsoTp_CanDestroy(isotp);
     } else {
-      isotp_can_v2_destory(isotp);
+      IsoTp_CanV2Destroy(isotp);
     }
     break;
 #ifdef USE_LINTP
   case ISOTP_OVER_LIN:
-    isotp_lin_destory(isotp);
+    IsoTp_LinDestroy(isotp);
     break;
 #endif
   case ISOTP_OVER_J1939TP:
-    isotp_j1939tp_destory(isotp);
+    IsoTp_J1939TpDestroy(isotp);
     break;
 #ifdef USE_DOIP_CLIENT
   case ISOTP_OVER_DOIP:
-    isotp_doip_destory(isotp);
+    IsoTp_DoIpDestroy(isotp);
     break;
 #endif
   default:

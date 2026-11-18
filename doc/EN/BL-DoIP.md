@@ -7,6 +7,16 @@ comments: true
 
 # BL over DoIP Demo on Host Simulator
 
+> **In one sentence**: `DoIPBL` runs the full BL flashing stack on the host simulator with the CAN transport replaced by DoIP over Ethernet (SoAd/TcpIp), so the `Loader` PC tool can flash it over UDP/TCP port 13400; it can additionally act as a DoIP-to-CAN gateway that flashes a remote `CanBL` target.
+
+| | |
+| --- | --- |
+| Application | `app/bootloader` built as `DoIPBL` (`USE_BL` + `USE_TCPIP`/`USE_SOAD`/`USE_DOIP`) |
+| Stack | DoIP -> PduR -> Dcm -> BL, plus optional DoIP -> CanTp gateway |
+| Configuration | `app/bootloader/config/Net/*.json` (Network/PduR/Dcm/Mempool/CanTp) |
+| PC tool | `Loader -d DOIP.<ip>` |
+| Related | [BL](BL.md), [DoIP](DoIP.md), [BL-DoIP-QEMU](BL-DoIP-QEMU.md) |
+
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
@@ -60,7 +70,7 @@ The response path: `BL -> Dcm -> PduR(P2P_TX) -> DoIP -> SoAd -> TcpIp -> TCP ->
 DoIP creates two SoAd sockets automatically:
 
 - A UDP socket joined in the vehicle identification discovery multicast group `224.244.224.245:13400`.
-- A TCP server socket listening on port `13400` (up to `max_connections`).
+- A TCP server socket listening on port `13400` (up to `MaxConnections`).
 
 After the TCP connection is established, the tester sends a routing activation request with source address `0xbeef`; once activated, UDS requests are routed to Dcm with target address `0xdead`.
 
@@ -70,7 +80,7 @@ All DoIP related configurations are under `app/bootloader/config/Net`:
 
 | File | Content |
 | --- | --- |
-| `Network.json` | DoIP module: discovery address, `max_connections`, target `P2P` with logical address `0xdead`, routine `default` and tester `default` with address `0xbeef` |
+| `Network.json` | DoIP module: discovery address, `MaxConnections`, target `P2P` with logical address `0xdead`, routine `default` and tester `default` with address `0xbeef` |
 | `Dcm.json` | Dedicated Dcm configuration for DoIPBL with only the `P2P` physical channel (no CAN functional channel `P2A`) |
 | `PduR.json` | PduR routing: `P2P_RX` from DoIP to Dcm and `P2P_TX` from Dcm to DoIP |
 | `Mempool.json` | Memory pool (`MemCluster` named `Net`) used by SoAd/DoIP |
@@ -224,7 +234,7 @@ Compared with section 3, the following is added under `app/bootloader/config/Net
 | --- | --- |
 | `Network.json` | Extra target: `CAN_BL` at `0x0731` with node TX CAN id `0x731`; extra routine/tester `CANBL` with tester address `0x0E80` |
 | `PduR.json` | TP gateway routes `CAN_BL_RX` (DoIP -> CanTp) and `CAN_BL_TX` (CanTp -> DoIP) with `DestBufferSize: 4096` (the TP gateway buffer is mandatory, otherwise DoIP answers NACK `0x08`) |
-| `CanTp.json` | One TP gateway channel `CAN_BL` (`LL_DL: 64`, the source/destination PduIds are derived from the PduR routing) |
+| `CanTp.json` | One TP gateway channel `CAN_BL` (`LinkLayerDataLength: 64`, the source/destination PduIds are derived from the PduR routing) |
 
 The gateway CAN TX id and RX filter are given statically as build definitions in `app/bootloader/SConscript` (`CAN_DIAG_P2P_TX=0x731`, `CAN_DIAG_P2P_RX=0x732`); the glue in `main.c` uses them as defaults, and the command line `-t`/`-r` can override them at runtime.
 
@@ -249,11 +259,16 @@ build\nt\GCC\DoIPBL\DoIPBL.exe
 # terminal 3: flash the CAN application over DoIP, tester SA 0xE80, target TA 0x731
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.A.sign
 
-# program partition B (no need to restart)
+# program partition B: restart the CAN target first (see below)
 build\nt\GCC\Loader\Loader.exe -d DOIP.224.244.224.245 -t 0x731 -r 0xe80 -c FBL -S crc32 -f build/FlashDriverDummy.s19.sign -a build/AppDummy.s19.B.sign
 ```
 
 A successful run ends with `progress 100.00%` (about 2-3 kbps, the DoIP-to-CAN gateway forwards every UDS request through CAN TP). After the final ECU reset, CanBL verifies the application integrity, activates the flashed partition and jumps to `CanApp.exe`.
+
+Two things to note:
+
+1. Unlike the host `DoIPBL`, `CanBL` does **not** ignore the reset: after partition A has been programmed it verifies the application and jumps to `CanApp.exe`, so programming partition B requires stopping `CanBL`, deleting `Flash.img` in the repository root and starting it again. The `DoIPBL` path itself (section 6) still flashes A and B back to back without a restart.
+2. If a `Flash.img` from an earlier run is left in the repository root, `CanBL` immediately considers the application valid and jumps away; the Loader then stops at `level 1 security access` with `loader failed`. Delete `Flash.img` and start again (`Flash.img` is covered by the `*.img` ignore rule, so it can be removed at any time).
 
 ### 7.3 Loader SA/TA Mapping
 

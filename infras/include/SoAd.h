@@ -4,8 +4,8 @@
  *
  * ref: Specification of Socket Adaptor AUTOSAR CP Release 4.4.0
  */
-#ifndef _SOAD_H
-#define _SOAD_H
+#ifndef SOAD_H
+#define SOAD_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "TcpIp.h"
@@ -48,74 +48,74 @@ typedef struct SoAd_Config_s SoAd_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_SoAd_00093 */
-void SoAd_Init(const SoAd_ConfigType *ConfigPtr);
+void SoAd_Init(const SoAd_ConfigType *configPtr);
 
 /* @SWS_SoAd_00091 */
-Std_ReturnType SoAd_IfTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType SoAd_IfTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_SoAd_00656 */
 Std_ReturnType SoAd_IfRoutingGroupTransmit(SoAd_RoutingGroupIdType id);
 
 /* @SWS_SoAd_00711 */
 Std_ReturnType SoAd_IfSpecificRoutingGroupTransmit(SoAd_RoutingGroupIdType id,
-                                                   SoAd_SoConIdType SoConId);
+                                                   SoAd_SoConIdType soConId);
 
 /* @SWS_SoAd_00105 */
-Std_ReturnType SoAd_TpTransmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType SoAd_TpTransmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_SoAd_00522 */
-Std_ReturnType SoAd_TpCancelTransmit(PduIdType TxPduId);
+Std_ReturnType SoAd_TpCancelTransmit(PduIdType txPduId);
 
 /* @SWS_SoAd_00521 */
-Std_ReturnType SoAd_TpCancelReceive(PduIdType RxPduId);
+Std_ReturnType SoAd_TpCancelReceive(PduIdType rxPduId);
 
 /* @SWS_SoAd_00509 */
-Std_ReturnType SoAd_GetSoConId(PduIdType TxPduId, SoAd_SoConIdType *SoConIdPtr);
+Std_ReturnType SoAd_GetSoConId(PduIdType txPduId, SoAd_SoConIdType *soConIdPtr);
 
 /* @SWS_SoAd_00510 */
-Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId);
+Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType soConId);
 
 /* @SWS_SoAd_00511 */
-Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType SoConId, boolean abort);
+Std_ReturnType SoAd_CloseSoCon(SoAd_SoConIdType soConId, boolean abort);
 
 /* @SWS_SoAd_91001 */
-void SoAd_GetSoConMode(SoAd_SoConIdType SoConId, SoAd_SoConModeType *ModePtr);
+void SoAd_GetSoConMode(SoAd_SoConIdType soConId, SoAd_SoConModeType *modePtr);
 
 /* @SWS_SoAd_00520 */
-Std_ReturnType SoAd_RequestIpAddrAssignment(SoAd_SoConIdType SoConId,
-                                            TcpIp_IpAddrAssignmentType Type,
-                                            const TcpIp_SockAddrType *LocalIpAddrPtr,
-                                            uint8_t Netmask,
-                                            const TcpIp_SockAddrType *DefaultRouterPtr);
+Std_ReturnType SoAd_RequestIpAddrAssignment(SoAd_SoConIdType soConId,
+                                            TcpIp_IpAddrAssignmentType type,
+                                            const TcpIp_SockAddrType *localIpAddrPtr,
+                                            uint8_t netmask,
+                                            const TcpIp_SockAddrType *defaultRouterPtr);
 
 /* @SWS_SoAd_00536 */
-Std_ReturnType SoAd_ReleaseIpAddrAssignment(SoAd_SoConIdType SoConId);
+Std_ReturnType SoAd_ReleaseIpAddrAssignment(SoAd_SoConIdType soConId);
 
 /* @SWS_SoAd_00506 */
-Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *LocalAddrPtr,
-                                 uint8_t *NetmaskPtr, TcpIp_SockAddrType *DefaultRouterPtr);
+Std_ReturnType SoAd_GetLocalAddr(SoAd_SoConIdType soConId, TcpIp_SockAddrType *localAddrPtr,
+                                 uint8_t *netmaskPtr, TcpIp_SockAddrType *defaultRouterPtr);
 
 /* @SWS_SoAd_00507 */
-Std_ReturnType SoAd_GetPhysAddr(SoAd_SoConIdType SoConId, uint8_t *PhysAddrPtr);
+Std_ReturnType SoAd_GetPhysAddr(SoAd_SoConIdType soConId, uint8_t *physAddrPtr);
 
 /* @SWS_SoAd_00655 */
-Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType SoConId, TcpIp_SockAddrType *IpAddrPtr);
+Std_ReturnType SoAd_GetRemoteAddr(SoAd_SoConIdType soConId, TcpIp_SockAddrType *ipAddrPtr);
 
 /* @SWS_SoAd_00515 */
-Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType SoConId,
-                                  const TcpIp_SockAddrType *RemoteAddrPtr);
+Std_ReturnType SoAd_SetRemoteAddr(SoAd_SoConIdType soConId,
+                                  const TcpIp_SockAddrType *remoteAddrPtr);
 
 /* @SWS_SoAd_00121 */
 void SoAd_MainFunction(void);
 
-Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType SoConId);
-Std_ReturnType SoAd_SetNonBlock(SoAd_SoConIdType SoConId, boolean nonBlocked);
-Std_ReturnType SoAd_SetTimeout(SoAd_SoConIdType SoConId, uint32_t timeoutMs);
-Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType SoConId, uint8_t *data, uint32_t *length);
+Std_ReturnType SoAd_TakeControl(SoAd_SoConIdType soConId);
+Std_ReturnType SoAd_SetNonBlock(SoAd_SoConIdType soConId, boolean nonBlocked);
+Std_ReturnType SoAd_SetTimeout(SoAd_SoConIdType soConId, uint32_t timeoutMs);
+Std_ReturnType SoAd_ControlRecv(SoAd_SoConIdType soConId, uint8_t *data, uint32_t *length);
 
 /* @SWS_SoAd_00096 */
 void SoAd_GetVersionInfo(Std_VersionInfoType *versionInfo);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _SOAD_H */
+#endif /* SOAD_H */

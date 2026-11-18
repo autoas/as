@@ -5,9 +5,19 @@ CWD = GetCurrentDir()
 objs = Glob("*.c")
 
 
-@register_library
-class LibraryRingBuffer(Library):
+class RingBufferV2(Library):
     def config(self):
         self.include = [CWD]
         self.CPPPATH = ["$INFRAS"]
         self.source = objs
+
+
+@register_library
+class LibraryRingBuffer(RingBufferV2):
+    pass
+
+
+# the same V2 implementation can also be referenced by its explicit name
+@register_library
+class LibraryRingBufferV2(RingBufferV2):
+    pass

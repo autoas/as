@@ -4,8 +4,8 @@
  *
  * ref: Specification of SOME/IP Transformer AUTOSAR CP Release 4.4.0
  */
-#ifndef _SOMEIP_XF_PRIV_H_
-#define _SOMEIP_XF_PRIV_H_
+#ifndef SOMEIPXF_PRIV_H
+#define SOMEIPXF_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "SomeIpXf.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -27,27 +27,27 @@ typedef uint8_t SomIpXf_DataElementTypeType;
 /* For this implementataion, the dataSize or structSize must be smaller than UINT32_MAX/2,
  * That means this SomeIpXf support data serialized size maximum to 2GB */
 typedef struct {
-  const char *name;
-  const SomeIpXf_StructDefinitionType *pStructDef; /* for struct or struct array */
-  uint32_t dataSize;
-  uint32_t dataOffset;
-  uint32_t dataLenOffset; /* for array */
-  uint32_t hasOffset;     /* for optional */
-  uint16_t tag;           /* @SWS_SomeIpXf_00268 */
-  SomIpXf_DataElementTypeType dataType;
-  uint8_t sizeOfDataLengthField;
+  const char *Name;
+  const SomeIpXf_StructDefinitionType *PStructDef; /* for struct or struct array */
+  uint32_t DataSize;
+  uint32_t DataOffset;
+  uint32_t DataLenOffset; /* for array */
+  uint32_t HasOffset;     /* for optional */
+  uint16_t Tag;           /* @SWS_SomeIpXf_00268 */
+  SomIpXf_DataElementTypeType DataType;
+  uint8_t SizeOfDataLengthField;
 } SomeIpXf_DataElementType;
 
 struct SomeIpXf_StructDefinition_s {
-  const char *name;
-  const SomeIpXf_DataElementType *dataElements;
-  uint32_t structSize;
-  uint16_t numOfDataElements;
-  uint8_t sizeOfStructLengthField;
+  const char *Name;
+  const SomeIpXf_DataElementType *DataElements;
+  uint32_t StructSize;
+  uint16_t NumOfDataElements;
+  uint8_t SizeOfStructLengthField;
 };
 
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _SOMEIP_XF_PRIV_H_ */
+#endif /* SOMEIPXF_PRIV_H */

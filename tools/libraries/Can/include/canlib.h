@@ -5,7 +5,7 @@
  * @file    canlib.h
  * @brief   User space CAN/CAN FD access library.
  *
- * canlib provides a single, thread-safe C API on top of several CAN backends:
+ * CanL provides a single, thread-safe C API on top of several CAN backends:
  * the socket-based virtual CAN simulators (no hardware required) and real USB
  * CAN adapters. Every successfully opened device gets a small integer "bus id"
  * handle that is used by all subsequent read/write/wait/close calls.
@@ -34,17 +34,17 @@ extern "C" {
 #endif
 /* ================================ [ MACROS    ] ============================================== */
 /*! @brief OR-ed into a CAN ID to mark it as a 29-bit extended frame ID. */
-#define CAN_ID_EXTENDED 0x80000000U
+#define CANL_ID_EXTENDED 0x80000000U
 
 /*! @brief Wildcard CAN ID for read/wait: match the oldest buffered frame of ANY id. */
-#define CAN_ID_ANY ((uint32_t)-1)
+#define CANL_ID_ANY ((uint32_t)-1)
 
 /*! @brief Monitor selector for read/wait: pop from the mixed TX+RX trace FIFO. */
-#define CAN_ID_MONITOR ((uint32_t)-2)
+#define CANL_ID_MONITOR ((uint32_t)-2)
 
-#ifndef CAN_MAX_MTU
+#ifndef CANL_MAX_MTU
 /*! @brief Maximum payload length in bytes; 64 to support CAN FD. */
-#define CAN_MAX_MTU 64
+#define CANL_MAX_MTU 64
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /*!
@@ -56,11 +56,11 @@ extern "C" {
  * timestamping.
  */
 typedef struct {
-  uint32_t canid;              /*!< 11-bit or 29-bit ID (OR with #CAN_ID_EXTENDED). */
-  uint8_t dlc;                 /*!< Payload length in bytes, 0 .. #CAN_MAX_MTU. */
-  uint8_t data[CAN_MAX_MTU];   /*!< Frame payload. */
-  uint64_t timestamp;          /*!< Timestamp in microseconds. */
-} can_frame_t;
+  uint32_t CanId;             /*!< 11-bit or 29-bit ID (OR with #CANL_ID_EXTENDED). */
+  uint8_t Dlc;                /*!< Payload length in bytes, 0 .. #CANL_MAX_MTU. */
+  uint8_t Data[CANL_MAX_MTU]; /*!< Frame payload. */
+  uint64_t Timestamp;         /*!< timestamp in microseconds. */
+} CanL_FrameType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
@@ -69,7 +69,7 @@ typedef struct {
  * @brief Open (or attach to) a CAN bus/channel.
  *
  * Opening the same device_name:port more than once is allowed and reference
- * counted; every caller gets the same bus id and must call can_close() once.
+ * counted; every caller gets the same bus id and must call CanL_Close() once.
  * Reopening an existing device:port with a different baudrate is rejected.
  *
  * @param[in] device_name Backend name, see the file header for the list.
@@ -79,28 +79,28 @@ typedef struct {
  *                        simulators.
  * @return Bus id >= 0 used as the handle for all other calls, or -1 on failure.
  */
-int can_open(const char *device_name, uint32_t port, uint32_t baudrate);
+int CanL_Open(const char *device_name, uint32_t port, uint32_t baudrate);
 
 /*!
  * @brief Transmit a CAN/CAN FD frame (non-blocking).
  *
  * The transmit timestamp is generated automatically with PAL_Timestamp().
  *
- * @param[in] busid  Handle returned by can_open().
- * @param[in] canid  Frame ID; OR with #CAN_ID_EXTENDED for an extended frame.
- * @param[in] dlc    Payload length in bytes, must be <= #CAN_MAX_MTU.
+ * @param[in] busid  Handle returned by CanL_Open().
+ * @param[in] canid  Frame ID; OR with #CANL_ID_EXTENDED for an extended frame.
+ * @param[in] dlc    Payload length in bytes, must be <= #CANL_MAX_MTU.
  * @param[in] data   Payload bytes (at least @p dlc bytes).
  * @return true on success, false if the bus is not open/read-only or the send failed.
  */
-bool can_write(int busid, uint32_t canid, uint8_t dlc, const uint8_t *data);
+bool CanL_Write(int busid, uint32_t canid, uint8_t dlc, const uint8_t *data);
 
 /*!
  * @brief Receive one buffered CAN frame (non-blocking).
  *
- * @param[in]    busid Handle returned by can_open().
+ * @param[in]    busid Handle returned by CanL_Open().
  * @param[in,out] canid In: filter ID. A concrete ID pops the oldest buffered
- *                      frame of that ID; #CAN_ID_ANY pops the oldest frame
- *                      regardless of ID; #CAN_ID_MONITOR pops the next frame
+ *                      frame of that ID; #CANL_ID_ANY pops the oldest frame
+ *                      regardless of ID; #CANL_ID_MONITOR pops the next frame
  *                      from the mixed TX/RX trace FIFO.
  *                      Out: the actual ID of the returned frame.
  * @param[in,out] dlc   In: capacity of the @p data buffer in bytes.
@@ -109,32 +109,32 @@ bool can_write(int busid, uint32_t canid, uint8_t dlc, const uint8_t *data);
  * @return true if a frame was returned, false if no matching frame is buffered
  *         or the supplied buffer is too small.
  */
-bool can_read(int busid, uint32_t *canid /* InOut */, uint8_t *dlc /* InOut */, uint8_t *data);
+bool CanL_Read(int busid, uint32_t *canid /* InOut */, uint8_t *dlc /* InOut */, uint8_t *data);
 
 /*!
  * @brief Transmit a frame with a caller supplied timestamp (non-blocking).
  *
- * Same as can_write() but takes a full can_frame_t, allowing the sender to set
+ * Same as CanL_Write() but takes a full CanL_FrameType, allowing the sender to set
  * @ref timestamp (in microseconds); useful for replaying recorded traces.
  *
- * @param[in] busid     Handle returned by can_open().
+ * @param[in] busid     Handle returned by CanL_Open().
  * @param[in] can_frame Frame to send (canid/dlc/data/timestamp).
  * @return true on success, false on failure.
  */
-bool can_write_v2(int busid, can_frame_t *can_frame);
+bool CanL_WriteV2(int busid, CanL_FrameType *can_frame);
 
 /*!
  * @brief Receive one buffered frame including its timestamp (non-blocking).
  *
- * The filtering rules for can_frame_t.canid on input are the same as for
- * can_read(): concrete ID, #CAN_ID_ANY or #CAN_ID_MONITOR. On success the
+ * The filtering rules for CanL_FrameType.canid on input are the same as for
+ * CanL_Read(): concrete ID, #CANL_ID_ANY or #CANL_ID_MONITOR. On success the
  * whole structure is filled with the received ID, DLC, data and timestamp.
  *
- * @param[in]    busid     Handle returned by can_open().
+ * @param[in]    busid     Handle returned by CanL_Open().
  * @param[in,out] can_frame In: requested canid filter; Out: received frame.
  * @return true if a frame was returned, false if none is buffered.
  */
-bool can_read_v2(int busid, can_frame_t *can_frame);
+bool CanL_ReadV2(int busid, CanL_FrameType *can_frame);
 
 /*!
  * @brief Close a CAN bus/channel.
@@ -142,38 +142,38 @@ bool can_read_v2(int busid, can_frame_t *can_frame);
  * Decrements the open reference count; the underlying device is detached and
  * its queues freed only when the last reference is closed.
  *
- * @param[in] busid Handle returned by can_open().
+ * @param[in] busid Handle returned by CanL_Open().
  * @return true on success, false if the bus id is not open.
  */
-bool can_close(int busid);
+bool CanL_Close(int busid);
 
 /*!
  * @brief Reset the underlying CAN device/controller.
  *
  * For backends without a reset operation this is a no-op that succeeds.
  *
- * @param[in] busid Handle returned by can_open().
+ * @param[in] busid Handle returned by CanL_Open().
  * @return true on success (or unsupported), false if the reset failed.
  */
-bool can_reset(int busid);
+bool CanL_Reset(int busid);
 
 /*!
  * @brief Block until a frame is available or the timeout expires.
  *
  * Waits efficiently on an internal condition variable (no polling).
  *
- * @param[in] busid     Handle returned by can_open().
- * @param[in] canid     Filter ID: concrete ID, #CAN_ID_ANY for any frame, or
- *                      #CAN_ID_MONITOR for the mixed TX/RX trace FIFO.
+ * @param[in] busid     Handle returned by CanL_Open().
+ * @param[in] canid     Filter ID: concrete ID, #CANL_ID_ANY for any frame, or
+ *                      #CANL_ID_MONITOR for the mixed TX/RX trace FIFO.
  * @param[in] timeoutMs Timeout in milliseconds.
  * @return true if a matching frame is available, false on timeout.
  */
-bool can_wait(int busid, uint32_t canid, uint32_t timeoutMs);
+bool CanL_Wait(int busid, uint32_t canid, uint32_t timeoutMs);
 
 /*!
  * @brief Wait for a frame with minimum receive latency or the timeout expires.
  *
- * Same filtering as can_wait(). Instead of relying on the background RX daemon
+ * Same filtering as CanL_Wait(). Instead of relying on the background RX daemon
  * plus a condition variable, this call pumps the backend RX path directly in
  * the calling thread (device ops->read) inside the wait loop, so an incoming
  * frame is enqueued and returned without the daemon polling/wake-up delay.
@@ -183,12 +183,12 @@ bool can_wait(int busid, uint32_t canid, uint32_t timeoutMs);
  * and maximize bootloader download speed; prefer it in tight request/response
  * loops such as UDS flashing.
  *
- * @param[in] busid     Handle returned by can_open().
- * @param[in] canid     Filter ID: concrete ID, #CAN_ID_ANY or #CAN_ID_MONITOR.
+ * @param[in] busid     Handle returned by CanL_Open().
+ * @param[in] canid     Filter ID: concrete ID, #CANL_ID_ANY or #CANL_ID_MONITOR.
  * @param[in] timeoutMs Timeout in milliseconds.
  * @return true if a matching frame is available, false on timeout.
  */
-bool can_wait_v2(int busid, uint32_t canid, uint32_t timeoutMs);
+bool CanL_WaitV2(int busid, uint32_t canid, uint32_t timeoutMs);
 #ifdef __cplusplus
 }
 #endif

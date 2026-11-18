@@ -1,146 +1,147 @@
 {
   "AntiTest": true,
-  "class": "Net",
+  "Class": "Net",
   "Modules": [
     {
-      "name": "DoIp",
-      "class": "DoIp",
-      "discovery": "224.244.224.245:13400",
+      "Name": "DoIp",
+      "Class": "DoIp",
+      "Discovery": "224.244.224.245:13400",
       "EnableTLS": false,
-      "max_connections": 3,
-      "targets": [
+      "MaxConnections": 3,
+      "Targets": [
         {
-          "name": "P2P",
-          "address": "0xdead"
+          "Name": "P2P",
+          "Address": "0xdead"
         },
         {
-          "name": "GW_P2P",
-          "address": "0xcaaa"
+          "Name": "GW_P2P",
+          "Address": "0xcaaa"
         },
         {
-          "name": "GW_P2A",
-          "address": "0xcaab",
-          "nodes": [
-            { "name": "GW_P2A0", "address": "0xcaa0" },
-            { "name": "GW_P2A1", "address": "0xcaa1" }
-          ]
+          "Name": "GW_P2A",
+          "Address": "0xcaab",
+          "Nodes": [
+            { "Name": "GW_P2A0", "Address": "0xcaa0" },
+            { "Name": "GW_P2A1", "Address": "0xcaa1" }
+          ],
+          "MultiNodes": true
         }
       ],
-      "routines": [
+      "Routines": [
         {
-          "name": "default",
-          "number": "0x00",
-          "targets": [
+          "Name": "default",
+          "Number": "0x00",
+          "Targets": [
             "P2P",
             "GW_P2P",
             "GW_P2A"
           ]
         }
       ],
-      "testers": [
+      "Testers": [
         {
-          "name": "default",
-          "address": "0xbeef",
-          "routines": [
+          "Name": "default",
+          "Address": "0xbeef",
+          "Routines": [
             "default"
           ]
         }
       ]
     },
     {
-      "name": "SomeIp",
-      "class": "SomeIp",
+      "Name": "SomeIp",
+      "Class": "SomeIp",
       "SD": {
-        "hostname": "ssas",
-        "multicast": "224.244.224.245"
+        "Hostname": "ssas",
+        "Multicast": "224.244.224.245"
       },
-      "structs": [
+      "Structs": [
         {
-          "name": "Message",
-          "data": [
-            { "name": "buffer", "type": "uint8_n", "size": 2048, "variable_array": true }
+          "Name": "Message",
+          "Data": [
+            { "Name": "buffer", "Type": "uint8_n", "Size": 2048, "VariableArray": true }
           ]
         }
       ],
-      "args": [
-        { "name": "common-args", "args": [ { "name": "message", "type": "Message" } ] }
+      "Args": [
+        { "Name": "common-args", "Args": [ { "Name": "message", "Type": "Message" } ] }
       ],
-      "servers": [
+      "Servers": [
         {
-          "name": "Service0",
-          "service": "0x1000",
-          "instance": "0x1000",
-          "clientId": "0x1000",
-          "unreliable": "30560",
-          "methods": [
+          "Name": "Service0",
+          "Service": "0x1000",
+          "Instance": "0x1000",
+          "ClientId": "0x1000",
+          "Unreliable": "30560",
+          "Methods": [
             {
-              "name": "Method0",
-              "methodId": "0x1000",
-              "tp": true,
-              "args": "common-args",
-              "return": "Message",
-              "version": "0"
+              "Name": "Method0",
+              "MethodId": "0x1000",
+              "Tp": true,
+              "Args": "common-args",
+              "Return": "Message",
+              "Version": "0"
             },
             {
-              "name": "Method2",
-              "methodId": "0x1002",
-              "tp": true,
-              "args": "common-args",
-              "return": "Message",
-              "version": "0"
+              "Name": "Method2",
+              "MethodId": "0x1002",
+              "Tp": true,
+              "Args": "common-args",
+              "Return": "Message",
+              "Version": "0"
             }
           ],
-          "event-groups": [
+          "EventGroups": [
             {
-              "name": "EventGroup0",
-              "groupId": "0x8000",
-              "enable_multicast": false,
-              "events": [
+              "Name": "EventGroup0",
+              "GroupId": "0x8000",
+              "EnableMulticast": false,
+              "Events": [
                 {
-                  "name": "Event0",
-                  "eventId": "0x8000",
-                  "type": "Message",
-                  "tp": true,
+                  "Name": "Event0",
+                  "EventId": "0x8000",
+                  "Type": "Message",
+                  "Tp": true,
                   "TxMaxSize": 2048,
-                  "version": "0"
+                  "Version": "0"
                 }
               ]
             }
           ]
         }
       ],
-      "clients": [
+      "Clients": [
         {
-          "name": "Service1",
-          "service": "0x1001",
-          "instance": "0x1001",
-          "clientId": "0x1001",
-          "unreliable": "30568",
-          "methods": [
+          "Name": "Service1",
+          "Service": "0x1001",
+          "Instance": "0x1001",
+          "ClientId": "0x1001",
+          "Unreliable": "30568",
+          "Methods": [
             {
-              "name": "Method1",
-              "methodId": "0x1001",
-              "args": "common-args",
-              "return": "Message",
-              "tp": true,
+              "Name": "Method1",
+              "MethodId": "0x1001",
+              "Args": "common-args",
+              "Return": "Message",
+              "Tp": true,
               "TxMaxSize": 2048,
               "RxMaxSize": 2048,
-              "version": "0"
+              "Version": "0"
             }
           ],
-          "event-groups": [
+          "EventGroups": [
             {
-              "name": "EventGroup1",
-              "groupId": "0x8001",
-              "enable_multicast": false,
-              "events": [
+              "Name": "EventGroup1",
+              "GroupId": "0x8001",
+              "EnableMulticast": false,
+              "Events": [
                 {
-                  "name": "Event1",
-                  "eventId": "0x8001",
-                  "type": "Message",
-                  "tp": true,
+                  "Name": "Event1",
+                  "EventId": "0x8001",
+                  "Type": "Message",
+                  "Tp": true,
                   "TxMaxSize": 2048,
-                  "version": "0"
+                  "Version": "0"
                 }
               ]
             }
@@ -149,26 +150,27 @@
       ]
     },
     {
-      "name": "SoAd",
-      "class": "SoAd",
-      "sockets": [
+      "Name": "SoAd",
+      "Class": "SoAd",
+      "Sockets": [
         {
-          "name": "UDPNM_CHL0",
-          "type": "server",
-          "server": "224.244.224.245:12345",
-          "protocol": "UDP",
-          "multicast": true,
-          "up": "UdpNm",
+          "Name": "UDPNM_CHL0",
+          "Type": "server",
+          "Server": "224.244.224.245:12345",
+          "Protocol": "UDP",
+          "Multicast": true,
+          "Up": "UdpNm",
           "RxPduId": "UDPNM_RX_PID_CHL0",
           "AutomaticSoConSetup": true
         },
         {
-          "name": "MIRROR_CLIENT_0",
-          "client": "224.244.224.245:30511",
-          "protocol": "UDP",
-          "multicast": true,
-          "up": "Mirror",
-          "RxPduId": "0"
+          "Name": "MIRROR_CLIENT_0",
+          "Client": "224.244.224.245:30511",
+          "Protocol": "UDP",
+          "Multicast": true,
+          "Up": "Mirror",
+          "RxPduId": "0",
+          "Type": "client"
         }
       ]
     }

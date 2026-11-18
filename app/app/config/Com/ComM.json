@@ -1,23 +1,23 @@
 {
-    "class": "ComM",
-    "chanels" : [
+    "Class": "ComM",
+    "Chanels" : [
       {
-        "name": "CAN0",
-        "type": "CAN",
-        "variant": "FULL",
+        "Name": "CAN0",
+        "Type": "CAN",
+        "Variant": "FULL",
         "IpduGroupIds": ["COM_GROUP_ID_CAN0"]
       },
       {
-        "name": "CAN1",
-        "type": "CAN",
-        "variant": "FULL",
+        "Name": "CAN1",
+        "Type": "CAN",
+        "Variant": "FULL",
         "IpduGroupIds": ["COM_GROUP_ID_CAN1"]
       }
     ],
-    "users": [
+    "Users": [
       {
-        "name": "User0",
-        "chanels": ["CAN0", "CAN1"]
+        "Name": "User0",
+        "Chanels": ["CAN0", "CAN1"]
       }
     ]
   }

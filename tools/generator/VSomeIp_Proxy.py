@@ -11,26 +11,26 @@ __all__ = ["Gen_VSomeIpProxy"]
 
 
 def GetArgsList(method, cfg):
-    if "args" in method:
-        args = GetArgs(cfg, method["args"])
+    if "Args" in method:
+        args = GetArgs(cfg, method["Args"])
         arg_list = []
         for arg in args:
-            arg_list.append(f"const {toMethodTypeName(arg['type'], method)} &{arg['name']}")
+            arg_list.append(f"const {toMethodTypeName(arg['Type'], method)} &{arg['Name']}")
         return ", ".join(arg_list)
     return ""
 
 
 def GetMethodPayloadSize(method, cfg, allStructs):
     payloadSize = 0
-    if "args" in method:
-        args = GetArgs(cfg, method["args"])
+    if "Args" in method:
+        args = GetArgs(cfg, method["Args"])
         for arg in args:
             payloadSize += GetTypePayloadSize(arg, allStructs)
     return payloadSize
 
 
 def Gen_VSomeIpProxy(cfg, service, dir, source):
-    service_name = service["name"]
+    service_name = service["Name"]
 
     source[f"{service_name}ProxyV"] = [os.path.join(dir, f"{service_name}ProxyV.cpp")]
 
@@ -38,7 +38,7 @@ def Gen_VSomeIpProxy(cfg, service, dir, source):
 
     context = {
         "cfg": cfg,
-        "service": service,
+        "Service": service,
         "service_name": service_name,
         "allStructs": allStructs,
         "now": datetime.datetime.now(),
@@ -80,7 +80,7 @@ def Gen_VSomeIpProxy(cfg, service, dir, source):
 
 def toMethodTypeName(type_name, method):
     """Strip method name prefix if present: e.g., 'AdjustOutput' -> 'Output' for method 'Adjust'."""
-    method_name = method["name"]
+    method_name = method["Name"]
     if type_name.startswith(method_name):
         return type_name[len(method_name) :]
     return type_name

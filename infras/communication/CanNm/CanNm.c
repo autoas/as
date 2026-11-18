@@ -23,11 +23,11 @@
 #define AS_LOG_CANNME 2
 
 #ifdef USE_CANNM_CRITICAL
-#define nmEnterCritical() EnterCritical()
-#define nmExitCritical() ExitCritical();
+#define CanNmEnterCritical() EnterCritical()
+#define CanNmExitCritical() ExitCritical();
 #else
-#define nmEnterCritical()
-#define nmExitCritical()
+#define CanNmEnterCritical()
+#define CanNmExitCritical()
 #endif
 
 #ifdef CANNM_USE_PB_CONFIG
@@ -48,36 +48,36 @@
 #define CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK 0x200u
 
 #ifdef CANNM_USE_STD_TIMER
-#define nmSetAlarm(Timer, v)                                                                       \
+#define CanNmSetAlarm(Timer, v)                                                                    \
   do {                                                                                             \
-    Std_TimerInit(&context->Alarm._##Timer, ((v) * 1000u * CANNM_MAIN_FUNCTION_PERIOD));           \
+    Std_TimerInit(&context->Alarm.Timer, ((v) * 1000u * CANNM_MAIN_FUNCTION_PERIOD));              \
   } while (0)
-#define nmSingalAlarm(Timer)
-#define nmIsAlarmTimeout(Timer) Std_IsTimerTimeout(&context->Alarm._##Timer)
-#define nmIsAlarmStarted(Timer) Std_IsTimerStarted(&context->Alarm._##Timer)
-#define nmCancelAlarm(Timer) Std_TimerStop(&context->Alarm._##Timer)
+#define CanNmSignalAlarm(Timer)
+#define CanNmIsAlarmTimeout(Timer) Std_IsTimerTimeout(&context->Alarm.Timer)
+#define CanNmIsAlarmStarted(Timer) Std_IsTimerStarted(&context->Alarm.Timer)
+#define CanNmCancelAlarm(Timer) Std_TimerStop(&context->Alarm.Timer)
 #else
 /* Alarm Management */
-#define nmSetAlarm(Timer, v)                                                                       \
+#define CanNmSetAlarm(Timer, v)                                                                    \
   do {                                                                                             \
-    context->Alarm._##Timer = 1u + (v);                                                            \
+    context->Alarm.Timer = 1u + (v);                                                               \
   } while (0)
 
 /* signal the alarm to process one step/tick forward */
-#define nmSingalAlarm(Timer)                                                                       \
+#define CanNmSignalAlarm(Timer)                                                                    \
   do {                                                                                             \
-    if (context->Alarm._##Timer > 1u) {                                                            \
-      (context->Alarm._##Timer)--;                                                                 \
+    if (context->Alarm.Timer > 1u) {                                                               \
+      (context->Alarm.Timer)--;                                                                    \
     }                                                                                              \
   } while (0)
 
-#define nmIsAlarmTimeout(Timer) (1u == context->Alarm._##Timer)
+#define CanNmIsAlarmTimeout(Timer) (1u == context->Alarm.Timer)
 
-#define nmIsAlarmStarted(Timer) (0u != context->Alarm._##Timer)
+#define CanNmIsAlarmStarted(Timer) (0u != context->Alarm.Timer)
 
-#define nmCancelAlarm(Timer)                                                                       \
+#define CanNmCancelAlarm(Timer)                                                                    \
   do {                                                                                             \
-    context->Alarm._##Timer = 0;                                                                   \
+    context->Alarm.Timer = 0;                                                                      \
   } while (0)
 #endif
 
@@ -115,21 +115,21 @@ static void CanNm_SetUserDataImpl(CanNm_ChannelContextType *context,
 #endif
   for (i = 0u; i < 8u; i++) {
     if (0u == (notUserDataMask & (1u << i))) {
-      context->data[i] = nmUserDataPtr[j];
+      context->Data[i] = nmUserDataPtr[j];
       j++;
     }
   }
 }
 
-static void nmSendMessage(CanNm_ChannelContextType *context, const CanNm_ChannelConfigType *config,
-                          uint16_t reload) {
+static void CanNm_SendMessage(CanNm_ChannelContextType *context,
+                              const CanNm_ChannelConfigType *config, uint16_t reload) {
   Std_ReturnType ret = E_OK;
   PduInfoType pdu;
 #ifdef CANNM_COM_USER_DATA_SUPPORT
   uint8_t userData[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 #endif
 
-  if (0u == (context->flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+  if (0u == (context->Flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
 #ifdef CANNM_COM_USER_DATA_SUPPORT
     pdu.SduLength = sizeof(userData);
     pdu.SduDataPtr = userData;
@@ -152,18 +152,18 @@ static void nmSendMessage(CanNm_ChannelContextType *context, const CanNm_Channel
     }
 #endif
 
-    pdu.SduLength = sizeof(context->data);
-    pdu.SduDataPtr = context->data;
+    pdu.SduLength = sizeof(context->Data);
+    pdu.SduDataPtr = context->Data;
     pdu.MetaDataPtr = NULL;
     ret = CanIf_Transmit(config->TxPdu, &pdu);
     if (E_OK == ret) { /* @SWS_CanNm_00064 */
-      nmSetAlarm(TxTimeout, config->MsgTimeoutTime);
+      CanNmSetAlarm(TxTimeout, config->MsgTimeoutTime);
       if (reload > 0u) {
-        nmSetAlarm(Tx, reload);
+        CanNmSetAlarm(Tx, reload);
       }
     } else {
       /* @SWS_CanNm_00335 */
-      nmSetAlarm(Tx, 0u);
+      CanNmSetAlarm(Tx, 0u);
     }
   }
 }
@@ -182,9 +182,9 @@ static void CanNm_CarWakeupProcess(const CanNm_ChannelConfigType *config,
     }
     if (TRUE == bProcess) {
       if (0u !=
-          (context->rxPdu[config->CarWakeUpBytePosition] & (1u << config->CarWakeUpBitPosition))) {
+          (context->RxPdu[config->CarWakeUpBytePosition] & (1u << config->CarWakeUpBitPosition))) {
 #ifdef USE_NM
-        Nm_CarWakeUpIndication(config->nmNetworkHandle);
+        Nm_CarWakeUpIndication(config->NetworkHandle);
 #endif
       }
     }
@@ -193,68 +193,68 @@ static void CanNm_CarWakeupProcess(const CanNm_ChannelConfigType *config,
 #endif
 
 /* This API called from state BusSleep or PrePreareBusSleep */
-static void nmEnterNetworkMode(CanNm_ChannelContextType *context,
-                               const CanNm_ChannelConfigType *config) {
-  context->state = NM_STATE_REPEAT_MESSAGE;
+static void CanNm_EnterNetworkMode(CanNm_ChannelContextType *context,
+                                   const CanNm_ChannelConfigType *config) {
+  context->State = NM_STATE_REPEAT_MESSAGE;
   context->TxCounter = 0;
 
-  if (0u != (context->flags & CANNM_REQUEST_MASK)) {
+  if (0u != (context->Flags & CANNM_REQUEST_MASK)) {
     if ((config->ActiveWakeupBitEnabled) && (config->PduCbvPosition < CANNM_PDU_OFF)) {
-      context->data[config->PduCbvPosition] |= CANNM_CBV_ACTIVE_WAKEUP; /* @SWS_CanNm_00401 */
+      context->Data[config->PduCbvPosition] |= CANNM_CBV_ACTIVE_WAKEUP; /* @SWS_CanNm_00401 */
     }
 #ifdef CANNM_REQUEST_BIT_AUTO_SET
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
-      context->data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
+      context->Data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
     }
 #endif
   }
 
   if (
 #ifndef CANNM_PASSIVE_STARTUP_REPEAT_ENABLED
-    (context->flags & CANNM_REQUEST_MASK) &&
+    (context->Flags & CANNM_REQUEST_MASK) &&
 #endif
     (config->ImmediateNmTransmissions > 0u)) {
     /* @SWS_CanNm_00334 */
-    nmSendMessage(context, config, config->ImmediateNmCycleTime);
+    CanNm_SendMessage(context, config, config->ImmediateNmCycleTime);
   } else {
     /* SWS_CanNm_00005 */
-    nmSetAlarm(Tx, config->MsgCycleOffset);
+    CanNmSetAlarm(Tx, config->MsgCycleOffset);
   }
 
-  nmSetAlarm(NMTimeout, config->NmTimeoutTime);
-  nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+  CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
+  CanNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
 
-  nmEnterCritical();
-  context->flags &= ~(CANNM_NM_PDU_RECEIVED_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK |
+  CanNmEnterCritical();
+  context->Flags &= ~(CANNM_NM_PDU_RECEIVED_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK |
                       CANNM_REMOTE_SLEEP_IND_MASK | CANNM_RX_INDICATION_REQUEST_MASK |
                       CANNM_COORDINATOR_SLEEP_SYNC_MASK | CANNM_PN_ENABLED_MASK |
                       CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
-  nmExitCritical();
+  CanNmExitCritical();
   ASLOG(CANNM,
-        ("%d: Enter Repeat Message Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+        ("%d: Enter Repeat Message Mode, flags %02X\n", config->NetworkHandle, context->Flags));
 }
 
-static void nmRepeatMessageMain(CanNm_ChannelContextType *context,
-                                const CanNm_ChannelConfigType *config) {
+static void CanNm_RepeatMessageMain(CanNm_ChannelContextType *context,
+                                    const CanNm_ChannelConfigType *config) {
   uint16_t reload = config->MsgCycleTime;
 
-  if (0u != (context->flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
-    nmEnterCritical();
-    context->flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
-    nmExitCritical();
+  if (0u != (context->Flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
+    CanNmEnterCritical();
+    context->Flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
+    CanNmExitCritical();
   }
 
 #ifdef CANNM_REQUEST_BIT_AUTO_SET /* auto set repeat message bit if network requested, robust! */
-  if (0u != (context->flags & CANNM_REQUEST_MASK)) {
+  if (0u != (context->Flags & CANNM_REQUEST_MASK)) {
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
-      context->data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
+      context->Data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
     }
   }
 #endif
 
   if (
 #ifndef CANNM_PASSIVE_STARTUP_REPEAT_ENABLED
-    (0u != (context->flags & CANNM_REQUEST_MASK)) &&
+    (0u != (context->Flags & CANNM_REQUEST_MASK)) &&
 #endif
     (config->ImmediateNmTransmissions > 0u)) {
     /* @SWS_CanNm_00334 */
@@ -263,12 +263,12 @@ static void nmRepeatMessageMain(CanNm_ChannelContextType *context,
     }
   }
 
-  if (nmIsAlarmStarted(TxTimeout)) {
-    nmSingalAlarm(TxTimeout);
-    if (nmIsAlarmTimeout(TxTimeout)) {
-      nmCancelAlarm(TxTimeout);
+  if (CanNmIsAlarmStarted(TxTimeout)) {
+    CanNmSignalAlarm(TxTimeout);
+    if (CanNmIsAlarmTimeout(TxTimeout)) {
+      CanNmCancelAlarm(TxTimeout);
 #ifdef USE_NM /* @SWS_CanNm_00066 */
-      Nm_TxTimeoutException(config->nmNetworkHandle);
+      Nm_TxTimeoutException(config->NetworkHandle);
 #endif
 #if defined(CANNM_GLOBAL_PN_SUPPORT) && defined(USE_CANSM) /* SWS_CanNm_00446 */
       CanSM_TxTimeoutException((NetworkHandleType)(config - CANNM_CONFIG->ChannelConfigs));
@@ -276,245 +276,245 @@ static void nmRepeatMessageMain(CanNm_ChannelContextType *context,
     }
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+  if (CanNmIsAlarmStarted(NmTimeout)) {
+    CanNmSignalAlarm(NmTimeout);
+    if (CanNmIsAlarmTimeout(NmTimeout)) {
+      CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   } else {
-    nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
   }
 
-  if (nmIsAlarmStarted(Tx)) {
-    nmSingalAlarm(Tx);
-    if (nmIsAlarmTimeout(Tx)) {
-      nmSendMessage(context, config, reload);
+  if (CanNmIsAlarmStarted(Tx)) {
+    CanNmSignalAlarm(Tx);
+    if (CanNmIsAlarmTimeout(Tx)) {
+      CanNm_SendMessage(context, config, reload);
     }
   } else {
-    nmSetAlarm(Tx, reload);
+    CanNmSetAlarm(Tx, reload);
   }
 
-  if (nmIsAlarmStarted(RepeatMessage)) {
-    nmSingalAlarm(RepeatMessage);
-    if (nmIsAlarmTimeout(RepeatMessage)) {
-      if (0u != (context->flags & CANNM_REQUEST_MASK)) {
-        context->state = NM_STATE_NORMAL_OPERATION;
+  if (CanNmIsAlarmStarted(RepeatMessage)) {
+    CanNmSignalAlarm(RepeatMessage);
+    if (CanNmIsAlarmTimeout(RepeatMessage)) {
+      if (0u != (context->Flags & CANNM_REQUEST_MASK)) {
+        context->State = NM_STATE_NORMAL_OPERATION;
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-        Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_REPEAT_MESSAGE,
+        Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_REPEAT_MESSAGE,
                                    NM_STATE_NORMAL_OPERATION);
 #endif
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_CanNm_00149, @SWS_CanNm_00150 */
-        nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+        CanNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
 #endif
-        ASLOG(CANNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        ASLOG(CANNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->NetworkHandle,
+                      context->Flags));
       } else {
-        context->state = NM_STATE_READY_SLEEP;
+        context->State = NM_STATE_READY_SLEEP;
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-        Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_REPEAT_MESSAGE,
+        Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_REPEAT_MESSAGE,
                                    NM_STATE_READY_SLEEP);
 #endif
-        ASLOG(CANNM, ("%d: Enter Ready Sleep Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        ASLOG(CANNM,
+              ("%d: Enter Ready Sleep Mode, flags %02X\n", config->NetworkHandle, context->Flags));
       }
       if (config->PduCbvPosition < CANNM_PDU_OFF) {
         /* @SWS_CanNm_00107 */
-        nmEnterCritical();
-        context->data[config->PduCbvPosition] &= ~CANNM_CBV_REPEAT_MESSAGE_REQUEST;
-        nmExitCritical();
+        CanNmEnterCritical();
+        context->Data[config->PduCbvPosition] &= ~CANNM_CBV_REPEAT_MESSAGE_REQUEST;
+        CanNmExitCritical();
       }
     }
   } else {
-    nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+    CanNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
   }
 }
 
-static void nmBusSleepMain(CanNm_ChannelContextType *context,
-                           const CanNm_ChannelConfigType *config) {
-  if (0u != (context->flags & (CANNM_REQUEST_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK))) {
+static void CanNm_BusSleepMain(CanNm_ChannelContextType *context,
+                               const CanNm_ChannelConfigType *config) {
+  if (0u != (context->Flags & (CANNM_REQUEST_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK))) {
 #ifdef USE_NM
-    Nm_NetworkMode(config->nmNetworkHandle);
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_BUS_SLEEP,
+    Nm_NetworkMode(config->NetworkHandle);
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_BUS_SLEEP,
                                NM_STATE_REPEAT_MESSAGE); /* @SWS_CanNm_00166 */
 #endif
-    nmEnterNetworkMode(context, config);
+    CanNm_EnterNetworkMode(context, config);
   } else {
-    if (0u != (context->flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
+    if (0u != (context->Flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
       /* @SWS_CanNm_00127 */
-      nmEnterCritical();
-      context->flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
-      nmExitCritical();
+      CanNmEnterCritical();
+      context->Flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
+      CanNmExitCritical();
 #ifdef USE_NM
-      Nm_NetworkStartIndication(config->nmNetworkHandle);
+      Nm_NetworkStartIndication(config->NetworkHandle);
 #endif
     }
   }
 }
 
-static void nmPrepareBusSleepMain(CanNm_ChannelContextType *context,
-                                  const CanNm_ChannelConfigType *config) {
-  if (0u != (context->flags & (CANNM_REQUEST_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK |
+static void CanNm_PrepareBusSleepMain(CanNm_ChannelContextType *context,
+                                      const CanNm_ChannelConfigType *config) {
+  if (0u != (context->Flags & (CANNM_REQUEST_MASK | CANNM_PASSIVE_STARTUP_REQUEST_MASK |
                                CANNM_RX_INDICATION_REQUEST_MASK))) {
-    if (0u != (context->flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
-      nmEnterCritical();
-      context->flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
-      nmExitCritical();
+    if (0u != (context->Flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
+      CanNmEnterCritical();
+      context->Flags &= ~(CANNM_RX_INDICATION_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
+      CanNmExitCritical();
     }
 #ifdef USE_NM
-    Nm_NetworkMode(config->nmNetworkHandle);
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_PREPARE_BUS_SLEEP,
+    Nm_NetworkMode(config->NetworkHandle);
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_PREPARE_BUS_SLEEP,
                                NM_STATE_REPEAT_MESSAGE); /* @SWS_CanNm_00166 */
 #endif
-    nmEnterNetworkMode(context, config);
+    CanNm_EnterNetworkMode(context, config);
   } else {
-    if (nmIsAlarmStarted(WaitBusSleep)) {
-      nmSingalAlarm(WaitBusSleep);
-      if (nmIsAlarmTimeout(WaitBusSleep)) {
-        context->state = NM_STATE_BUS_SLEEP;
+    if (CanNmIsAlarmStarted(WaitBusSleep)) {
+      CanNmSignalAlarm(WaitBusSleep);
+      if (CanNmIsAlarmTimeout(WaitBusSleep)) {
+        context->State = NM_STATE_BUS_SLEEP;
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-        Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_PREPARE_BUS_SLEEP,
+        Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_PREPARE_BUS_SLEEP,
                                    NM_STATE_BUS_SLEEP);
 #endif
         ASLOG(CANNM,
-              ("%d: Enter Bus Sleep Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+              ("%d: Enter Bus Sleep Mode, flags %02X\n", config->NetworkHandle, context->Flags));
 #ifdef USE_NM
-        Nm_BusSleepMode(config->nmNetworkHandle);
+        Nm_BusSleepMode(config->NetworkHandle);
 #endif
       }
     } else {
-      nmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
+      CanNmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
     }
   }
 }
 
 /* this only called form ReadySleep or NormalOperationMode */
-static void nmEnterRepeatMessageMode(CanNm_ChannelContextType *context,
-                                     const CanNm_ChannelConfigType *config) {
-  context->state = NM_STATE_REPEAT_MESSAGE;
+static void CanNm_EnterRepeatMessageMode(CanNm_ChannelContextType *context,
+                                         const CanNm_ChannelConfigType *config) {
+  context->State = NM_STATE_REPEAT_MESSAGE;
   context->TxCounter = 0;
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-  if (0u != (context->flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
+  if (0u != (context->Flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
     /* @SWS_CanNm_00152 */
-    Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+    Nm_RemoteSleepCancellation(config->NetworkHandle);
   }
 #endif
 
-  if (0u != (context->flags & CANNM_REPEAT_MESSAGE_REQUEST_MASK)) {
+  if (0u != (context->Flags & CANNM_REPEAT_MESSAGE_REQUEST_MASK)) {
     /* @SWS_CanNm_00121, @SWS_CanNm_00113 */
     if (TRUE == config->NodeDetectionEnabled) {
       if (config->PduCbvPosition < CANNM_PDU_OFF) {
-        context->data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
+        context->Data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
       }
     }
   }
 
 #ifdef CANNM_REQUEST_BIT_AUTO_SET
-  if (0u != (context->flags & CANNM_REQUEST_MASK)) {
+  if (0u != (context->Flags & CANNM_REQUEST_MASK)) {
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
-      context->data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
+      context->Data[config->PduCbvPosition] |= CANNM_CBV_REPEAT_MESSAGE_REQUEST;
     }
   }
 #endif
 
-  nmEnterCritical();
-  context->flags &= ~(CANNM_REPEAT_MESSAGE_REQUEST_MASK | CANNM_REMOTE_SLEEP_IND_MASK |
+  CanNmEnterCritical();
+  context->Flags &= ~(CANNM_REPEAT_MESSAGE_REQUEST_MASK | CANNM_REMOTE_SLEEP_IND_MASK |
                       CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK);
-  nmExitCritical();
+  CanNmExitCritical();
   ASLOG(CANNM,
-        ("%d: Enter Repeat Message Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+        ("%d: Enter Repeat Message Mode, flags %02X\n", config->NetworkHandle, context->Flags));
 #ifdef CANNM_PASSIVE_STARTUP_REPEAT_ENABLED
-  nmSendMessage(context, config, config->ImmediateNmCycleTime);
+  CanNm_SendMessage(context, config, config->ImmediateNmCycleTime);
 #else
   /* @SWS_CanNm_00005 */
-  nmSetAlarm(Tx, config->MsgCycleOffset);
+  CanNmSetAlarm(Tx, config->MsgCycleOffset);
 #endif
-  nmSetAlarm(RepeatMessage, config->RepeatMessageTime);
+  CanNmSetAlarm(RepeatMessage, config->RepeatMessageTime);
 }
 
-static void nmReadySleepMain(CanNm_ChannelContextType *context,
-                             const CanNm_ChannelConfigType *config) {
-  if (0u != (context->flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
-    nmEnterCritical();
-    context->flags &= ~CANNM_RX_INDICATION_REQUEST_MASK;
-    nmExitCritical();
+static void CanNm_ReadySleepMain(CanNm_ChannelContextType *context,
+                                 const CanNm_ChannelConfigType *config) {
+  if (0u != (context->Flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
+    CanNmEnterCritical();
+    context->Flags &= ~CANNM_RX_INDICATION_REQUEST_MASK;
+    CanNmExitCritical();
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-    if (0u != (context->flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
-      nmEnterCritical();
-      context->flags &= ~CANNM_REMOTE_SLEEP_IND_MASK;
-      nmExitCritical();
+    if (0u != (context->Flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
+      CanNmEnterCritical();
+      context->Flags &= ~CANNM_REMOTE_SLEEP_IND_MASK;
+      CanNmExitCritical();
 #ifdef USE_NM
       /* @SWS_CanNm_00151 */
-      Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+      Nm_RemoteSleepCancellation(config->NetworkHandle);
 #endif
     }
 #endif
   }
 
-  if (0u != (context->flags &
+  if (0u != (context->Flags &
              (CANNM_REPEAT_MESSAGE_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK))) {
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_READY_SLEEP,
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_READY_SLEEP,
                                NM_STATE_REPEAT_MESSAGE);
 #endif
-    nmEnterRepeatMessageMode(context, config);
-  } else if (0u != (context->flags & CANNM_REQUEST_MASK)) {
-    context->state = NM_STATE_NORMAL_OPERATION;
+    CanNm_EnterRepeatMessageMode(context, config);
+  } else if (0u != (context->Flags & CANNM_REQUEST_MASK)) {
+    context->State = NM_STATE_NORMAL_OPERATION;
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_READY_SLEEP,
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_READY_SLEEP,
                                NM_STATE_NORMAL_OPERATION);
 #endif
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_CanNm_00149, @SWS_CanNm_00150 */
-    nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+    CanNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
 #endif
-    nmSendMessage(context, config, config->MsgCycleTime); /* @SWS_CanNm_00006 */
-    ASLOG(CANNM, ("%d: Enter Normal Operation Mode, flags %02X\n", config->nmNetworkHandle,
-                  context->flags));
+    CanNm_SendMessage(context, config, config->MsgCycleTime); /* @SWS_CanNm_00006 */
+    ASLOG(CANNM,
+          ("%d: Enter Normal Operation Mode, flags %02X\n", config->NetworkHandle, context->Flags));
   } else {
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (0u != (context->flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
-      nmCancelAlarm(NMTimeout); /* @SWS_CanNm_00174 */
+  if (CanNmIsAlarmStarted(NmTimeout)) {
+    CanNmSignalAlarm(NmTimeout);
+    if (0u != (context->Flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+      CanNmCancelAlarm(NmTimeout); /* @SWS_CanNm_00174 */
     }
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      if (NM_STATE_READY_SLEEP == context->state) {
-        nmCancelAlarm(NMTimeout);
-        nmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
-        context->state = NM_STATE_PREPARE_BUS_SLEEP;
+    if (CanNmIsAlarmTimeout(NmTimeout)) {
+      if (NM_STATE_READY_SLEEP == context->State) {
+        CanNmCancelAlarm(NmTimeout);
+        CanNmSetAlarm(WaitBusSleep, config->WaitBusSleepTime);
+        context->State = NM_STATE_PREPARE_BUS_SLEEP;
         if ((config->ActiveWakeupBitEnabled) && (config->PduCbvPosition < CANNM_PDU_OFF)) {
-          context->data[config->PduCbvPosition] &= ~CANNM_CBV_ACTIVE_WAKEUP; /* @SWS_CanNm_00402 */
+          context->Data[config->PduCbvPosition] &= ~CANNM_CBV_ACTIVE_WAKEUP; /* @SWS_CanNm_00402 */
         }
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-        Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_READY_SLEEP,
+        Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_READY_SLEEP,
                                    NM_STATE_PREPARE_BUS_SLEEP);
 #endif
 #ifdef USE_NM
-        Nm_PrepareBusSleepMode(config->nmNetworkHandle);
+        Nm_PrepareBusSleepMode(config->NetworkHandle);
 #endif
-        ASLOG(CANNM, ("%d: Enter Prepare Bus Sleep Mode, flags %02X\n", config->nmNetworkHandle,
-                      context->flags));
+        ASLOG(CANNM, ("%d: Enter Prepare Bus Sleep Mode, flags %02X\n", config->NetworkHandle,
+                      context->Flags));
       } else {
-        nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+        CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
       }
     }
   } else {
-    if (0u == (context->flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+    if (0u == (context->Flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
       /* @SWS_CanNm_00178, @SWS_CanNm_00179 */
       ASLOG(ERROR, ("CANNM NMTimeout not started\n"));
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+      CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   }
 }
 
-static void nmNetworkNormalOperationMain(CanNm_ChannelContextType *context,
-                                         const CanNm_ChannelConfigType *config) {
-  if (nmIsAlarmStarted(TxTimeout)) {
-    nmSingalAlarm(TxTimeout);
-    if (nmIsAlarmTimeout(TxTimeout)) {
-      nmCancelAlarm(TxTimeout);
+static void CanNm_NetworkNormalOperationMain(CanNm_ChannelContextType *context,
+                                             const CanNm_ChannelConfigType *config) {
+  if (CanNmIsAlarmStarted(TxTimeout)) {
+    CanNmSignalAlarm(TxTimeout);
+    if (CanNmIsAlarmTimeout(TxTimeout)) {
+      CanNmCancelAlarm(TxTimeout);
 #ifdef USE_NM /* @SWS_CanNm_00066 */
-      Nm_TxTimeoutException(config->nmNetworkHandle);
+      Nm_TxTimeoutException(config->NetworkHandle);
 #endif
 #if defined(CANNM_GLOBAL_PN_SUPPORT) && defined(USE_CANSM) /* SWS_CanNm_00446 */
       CanSM_TxTimeoutException((NetworkHandleType)(config - CANNM_CONFIG->ChannelConfigs));
@@ -522,91 +522,91 @@ static void nmNetworkNormalOperationMain(CanNm_ChannelContextType *context,
     }
   }
 
-  if (nmIsAlarmStarted(NMTimeout)) {
-    nmSingalAlarm(NMTimeout);
-    if (nmIsAlarmTimeout(NMTimeout)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+  if (CanNmIsAlarmStarted(NmTimeout)) {
+    CanNmSignalAlarm(NmTimeout);
+    if (CanNmIsAlarmTimeout(NmTimeout)) {
+      CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   } else {
-    nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
   }
 
-  if (0u != (context->flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
-    nmEnterCritical();
-    context->flags &= ~CANNM_RX_INDICATION_REQUEST_MASK;
-    nmExitCritical();
+  if (0u != (context->Flags & CANNM_RX_INDICATION_REQUEST_MASK)) {
+    CanNmEnterCritical();
+    context->Flags &= ~CANNM_RX_INDICATION_REQUEST_MASK;
+    CanNmExitCritical();
     if (config->MsgReducedTime > 0u) {
-      nmSetAlarm(Tx, config->MsgReducedTime);
+      CanNmSetAlarm(Tx, config->MsgReducedTime);
     }
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-    nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
-    if (0u != (context->flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
-      nmEnterCritical();
-      context->flags &= ~CANNM_REMOTE_SLEEP_IND_MASK;
-      nmExitCritical();
+    CanNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime);
+    if (0u != (context->Flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
+      CanNmEnterCritical();
+      context->Flags &= ~CANNM_REMOTE_SLEEP_IND_MASK;
+      CanNmExitCritical();
 #ifdef USE_NM
       /* @SWS_CanNm_00151 */
-      Nm_RemoteSleepCancellation(config->nmNetworkHandle);
+      Nm_RemoteSleepCancellation(config->NetworkHandle);
 #endif
     }
 #endif
   }
 
-  if (nmIsAlarmStarted(Tx)) {
-    nmSingalAlarm(Tx);
-    if (nmIsAlarmTimeout(Tx)) {
-      nmSendMessage(context, config, config->MsgCycleTime);
+  if (CanNmIsAlarmStarted(Tx)) {
+    CanNmSignalAlarm(Tx);
+    if (CanNmIsAlarmTimeout(Tx)) {
+      CanNm_SendMessage(context, config, config->MsgCycleTime);
     }
   } else {
-    nmSetAlarm(Tx, config->MsgCycleTime);
+    CanNmSetAlarm(Tx, config->MsgCycleTime);
   }
 
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED /* @SWS_CanNm_00149, @SWS_CanNm_00150 */
-  if (nmIsAlarmStarted(RemoteSleepInd)) {
-    nmSingalAlarm(RemoteSleepInd);
-    if (nmIsAlarmTimeout(RemoteSleepInd)) {
-      nmCancelAlarm(RemoteSleepInd);
-      if (0u == (context->flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
+  if (CanNmIsAlarmStarted(RemoteSleepInd)) {
+    CanNmSignalAlarm(RemoteSleepInd);
+    if (CanNmIsAlarmTimeout(RemoteSleepInd)) {
+      CanNmCancelAlarm(RemoteSleepInd);
+      if (0u == (context->Flags & CANNM_DISABLE_COMMUNICATION_REQUEST_MASK)) {
 #ifdef USE_NM
         /* @SWS_CanNm_00175 */
-        Nm_RemoteSleepIndication(config->nmNetworkHandle);
+        Nm_RemoteSleepIndication(config->NetworkHandle);
 #endif
-        nmEnterCritical();
-        context->flags |= CANNM_REMOTE_SLEEP_IND_MASK;
-        nmExitCritical();
+        CanNmEnterCritical();
+        context->Flags |= CANNM_REMOTE_SLEEP_IND_MASK;
+        CanNmExitCritical();
       }
     }
   }
 #endif
 
-  if (0u != (context->flags &
+  if (0u != (context->Flags &
              (CANNM_REPEAT_MESSAGE_REQUEST_MASK | CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK))) {
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_NORMAL_OPERATION,
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_NORMAL_OPERATION,
                                NM_STATE_REPEAT_MESSAGE);
 #endif
-    nmEnterRepeatMessageMode(context, config);
-  } else if (0u == (context->flags & CANNM_REQUEST_MASK)) {
-    context->state = NM_STATE_READY_SLEEP;
+    CanNm_EnterRepeatMessageMode(context, config);
+  } else if (0u == (context->Flags & CANNM_REQUEST_MASK)) {
+    context->State = NM_STATE_READY_SLEEP;
 #ifdef USE_NM /* @SWS_CanNm_00166 */
-    Nm_StateChangeNotification(config->nmNetworkHandle, NM_STATE_NORMAL_OPERATION,
+    Nm_StateChangeNotification(config->NetworkHandle, NM_STATE_NORMAL_OPERATION,
                                NM_STATE_READY_SLEEP);
 #endif
     ASLOG(CANNM,
-          ("%d: Enter Ready Sleep Mode, flags %02X\n", config->nmNetworkHandle, context->flags));
+          ("%d: Enter Ready Sleep Mode, flags %02X\n", config->NetworkHandle, context->Flags));
   } else {
   }
 }
 
 #ifdef CANNM_GLOBAL_PN_SUPPORT
-static Std_ReturnType nmRxFilter(CanNm_ChannelContextType *context,
-                                 const CanNm_ChannelConfigType *config,
-                                 const PduInfoType *PduInfoPtr) {
+static Std_ReturnType CanNm_RxFilter(CanNm_ChannelContextType *context,
+                                     const CanNm_ChannelConfigType *config,
+                                     const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_OK;
   int i;
-  if (0u != (context->flags & CANNM_PN_ENABLED_MASK)) {
+  if (0u != (context->Flags & CANNM_PN_ENABLED_MASK)) {
     if (0 ==
-        (PduInfoPtr->SduDataPtr[config->PduCbvPosition] & CANNM_CBV_PARTIAL_NETWORK_INFORMATION)) {
+        (pduInfoPtr->SduDataPtr[config->PduCbvPosition] & CANNM_CBV_PARTIAL_NETWORK_INFORMATION)) {
       if (config->AllNmMessagesKeepAwake) { /* @SWS_CanNm_00410 */
         ret = E_OK;
       } else {
@@ -618,7 +618,7 @@ static Std_ReturnType nmRxFilter(CanNm_ChannelContextType *context,
       ret = E_NOT_OK;
       for (i = 0; i < config->PnInfoLength; i++) {
         /* @SWS_CanNm_00417, @SWS_CanNm_00419 */
-        if (PduInfoPtr->SduDataPtr[config->PnInfoOffset + i] & config->PnFilterMaskByte[i]) {
+        if (pduInfoPtr->SduDataPtr[config->PnInfoOffset + i] & config->PnFilterMaskByte[i]) {
           ret = E_OK;
           break;
         }
@@ -647,23 +647,23 @@ void CanNm_Init(const CanNm_ConfigType *cannmConfigPtr) {
   (void)cannmConfigPtr;
 #endif
 
-  for (i = 0u; i < CANNM_CONFIG->numOfChannels; i++) {
+  for (i = 0u; i < CANNM_CONFIG->NumOfChannels; i++) {
     context = &CANNM_CONFIG->ChannelContexts[i];
     config = &CANNM_CONFIG->ChannelConfigs[i];
-    context->state = NM_STATE_BUS_SLEEP; /* @SWS_CanNm_00141 */
+    context->State = NM_STATE_BUS_SLEEP; /* @SWS_CanNm_00141 */
     context->TxCounter = 0u;
-    context->flags = 0u; /* @SWS_CanNm_00403 */
-    (void)memset(context->rxPdu, 0xFF, sizeof(context->rxPdu));
-    (void)memset(context->data, 0xFF, sizeof(context->data)); /* @SWS_CanNm_00025 */
+    context->Flags = 0u; /* @SWS_CanNm_00403 */
+    (void)memset(context->RxPdu, 0xFF, sizeof(context->RxPdu));
+    (void)memset(context->Data, 0xFF, sizeof(context->Data)); /* @SWS_CanNm_00025 */
     if (config->PduNidPosition < CANNM_PDU_OFF) {
-      context->data[config->PduNidPosition] = config->NodeId; /* @SWS_CanNm_00013 */
+      context->Data[config->PduNidPosition] = config->NodeId; /* @SWS_CanNm_00013 */
     }
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
-      context->data[config->PduCbvPosition] = 0x00; /* @SWS_CanNm_00085 */
+      context->Data[config->PduCbvPosition] = 0x00; /* @SWS_CanNm_00085 */
 #ifdef CANNM_GLOBAL_PN_SUPPORT
       if (config->PnEnabled) { /* @SWS_CanNm_00413 */
-        context->data[config->PduCbvPosition] |= CANNM_CBV_PARTIAL_NETWORK_INFORMATION;
-        (void)memcpy(&context->data[config->PnInfoOffset], config->PnFilterMaskByte,
+        context->Data[config->PduCbvPosition] |= CANNM_CBV_PARTIAL_NETWORK_INFORMATION;
+        (void)memcpy(&context->Data[config->PnInfoOffset], config->PnFilterMaskByte,
                      config->PnInfoLength);
       }
 #endif
@@ -676,16 +676,16 @@ Std_ReturnType CanNm_PassiveStartUp(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x01, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x01, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x01, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  switch ((context->state)) { /* @SWS_CanNm_00128 */
+  switch ((context->State)) { /* @SWS_CanNm_00128 */
   case NM_STATE_BUS_SLEEP:
   case NM_STATE_PREPARE_BUS_SLEEP:
-    nmEnterCritical();
-    context->flags |= CANNM_PASSIVE_STARTUP_REQUEST_MASK;
-    nmExitCritical();
+    CanNmEnterCritical();
+    context->Flags |= CANNM_PASSIVE_STARTUP_REQUEST_MASK;
+    CanNmExitCritical();
     break;
   default:
     /* @SWS_CanNm_00147 */
@@ -700,13 +700,13 @@ Std_ReturnType CanNm_NetworkRequest(NetworkHandleType nmChannelHandle) {
   Std_ReturnType ret = E_OK;
   CanNm_ChannelContextType *context;
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x02, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x02, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x02, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  nmEnterCritical();
-  context->flags |= CANNM_REQUEST_MASK;
-  nmExitCritical();
+  CanNmEnterCritical();
+  context->Flags |= CANNM_REQUEST_MASK;
+  CanNmExitCritical();
 
   return ret;
 }
@@ -716,13 +716,13 @@ Std_ReturnType CanNm_NetworkRelease(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x03, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x03, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x03, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  nmEnterCritical();
-  context->flags &= ~CANNM_REQUEST_MASK;
-  nmExitCritical();
+  CanNmEnterCritical();
+  context->Flags &= ~CANNM_REQUEST_MASK;
+  CanNmExitCritical();
 
   return ret;
 }
@@ -732,15 +732,15 @@ Std_ReturnType CanNm_RepeatMessageRequest(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x08, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x08, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x08, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  switch (context->state) {
+  switch (context->State) {
   case NM_STATE_READY_SLEEP:
   case NM_STATE_NORMAL_OPERATION:
-    nmEnterCritical();
-    context->flags |= CANNM_REPEAT_MESSAGE_REQUEST_MASK;
-    nmExitCritical();
+    CanNmEnterCritical();
+    context->Flags |= CANNM_REPEAT_MESSAGE_REQUEST_MASK;
+    CanNmExitCritical();
     break;
   default:
     /* @SWS_CanNm_00137 */
@@ -756,22 +756,22 @@ Std_ReturnType CanNm_DisableCommunication(NetworkHandleType nmChannelHandle) {
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x0C, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x0C, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x0C, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
   /* @SWS_CanNm_00170 */
-  nmEnterCritical();
-  context->flags |= CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
-  nmExitCritical();
+  CanNmEnterCritical();
+  context->Flags |= CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
+  CanNmExitCritical();
   /* could see codes that check CANNM_DISABLE_COMMUNICATION_REQUEST_MASK in the MainFunction,
    * That is because that Alarm operation is not atomic, so the codes that added to check
    * CANNM_DISABLE_COMMUNICATION_REQUEST_MASK is a workaroud and which is not good but it
    * satisfied the requirement */
-  nmCancelAlarm(Tx);        /* @SWS_CanNm_00173 */
-  nmCancelAlarm(NMTimeout); /* @SWS_CanNm_00174 */
+  CanNmCancelAlarm(Tx);        /* @SWS_CanNm_00173 */
+  CanNmCancelAlarm(NmTimeout); /* @SWS_CanNm_00174 */
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-  nmCancelAlarm(RemoteSleepInd); /* @SWS_CanNm_00175 */
+  CanNmCancelAlarm(RemoteSleepInd); /* @SWS_CanNm_00175 */
 #endif
 
   return ret;
@@ -783,32 +783,32 @@ Std_ReturnType CanNm_EnableCommunication(NetworkHandleType nmChannelHandle) {
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x0D, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x0D, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x0D, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
   config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
-  nmEnterCritical();
-  context->flags &= ~CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
-  nmEnterCritical();
-  nmSetAlarm(Tx, 0u);                           /* @SWS_CanNm_00178 */
-  nmSetAlarm(NMTimeout, config->NmTimeoutTime); /* @SWS_CanNm_00179 */
+  CanNmEnterCritical();
+  context->Flags &= ~CANNM_DISABLE_COMMUNICATION_REQUEST_MASK;
+  CanNmEnterCritical();
+  CanNmSetAlarm(Tx, 0u);                           /* @SWS_CanNm_00178 */
+  CanNmSetAlarm(NmTimeout, config->NmTimeoutTime); /* @SWS_CanNm_00179 */
 #ifdef CANNM_REMOTE_SLEEP_IND_ENABLED
-  nmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime); /* @SWS_CanNm_00180 */
+  CanNmSetAlarm(RemoteSleepInd, config->RemoteSleepIndTime); /* @SWS_CanNm_00180 */
 #endif
 
   return ret;
 }
 
-void CanNm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
+void CanNm_TxConfirmation(PduIdType txPduId, Std_ReturnType result) {
   CanNm_ChannelContextType *context;
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x40, CANNM_E_UNINIT, return);
-  DET_VALIDATE(TxPduId < CANNM_CONFIG->numOfChannels, 0x40, CANNM_E_INVALID_CHANNEL, return);
+  DET_VALIDATE(txPduId < CANNM_CONFIG->NumOfChannels, 0x40, CANNM_E_INVALID_CHANNEL, return);
 
-  context = &CANNM_CONFIG->ChannelContexts[TxPduId];
-  config = &CANNM_CONFIG->ChannelConfigs[TxPduId];
+  context = &CANNM_CONFIG->ChannelContexts[txPduId];
+  config = &CANNM_CONFIG->ChannelConfigs[txPduId];
 #ifdef CANNM_COM_USER_DATA_SUPPORT
   PduR_CanNmTxConfirmation(config->UserDataTxPdu, result);
 #endif
@@ -816,50 +816,50 @@ void CanNm_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
     if (context->TxCounter < 0xFFu) {
       context->TxCounter++;
     }
-    nmCancelAlarm(TxTimeout); /* @SWS_CanNm_00065 */
+    CanNmCancelAlarm(TxTimeout); /* @SWS_CanNm_00065 */
 
-    if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-        (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+        (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+      CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
   } else {
 #ifdef USE_NM /* @SWS_CanNm_00066 */
-    Nm_TxTimeoutException(config->nmNetworkHandle);
+    Nm_TxTimeoutException(config->NetworkHandle);
 #endif
   }
 }
 
-void CanNm_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
+void CanNm_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
   CanNm_ChannelContextType *context;
   const CanNm_ChannelConfigType *config;
   uint16_t flags = CANNM_RX_INDICATION_REQUEST_MASK | CANNM_NM_PDU_RECEIVED_MASK;
   Std_ReturnType ret = E_NOT_OK;
 #ifdef CANNM_CAR_WAKEUP_SUPPORT
-  const Can_HwType *Mailbox = (const Can_HwType *)PduInfoPtr->MetaDataPtr;
+  const Can_HwType *Mailbox = (const Can_HwType *)pduInfoPtr->MetaDataPtr;
 #endif
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x42, CANNM_E_UNINIT, return);
-  DET_VALIDATE(RxPduId < CANNM_CONFIG->numOfChannels, 0x42, CANNM_E_INVALID_CHANNEL, return);
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x42,
+  DET_VALIDATE(rxPduId < CANNM_CONFIG->NumOfChannels, 0x42, CANNM_E_INVALID_CHANNEL, return);
+  DET_VALIDATE((NULL != pduInfoPtr) && (NULL != pduInfoPtr->SduDataPtr), 0x42,
                CANNM_E_PARAM_POINTER, return);
 
-  context = &CANNM_CONFIG->ChannelContexts[RxPduId];
-  config = &CANNM_CONFIG->ChannelConfigs[RxPduId];
+  context = &CANNM_CONFIG->ChannelContexts[rxPduId];
+  config = &CANNM_CONFIG->ChannelConfigs[rxPduId];
 #ifdef CANNM_GLOBAL_PN_SUPPORT
-  ret = nmRxFilter(context, config, PduInfoPtr);
+  ret = CanNm_RxFilter(context, config, pduInfoPtr);
 #else
   ret = E_OK;
 #endif
 
   if (E_OK == ret) {
     /* @SWS_CanNm_00035 */
-    (void)memcpy(context->rxPdu, PduInfoPtr->SduDataPtr, sizeof(context->rxPdu));
+    (void)memcpy(context->RxPdu, pduInfoPtr->SduDataPtr, sizeof(context->RxPdu));
     if (config->PduCbvPosition < CANNM_PDU_OFF) {
-      if (0u != (context->rxPdu[config->PduCbvPosition] & CANNM_CBV_REPEAT_MESSAGE_REQUEST)) {
+      if (0u != (context->RxPdu[config->PduCbvPosition] & CANNM_CBV_REPEAT_MESSAGE_REQUEST)) {
         if (TRUE == config->NodeDetectionEnabled) {
           /* @SWS_CanNm_00119, @SWS_CanNm_00111 */
-          if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-              (NM_STATE_READY_SLEEP == context->state)) {
+          if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+              (NM_STATE_READY_SLEEP == context->State)) {
             flags |= CANNM_RX_REPEAT_MESSAGE_BIT_SET_MASK;
           }
         }
@@ -867,28 +867,28 @@ void CanNm_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
         /* @SWS_CanNm_00014 */
         if ((TRUE == config->RepeatMsgIndEnabled) && (TRUE == config->NodeDetectionEnabled)) {
 #ifdef USE_NM
-          Nm_RepeatMessageIndication(config->nmNetworkHandle);
+          Nm_RepeatMessageIndication(config->NetworkHandle);
 #endif
         }
       }
 #ifdef CANNM_COORDINATOR_SYNC_SUPPORT
-      if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-          (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-        if (0u != (context->rxPdu[config->PduCbvPosition] & CANNM_CBV_NM_COORDINATOR_SLEEP)) {
+      if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+          (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+        if (0u != (context->RxPdu[config->PduCbvPosition] & CANNM_CBV_NM_COORDINATOR_SLEEP)) {
           /* @SWS_CanNm_00341 */
-          if (0u == (context->flags & CANNM_COORDINATOR_SLEEP_SYNC_MASK)) {
+          if (0u == (context->Flags & CANNM_COORDINATOR_SLEEP_SYNC_MASK)) {
             flags |= CANNM_COORDINATOR_SLEEP_SYNC_MASK;
 #ifdef USE_NM
-            Nm_CoordReadyToSleepIndication(config->nmNetworkHandle);
+            Nm_CoordReadyToSleepIndication(config->NetworkHandle);
 #endif
           }
-        } else if (0u != (context->flags & CANNM_COORDINATOR_SLEEP_SYNC_MASK)) {
+        } else if (0u != (context->Flags & CANNM_COORDINATOR_SLEEP_SYNC_MASK)) {
 #ifdef USE_NM /* @SWS_CanNm_00348 */
-          Nm_CoordReadyToSleepCancellation(config->nmNetworkHandle);
+          Nm_CoordReadyToSleepCancellation(config->NetworkHandle);
 #endif
-          nmEnterCritical();
-          context->flags &= ~CANNM_COORDINATOR_SLEEP_SYNC_MASK;
-          nmExitCritical();
+          CanNmEnterCritical();
+          context->Flags &= ~CANNM_COORDINATOR_SLEEP_SYNC_MASK;
+          CanNmExitCritical();
         } else {
           /* do nothing */
         }
@@ -898,13 +898,13 @@ void CanNm_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
       CanNm_CarWakeupProcess(config, context, Mailbox->CanId & config->NodeMask);
 #endif
     }
-    if ((NM_STATE_NORMAL_OPERATION == context->state) ||
-        (NM_STATE_REPEAT_MESSAGE == context->state) || (NM_STATE_READY_SLEEP == context->state)) {
-      nmSetAlarm(NMTimeout, config->NmTimeoutTime);
+    if ((NM_STATE_NORMAL_OPERATION == context->State) ||
+        (NM_STATE_REPEAT_MESSAGE == context->State) || (NM_STATE_READY_SLEEP == context->State)) {
+      CanNmSetAlarm(NmTimeout, config->NmTimeoutTime);
     }
-    nmEnterCritical();
-    context->flags |= flags;
-    nmExitCritical();
+    CanNmEnterCritical();
+    context->Flags |= flags;
+    CanNmExitCritical();
   }
 }
 
@@ -914,7 +914,7 @@ Std_ReturnType CanNm_GetLocalNodeIdentifier(NetworkHandleType nmChannelHandle,
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x07, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x07, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x07, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmNodeIdPtr, 0x07, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -931,7 +931,7 @@ Std_ReturnType CanNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_
   uint8_t nodeId = CANNM_INVALID_NODE_ID;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x06, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x06, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x06, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmNodeIdPtr, 0x06, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -939,7 +939,7 @@ Std_ReturnType CanNm_GetNodeIdentifier(NetworkHandleType nmChannelHandle, uint8_
   config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
   /* @SWS_CanNm_00132 */
   if (config->PduNidPosition < CANNM_PDU_OFF) {
-    nodeId = context->rxPdu[config->PduNidPosition];
+    nodeId = context->RxPdu[config->PduNidPosition];
   }
   if (CANNM_INVALID_NODE_ID == nodeId) {
     ret = E_NOT_OK;
@@ -957,7 +957,7 @@ Std_ReturnType CanNm_SetUserData(NetworkHandleType nmChannelHandle, const uint8_
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x04, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x04, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x04, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmUserDataPtr, 0x04, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -977,7 +977,7 @@ Std_ReturnType CanNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmU
   uint16_t j = 0;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x05, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x05, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x05, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmUserDataPtr, 0x05, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
@@ -998,7 +998,7 @@ Std_ReturnType CanNm_GetUserData(NetworkHandleType nmChannelHandle, uint8_t *nmU
 #endif
   for (i = 0; i < 8u; i++) {
     if (0u == (notUserDataMask & (1u << i))) {
-      nmUserDataPtr[j] = context->data[i];
+      nmUserDataPtr[j] = context->Data[i];
       j++;
     }
   }
@@ -1012,13 +1012,13 @@ Std_ReturnType CanNm_GetPduData(NetworkHandleType nmChannelHandle, uint8_t *nmPd
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x0A, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x0A, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x0A, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmPduDataPtr, 0x0A, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  if (0u != (context->flags & CANNM_NM_PDU_RECEIVED_MASK)) {
-    (void)memcpy(nmPduDataPtr, &context->rxPdu, 8);
+  if (0u != (context->Flags & CANNM_NM_PDU_RECEIVED_MASK)) {
+    (void)memcpy(nmPduDataPtr, &context->RxPdu, 8);
   } else {
     ret = E_NOT_OK;
   }
@@ -1032,14 +1032,14 @@ Std_ReturnType CanNm_GetState(NetworkHandleType nmChannelHandle, Nm_StateType *n
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x0B, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x0B, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x0B, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE((NULL != nmStatePtr) && (NULL != nmModePtr), 0x0B, CANNM_E_PARAM_POINTER,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  *nmStatePtr = context->state;
-  switch (context->state) {
+  *nmStatePtr = context->State;
+  switch (context->State) {
   case NM_STATE_BUS_SLEEP:
     *nmModePtr = NM_MODE_BUS_SLEEP;
     break;
@@ -1060,16 +1060,16 @@ void CanNm_ConfirmPnAvailability(NetworkHandleType nmChannelHandle) {
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x16, CANNM_E_UNINIT, return);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x16, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x16, CANNM_E_INVALID_CHANNEL,
                return);
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
   config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
   if (config->PnEnabled) {
-    ASLOG(CANNM, ("%d: confirm PN, flags %X\n", nmChannelHandle, context->flags));
+    ASLOG(CANNM, ("%d: confirm PN, flags %X\n", nmChannelHandle, context->Flags));
     /* @SWS_CanNm_00404 */
-    nmEnterCritical();
-    context->flags |= CANNM_PN_ENABLED_MASK;
-    nmExitCritical();
+    CanNmEnterCritical();
+    context->Flags |= CANNM_PN_ENABLED_MASK;
+    CanNmExitCritical();
   }
 }
 #endif
@@ -1081,25 +1081,25 @@ Std_ReturnType CanNm_SetSleepReadyBit(NetworkHandleType nmChannelHandle, boolean
   const CanNm_ChannelConfigType *config;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x17, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0x17, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0x17, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
   config = &CANNM_CONFIG->ChannelConfigs[nmChannelHandle];
-  nmEnterCritical();
+  CanNmEnterCritical();
   if (config->PduCbvPosition < CANNM_PDU_OFF) {
     /* @SWS_CanNm_00342 */
     if (TRUE == nmSleepReadyBit) {
-      context->data[config->PduCbvPosition] |= CANNM_CBV_NM_COORDINATOR_SLEEP;
+      context->Data[config->PduCbvPosition] |= CANNM_CBV_NM_COORDINATOR_SLEEP;
     } else {
-      context->data[config->PduCbvPosition] &= ~CANNM_CBV_NM_COORDINATOR_SLEEP;
+      context->Data[config->PduCbvPosition] &= ~CANNM_CBV_NM_COORDINATOR_SLEEP;
     }
   } else {
     ret = E_NOT_OK;
   }
-  nmEnterCritical();
+  CanNmEnterCritical();
   if (E_OK == ret) {
-    nmSendMessage(context, config, 0);
+    CanNm_SendMessage(context, config, 0);
   }
 
   return ret;
@@ -1113,14 +1113,14 @@ Std_ReturnType CanNm_CheckRemoteSleepIndication(NetworkHandleType nmChannelHandl
   CanNm_ChannelContextType *context;
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0xD0, CANNM_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->numOfChannels, 0xD0, CANNM_E_INVALID_CHANNEL,
+  DET_VALIDATE(nmChannelHandle < CANNM_CONFIG->NumOfChannels, 0xD0, CANNM_E_INVALID_CHANNEL,
                return E_NOT_OK);
   DET_VALIDATE(NULL != nmRemoteSleepIndPtr, 0xD0, CANNM_E_PARAM_POINTER, return E_NOT_OK);
 
   context = &CANNM_CONFIG->ChannelContexts[nmChannelHandle];
-  switch (context->state) {
+  switch (context->State) {
   case NM_STATE_NORMAL_OPERATION:
-    if (0u != (context->flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
+    if (0u != (context->Flags & CANNM_REMOTE_SLEEP_IND_MASK)) {
       *nmRemoteSleepIndPtr = TRUE;
     } else {
       *nmRemoteSleepIndPtr = FALSE;
@@ -1143,24 +1143,24 @@ void CanNm_MainFunction(void) {
 
   DET_VALIDATE(NULL != CANNM_CONFIG, 0x13, CANNM_E_UNINIT, return);
 
-  for (i = 0u; i < CANNM_CONFIG->numOfChannels; i++) {
+  for (i = 0u; i < CANNM_CONFIG->NumOfChannels; i++) {
     context = &CANNM_CONFIG->ChannelContexts[i];
     config = &CANNM_CONFIG->ChannelConfigs[i];
-    switch (context->state) {
+    switch (context->State) {
     case NM_STATE_BUS_SLEEP:
-      nmBusSleepMain(context, config);
+      CanNm_BusSleepMain(context, config);
       break;
     case NM_STATE_PREPARE_BUS_SLEEP:
-      nmPrepareBusSleepMain(context, config);
+      CanNm_PrepareBusSleepMain(context, config);
       break;
     case NM_STATE_READY_SLEEP:
-      nmReadySleepMain(context, config);
+      CanNm_ReadySleepMain(context, config);
       break;
     case NM_STATE_REPEAT_MESSAGE:
-      nmRepeatMessageMain(context, config);
+      CanNm_RepeatMessageMain(context, config);
       break;
     case NM_STATE_NORMAL_OPERATION:
-      nmNetworkNormalOperationMain(context, config);
+      CanNm_NetworkNormalOperationMain(context, config);
       break;
     default:
       break;
@@ -1171,13 +1171,14 @@ void CanNm_MainFunction(void) {
 void CanNm_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0xf1, CANNM_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_CANNM;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 1;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_CANNM;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 1;
 }
 
 /** @brief release notes
- * - 4.0.1: Replace accidental nmEnterCritical() with nmExitCritical() in RepeatMessageRequest/DisableCommunication.
+ * - 4.0.1: Replace accidental CanNmEnterCritical() with CanNmExitCritical() in
+ * RepeatMessageRequest/DisableCommunication.
  */

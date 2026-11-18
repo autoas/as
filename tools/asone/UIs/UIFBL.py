@@ -82,7 +82,7 @@ class UIFBL(QWidget):
         self.pgbProgress = QProgressBar()
         self.pgbProgress.setRange(0, 100)
         grid.addWidget(self.pgbProgress, 2, 1)
-        self.btnStart = QPushButton('start')
+        self.btnStart = QPushButton('Start')
         grid.addWidget(self.btnStart, 2, 2)
         vbox.addLayout(grid)
         self.leinfor = QTextEdit()
@@ -129,16 +129,16 @@ class UIFBL(QWidget):
                 logLevel = 1
             if 'CANFD' == protocol:
                 protocol = 'CAN'
-                LL_DL = 64
+                linkLayerDataLength = 64
             else:
-                LL_DL = 8
-            args['protocol'] = protocol
-            args['LL_DL'] = LL_DL
-            args['device'] = str(self.cmbxDevice.currentText())
-            args['port'] = eval(str(self.cmbxDevicePort.currentText()))
-            args['baudrate'] = eval(str(self.cmbxDeviceBaudrate.currentText()))
-            args['txid'] = eval(str(self.leTxId.text()))
-            args['rxid'] = eval(str(self.leRxId.text()))
+                linkLayerDataLength = 8
+            args['Protocol'] = protocol
+            args['LinkLayerDataLength'] = linkLayerDataLength
+            args['Device'] = str(self.cmbxDevice.currentText())
+            args['Port'] = eval(str(self.cmbxDevicePort.currentText()))
+            args['Baudrate'] = eval(str(self.cmbxDeviceBaudrate.currentText()))
+            args['TxId'] = eval(str(self.leTxId.text()))
+            args['RxId'] = eval(str(self.leRxId.text()))
             args['app'] = str(self.leApplication.text())
             args['fls'] = str(self.leFlsDrv.text())
             args['choice'] = str(self.cmbxChoice.currentText())

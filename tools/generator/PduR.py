@@ -17,33 +17,33 @@ LOW_MODULES = TP_MODULES + ["CanIf"]
 
 
 def Gen_PduR(cfg, dir):
-    if "memory" in cfg:
-        mcfg = {"name": "PduR", "clusters": cfg["memory"]}
+    if "Memory" in cfg:
+        mcfg = {"Name": "PduR", "Clusters": cfg["Memory"]}
     groups = {}
     modules = []
     hasGW = False
-    for rt in cfg["routines"]:
-        fr = rt["from"]
-        to = rt["to"]
+    for rt in cfg["Routines"]:
+        fr = rt["From"]
+        to = rt["To"]
         if fr in TP_MODULES and to in TP_MODULES:
             hasGW = True
         if fr not in groups:
-            groups[fr] = {"high": {}, "low": {}}
+            groups[fr] = {"High": {}, "Low": {}}
         if to in HIGH_MODULES:
-            if to not in groups[fr]["high"]:
-                groups[fr]["high"][to] = []
-            groups[fr]["high"][to].append(rt)
+            if to not in groups[fr]["High"]:
+                groups[fr]["High"][to] = []
+            groups[fr]["High"][to].append(rt)
         else:
-            if to not in groups[fr]["low"]:
-                groups[fr]["low"][to] = []
-            groups[fr]["low"][to].append(rt)
+            if to not in groups[fr]["Low"]:
+                groups[fr]["Low"][to] = []
+            groups[fr]["Low"][to].append(rt)
         if fr not in modules:
             modules.append(fr)
         if to not in modules:
             modules.append(to)
-        dsts = rt.get("destinations", [])
+        dsts = rt.get("Destinations", [])
         for dst in dsts:
-            to2 = dst["to"]
+            to2 = dst["To"]
             if to2 not in modules:
                 modules.append(to2)
             if fr in TP_MODULES and to2 in TP_MODULES:
@@ -54,7 +54,7 @@ def Gen_PduR(cfg, dir):
     H.write("#define PDUR_CFG_H\n")
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write("/* ================================ [ MACROS    ] ============================================== */\n")
-    if "memory" in cfg:
+    if "Memory" in cfg:
         H.write("#define PDUR_USE_MEMPOOL\n")
     if hasGW:
         H.write("#define PDUR_USE_TP_GATEWAY\n")
@@ -63,20 +63,20 @@ def Gen_PduR(cfg, dir):
         for hl, grptos in grphls.items():
             for to, rts in grptos.items():
                 for rt in rts:
-                    H.write("#define PDUR_%s %s\n" % (rt["name"], index))
-                    dest = rt.get("dest", rt["name"])
-                    if dest != rt["name"]:
+                    H.write("#define PDUR_%s %s\n" % (rt["Name"], index))
+                    dest = rt.get("Dest", rt["Name"])
+                    if dest != rt["Name"]:
                         H.write("#define PDUR_%s %s\n" % (dest, index))
-                    if "fake" in rt:
-                        H.write("#define PDUR_%s %s\n" % (rt["fake"], index))
-                    dsts = rt.get("destinations", [])
+                    if "Fake" in rt:
+                        H.write("#define PDUR_%s %s\n" % (rt["Fake"], index))
+                    dsts = rt.get("Destinations", [])
                     for dst in dsts:
-                        H.write("#define PDUR_%s %s\n" % (dst["name"], index))
-                        if "fake" in dst:
-                            H.write("#define PDUR_%s %s\n" % (dst["fake"], index))
+                        H.write("#define PDUR_%s %s\n" % (dst["Name"], index))
+                        if "Fake" in dst:
+                            H.write("#define PDUR_%s %s\n" % (dst["Fake"], index))
                     index += 1
     H.write("\n")
-    if "memory" in cfg:
+    if "Memory" in cfg:
         MC.Gen_Macros(mcfg, H)
     H.write("%s#define PDUR_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", True) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
@@ -103,7 +103,7 @@ def Gen_PduR(cfg, dir):
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    if "memory" in cfg:
+    if "Memory" in cfg:
         MC.Gen_Defs(mcfg, C)
     if "Dcm" in modules:
         C.write("const PduR_ApiType PduR_DcmApi = {\n")
@@ -225,18 +225,18 @@ def Gen_PduR(cfg, dir):
         C.write("  NULL,\n")
         C.write("  Mirror_TxConfirmation,\n")
         C.write("};\n\n")
-    for rt in cfg["routines"]:
+    for rt in cfg["Routines"]:
         hasGw = False
-        fr, to, name = rt["from"], rt["to"], rt["name"]
-        dest = rt.get("dest", name)
+        fr, to, name = rt["From"], rt["To"], rt["Name"]
+        dest = rt.get("Dest", name)
         C.write("static const PduR_PduType PduR_SrcPdu_%s_%s_%s = {\n" % (fr, to, name))
         C.write("  PDUR_MODULE_%s,\n" % (fr.upper()))
         C.write("  %s_%s,\n" % (fr.upper(), name))
         C.write("  &PduR_%sApi,\n" % (fr))
         C.write("};\n\n")
         dsts = []
-        for dst in rt.get("destinations", []) + [{"from": fr, "to": to, "name": dest}]:
-            to = dst["to"]
+        for dst in rt.get("Destinations", []) + [{"From": fr, "To": to, "Name": dest}]:
+            to = dst["To"]
             if fr in TP_MODULES and to in TP_MODULES:
                 hasGw = True
                 dsts.insert(0, dst)
@@ -244,8 +244,8 @@ def Gen_PduR(cfg, dir):
                 dsts.append(dst)
         C.write("static const PduR_PduType PduR_DstPdu_%s_%s_%s[]={\n" % (fr, to, name))
         for dst in dsts:
-            dest = dst["name"]
-            to = dst["to"]
+            dest = dst["Name"]
+            to = dst["To"]
             C.write("  {\n")
             C.write("    PDUR_MODULE_%s,\n" % (to.upper()))
             C.write("    %s_%s,\n" % (to.upper(), dest))
@@ -257,8 +257,8 @@ def Gen_PduR(cfg, dir):
             DestBufferSize = rt.get("DestBufferSize", 0)
             if DestBufferSize > 0:
                 C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (name, DestBufferSize))
-    for buf in cfg.get("buffers", []):
-        C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (buf["name"], buf["size"]))
+    for buf in cfg.get("Buffers", []):
+        C.write("static uint8_t PduR_GwBuffer_%s[%u];\n" % (buf["Name"], buf["Size"]))
     C.write("static const PduR_RoutingPathType PduR_RoutingPaths[] = {\n")
     index = 0
     for fr, grphls in groups.items():
@@ -266,16 +266,16 @@ def Gen_PduR(cfg, dir):
             for to, rts in grptos.items():
                 for rt in rts:
                     hasGw = False
-                    name = rt["name"]
-                    dest = rt.get("dest", name)
+                    name = rt["Name"]
+                    dest = rt.get("Dest", name)
                     C.write("  { /* %s: PDU %s from %s to %s %s */\n" % (index, name, fr, to, dest))
                     C.write("    &PduR_SrcPdu_%s_%s_%s,\n" % (fr, to, name))
                     C.write("    PduR_DstPdu_%s_%s_%s,\n" % (fr, to, name))
                     if fr in TP_MODULES and to in TP_MODULES:
                         hasGw = True
-                    dsts = rt.get("destinations", [])
+                    dsts = rt.get("Destinations", [])
                     for dst in dsts:
-                        to2 = dst["to"]
+                        to2 = dst["To"]
                         if fr in TP_MODULES and to2 in TP_MODULES:
                             hasGw = True
                     if hasGw:
@@ -299,7 +299,7 @@ def Gen_PduR(cfg, dir):
     C.write("};\n\n")
     C.write("const PduR_ConfigType PduR_Config = {\n")
     C.write("#if defined(PDUR_USE_MEMPOOL)\n")
-    if "memory" in cfg:
+    if "Memory" in cfg:
         C.write("  &MC_PduR,\n")
     else:
         C.write("  NULL,\n")
@@ -314,20 +314,20 @@ def Gen_PduR(cfg, dir):
 
 def extract(cfg, dir):
     global enable_base_id
-    enable_base_id = cfg.get("enable_base_id", True)
-    cfg_ = {"class": "PduR", "routines": cfg.get("routines", [])}
-    if "memory" in cfg:
-        cfg_["memory"] = cfg["memory"]
-    if "buffers" in cfg:
-        cfg_["buffers"] = cfg["buffers"]
+    enable_base_id = cfg.get("EnableBaseId", True)
+    cfg_ = {"Class": "PduR", "Routines": cfg.get("Routines", [])}
+    if "Memory" in cfg:
+        cfg_["Memory"] = cfg["Memory"]
+    if "Buffers" in cfg:
+        cfg_["Buffers"] = cfg["Buffers"]
     bNew = False
-    for network in cfg.get("networks", []):
-        ignore = network.get("ignore", [])
-        if "dbc" in network:
-            path = network["dbc"]
-            me = network["me"]
-            name = network["name"]
-            ll = network["network"]
+    for network in cfg.get("Networks", []):
+        ignore = network.get("Ignore", [])
+        if "Dbc" in network:
+            path = network["Dbc"]
+            me = network["Me"]
+            name = network["Name"]
+            ll = network["Network"]
             if ll.upper() == "CAN":
                 ll = "CanIf"
             if ll.upper() == "LIN":
@@ -338,10 +338,10 @@ def extract(cfg, dir):
                 raise Exception("File %s not exists" % (path))
             messages = get_messages(path)
             for msg in messages:
-                if msg["name"] in ignore:
+                if msg["Name"] in ignore:
                     continue
-                rn = toPduSymbol((name, msg["name"]))
-                if msg["node"] == me:
+                rn = toPduSymbol((name, msg["Name"]))
+                if msg["Node"] == me:
                     fr = "Com"
                     to = ll
                     if "TX" not in rn:
@@ -351,8 +351,8 @@ def extract(cfg, dir):
                     to = "Com"
                     if "RX" not in rn:
                         rn += "_RX"
-                routine = {"name": rn, "from": fr, "to": to, "id": msg["id"]}
-                cfg_["routines"].append(routine)
+                routine = {"Name": rn, "From": fr, "To": to, "Id": msg["Id"]}
+                cfg_["Routines"].append(routine)
             bNew = True
         else:
             raise

@@ -45,7 +45,7 @@
 #define HEAP_MIN_ALIGNED_SIZE 16
 #endif
 
-#define HEAP_ALIGN_BY(x, alignment) (((x) + (alignment)-1) & (~((alignment)-1)))
+#define HEAP_ALIGN_BY(x, alignment) (((x) + (alignment) - 1) & (~((alignment) - 1)))
 
 #define HEAP_ALIGN(x) HEAP_ALIGN_BY(x, HEAP_MIN_ALIGNED_SIZE)
 

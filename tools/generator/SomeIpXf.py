@@ -4,22 +4,22 @@
 from .helper import *
 
 def GetArgs(cfg, name):
-    for args in cfg.get("args", []):
-        if name == args["name"]:
-            return args["args"]
+    for args in cfg.get("Args", []):
+        if name == args["Name"]:
+            return args["Args"]
     raise Exception(f"args {name} not found")
 
 def GetTypeInfo(data, structs={}):
     if type(data) is str:
         typ = data
     else:
-        typ = data["type"]
+        typ = data["Type"]
     if typ in TypeInfoMap:
         return TypeInfoMap[typ]
     if typ in structs:
-        dinfo = {"IsArray": "size" in data, "IsStruct": True, "ctype": "%s_Type" % (typ)}
+        dinfo = {"IsArray": "Size" in data, "IsStruct": True, "ctype": "%s_Type" % (typ)}
         if dinfo["IsArray"]:
-            dinfo["size"] = data["size"]
+            dinfo["Size"] = data["Size"]
         return dinfo
     else:
         raise Exception("unknown data type: %s" % (data))
@@ -27,14 +27,14 @@ def GetTypeInfo(data, structs={}):
 
 def GetStructDataSize(data, structs={}):
     size = 0
-    typ = data["type"]
+    typ = data["Type"]
     if typ in TypeInfoMap:
-        dinfo = TypeInfoMap[data["type"]]
-        sz = TypeInfoMap[data["type"]]["size"] * data.get("size", 1)
+        dinfo = TypeInfoMap[data["Type"]]
+        sz = TypeInfoMap[data["Type"]]["Size"] * data.get("Size", 1)
         size += sz
     elif typ in structs:
         sz = GetStructSize(structs[typ], structs)
-        sz = sz * data.get("size", 1)
+        sz = sz * data.get("Size", 1)
         size += sz
     else:
         raise
@@ -43,17 +43,17 @@ def GetStructDataSize(data, structs={}):
 
 def GetStructSize(struct, structs={}):
     size = 0
-    for data in struct["data"]:
+    for data in struct["Data"]:
         dinfo = GetTypeInfo(data, structs)
         sz = GetStructDataSize(data, structs)
-        if data.get("variable_array", False) or dinfo.get("variable_array", False):
+        if data.get("VariableArray", False) or dinfo.get("VariableArray", False):
             if sz < 256:
                 sz += 1
             elif sz < 65536:
                 sz += 2
             else:
                 sz += 4
-        if struct.get("with_tag", False):
+        if struct.get("WithTag", False):
             sz += 2
         size += sz
     return size
@@ -61,21 +61,21 @@ def GetStructSize(struct, structs={}):
 
 def GetStructs(cfg):
     structs = {}
-    for st in cfg.get("structs", []):
-        structs[st["name"]] = st
+    for st in cfg.get("Structs", []):
+        structs[st["Name"]] = st
     return structs
 
 
 def GetStructDataPayloadSize(data, structs={}):
     size = 0
-    typ = data["type"]
+    typ = data["Type"]
     if typ in TypeInfoMap:
-        dinfo = TypeInfoMap[data["type"]]
-        sz = TypeInfoMap[data["type"]]["size"] * data.get("size", 1)
+        dinfo = TypeInfoMap[data["Type"]]
+        sz = TypeInfoMap[data["Type"]]["Size"] * data.get("Size", 1)
         size += sz
     elif typ in structs:
         sz = GetStructPayloadSize(structs[typ], structs)
-        sz = sz * data.get("size", 1)
+        sz = sz * data.get("Size", 1)
         size += sz
     else:
         raise
@@ -84,20 +84,20 @@ def GetStructDataPayloadSize(data, structs={}):
 
 def GetStructPayloadSize(struct, structs={}):
     payloadSize = 0
-    for data in struct["data"]:
+    for data in struct["Data"]:
         dinfo = GetTypeInfo(data, structs)
         sz = GetStructDataPayloadSize(data, structs)
-        if data.get("variable_array", False) or dinfo.get("variable_array", False):
+        if data.get("VariableArray", False) or dinfo.get("VariableArray", False):
             if sz < 256:
                 sz += 1
             elif sz < 65536:
                 sz += 2
             else:
                 sz += 4
-        if struct.get("with_tag", False):
+        if struct.get("WithTag", False):
             sz += 2
         payloadSize += sz
-    if struct.get("with_length", False):
+    if struct.get("WithLength", False):
         if payloadSize < 256:
             payloadSize += 1
         elif payloadSize < 65536:
@@ -111,11 +111,11 @@ def GetTypePayloadSize(data, structs={}):
     if type(data) is str:
         typ = data
     else:
-        typ = data["type"]
+        typ = data["Type"]
     if typ == "void":
         return 0
     if typ in TypeInfoMap:
-        return TypeInfoMap[typ]["size"]
+        return TypeInfoMap[typ]["Size"]
     elif typ in structs:
         return GetStructPayloadSize(structs[typ], structs)
     else:
@@ -143,7 +143,7 @@ def GetXfCType(data, structs={}):
     dinfo = GetTypeInfo(data, structs)
     dtype = dinfo["ctype"]
     if dinfo["IsArray"]:
-        dtype += f"[{dinfo['size']}]"
+        dtype += f"[{dinfo['Size']}]"
     return dtype
 
 
@@ -152,7 +152,7 @@ def GetArgTypeC(data, structs):
     dinfo = GetTypeInfo(data, structs)
     dtype = dinfo["ctype"]
     if dinfo.get("IsArray", False):
-        dtype += f"[{dinfo['size']}]"
+        dtype += f"[{dinfo['Size']}]"
         ptr = "*"
     if dinfo.get("IsStruct", False):
         ptr = "*"
@@ -164,7 +164,7 @@ def GetArgRefC(data, structs):
     dinfo = GetTypeInfo(data, structs)
     dtype = dinfo["ctype"]
     if dinfo.get("IsArray", False):
-        dtype += f"[{dinfo['size']}]"
+        dtype += f"[{dinfo['Size']}]"
         ref = "&"
     if dinfo.get("IsStruct", False):
         ref = "&"
@@ -175,7 +175,7 @@ def SomeIpXfDecode(typ, structs, buffer, bufferSize, data, **kwargs):
     if type(typ) is str:
         typ_ = typ
     else:
-        typ_ = typ["type"]
+        typ_ = typ["Type"]
     typCatlog = GetTypeCatlog(typ, structs)
     if typCatlog in ["Byte", "Short", "Long", "LongLong"]:
         return f"SomeIpXf_Decode{typCatlog}({buffer}, {bufferSize}, &{data})"
@@ -184,7 +184,7 @@ def SomeIpXfDecode(typ, structs, buffer, bufferSize, data, **kwargs):
     elif typCatlog in ["Struct"]:
         return f"SomeIpXf_Decode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def)"
     elif typCatlog in ["StructArray"]:
-        return f"SomeIpXf_Decode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def), &{kwargs['length']})"
+        return f"SomeIpXf_Decode{typCatlog}({buffer}, {bufferSize}, &{data}, &SomeIpXf_Struct{typ_}Def), &{kwargs['Length']})"
     raise Exception("unsupported type catlog: %s" % (typCatlog))
 
 
@@ -192,7 +192,7 @@ def SomeIpXfEncode(typ, structs, buffer, bufferSize, data, **kwargs):
     if type(typ) is str:
         typ_ = typ
     else:
-        typ_ = typ["type"]
+        typ_ = typ["Type"]
     stype = kwargs.get("stype", "C++")
     if stype == "C":
         ref = ""
@@ -227,7 +227,7 @@ def GetE2EOverhead(item, direction=None, op=None):
     else:
         return 0
 
-    profile = e2e.get('profile', '')
+    profile = e2e.get('Profile', '')
     if profile == 'P11':
         return 4  # CRC (2) + Counter (1) + DataID (1)
     elif profile == 'P22':
@@ -257,7 +257,7 @@ def GetE2EOffset(item, direction=None, op=None):
     else:
         return 0
 
-    profile = e2e.get('profile', '')
+    profile = e2e.get('Profile', '')
     # Check offset based on profile type
     if profile == 'P11':
         # For P11, check CRCOffset, CounterOffset, DataIDNibbleOffset
@@ -293,12 +293,42 @@ def GetMaxE2EOverhead(item):
             if overhead > max_overhead:
                 max_overhead = overhead
         # Check field operations
-        for op in ['get', 'set', 'event']:
+        for op in ['Get', 'Set', 'Event']:
             if op in item:
                 overhead = GetMaxE2EOverhead(item[op])
                 if overhead > max_overhead:
                     max_overhead = overhead
     return max_overhead
+
+
+def ServiceUsesE2E(service):
+    """Return True when any method/field/event of the service is E2E protected.
+
+    The generated C code only needs "E2E.h"/"E2E_Cfg.h" when it actually calls
+    an E2E profile function, and "E2E_Cfg.h" is only generated for a network
+    that carries E2E configuration. Guarding the include with this predicate
+    keeps a skeleton without E2E buildable in an application that defines
+    USE_E2E for its own (unrelated) E2E configuration.
+    """
+
+    def _item_uses_e2e(item):
+        if not isinstance(item, dict):
+            return False
+        if item.get("UseE2E", False):
+            return True
+        return any(_item_uses_e2e(item.get(op)) for op in ("Get", "Set", "Event"))
+
+    for method in service.get("Methods", []):
+        if _item_uses_e2e(method):
+            return True
+    for field in service.get("Fields", []):
+        if _item_uses_e2e(field):
+            return True
+    for group in service.get("EventGroups", []):
+        for event in group.get("Events", []):
+            if _item_uses_e2e(event):
+                return True
+    return False
 
 
 def GetE2EProfileId(item, direction=None, op=None):
@@ -318,4 +348,4 @@ def GetE2EProfileId(item, direction=None, op=None):
     else:
         return 0
     
-    return e2e.get('profileId', 0)
+    return e2e.get('ProfileId', 0)

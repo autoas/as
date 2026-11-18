@@ -33,8 +33,8 @@
 #define LINTP_CFG_RX_WFT_MAX 8
 #endif
 
-#ifndef LINTP_LL_DL
-#define LINTP_LL_DL 8
+#ifndef LINTP_LINK_LAYER_DATA_LENGTH
+#define LINTP_LINK_LAYER_DATA_LENGTH 8
 #endif
 
 #ifndef LINTP_CFG_PADDING
@@ -45,24 +45,11 @@
 /* ================================ [ DATAS     ] ============================================== */
 static uint8_t u8P2PData[64];
 static LinTp_ChannelConfigType LinTpChannelConfigs[] = {
-  {
-    /* P2P */
-    u8P2PData,
-    CANTP_EXTENDED,
-    0,
-    0 /* PduR_RxPduId */,
-    0 /* PduR_TxPduId */,
-    LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_As),
-    LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_Bs),
-    LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_Cr),
-    LINTP_CFG_STMIN,
-    LINTP_CFG_BS,
-    1 /* N_TA */,
-    LINTP_CFG_RX_WFT_MAX,
-    LINTP_LL_DL,
-    LINTP_CFG_PADDING,
-    LINTP_PHYSICAL
-  },
+  {/* P2P */
+   u8P2PData, CANTP_EXTENDED, 0, 0 /* PduR_RxPduId */, 0 /* PduR_TxPduId */,
+   LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_As), LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_Bs),
+   LINTP_CONVERT_MS_TO_MAIN_CYCLES(LINTP_CFG_N_Cr), LINTP_CFG_STMIN, LINTP_CFG_BS, 1 /* N_TA */,
+   LINTP_CFG_RX_WFT_MAX, LINTP_LINK_LAYER_DATA_LENGTH, LINTP_CFG_PADDING, LINTP_PHYSICAL},
 };
 
 static LinTp_ChannelContextType LinTpChannelContexts[ARRAY_SIZE(LinTpChannelConfigs)];
@@ -74,13 +61,13 @@ const LinTp_ConfigType LinTp_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void LinTp_ReConfig(uint8_t Channel, uint8_t ll_dl, uint16_t N_TA) {
-  if (Channel < ARRAY_SIZE(LinTpChannelConfigs)) {
-    LinTpChannelConfigs[Channel].LL_DL = ll_dl;
+void LinTp_ReConfig(uint8_t channel, uint8_t linkLayerDataLength, uint16_t N_TA) {
+  if (channel < ARRAY_SIZE(LinTpChannelConfigs)) {
+    LinTpChannelConfigs[channel].LinkLayerDataLength = linkLayerDataLength;
     if (N_TA != 0xFFFF) {
-      LinTpChannelConfigs[Channel].N_TA = (uint8_t)N_TA & 0xFF;
+      LinTpChannelConfigs[channel].N_TA = (uint8_t)N_TA & 0xFF;
     } else {
-      LinTpChannelConfigs[Channel].AddressingFormat = CANTP_STANDARD;
+      LinTpChannelConfigs[channel].AddressingFormat = CANTP_STANDARD;
     }
   }
 }

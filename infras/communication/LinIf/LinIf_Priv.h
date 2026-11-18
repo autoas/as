@@ -27,18 +27,18 @@
 #define LINIF_SLAVE ((LinIf_NodeTypeType)1)
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  Lin_FramePidType id;
-  Lin_FrameDlType dlc;
-  LinIf_FrameTypeType type;
+  Lin_FramePidType Id;
+  Lin_FrameDlType Dlc;
+  LinIf_FrameTypeType Type;
   Lin_FrameCsModelType Cs;
   Lin_FrameResponseType Drc;
-  LinIf_NotificationCallbackType callback;
-  uint16_t delay;
+  LinIf_NotificationCallbackType Callback;
+  uint16_t Delay;
 } LinIf_ScheduleTableEntryType;
 
 typedef struct {
-  const LinIf_ScheduleTableEntryType *entrys;
-  uint8_t numOfEntries;
+  const LinIf_ScheduleTableEntryType *Entries;
+  uint8_t NumOfEntries;
 } LinIf_ScheduleTableType;
 
 typedef uint8_t LinIf_ChannelStateType; /* @SWS_LinIf_00290 */
@@ -47,19 +47,19 @@ typedef uint8_t LinIf_ChannelStatusType;
 
 typedef struct {
 #if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
-  const LinIf_ScheduleTableType *scheduleTable;
+  const LinIf_ScheduleTableType *ScheduleTable;
 #endif
-  Lin_PduType frame;
-  uint16_t timer; /* timer in ms */
-  LinIf_ChannelStateType state;
-  LinIf_ChannelStatusType status;
-  LinIf_SchHandleType curSch;
+  Lin_PduType Frame;
+  uint16_t Timer; /* timer in ms */
+  LinIf_ChannelStateType State;
+  LinIf_ChannelStatusType Status;
+  LinIf_SchHandleType CurSch;
 #if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
-  LinIf_SchHandleType scheduleRequested;
+  LinIf_SchHandleType ScheduleRequested;
 #endif
-  uint8_t data[LINIF_MAX_DATA_LENGHT];
+  uint8_t Data[LINIF_MAX_DATA_LENGHT];
 #ifdef USE_MIRROR
-  boolean bMirroringActive;
+  boolean MirroringActive;
 #endif
 } LinIf_ChannelContextType;
 
@@ -68,23 +68,23 @@ typedef uint8_t LinIf_NodeTypeType;
 
 typedef struct {
 #if (LINIF_VARIANT & LINIF_VARIANT_SLAVE) == LINIF_VARIANT_SLAVE
-  const LinIf_ScheduleTableType *scheduleTable;
+  const LinIf_ScheduleTableType *ScheduleTable;
 #endif
-  uint16_t timeout;
-  NetworkHandleType linChannel;
+  uint16_t Timeout;
+  NetworkHandleType LinChannel;
 #if LINIF_VARIANT == LINIF_VARIANT_BOTH
-  LinIf_NodeTypeType nodeType;
+  LinIf_NodeTypeType NodeType;
 #endif
 } LinIf_ChannelConfigType;
 
 struct LinIf_Config_s {
 #if (LINIF_VARIANT & LINIF_VARIANT_MASTER) == LINIF_VARIANT_MASTER
-  const LinIf_ScheduleTableType *scheduleTables;
-  uint8_t numOfSchTbls;
+  const LinIf_ScheduleTableType *ScheduleTables;
+  uint8_t NumOfSchTbls;
 #endif
-  const LinIf_ChannelConfigType *channelConfigs;
-  LinIf_ChannelContextType *channelContexts;
-  uint8_t numOfChannels;
+  const LinIf_ChannelConfigType *ChannelConfigs;
+  LinIf_ChannelContextType *ChannelContexts;
+  uint8_t NumOfChannels;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

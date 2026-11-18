@@ -20,11 +20,11 @@ XCP 面板需要三份输入：
 
 | 输入 | 默认值 | 作用 |
 | --- | --- | --- |
-| XCP json | [tools/asone/examples/xcp.json](../../tools/asone/examples/xcp.json) | `target` 传输层、`groups` 服务列表、`lua` 脚本 |
+| XCP json | [tools/asone/examples/xcp.json](../../tools/asone/examples/xcp.json) | `Target` 传输层、`Groups` 服务列表、`Lua` 脚本 |
 | Ecu json | `XcpEcu.Json` | 变量清单——地址、类型与字段布局 |
-| Lua 脚本 | 由 XCP json 的 `lua` 键指定 | Seed & Key、上传/下载等字段的编解码钩子 |
+| Lua 脚本 | 由 XCP json 的 `Lua` 键指定 | Seed & Key、上传/下载等字段的编解码钩子 |
 
-XCP json 决定面板**有哪些 XCP 服务**：`groups[].Services[]` 下的每一条都会变成一个命令表单（见 2.3）。而"按变量读写"只是面板的**其中一种**用法——它本质上是 `ShortUpload`、以及 `SetMTA` 加 `Download` 的组合，只不过地址是面板从变量 JSON 里替你填的；另一种用法就是手动下发这些具名服务。
+XCP json 决定面板**有哪些 XCP 服务**：`Groups[].Services[]` 下的每一条都会变成一个命令表单（见 2.3）。而"按变量读写"只是面板的**其中一种**用法——它本质上是 `ShortUpload`、以及 `SetMTA` 加 `Download` 的组合，只不过地址是面板从变量 JSON 里替你填的；另一种用法就是手动下发这些具名服务。
 
 ```mermaid
 flowchart LR
@@ -44,39 +44,39 @@ flowchart LR
 
 | 键 | 内容 |
 | --- | --- |
-| `target` | 传输层：协议、设备、通道、波特率、txid/rxid |
-| `groups` | 面板提供的服务，按组划分，每组一个页签 |
-| `lua` | Lua 脚本文件名，相对本 JSON 所在目录解析 |
+| `Target` | 传输层：协议、设备、通道、波特率、TxId/RxId |
+| `Groups` | 面板提供的服务，按组划分，每组一个页签 |
+| `Lua` | Lua 脚本文件名，相对本 JSON 所在目录解析 |
 
-真实文件的一段节选（`groups` 只留了 `General` 组的一条服务）：
+真实文件的一段节选（`Groups` 只留了 `General` 组的一条服务）：
 
 ```json
 {
-    "target": {
-      "protocol": "CAN",
-      "LL_DL": 8,
-      "device": "simulator_v2",
-      "port": 0,
-      "txid": "0x7A0",
-      "rxid": "0x7B0",
-      "baudrate": 500000
+    "Target": {
+      "Protocol": "CAN",
+      "LinkLayerDataLength": 8,
+      "Device": "simulator_v2",
+      "Port": 0,
+      "TxId": "0x7A0",
+      "RxId": "0x7B0",
+      "Baudrate": 500000
     },
-    "lua": "xcp.lua",
-    "groups": {
+    "Lua": "xcp.lua",
+    "Groups": {
       "General": {
         "Services": [
           {
-            "name": "Connect",
+            "Name": "Connect",
             "SID": "0xFF",
-            "transmit": [
-                { "name": "Mode", "type": "U8Select", "Select": [{ "name": "Normal", "value": "0x00" }, { "name": "User Defined", "value": "0x01" }] }
+            "Transmit": [
+                { "Name": "Mode", "Type": "U8Select", "Select": [{ "Name": "Normal", "Value": "0x00" }, { "Name": "User Defined", "Value": "0x01" }] }
             ],
-            "receive": [
-              { "name": "RESOURCE", "type": "U8", "display": "hex", "default": 0, "lua": "decode_xcp_res" },
-              { "name": "COMM_MODE_BASIC", "type": "U8", "display": "hex", "default": 0, "newline": true },
-              { "name": "MAX_CTO", "type": "U8", "display": "hex", "default": 0 },
-              { "name": "MAX_DTO", "type": "U16", "display": "hex", "default": 0, "newline": true },
-              { "name": "XCP Protocol Layer Version Number", "type": "U16", "display": "hex", "default": 0 }
+            "Receive": [
+              { "Name": "RESOURCE", "Type": "U8", "Display": "hex", "Default": 0, "Lua": "decode_xcp_res" },
+              { "Name": "COMM_MODE_BASIC", "Type": "U8", "Display": "hex", "Default": 0, "Newline": true },
+              { "Name": "MAX_CTO", "Type": "U8", "Display": "hex", "Default": 0 },
+              { "Name": "MAX_DTO", "Type": "U16", "Display": "hex", "Default": 0, "Newline": true },
+              { "Name": "XCP Protocol Layer Version Number", "Type": "U16", "Display": "hex", "Default": 0 }
             ]
           }
         ]
@@ -85,28 +85,28 @@ flowchart LR
 }
 ```
 
-### 2.2 `target`：传输层
+### 2.2 `Target`：传输层
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
-| `protocol` | `CAN` | 目前只支持 `CAN`，其它值会在 `start` 时报 invalid protocol |
-| `device` | `simulator_v2` | CanLib 设备名，见 [虚拟 CAN 环境](./virtual-can-env.md) |
-| `port` | `0` | 通道号 |
-| `baudrate` | `500000` | 波特率，虚拟设备忽略 |
-| `LL_DL` | `8` | 传输层每帧的数据长度（响应帧也按此长度计算，故单次 Short Upload 的数据上限为 `LL_DL - 1`，见 5 节） |
-| `txid` | `0xFA0` | 面板 → 从站的 CAN ID |
-| `rxid` | `0xFB0` | 从站 → 面板的 CAN ID |
+| `Protocol` | `CAN` | 目前只支持 `CAN`，其它值会在 `start` 时报 invalid protocol |
+| `Device` | `simulator_v2` | CanL 设备名，见 [虚拟 CAN 环境](./virtual-can-env.md) |
+| `Port` | `0` | 通道号 |
+| `Baudrate` | `500000` | 波特率，虚拟设备忽略 |
+| `LinkLayerDataLength` | `8` | 传输层每帧的数据长度（响应帧也按此长度计算，故单次 Short Upload 的数据上限为 `LinkLayerDataLength - 1`，见 5 节） |
+| `TxId` | `0xFA0` | 面板 → 从站的 CAN ID |
+| `RxId` | `0xFB0` | 从站 → 面板的 CAN ID |
 
-`txid` / `rxid` 写成数字或 `"0x7A0"` 这样的字符串都可以。`start` 时面板按 `protocol` / `device` / `port` / `baudrate` 打开总线，并把整个 `target` 对象作为 `target:` 下拉框的一项显示出来——下拉框可编辑，也可以直接粘贴一段 `target` 文本，换链路不必改文件。
+`TxId` / `RxId` 写成数字或 `"0x7A0"` 这样的字符串都可以。`start` 时面板按 `Protocol` / `Device` / `Port` / `Baudrate` 打开总线，并把整个 `Target` 对象作为 `target:` 下拉框的一项显示出来——下拉框可编辑，也可以直接粘贴一段 `Target` 文本，换链路不必改文件。
 
-### 2.3 `groups` 与 `Services`：服务表单
+### 2.3 `Groups` 与 `Services`：服务表单
 
-`groups` 的每个键是一个分组：在左侧树上生成一个顶层节点，同时新增一个同名页签。分组下只有 `Services` 数组有意义，数组的每一项生成一个表单：
+`Groups` 的每个键是一个分组：在左侧树上生成一个顶层节点，同时新增一个同名页签。分组下只有 `Services` 数组有意义，数组的每一项生成一个表单：
 
-- `name` —— 表单标题，也是树里子节点的名字；
+- `Name` —— 表单标题，也是树里子节点的名字；
 - `SID` —— 命令码，点 `Enter` 时作为请求的第一个字节；
-- `transmit` —— 请求里 `SID` 之后的字段，按顺序编码；
-- `receive` —— 响应的字段，从响应第 1 个字节开始解析（第 0 字节是 `0xFF` 肯定响应码，被跳过）。
+- `Transmit` —— 请求里 `SID` 之后的字段，按顺序编码；
+- `Receive` —— 响应的字段，从响应第 1 个字节开始解析（第 0 字节是 `0xFF` 肯定响应码，被跳过）。
 
 出厂 xcp.json 提供四组服务：
 
@@ -117,42 +117,42 @@ flowchart LR
 | `PGM` | `ProgramStart`(D2)、`ProgramClear`(D1)、`Program`(D0)、`ProgramReset`(CF) |
 | `DAQ` | `FreeDAQ`(D6)、`AllocDAQ`(D5)、`AllocODT`(D4)、`AllocODTEntry`(D3)、`ClearDAQList`(E3)、`SetDAQPtr`(E2)、`WriteDAQ`(E1)、`ReadDAQ`(DB)、`SetDAQListMode`(E0)、`StartStopDAQList`(DE)、`DAQStartStopSynch`(DD) |
 
-`Disconnect`、`FreeDAQ`、`ProgramReset` 这类没有参数的服务的 `transmit` / `receive` 是空数组，表单就只有 SID 一个字节。
+`Disconnect`、`FreeDAQ`、`ProgramReset` 这类没有参数的服务的 `Transmit` / `Receive` 是空数组，表单就只有 SID 一个字节。
 
-字段类型由 `type` 决定，形式为 `U<位宽>` 加可选后缀：
+字段类型由 `Type` 决定，形式为 `U<位宽>` 加可选后缀：
 
-| `type` | 界面 | 编码宽度 |
+| `Type` | 界面 | 编码宽度 |
 | --- | --- | --- |
 | `U8` / `U16` / `U32` | 输入框 | 位宽即字段宽度 |
-| `U8Array` + `size` | 输入框（数组字面量） | `size` 个字节 |
-| `U8Select` + `Select` | 下拉框 | 选中项的 `value` |
-| `U8MultiSelect` + `Select` | 多选 | 被选中项的 `value` 按位或 |
+| `U8Array` + `Size` | 输入框（数组字面量） | `Size` 个字节 |
+| `U8Select` + `Select` | 下拉框 | 选中项的 `Value` |
+| `U8MultiSelect` + `Select` | 多选 | 被选中项的 `Value` 按位或 |
 | `Table` | 表格，由 Lua 填充 | 长度由 Lua 决定，见 2.4 |
 
 字段上还可以带这些键：
 
 | 键 | 作用 |
 | --- | --- |
-| `display` | `dec`（默认）/ `hex` / `asc` |
-| `default` | 初始值，数字或 `"0x00"` 这类字符串 |
-| `newline` | 该字段之后换行 |
-| `optional` | 响应里可以缺失（例如 `StartStopDAQList` 的 `First PID`） |
-| `readonly` | 界面上只读，值由 Lua 算出（例如 `Unlock` 的 `keys`） |
-| `visible` | `false` 表示不出现在界面上，只参与编解码 |
-| `lua` | 该字段的 Lua 钩子，见 2.4 |
+| `Display` | `dec`（默认）/ `hex` / `asc` |
+| `Default` | 初始值，数字或 `"0x00"` 这类字符串 |
+| `Newline` | 该字段之后换行 |
+| `Optional` | 响应里可以缺失（例如 `StartStopDAQList` 的 `First PID`） |
+| `Readonly` | 界面上只读，值由 Lua 算出（例如 `Unlock` 的 `keys`） |
+| `Visible` | `false` 表示不出现在界面上，只参与编解码 |
+| `Lua` | 该字段的 Lua 钩子，见 2.4 |
 
 点 `Enter` 组帧发送，收到响应后逐字段回填，并弹窗显示 `XXX OK with response [...]`。若响应首字节不是 `0xFF`，展示函数会在十六进制串后面补上 `nrc = ...` 文本（`0x23` 内存写保护、`0x24` 内存不可访问、`0x25` 需要 Seed & Key…）。
 
 `Download`(F0) 与 `Program`(D0) 的处理稍有不同：如果用户填的数据长度与 `Number` 不一致，说明这一块还没发完，面板不再发送而是直接当作肯定响应，好让 Lua 钩子接着拆下一块（见 2.4）。
 
-### 2.4 `lua` 脚本
+### 2.4 `Lua` 脚本
 
-`lua` 是脚本文件名，相对 XCP json 所在目录解析。`start` 时先加载它，随后调用 `xcp_init(busid, txid, rxid)`——脚本里没有这个函数会弹 `Xcp Lua has no API xcp_init`。
+`Lua` 是脚本文件名，相对 XCP json 所在目录解析。`start` 时先加载它，随后调用 `xcp_init(busid, txid, rxid)`——脚本里没有这个函数会弹 `Xcp Lua has no API xcp_init`。
 
-字段上的 `lua` 键把该字段交给一个 Lua 钩子：`transmit` 字段在编码前调用（可以改写要发的内容），`receive` 字段在解码后调用（把字节变成可读文本）。`Table` 类型的字段完全交给钩子：
+字段上的 `Lua` 键把该字段交给一个 Lua 钩子：`Transmit` 字段在编码前调用（可以改写要发的内容），`Receive` 字段在解码后调用（把字节变成可读文本）。`Table` 类型的字段完全交给钩子：
 
-- 在 `transmit` 侧，钩子返回字节表，由它决定这一帧发什么——例如 `Unlock` 用 `calculate_keys()` 从上一轮收到的种子算出钥匙；
-- 在 `receive` 侧，钩子把整段响应渲染成表格，返回值里带表头与单元格——例如 `GetSeed` 的 `record_seeds`。
+- 在 `Transmit` 侧，钩子返回字节表，由它决定这一帧发什么——例如 `Unlock` 用 `calculate_keys()` 从上一轮收到的种子算出钥匙；
+- 在 `Receive` 侧，钩子把整段响应渲染成表格，返回值里带表头与单元格——例如 `GetSeed` 的 `record_seeds`。
 
 出厂 [xcp.lua](../../tools/asone/examples/xcp.lua) 提供的钩子：
 
@@ -160,11 +160,11 @@ flowchart LR
 | --- | --- | --- |
 | `xcp_init` | `start` | 记录通道与 txid/rxid |
 | `decode_xcp_res` | `Connect` / `GetStatus` 的 `RESOURCE`、`Protect` | 把资源位翻译成 `CALPAG DAQ STIM PGM` |
-| `record_seed_mode` / `record_seed_resource` | `GetSeed` 的 `transmit` | 记下本次请求的 mode 与 resource |
-| `record_seeds` | `GetSeed` 的 `receive` | 保存种子并显示 |
-| `calculate_keys` | `Unlock` 的 `transmit` | `key = seed ^ 0x78934673`，示例算法 |
+| `record_seed_mode` / `record_seed_resource` | `GetSeed` 的 `Transmit` | 记下本次请求的 mode 与 resource |
+| `record_seeds` | `GetSeed` 的 `Receive` | 保存种子并显示 |
+| `calculate_keys` | `Unlock` 的 `Transmit` | `key = seed ^ 0x78934673`，示例算法 |
 | `record_upload_length` | `Upload` / `ShortUpload` 的 `Length` | 记下预期长度 |
-| `decode_upload_data` | `Upload` / `ShortUpload` 的 `receive` | 收齐 `Length` 字节（不够就继续读 CAN），按 32 字节一行显示 |
+| `decode_upload_data` | `Upload` / `ShortUpload` 的 `Receive` | 收齐 `Length` 字节（不够就继续读 CAN），按 32 字节一行显示 |
 | `prepare_download` / `download_next` | `Download` | 把数据切成 6 字节块，逐块续发 |
 | `prepare_program` / `program_next` | `Program` | 同上，用于刷写 |
 
@@ -205,38 +205,38 @@ D:\repository\as>cp build/nt/QemuVersatilepbGCC/VersatilepbCanApp/VersatilepbCan
 
 | 键 | 内容 |
 | --- | --- |
-| `elf` | 输入 ELF 的路径（用作树根标签） |
-| `vars` | 所有静态变量：`name`、`addr`、`type`、`loc`（`file:line`）、`size`（DWARF 给出的真实字节数） |
-| `types` | 类型表：typedef 与结构体，及其有序的 `members` |
-| `endian` | `LITTLE` 或 `BIG`，取自 ELF 头部 |
-| `xcp_vars` | 按源文件分组的变量，并附 `datas` 描述各字段 |
+| `Elf` | 输入 ELF 的路径（用作树根标签） |
+| `Vars` | 所有静态变量：`Name`、`Addr`、`Type`、`Loc`（`file:line`）、`Size`（DWARF 给出的真实字节数） |
+| `Types` | 类型表：typedef 与结构体，及其有序的 `Members` |
+| `Endian` | `LITTLE` 或 `BIG`，取自 ELF 头部 |
+| `XcpVars` | 按源文件分组的变量，并附 `Datas` 描述各字段 |
 
 真实文件的一段节选：
 
 ```json
 {
-  "elf": "C:\\repo\\ssas\\build\\nt\\QemuVersatilepbGCC\\VersatilepbCanApp\\VersatilepbCanApp.exe",
-  "vars": [
+  "Elf": "C:\\repo\\ssas\\build\\nt\\QemuVersatilepbGCC\\VersatilepbCanApp\\VersatilepbCanApp.exe",
+  "Vars": [
     {
-      "name": "RoD_AppVersion",
-      "addr": "0x41010",
-      "type": "const RoD_AppVersionType",
-      "loc": "app\\platform\\qemu\\versatilepb\\config\\RoD\\GEN\\RoD_AppCfg.c:16"
+      "Name": "RoD_AppVersion",
+      "Addr": "0x41010",
+      "Type": "const RoD_AppVersionType",
+      "Loc": "app\\platform\\qemu\\versatilepb\\config\\RoD\\GEN\\RoD_AppCfg.c:16"
     }
   ],
-  "types": { "TickType": { "name": "TickType", "type": "uint32", "loc": "infras\\system\\kernel\\os\\include\\kernel.h:132" } },
-  "endian": "LITTLE",
-  "xcp_vars": {
+  "Types": { "TickType": { "Name": "TickType", "Type": "uint32", "Size": 4, "Loc": "infras\\system\\kernel\\os\\include\\kernel.h:132" } },
+  "Endian": "LITTLE",
+  "XcpVars": {
     "kernel.c": [
       {
-        "name": "OsTickCounter",
-        "addr": 1798156,
-        "datas": [
+        "Name": "OsTickCounter",
+        "Addr": 1798156,
+        "Datas": [
           {
-            "name": "OsTickCounter",
-            "type": "U32",
-            "display": "dec",
-            "default": 0
+            "Name": "OsTickCounter",
+            "Type": "U32",
+            "Display": "dec",
+            "Default": 0
           }
         ]
       }
@@ -245,27 +245,27 @@ D:\repository\as>cp build/nt/QemuVersatilepbGCC/VersatilepbCanApp/VersatilepbCan
 }
 ```
 
-### 3.3 `xcp_vars` 如何得出
+### 3.3 `XcpVars` 如何得出
 
-`vars` 与 `types` 是 DWARF 的原始转储；`xcp_vars` 才是 UIXcp 真正消费的部分，由 `processXcp()` 生成：
+`Vars` 与 `Types` 是 DWARF 的原始转储；`XcpVars` 才是 UIXcp 真正消费的部分，由 `processXcp()` 生成：
 
-1. 按变量声明所在的**源文件**（`loc` 中 `:` 之前的部分）分组；
+1. 按变量声明所在的**源文件**（`Loc` 中 `:` 之前的部分）分组；
 2. 丢弃地址为 `0` 的变量（它们没有静态存储）——被丢弃的原因会汇总在 `-v` 的统计里，不再静默；
-3. 把类型展开为扁平的 `datas` 字段列表；无法逐字段展开的类型退化为原始字节块，而不是整条丢弃；展开出的总字节数与变量 `size` 不一致时同样退化为原始字节块（见第 8 节）。
+3. 把类型展开为扁平的 `Datas` 字段列表；无法逐字段展开的类型退化为原始字节块，而不是整条丢弃；展开出的总字节数与变量 `Size` 不一致时同样退化为原始字节块（见第 8 节）。
 
 字段类型通过一张小的标准类型映射表解析：
 
-| C 类型 | `datas` 类型 |
+| C 类型 | `Datas` 类型 |
 | --- | --- |
 | `uint8_t`、`char`、`_Bool` | `U8` |
 | `uint16_t`、`short` | `U16` |
 | `uint32_t`、`int`、`long`、`enum` | `U32`（`enum` 按底层类型宽度取 `U8`/`U16`/`U32`） |
-| `uint8_t[8]` | `U8Array`，`size: 8` |
-| 结构体 | 展平为每个成员一条 `datas` |
+| `uint8_t[8]` | `U8Array`，`Size: 8` |
+| 结构体 | 展平为每个成员一条 `Datas` |
 | 指针 | 一个只读的十六进制 `U32` |
-| 联合体、成员间的填充 | 一段 `U8Array` 原始字节（填充项标记 `visible: false`） |
+| 联合体、成员间的填充 | 一段 `U8Array` 原始字节（填充项标记 `Visible: false`） |
 
-结构体数组会为每个元素生成一条记录（`<name>_0`、`<name>_1`…），并且每个数组项都标记 `newline`，以便控件把它单独放在一行。
+结构体数组会为每个元素生成一条记录（`<name>_0`、`<name>_1`…），并且每个数组项都标记 `Newline`，以便控件把它单独放在一行。
 
 ### 3.4 它必须与当前构建匹配
 
@@ -284,8 +284,8 @@ D:\repository\as>cp build/nt/QemuVersatilepbGCC/VersatilepbCanApp/VersatilepbCan
 
 在 XCP 面板上用 `load XCP json` 与 `load Ecu json` 选择上面两份文件；按下 `start` 会执行 `UIXcp::loadUI()`，建出两类树节点：
 
-- XCP json 的每个 `groups` 条目——即第 2 节所说的服务分组，其下是各服务的表单；
-- 另一个顶层条目是 `basename(elf)`，即应用名，其下按 `xcp_vars` 的源文件各一个子条目，再下面是每个变量对应的一个 `UIMeasure` 控件。
+- XCP json 的每个 `Groups` 条目——即第 2 节所说的服务分组，其下是各服务的表单；
+- 另一个顶层条目是 `basename(elf)`，即应用名，其下按 `XcpVars` 的源文件各一个子条目，再下面是每个变量对应的一个 `UIMeasure` 控件。
 
 `load Ecu json` 默认查找的是工具工作目录（`build\nt\GCC\one`）下的文件名 **`XcpEcu.Json`**，7.2 节的第二条命令正是把它放在那里；若想临时换用别的 JSON，用 `...` 按钮手动选择即可。`load XCP json` 默认先找当前目录下的 `xcp.json`，没有才退回示例 [tools/asone/examples/xcp.json](../../tools/asone/examples/xcp.json)。
 
@@ -303,7 +303,7 @@ flowchart TD
 
 ![UIXcp 中的 Ecu 变量树](../images/UIXcp-Ecu-Vars.gif)
 
-每个 `UIMeasure` 控件为每条 `datas` 显示一个可编辑字段，并带 `Read` 与 `Write` 按钮。其总长度是各字段位宽与元素个数之积的总和，读取时从 `addr` 开始作为一整块连续内存处理。编解码值所用的字节序取自 Ecu json 中的 `endian`。
+每个 `UIMeasure` 控件为每条 `Datas` 显示一个可编辑字段，并带 `Read` 与 `Write` 按钮。其总长度是各字段位宽与元素个数之积的总和，读取时从 `Addr` 开始作为一整块连续内存处理。编解码值所用的字节序取自 Ecu json 中的 `Endian`。
 
 ## 5. 读取变量
 
@@ -313,7 +313,7 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | 含义 | Short Upload | 需要的字节数 | 0 | 0 = MEMORY | 变量地址 |
 
-一个响应帧共 `LL_DL` 字节，其中还包含 `0xFF` 肯定响应码，所以单次 SHORT_UPLOAD 最多返回 `LL_DL - 1` 个数据字节（默认 `LL_DL: 8` 时为 `7`）。更大的变量用多次 SHORT_UPLOAD 请求读取，每次都按递增后的地址索取下一段，并且面板以实际收到的字节数继续往后读。本从站对一次 SHORT_UPLOAD 只会回应一帧——它不会主动推送后续帧——因此面板不能靠继续调用 `receive()` 来凑齐剩余数据。
+一个响应帧共 `LinkLayerDataLength` 字节，其中还包含 `0xFF` 肯定响应码，所以单次 SHORT_UPLOAD 最多返回 `LinkLayerDataLength - 1` 个数据字节（默认 `LinkLayerDataLength: 8` 时为 `7`）。更大的变量用多次 SHORT_UPLOAD 请求读取，每次都按递增后的地址索取下一段，并且面板以实际收到的字节数继续往后读。本从站对一次 SHORT_UPLOAD 只会回应一帧——它不会主动推送后续帧——因此面板不能靠继续调用 `receive()` 来凑齐剩余数据。
 
 ```mermaid
 sequenceDiagram
@@ -408,7 +408,7 @@ qemu-system-arm.exe: -serial tcp:127.0.0.1:9000,server: info: QEMU waiting for c
 D:\repository\as>build\nt\GCC\one\CanBridge.exe -d qemu -d simulator_v2
 ```
 
-目标的 CAN 是一个导出在 TCP `9000` 上的串口；`CanBridge` 把它接到 `simulator_v2` 总线上，而这正是 `xcp.json` 的 `target` 块所指定的传输层。可选的报文监视器：
+目标的 CAN 是一个导出在 TCP `9000` 上的串口；`CanBridge` 把它接到 `simulator_v2` 总线上，而这正是 `xcp.json` 的 `Target` 块所指定的传输层。可选的报文监视器：
 
 ```sh
 D:\repository\as>build\nt\GCC\one\CanDump.exe -d simulator_v2 -p 0
@@ -427,7 +427,7 @@ AsOne 会加载与自己同目录的所有 UI `*.dll`，因此 `UIXcp.dll` 会�
 | --- | --- |
 | 1 | `load XCP json`——默认为当前目录的 `xcp.json`，没有则用 [tools/asone/examples/xcp.json](../../tools/asone/examples/xcp.json)；它提供传输层、服务列表与 `xcp.lua` |
 | 2 | `load Ecu json`——默认为工作目录下的 `XcpEcu.Json`（7.2 节已把它准备好）；如需换用别的 JSON，用 `...` 选择 |
-| 3 | `target`——XCP json 的 `target` 块：CAN、`simulator_v2`、txid `0x7A0`、rxid `0x7B0` |
+| 3 | `Target`——XCP json 的 `Target` 块：CAN、`simulator_v2`、TxId `0x7A0`、RxId `0x7B0` |
 | 4 | `start`——建树、打开总线并调用 Lua 的 `xcp_init` |
 | 5 | 在 `General` 分组点 `Connect`——先建立会话，从站只接受先 CONNECT |
 | 6 | 在 `<App>.exe` 树里选中某个变量，右侧点 `Read` / `Write` |
@@ -459,7 +459,7 @@ build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v F40400000C531B00
 - 变量必须具有静态存储且地址非 0；局部变量与函数参数不会被导出。
 - `const` 变量导出为只读，指针导出为一个只读的 32 位十六进制地址——两者都无法按名字标定。
 - 无法逐字段展开的值（联合体、成员类型无法解析、字段数过多的复合类型数组）会以原始字节块导出而不是被丢弃，因此可以读取但无法按字段标定。
-- 类型表以类型名为键，因此两个同名但不同定义的**文件内**类型（例如 `mbedtls` 里两个大小不同的 `sha_test_sum_t`）无法同时表达。所以展开后的布局会与变量自身 DWARF 条目给出的 `size` 比对，不一致的变量改以原始字节导出——依然读得正确，只是不能按字段标定。
-- 面板信任 json 中的 `endian`，因此 Ecu json 必须与目标构建出自同一套配置。
+- 类型表以类型名为键，因此两个同名但不同定义的**文件内**类型（例如 `mbedtls` 里两个大小不同的 `sha_test_sum_t`）无法同时表达。所以展开后的布局会与变量自身 DWARF 条目给出的 `Size` 比对，不一致的变量改以原始字节导出——依然读得正确，只是不能按字段标定。
+- 面板信任 json 中的 `Endian`，因此 Ecu json 必须与目标构建出自同一套配置。
 - 必须有 DWARF：使用 `--strip` 的构建会产生空的变量列表。
 - JSON 不会随构建自动重生成。若重新编译后没有重跑 `readelf.py`，面板读的还是旧地址——不会报错，但**值是错的**，见 3.4 节。

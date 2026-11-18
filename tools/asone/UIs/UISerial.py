@@ -99,7 +99,7 @@ class AsCommand():
 
         print('original trace result:\n', result)
         format = '%-'+str(maxL)+'s %-10s %-10s %-10s %-8s %s\n'
-        rs = format % ('ID', 'sum', 'max', 'min', 'times', 'CPU usage all=%.6ss' % (tall))
+        rs = format % ('ID', 'sum', 'Max', 'Min', 'times', 'CPU usage all=%.6ss' % (tall))
         for id, sum, max, min, times in L:
             rs += format % (id, '%-10.6f' % (sum), '%-10.6f' % (max), '%-10.6f' %
                             (min), times, '%10.3f%%' % (100*sum/tall))
@@ -117,15 +117,15 @@ class AsSerial(QThread):
 
     def open(self, settings, start=True):
         self.__terminate = False
-        if (settings['port'][:3] == 'CAN'):
+        if (settings['Port'][:3] == 'CAN'):
             self.isCANMode = True
-            _, device, port = settings['port'].split('/')
+            _, device, port = settings['Port'].split('/')
             self.node = AsCan(device, eval(port), settings['baund'])
             self.start()
             return (True, 'success')
         try:
-            self.serial = Serial(settings['port'], settings['baund'], settings['bytesize'],
-                                 settings['parity'], settings['stopbits'], settings['timeout'])
+            self.serial = Serial(settings['Port'], settings['baund'], settings['bytesize'],
+                                 settings['parity'], settings['stopbits'], settings['Timeout'])
             self.serial.flushInput()
             self.serial.flushOutput()
         except:
@@ -274,13 +274,13 @@ def search_serial_ports():
     settings['bytesize'] = 8
     settings['parity'] = 'N'
     settings['stopbits'] = 1
-    settings['timeout'] = 0.1
+    settings['Timeout'] = 0.1
     ports = []
     for i in range(0, 100):
-        settings['port'] = 'COM%s' % (i)
+        settings['Port'] = 'COM%s' % (i)
         try:
-            serial = Serial(settings['port'], settings['baund'], settings['bytesize'],
-                            settings['parity'], settings['stopbits'], settings['timeout'])
+            serial = Serial(settings['Port'], settings['baund'], settings['bytesize'],
+                            settings['parity'], settings['stopbits'], settings['Timeout'])
             ports.append(i)
         except:
             pass
@@ -435,12 +435,12 @@ class UISerial(QWidget):
     def on_btnOpenClose_clicked(self):
         if (self.btnOpenClose.text() == 'Open'):
             settings = {}
-            settings['port'] = str(self.cmdDevices.currentText())
+            settings['Port'] = str(self.cmdDevices.currentText())
             settings['baund'] = int(str(self.cmdBaudrate.currentText()), 10)
             settings['bytesize'] = 8
             settings['parity'] = 'N'
             settings['stopbits'] = 1
-            settings['timeout'] = 0.1
+            settings['Timeout'] = 0.1
             self.serial.recv_msg.connect(self.on_message_received)
             ret, msg = self.serial.open(settings)
             if (ret == False):  # open failed

@@ -27,26 +27,26 @@ typedef struct CanTp_Config_s CanTp_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_CanTp_00208 */
-void CanTp_Init(const CanTp_ConfigType *CfgPtr);
+void CanTp_Init(const CanTp_ConfigType *cfgPtr);
 
-void CanTp_InitChannel(uint8_t Channel);
+void CanTp_InitChannel(uint8_t channel);
 
 /* @SWS_CanTp_00214 */
-void CanTp_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void CanTp_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 /* @SWS_CanTp_00215 */
-void CanTp_TxConfirmation(PduIdType TxPduId, Std_ReturnType result);
+void CanTp_TxConfirmation(PduIdType txPduId, Std_ReturnType result);
 
 /* @SWS_CanTp_00212 */
-Std_ReturnType CanTp_Transmit(PduIdType TxPduId, const PduInfoType *PduInfoPtr);
+Std_ReturnType CanTp_Transmit(PduIdType txPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_CanTp_00213 */
 void CanTp_MainFunction(void);
 
-void CanTp_MainFunction_Channel(uint8_t Channel);
+void CanTp_MainFunction_Channel(uint8_t channel);
 
 void CanTp_MainFunction_Fast(void);
 
-void CanTp_MainFunction_ChannelFast(uint8_t Channel);
+void CanTp_MainFunction_ChannelFast(uint8_t channel);
 
 /* @SWS_CanTp_00210 */
 void CanTp_GetVersionInfo(Std_VersionInfoType *versionInfo);

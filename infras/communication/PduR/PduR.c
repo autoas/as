@@ -19,20 +19,20 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void PduR_Init(const PduR_ConfigType *ConfigPtr) {
-  (void)ConfigPtr;
+void PduR_Init(const PduR_ConfigType *configPtr) {
+  (void)configPtr;
 #if defined(PDUR_USE_MEMPOOL)
   PduR_MemInit();
 #endif
 }
 
-Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   const PduR_PduType *DestPduRef;
   PduIdType PduHandleId;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF1, PDUR_E_PDU_ID_INVALID, return E_NOT_OK);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0xF1, PDUR_E_PDU_ID_INVALID, return E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_TpTransmit %d\n", pathId));
   DestPduRef = &config->RoutingPaths[pathId].DestPduRef[0];
@@ -41,8 +41,8 @@ Std_ReturnType PduR_TpTransmit(PduIdType pathId, const PduInfoType *PduInfoPtr) 
   } else {
     PduHandleId = DestPduRef->PduHandleId;
   }
-  if (NULL != DestPduRef->api->Transmit) {
-    ret = DestPduRef->api->Transmit(PduHandleId, PduInfoPtr);
+  if (NULL != DestPduRef->Api->Transmit) {
+    ret = DestPduRef->Api->Transmit(PduHandleId, pduInfoPtr);
   } else {
     ASLOG(PDURE, ("null Transmit\n"));
   }
@@ -57,7 +57,7 @@ BufReq_ReturnType PduR_CopyTxData(PduIdType pathId, const PduInfoType *info,
   PduIdType PduHandleId;
   const PduR_RoutingPathType *RoutingPath;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x43, PDUR_E_PDU_ID_INVALID,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x43, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_CopyTxData %d\n", pathId));
@@ -68,8 +68,8 @@ BufReq_ReturnType PduR_CopyTxData(PduIdType pathId, const PduInfoType *info,
     PduHandleId = RoutingPath->SrcPduRef->PduHandleId;
   }
 
-  if (NULL != RoutingPath->SrcPduRef->api->CopyTxData) {
-    ret = RoutingPath->SrcPduRef->api->CopyTxData(PduHandleId, info, retry, availableDataPtr);
+  if (NULL != RoutingPath->SrcPduRef->Api->CopyTxData) {
+    ret = RoutingPath->SrcPduRef->Api->CopyTxData(PduHandleId, info, retry, availableDataPtr);
   } else {
     ASLOG(PDURE, ("null CopyTxData\n"));
   }
@@ -77,27 +77,27 @@ BufReq_ReturnType PduR_CopyTxData(PduIdType pathId, const PduInfoType *info,
   return ret;
 }
 
-void PduR_RxIndication(PduIdType pathId, const PduInfoType *PduInfoPtr) {
+void PduR_RxIndication(PduIdType pathId, const PduInfoType *pduInfoPtr) {
   const PduR_ConfigType *config = PDUR_CONFIG;
   const PduR_PduType *DestPduRef;
   PduIdType PduHandleId;
   uint16_t i;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x42, PDUR_E_PDU_ID_INVALID, return);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x42, PDUR_E_PDU_ID_INVALID, return);
 
   ASLOG(PDUR, ("PduR_RxIndication %d\n", pathId));
-  for (i = 0; i < config->RoutingPaths[pathId].numOfDestPdus; i++) {
+  for (i = 0; i < config->RoutingPaths[pathId].NumOfDestPdus; i++) {
     DestPduRef = &config->RoutingPaths[pathId].DestPduRef[i];
     PduHandleId = DestPduRef->PduHandleId;
-    if (NULL != DestPduRef->api->RxIndication) {
-      DestPduRef->api->RxIndication(PduHandleId, PduInfoPtr);
+    if (NULL != DestPduRef->Api->RxIndication) {
+      DestPduRef->Api->RxIndication(PduHandleId, pduInfoPtr);
     } else {
       ASLOG(PDURE, ("null RxIndication\n"));
     }
   }
 }
 
-Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *PduInfoPtr) {
+Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *pduInfoPtr) {
   Std_ReturnType ret = E_OK;
   Std_ReturnType ret2;
   const PduR_ConfigType *config = PDUR_CONFIG;
@@ -105,17 +105,17 @@ Std_ReturnType PduR_Transmit(PduIdType pathId, const PduInfoType *PduInfoPtr) {
   PduIdType PduHandleId;
   uint16_t i;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x49, PDUR_E_PDU_ID_INVALID, return E_NOT_OK);
-  DET_VALIDATE((NULL != PduInfoPtr) && (NULL != PduInfoPtr->SduDataPtr), 0x49, PDUR_E_PARAM_POINTER,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x49, PDUR_E_PDU_ID_INVALID, return E_NOT_OK);
+  DET_VALIDATE((NULL != pduInfoPtr) && (NULL != pduInfoPtr->SduDataPtr), 0x49, PDUR_E_PARAM_POINTER,
                return E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_Transmit %d\n", pathId));
 
-  for (i = 0; i < config->RoutingPaths[pathId].numOfDestPdus; i++) {
+  for (i = 0; i < config->RoutingPaths[pathId].NumOfDestPdus; i++) {
     DestPduRef = &config->RoutingPaths[pathId].DestPduRef[i];
     PduHandleId = DestPduRef->PduHandleId;
-    if (NULL != DestPduRef->api->Transmit) {
-      ret2 = DestPduRef->api->Transmit(PduHandleId, PduInfoPtr);
+    if (NULL != DestPduRef->Api->Transmit) {
+      ret2 = DestPduRef->Api->Transmit(PduHandleId, pduInfoPtr);
       if (E_OK != ret2) {
         ret = ret2;
         ASLOG(PDUR, ("Transmit(%d) to dest %d failed\n", pathId, i));
@@ -133,7 +133,7 @@ void PduR_TxConfirmation(PduIdType pathId, Std_ReturnType result) {
   PduIdType PduHandleId;
   const PduR_RoutingPathType *RoutingPath;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x40, PDUR_E_PDU_ID_INVALID, return);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x40, PDUR_E_PDU_ID_INVALID, return);
 
   ASLOG(PDUR, ("PduR_TxConfirmation %d\n", pathId));
   RoutingPath = &config->RoutingPaths[pathId];
@@ -143,21 +143,21 @@ void PduR_TxConfirmation(PduIdType pathId, Std_ReturnType result) {
     PduHandleId = RoutingPath->SrcPduRef->PduHandleId;
   }
 
-  if (NULL != RoutingPath->SrcPduRef->api->TxConfirmation) {
-    RoutingPath->SrcPduRef->api->TxConfirmation(PduHandleId, result);
+  if (NULL != RoutingPath->SrcPduRef->Api->TxConfirmation) {
+    RoutingPath->SrcPduRef->Api->TxConfirmation(PduHandleId, result);
   } else {
     ASLOG(PDURE, ("null TxConfirmation\n"));
   }
 }
 
 BufReq_ReturnType PduR_StartOfReception(PduIdType pathId, const PduInfoType *info,
-                                        PduLengthType TpSduLength, PduLengthType *bufferSizePtr) {
+                                        PduLengthType tpSduLength, PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   const PduR_PduType *DestPduRef;
   PduIdType PduHandleId;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x46, PDUR_E_PDU_ID_INVALID,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x46, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_StartOfReception %d\n", pathId));
@@ -167,8 +167,8 @@ BufReq_ReturnType PduR_StartOfReception(PduIdType pathId, const PduInfoType *inf
   } else {
     PduHandleId = DestPduRef->PduHandleId;
   }
-  if (NULL != DestPduRef->api->StartOfReception) {
-    ret = DestPduRef->api->StartOfReception(PduHandleId, info, TpSduLength, bufferSizePtr);
+  if (NULL != DestPduRef->Api->StartOfReception) {
+    ret = DestPduRef->Api->StartOfReception(PduHandleId, info, tpSduLength, bufferSizePtr);
   } else {
     ASLOG(PDURE, ("null StartOfReception\n"));
   }
@@ -183,7 +183,7 @@ BufReq_ReturnType PduR_CopyRxData(PduIdType pathId, const PduInfoType *info,
   const PduR_PduType *DestPduRef;
   PduIdType PduHandleId;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x44, PDUR_E_PDU_ID_INVALID,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x44, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_CopyRxData %d\n", pathId));
@@ -194,8 +194,8 @@ BufReq_ReturnType PduR_CopyRxData(PduIdType pathId, const PduInfoType *info,
   } else {
     PduHandleId = DestPduRef->PduHandleId;
   }
-  if (NULL != DestPduRef->api->CopyRxData) {
-    ret = DestPduRef->api->CopyRxData(PduHandleId, info, bufferSizePtr);
+  if (NULL != DestPduRef->Api->CopyRxData) {
+    ret = DestPduRef->Api->CopyRxData(PduHandleId, info, bufferSizePtr);
   } else {
     ASLOG(PDURE, ("null CopyRxData\n"));
   }
@@ -208,7 +208,7 @@ void PduR_TpRxIndication(PduIdType pathId, Std_ReturnType result) {
   const PduR_PduType *DestPduRef;
   PduIdType PduHandleId;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0x45, PDUR_E_PDU_ID_INVALID, return);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0x45, PDUR_E_PDU_ID_INVALID, return);
 
   ASLOG(PDUR, ("PduR_TpRxIndication %d\n", pathId));
   DestPduRef = &config->RoutingPaths[pathId].DestPduRef[0];
@@ -217,8 +217,8 @@ void PduR_TpRxIndication(PduIdType pathId, Std_ReturnType result) {
   } else {
     PduHandleId = DestPduRef->PduHandleId;
   }
-  if (NULL != DestPduRef->api->TpRxIndication) {
-    DestPduRef->api->TpRxIndication(PduHandleId, result);
+  if (NULL != DestPduRef->Api->TpRxIndication) {
+    DestPduRef->Api->TpRxIndication(PduHandleId, result);
   } else {
     ASLOG(PDURE, ("null TpRxIndication\n"));
   }
@@ -234,13 +234,13 @@ BufReq_ReturnType PduR_GwCopyTxData(PduIdType pathId, const PduInfoType *info,
   (void)retry;
 
   ASLOG(PDUR, ("PduR_GwCopyTxData %d\n", pathId));
-  if ((pathId < config->numOfRoutingPaths) &&
+  if ((pathId < config->NumOfRoutingPaths) &&
       (NULL != config->RoutingPaths[pathId].DestTxBufferRef)) {
     buffer = config->RoutingPaths[pathId].DestTxBufferRef;
-    if (NULL != buffer->data) {
-      (void)memcpy(info->SduDataPtr, &buffer->data[offset], info->SduLength);
+    if (NULL != buffer->Data) {
+      (void)memcpy(info->SduDataPtr, &buffer->Data[offset], info->SduLength);
       offset += info->SduLength;
-      *availableDataPtr = buffer->size - offset;
+      *availableDataPtr = buffer->Size - offset;
       ret = BUFREQ_OK;
     }
   }
@@ -254,26 +254,26 @@ void PduR_GwTxConfirmation(PduIdType pathId, Std_ReturnType result) {
 
   (void)result;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF2, PDUR_E_PDU_ID_INVALID, return);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0xF2, PDUR_E_PDU_ID_INVALID, return);
 
   RoutingPath = &config->RoutingPaths[pathId];
 
   ASLOG(PDUR, ("PduR_GwTxConfirmation %d\n", pathId));
   if (NULL != RoutingPath->DestTxBufferRef) {
     buffer = RoutingPath->DestTxBufferRef;
-    if (NULL != buffer->data) {
+    if (NULL != buffer->Data) {
 #if defined(PDUR_USE_MEMPOOL)
-      if (buffer->data != RoutingPath->GwBuffer) {
-        PduR_MemFree(buffer->data);
+      if (buffer->Data != RoutingPath->GwBuffer) {
+        PduR_MemFree(buffer->Data);
       }
 #endif
-      buffer->data = NULL;
+      buffer->Data = NULL;
     }
   }
 }
 
 BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *info,
-                                          PduLengthType TpSduLength, PduLengthType *bufferSizePtr) {
+                                          PduLengthType tpSduLength, PduLengthType *bufferSizePtr) {
   BufReq_ReturnType ret = BUFREQ_E_NOT_OK;
   const PduR_ConfigType *config = PDUR_CONFIG;
   const PduR_RoutingPathType *RoutingPath;
@@ -281,7 +281,7 @@ BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *i
 
   (void)info;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF3, PDUR_E_PDU_ID_INVALID,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0xF3, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
   RoutingPath = &config->RoutingPaths[pathId];
@@ -289,23 +289,23 @@ BufReq_ReturnType PduR_GwStartOfReception(PduIdType pathId, const PduInfoType *i
   ASLOG(PDUR, ("PduR_GwStartOfReception %d\n", pathId));
   if (NULL != RoutingPath->DestTxBufferRef) {
     buffer = RoutingPath->DestTxBufferRef;
-    if ((NULL != RoutingPath->GwBuffer) && (RoutingPath->GwBufferSize >= TpSduLength)) {
-      buffer->data = RoutingPath->GwBuffer;
-      buffer->size = TpSduLength;
-      buffer->index = 0;
-      *bufferSizePtr = TpSduLength;
+    if ((NULL != RoutingPath->GwBuffer) && (RoutingPath->GwBufferSize >= tpSduLength)) {
+      buffer->Data = RoutingPath->GwBuffer;
+      buffer->Size = tpSduLength;
+      buffer->Index = 0;
+      *bufferSizePtr = tpSduLength;
       ret = BUFREQ_OK;
     } else { /* no static buffer or size too small */
 #if defined(PDUR_USE_MEMPOOL)
-      if ((buffer->data != NULL) && (buffer->data != RoutingPath->GwBuffer)) {
-        PduR_MemFree(buffer->data);
+      if ((buffer->Data != NULL) && (buffer->Data != RoutingPath->GwBuffer)) {
+        PduR_MemFree(buffer->Data);
         ASLOG(PDURE, ("[%u] Free old buffer\n", pathId));
       }
-      buffer->data = PduR_MemAlloc(TpSduLength);
-      if (NULL != buffer->data) {
-        buffer->size = TpSduLength;
-        buffer->index = 0;
-        *bufferSizePtr = TpSduLength;
+      buffer->Data = PduR_MemAlloc(tpSduLength);
+      if (NULL != buffer->Data) {
+        buffer->Size = tpSduLength;
+        buffer->Index = 0;
+        *bufferSizePtr = tpSduLength;
         ret = BUFREQ_OK;
       }
 #endif
@@ -320,17 +320,17 @@ BufReq_ReturnType PduR_GwCopyRxData(PduIdType pathId, const PduInfoType *info,
   const PduR_ConfigType *config = PDUR_CONFIG;
   PduR_BufferType *buffer;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF4, PDUR_E_PDU_ID_INVALID,
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0xF4, PDUR_E_PDU_ID_INVALID,
                return BUFREQ_E_NOT_OK);
 
   ASLOG(PDUR, ("PduR_GwCopyRxData %d\n", pathId));
   if (NULL != config->RoutingPaths[pathId].DestTxBufferRef) {
     buffer = config->RoutingPaths[pathId].DestTxBufferRef;
-    if (NULL != buffer->data) {
-      if ((buffer->index < buffer->size) && (info->SduLength <= (buffer->size - buffer->index))) {
-        (void)memcpy(&buffer->data[buffer->index], info->SduDataPtr, info->SduLength);
-        buffer->index += info->SduLength;
-        *bufferSizePtr = buffer->size - buffer->index;
+    if (NULL != buffer->Data) {
+      if ((buffer->Index < buffer->Size) && (info->SduLength <= (buffer->Size - buffer->Index))) {
+        (void)memcpy(&buffer->Data[buffer->Index], info->SduDataPtr, info->SduLength);
+        buffer->Index += info->SduLength;
+        *bufferSizePtr = buffer->Size - buffer->Index;
         ret = BUFREQ_OK;
       } else {
         ASLOG(PDURE, ("Buffer Overflow\n"));
@@ -351,38 +351,38 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
   Std_ReturnType ret = result;
   const PduR_RoutingPathType *RoutingPath;
 
-  DET_VALIDATE(pathId < config->numOfRoutingPaths, 0xF5, PDUR_E_PDU_ID_INVALID, return);
+  DET_VALIDATE(pathId < config->NumOfRoutingPaths, 0xF5, PDUR_E_PDU_ID_INVALID, return);
 
   RoutingPath = &config->RoutingPaths[pathId];
 
   ASLOG(PDUR, ("PduR_GwRxIndication %d\n", pathId));
   if (NULL != RoutingPath->DestTxBufferRef) {
-    for (i = 0; (i < RoutingPath->numOfDestPdus) && (E_OK == ret); i++) {
+    for (i = 0; (i < RoutingPath->NumOfDestPdus) && (E_OK == ret); i++) {
       DestPduRef = &RoutingPath->DestPduRef[i];
       buffer = RoutingPath->DestTxBufferRef;
-      if ((E_OK == result) && (NULL != buffer->data)) {
-        PduInfo.SduDataPtr = buffer->data;
-        PduInfo.SduLength = buffer->size;
+      if ((E_OK == result) && (NULL != buffer->Data)) {
+        PduInfo.SduDataPtr = buffer->Data;
+        PduInfo.SduLength = buffer->Size;
         PduInfo.MetaDataPtr = NULL;
         if (DestPduRef->Module > PDUR_MODULE_ISOTP) { /* further forward rx data */
-          if ((NULL != DestPduRef->api->StartOfReception) &&
-              (NULL != DestPduRef->api->CopyRxData) && (NULL != DestPduRef->api->TpRxIndication)) {
-            ret = DestPduRef->api->StartOfReception(DestPduRef->PduHandleId, &PduInfo,
+          if ((NULL != DestPduRef->Api->StartOfReception) &&
+              (NULL != DestPduRef->Api->CopyRxData) && (NULL != DestPduRef->Api->TpRxIndication)) {
+            ret = DestPduRef->Api->StartOfReception(DestPduRef->PduHandleId, &PduInfo,
                                                     PduInfo.SduLength, &bufferSize);
             if (E_OK == ret) {
-              ret = DestPduRef->api->CopyRxData(DestPduRef->PduHandleId, &PduInfo, &bufferSize);
+              ret = DestPduRef->Api->CopyRxData(DestPduRef->PduHandleId, &PduInfo, &bufferSize);
             }
             if (E_OK == ret) {
-              DestPduRef->api->TpRxIndication(DestPduRef->PduHandleId, E_OK);
+              DestPduRef->Api->TpRxIndication(DestPduRef->PduHandleId, E_OK);
             }
           } else {
             ASLOG(PDURE, ("null ISOTP RX API\n"));
             ret = E_NOT_OK;
           }
         } else {
-          if (NULL != DestPduRef->api->Transmit) {
-            buffer->index = 0;
-            ret = DestPduRef->api->Transmit(DestPduRef->PduHandleId, &PduInfo);
+          if (NULL != DestPduRef->Api->Transmit) {
+            buffer->Index = 0;
+            ret = DestPduRef->Api->Transmit(DestPduRef->PduHandleId, &PduInfo);
           } else {
             ASLOG(PDURE, ("null Transmit\n"));
             ret = E_NOT_OK;
@@ -392,9 +392,9 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
     }
     if (E_NOT_OK == ret) {
 #if defined(PDUR_USE_MEMPOOL)
-      if ((buffer->data != NULL) && (buffer->data != RoutingPath->GwBuffer)) {
-        PduR_MemFree(buffer->data);
-        buffer->data = NULL;
+      if ((buffer->Data != NULL) && (buffer->Data != RoutingPath->GwBuffer)) {
+        PduR_MemFree(buffer->Data);
+        buffer->Data = NULL;
       }
 #endif
     }
@@ -404,9 +404,9 @@ void PduR_GwRxIndication(PduIdType pathId, Std_ReturnType result) {
 void PduR_GetVersionInfo(Std_VersionInfoType *versionInfo) {
   DET_VALIDATE(NULL != versionInfo, 0xf1, PDUR_E_PARAM_POINTER, return);
 
-  versionInfo->vendorID = STD_VENDOR_ID_AS;
-  versionInfo->moduleID = MODULE_ID_PDUR;
-  versionInfo->sw_major_version = 4;
-  versionInfo->sw_minor_version = 0;
-  versionInfo->sw_patch_version = 0;
+  versionInfo->VendorId = STD_VENDOR_ID_AS;
+  versionInfo->ModuleId = MODULE_ID_PDUR;
+  versionInfo->SwMajorVersion = 4;
+  versionInfo->SwMinorVersion = 0;
+  versionInfo->SwPatchVersion = 0;
 }

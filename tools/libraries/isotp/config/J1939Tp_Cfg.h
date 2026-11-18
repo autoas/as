@@ -38,13 +38,13 @@ typedef struct {
   uint16_t T3;
   uint16_t T4;
   uint8_t TxMaxPacketsPerBlock;
-  uint8_t ll_dl;
+  uint8_t LinkLayerDataLength;
 } J1939Tp_ParamType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void J1939Tp_ReConfig(uint8_t Channel, J1939Tp_ParamType *params);
+void J1939Tp_ReConfig(uint8_t channel, J1939Tp_ParamType *params);
 #ifdef __cplusplus
 }
 #endif

@@ -1,26 +1,26 @@
 {
-  "class": "Com",
+  "Class": "Com",
   "E2E": "E2E.json",
-  "networks": [
+  "Networks": [
     {
-      "name": "CAN0",
-      "network": "CAN",
-      "device": "simulator_v2",
-      "port": 0,
-      "baudrate": 500000,
-      "me": "AS",
-      "enable_message_tx_callout": true,
-      "messages": [
+      "Name": "CAN0",
+      "Network": "CAN",
+      "Device": "simulator_v2",
+      "Port": 0,
+      "Baudrate": 500000,
+      "Me": "AS",
+      "EnableMessageTxCallout": true,
+      "Messages": [
         {
-          "name": "MSG_TIME", "id": "0x123", "dlc": 8,
-          "node": "AS", "CycleTime": 1000,
-          "signals": [
-            { "name": "Seconds", "start": 39, "size": 32, "endian": "big",
-              "sign": "+", "factor": 1, "offset": 0, "min": 0, "max": 4294967295, "node": [ "Other"] }
+          "Name": "MSG_TIME", "Id": "0x123", "Dlc": 8,
+          "Node": "AS", "CycleTime": 1000,
+          "Signals": [
+            { "Name": "Seconds", "Start": 39, "Size": 32, "Endian": "big",
+              "Sign": "+", "Factor": 1, "Offset": 0, "Min": 0, "Max": 4294967295, "Node": [ "Other"] }
           ]
         }
       ],
-      "E2E": [ { "name": "MSG_TIME", "profile": "P11" } ]
+      "E2E": [ { "Name": "MSG_TIME", "Profile": "P11" } ]
     }
   ]
 }

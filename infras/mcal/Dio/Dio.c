@@ -24,15 +24,15 @@ extern const Dio_ConfigType Dio_Config;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ ALIAS     ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Dio_WriteChannel(Dio_ChannelType ChannelId, Dio_LevelType Level) {
-  DET_VALIDATE(ChannelId < DIO_CONFIG->numOfChannels, 0x01, DIO_E_PARAM_INVALID_CHANNEL_ID, return);
-  DET_VALIDATE((STD_LOW == Level) || (STD_HIGH == Level), 0x01, DIO_E_PARAM_POINTER, return);
-  DioAc_WriteChannel(ChannelId, &DIO_CONFIG->channels[ChannelId], Level);
+void Dio_WriteChannel(Dio_ChannelType channelId, Dio_LevelType level) {
+  DET_VALIDATE(channelId < DIO_CONFIG->numOfChannels, 0x01, DIO_E_PARAM_INVALID_CHANNEL_ID, return);
+  DET_VALIDATE((STD_LOW == level) || (STD_HIGH == level), 0x01, DIO_E_PARAM_POINTER, return);
+  DioAc_WriteChannel(channelId, &DIO_CONFIG->channels[channelId], level);
 }
 
-Dio_LevelType Dio_ReadChannel(Dio_ChannelType ChannelId) {
-  DET_VALIDATE(ChannelId < DIO_CONFIG->numOfChannels, 0x00, DIO_E_PARAM_INVALID_CHANNEL_ID,
+Dio_LevelType Dio_ReadChannel(Dio_ChannelType channelId) {
+  DET_VALIDATE(channelId < DIO_CONFIG->numOfChannels, 0x00, DIO_E_PARAM_INVALID_CHANNEL_ID,
                return STD_LOW);
-  return DioAc_ReadChannel(ChannelId, &DIO_CONFIG->channels[ChannelId]);
+  return DioAc_ReadChannel(channelId, &DIO_CONFIG->channels[channelId]);
 }
 #endif

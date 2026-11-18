@@ -56,8 +56,8 @@ typedef void (*SomeIp_EventGroupOnSubscribeAckFncType)(boolean isSubscribe);
 
 typedef struct {
   uint32_t TTL; /* TTL to do resubscribe before timeout */
-  boolean isSubscribed;
-  uint8_t flags;
+  boolean IsSubscribed;
+  uint8_t Flags;
 } Sd_ConsumedEventGroupContextType;
 
 /* @ECUC_SD_00056 */
@@ -67,13 +67,13 @@ typedef struct {
   uint16_t EventGroupId;
   SoAd_SoConIdType MulticastEventSoConRef;
   uint8_t MulticastThreshold;
-  Sd_ConsumedEventGroupContextType *context;
-  SomeIp_EventGroupOnSubscribeAckFncType onSubscribe;
+  Sd_ConsumedEventGroupContextType *Context;
+  SomeIp_EventGroupOnSubscribeAckFncType OnSubscribe;
 } Sd_ConsumedEventGroupType;
 
 typedef struct {
-  Sd_EventHandlerSubscriberListType listEventHandlerSubscribers;
-  boolean isMulticastOpened;
+  Sd_EventHandlerSubscriberListType ListEventHandlerSubscribers;
+  boolean IsMulticastOpened;
 } Sd_EventHandlerContextType;
 
 typedef void (*SomeIp_EventGroupOnSubscribeFncType)(boolean isSubscribe,
@@ -87,16 +87,16 @@ typedef struct {
   TcpIp_SockAddrType MulticastEventAddr;
   PduIdType MulticastTxPduId;
   uint8_t MulticastThreshold;
-  Sd_EventHandlerContextType *context;
-  SomeIp_EventGroupOnSubscribeFncType onSubscribe;
+  Sd_EventHandlerContextType *Context;
+  SomeIp_EventGroupOnSubscribeFncType OnSubscribe;
 } Sd_EventHandlerType;
 
 typedef struct {
   uint32_t TTL;
-  Sd_PhaseType phase;
-  uint16_t offerTimer;
-  uint8_t flags;
-  uint8_t counter;
+  Sd_PhaseType Phase;
+  uint16_t OfferTimer;
+  uint8_t Flags;
+  uint8_t Counter;
 } Sd_ServerServiceContextType;
 
 /* @ECUC_SD_00004 */
@@ -115,24 +115,24 @@ typedef struct {
   TcpIp_ProtocolType ProtocolType;
   Sd_CapabilityRecordMatchCalloutFncType CapabilityRecordMatchCalloutRef;
   const Sd_ServerTimerType *ServerTimer;
-  Sd_ServerServiceContextType *context;
+  Sd_ServerServiceContextType *Context;
   uint8_t InstanceIndex;
   const Sd_EventHandlerType *EventHandlers;
-  uint16_t numOfEventHandlers;
+  uint16_t NumOfEventHandlers;
   uint16_t SomeIpServiceId;
 } Sd_ServerServiceType;
 
 typedef struct {
   uint32_t TTL;
-  Sd_PhaseType phase;
-  uint16_t findTimer;
-  uint8_t flags;
-  uint8_t counter;
-  boolean isOffered;
+  Sd_PhaseType Phase;
+  uint16_t FindTimer;
+  uint8_t Flags;
+  uint8_t Counter;
+  boolean IsOffered;
   /* remote server ip:port which provide this service */
   TcpIp_SockAddrType RemoteAddr;
-  uint16_t port; /* subscribe port */
-  uint16_t sessionId;
+  uint16_t Port; /* subscribe port */
+  uint16_t SessionId;
 } Sd_ClientServiceContextType;
 
 /* @ECUC_SD_00005 */
@@ -147,10 +147,10 @@ typedef struct {
   TcpIp_ProtocolType ProtocolType;
   Sd_CapabilityRecordMatchCalloutFncType SdClientCapabilityRecordMatchCalloutRef;
   const Sd_ClientTimerType *ClientTimer;
-  Sd_ClientServiceContextType *context;
+  Sd_ClientServiceContextType *Context;
   uint8_t InstanceIndex;
   const Sd_ConsumedEventGroupType *ConsumedEventGroups;
-  uint16_t numOfConsumedEventGroups;
+  uint16_t NumOfConsumedEventGroups;
 } Sd_ClientServiceType;
 
 typedef struct {
@@ -169,8 +169,8 @@ typedef struct {
 } Sd_InstanceUnicastRxPduType;
 
 typedef struct {
-  uint16_t multicastSessionId;
-  uint8_t flags;
+  uint16_t MulticastSessionId;
+  uint8_t Flags;
 } Sd_InstanceContextType;
 
 /* @ECUC_SD_00084 */
@@ -183,27 +183,27 @@ typedef struct {
   const Sd_InstanceTxPduType TxPdu;
 
   const Sd_ServerServiceType *ServerServices;
-  uint16_t numOfServerServices;
+  uint16_t NumOfServerServices;
   const Sd_ClientServiceType *ClientServices;
-  uint16_t numOfClientServices;
-  uint8_t *buffer;
-  PduLengthType bufLen;
-  Sd_InstanceContextType *context;
+  uint16_t NumOfClientServices;
+  uint8_t *Buffer;
+  PduLengthType BufLen;
+  Sd_InstanceContextType *Context;
 } Sd_InstanceType;
 
 struct Sd_Config_s {
   const Sd_InstanceType *Instances;
-  uint8_t numOfInstances;
+  uint8_t NumOfInstances;
   const Sd_ServerServiceType *const *ServerServicesMap;
-  uint16_t numOfServerServices;
+  uint16_t NumOfServerServices;
   const Sd_ClientServiceType *const *ClientServicesMap;
-  uint16_t numOfClientServices;
+  uint16_t NumOfClientServices;
   const uint16_t *EventHandlersMap;
   const uint16_t *PerServiceEventHandlerMap;
-  uint16_t numOfEventHandlers;
+  uint16_t NumOfEventHandlers;
   const uint16_t *ConsumedEventGroupsMap;
   const uint16_t *PerServiceConsumedEventGroupsMap;
-  uint16_t numOfConsumedEventGroups;
+  uint16_t NumOfConsumedEventGroups;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

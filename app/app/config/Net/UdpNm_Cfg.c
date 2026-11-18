@@ -33,7 +33,7 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 #ifdef UDPNM_GLOBAL_PN_SUPPORT
-static const uint8_t nm0PnFilterMaskByte[2] = {0x55, 0xAA};
+static const uint8_t udpnmPnFilterMaskByte0[2] = {0x55, 0xAA};
 #endif
 static L_CONST UdpNm_ChannelConfigType UdpNm_ChannelConfigs[] = {
   {
@@ -49,7 +49,7 @@ static L_CONST UdpNm_ChannelConfigType UdpNm_ChannelConfigs[] = {
 #endif
     SOAD_TX_PID_UDPNM_CHL0, /* TxPdu */
     UDPNM_NODE_ID,
-    0, /* nmNetworkHandle */
+    0, /* NetworkHandle */
     UDPNM_ImmediateNmTransmissions,
     UDPNM_PDU_BYTE_1, /* PduCbvPosition */
     UDPNM_PDU_BYTE_0, /* PduNidPosition */
@@ -58,11 +58,11 @@ static L_CONST UdpNm_ChannelConfigType UdpNm_ChannelConfigs[] = {
     TRUE,             /* RepeatMsgIndEnabled */
     TRUE,             /* NodeDetectionEnabled */
 #ifdef UDPNM_GLOBAL_PN_SUPPORT
-    TRUE,                        /* PnEnabled */
-    TRUE,                        /* AllNmMessagesKeepAwake */
-    4,                           /* PnInfoOffset */
-    sizeof(nm0PnFilterMaskByte), /* PnInfoLength */
-    nm0PnFilterMaskByte,
+    TRUE,                           /* PnEnabled */
+    TRUE,                           /* AllNmMessagesKeepAwake */
+    4,                              /* PnInfoOffset */
+    sizeof(udpnmPnFilterMaskByte0), /* PnInfoLength */
+    udpnmPnFilterMaskByte0,
 #endif
   },
 };
@@ -76,7 +76,7 @@ const UdpNm_ConfigType UdpNm_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 #ifdef _WIN32
-static void __attribute__((constructor)) _udpnm_start(void) {
+static void __attribute__((constructor)) UdpNm_Start(void) {
   char *nodeStr = getenv("UDPNM_NODE_ID");
   if (nodeStr != NULL) {
     UdpNm_ChannelConfigs[0].NodeId = atoi(nodeStr);

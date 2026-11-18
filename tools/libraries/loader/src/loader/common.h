@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef __LOADER_COMMON_H
-#define __LOADER_COMMON_H
+#ifndef LOADER_COMMON_H
+#define LOADER_COMMON_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "loader.h"
 #ifdef __cplusplus
@@ -15,19 +15,19 @@ extern "C" {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int enter_extend_session(loader_t *loader);
-int control_dtc_setting_off(loader_t *loader);
-int control_dtc_setting_on(loader_t *loader);
-int communicaiton_disable(loader_t *loader);
-int communicaiton_enable(loader_t *loader);
-int enter_program_session(loader_t *loader);
-int download_one_section(loader_t *loader, sblk_t *blk);
-int download_application(loader_t *loader);
-int download_flash_driver(loader_t *loader);
-int ecu_reset(loader_t *loader);
-int security_extds_access(loader_t *loader);
-int security_prgs_access(loader_t *loader);
+int Loader_EnterExtendSession(Loader_Type *loader);
+int Loader_ControlDtcSettingOff(Loader_Type *loader);
+int Loader_ControlDtcSettingOn(Loader_Type *loader);
+int Loader_CommunicationDisable(Loader_Type *loader);
+int Loader_CommunicationEnable(Loader_Type *loader);
+int Loader_EnterProgramSession(Loader_Type *loader);
+int Loader_DownloadOneSection(Loader_Type *loader, Srec_BlockType *blk);
+int Loader_DownloadApplication(Loader_Type *loader);
+int Loader_DownloadFlashDriver(Loader_Type *loader);
+int Loader_EcuReset(Loader_Type *loader);
+int Loader_SecurityExtdsAccess(Loader_Type *loader);
+int Loader_SecurityPrgsAccess(Loader_Type *loader);
 #ifdef __cplusplus
 }
 #endif
-#endif /* __LOADER_COMMON_H */
+#endif /* LOADER_COMMON_H */

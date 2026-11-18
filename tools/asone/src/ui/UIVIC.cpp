@@ -28,45 +28,45 @@ VICPointer::VICPointer(const Config &config, QGraphicsItem *parent)
   setFlag(QGraphicsItem::ItemSendsGeometryChanges);
   setCacheMode(QGraphicsItem::DeviceCoordinateCache);
   setZValue(1);
-  setDegree(0);
+  SetDegree(0);
 }
 
 VICPointer::VICPointer(json &config, QGraphicsItem *parent) : QGraphicsItem(parent) {
   setFlag(QGraphicsItem::ItemSendsGeometryChanges);
   setCacheMode(QGraphicsItem::DeviceCoordinateCache);
   setZValue(1);
-  m_Name = config["name"].get<std::string>();
-  m_Config.x = config["x"].get<int32_t>();
-  m_Config.y = config["y"].get<int32_t>();
-  m_Config.offset = config["offset"].get<int32_t>();
-  m_Config.length = config["length"].get<int32_t>();
-  m_Config.tail_width = config["tail_width"].get<int32_t>();
-  m_Config.head_width = config["head_width"].get<int32_t>();
-  m_Config.color = strtoul(config["color"].get<std::string>().c_str(), nullptr, 16);
-  m_Config.start = config["start"].get<uint32_t>();
-  m_Config.range = config["range"].get<uint32_t>();
-  m_Config.is_clockwise = config["is_clockwise"].get<bool>();
-  setDegree(0);
+  m_Name = config["Name"].get<std::string>();
+  m_Config.X = config["X"].get<int32_t>();
+  m_Config.Y = config["Y"].get<int32_t>();
+  m_Config.Offset = config["Offset"].get<int32_t>();
+  m_Config.Length = config["Length"].get<int32_t>();
+  m_Config.TailWidth = config["TailWidth"].get<int32_t>();
+  m_Config.HeadWidth = config["HeadWidth"].get<int32_t>();
+  m_Config.Color = strtoul(config["Color"].get<std::string>().c_str(), nullptr, 16);
+  m_Config.Start = config["Start"].get<uint32_t>();
+  m_Config.Range = config["Range"].get<uint32_t>();
+  m_Config.IsClockwise = config["IsClockwise"].get<bool>();
+  SetDegree(0);
 }
 
 QRectF VICPointer::boundingRect() const {
-  return QRectF(-m_Config.length - m_Config.offset, -m_Config.length - m_Config.offset,
-                (m_Config.length + m_Config.offset) * 2, (m_Config.length + m_Config.offset) * 2);
+  return QRectF(-m_Config.Length - m_Config.Offset, -m_Config.Length - m_Config.Offset,
+                (m_Config.Length + m_Config.Offset) * 2, (m_Config.Length + m_Config.Offset) * 2);
 }
 
-void VICPointer::setDegree(uint32_t degree) {
+void VICPointer::SetDegree(uint32_t degree) {
   degree = degree / 100;
-  if (degree > m_Config.range) {
-    degree = m_Config.range;
+  if (degree > m_Config.Range) {
+    degree = m_Config.Range;
   }
 
-  if (m_Config.is_clockwise) {
-    degree = degree + m_Config.start;
+  if (m_Config.IsClockwise) {
+    degree = degree + m_Config.Start;
   } else {
-    if (m_Config.start > degree) {
-      degree = m_Config.start - degree;
+    if (m_Config.Start > degree) {
+      degree = m_Config.Start - degree;
     } else {
-      degree = 360 + degree - m_Config.start;
+      degree = 360 + degree - m_Config.Start;
     }
   }
 
@@ -79,30 +79,30 @@ void VICPointer::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
   (void)option;
   uint32_t radius, radius2;
   painter->setPen(Qt::NoPen);
-  painter->setBrush(QBrush(QColor((m_Config.color >> 16) & 0xFF, (m_Config.color >> 8) & 0xFF,
-                                  (m_Config.color >> 0) & 0xFF)));
+  painter->setBrush(QBrush(QColor((m_Config.Color >> 16) & 0xFF, (m_Config.Color >> 8) & 0xFF,
+                                  (m_Config.Color >> 0) & 0xFF)));
   QPolygon polygon(4);
-  polygon.setPoint(0, QPoint(-m_Config.offset, m_Config.tail_width / 2));
-  polygon.setPoint(1, QPoint(-m_Config.offset - m_Config.length, m_Config.head_width / 2));
-  polygon.setPoint(2, QPoint(-m_Config.offset - m_Config.length, -m_Config.head_width / 2));
-  polygon.setPoint(3, QPoint(-m_Config.offset, -m_Config.tail_width / 2));
+  polygon.setPoint(0, QPoint(-m_Config.Offset, m_Config.TailWidth / 2));
+  polygon.setPoint(1, QPoint(-m_Config.Offset - m_Config.Length, m_Config.HeadWidth / 2));
+  polygon.setPoint(2, QPoint(-m_Config.Offset - m_Config.Length, -m_Config.HeadWidth / 2));
+  polygon.setPoint(3, QPoint(-m_Config.Offset, -m_Config.TailWidth / 2));
   painter->drawConvexPolygon(polygon);
-  if (m_Config.offset < 0) {
-    radius = -m_Config.offset;
-  } else if (m_Config.offset > 0) {
-    radius = m_Config.offset;
+  if (m_Config.Offset < 0) {
+    radius = -m_Config.Offset;
+  } else if (m_Config.Offset > 0) {
+    radius = m_Config.Offset;
   } else {
-    radius = m_Config.tail_width;
+    radius = m_Config.TailWidth;
   }
   radius += 2;
   painter->drawEllipse(-radius, -radius, radius * 2, radius * 2);
   painter->setBrush(QBrush(QColor(0, 0, 0))); /* black */
   radius2 = radius * 2 / 3;
-  if ((int32_t)radius2 > m_Config.tail_width) {
-    radius2 = radius - m_Config.tail_width * 2 / 3;
+  if ((int32_t)radius2 > m_Config.TailWidth) {
+    radius2 = radius - m_Config.TailWidth * 2 / 3;
   }
   painter->drawEllipse(-radius2, -radius2, radius2 * 2, radius2 * 2);
-  setPos(m_Config.x, m_Config.y);
+  setPos(m_Config.X, m_Config.Y);
 
   setRotation(m_Degree);
 }
@@ -115,27 +115,27 @@ VICTelltale::VICTelltale(const Config &config, QGraphicsItem *parent)
   setFlag(QGraphicsItem::ItemSendsGeometryChanges);
   setCacheMode(QGraphicsItem::DeviceCoordinateCache);
   setZValue(1);
-  m_Image = QImage(m_Config.p.c_str());
-  setOn(true);
+  m_Image = QImage(m_Config.P.c_str());
+  SetOn(true);
 }
 
 VICTelltale::VICTelltale(json &config, QGraphicsItem *parent) : QGraphicsItem(parent) {
   setFlag(QGraphicsItem::ItemSendsGeometryChanges);
   setCacheMode(QGraphicsItem::DeviceCoordinateCache);
   setZValue(1);
-  m_Name = config["name"].get<std::string>();
-  m_Config.x = config["x"].get<int32_t>();
-  m_Config.y = config["y"].get<int32_t>();
-  m_Config.p = config["p"].get<std::string>();
-  m_Image = QImage(m_Config.p.c_str());
-  setOn(true);
+  m_Name = config["Name"].get<std::string>();
+  m_Config.X = config["X"].get<int32_t>();
+  m_Config.Y = config["Y"].get<int32_t>();
+  m_Config.P = config["P"].get<std::string>();
+  m_Image = QImage(m_Config.P.c_str());
+  SetOn(true);
 }
 
 QRectF VICTelltale::boundingRect() const {
-  return QRectF(m_Config.x, m_Config.y, m_Image.size().width(), m_Image.size().height());
+  return QRectF(m_Config.X, m_Config.Y, m_Image.size().width(), m_Image.size().height());
 }
 
-void VICTelltale::setOn(bool on) {
+void VICTelltale::SetOn(bool on) {
   m_On = on;
   setVisible(on);
 }
@@ -144,7 +144,7 @@ void VICTelltale::paint(QPainter *painter, const QStyleOptionGraphicsItem *optio
                         QWidget *widget) {
   (void)option;
   (void)widget;
-  painter->drawImage(m_Config.x, m_Config.y, m_Image);
+  painter->drawImage(m_Config.X, m_Config.Y, m_Image);
   setVisible(m_On);
 }
 
@@ -160,28 +160,28 @@ VICGraphicView::VICGraphicView(QWidget *parent) : QGraphicsView(parent) {
   setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
   setResizeAnchor(QGraphicsView::AnchorViewCenter);
 
-  m_MsgQ = MessageQueue<std::shared_ptr<Display_Type>>::add("VIC");
+  m_MsgQ = MessageQueue<std::shared_ptr<Display_Type>>::Add("VIC");
 
   startTimer(1);
 }
 
-void VICGraphicView::loadJson(json &js) {
+void VICGraphicView::LoadJson(json &js) {
   m_Json = js;
   if (m_Loaded) {
     m_Scene->clear();
   }
   m_Loaded = false;
   try {
-    auto bgPath = m_Json["background"].get<std::string>();
+    auto bgPath = m_Json["Background"].get<std::string>();
     m_Background = QImage(tr(bgPath.c_str()));
-    for (auto &cfg : m_Json["telltales"]) {
+    for (auto &cfg : m_Json["Telltales"]) {
       auto tt = new VICTelltale(cfg);
-      m_MapTelltales[tt->name()] = tt;
+      m_MapTelltales[tt->Name()] = tt;
       m_Scene->addItem(tt);
     }
-    for (auto &cfg : m_Json["pointers"]) {
+    for (auto &cfg : m_Json["Pointers"]) {
       auto ptr = new VICPointer(cfg);
-      m_MapPointers[ptr->name()] = ptr;
+      m_MapPointers[ptr->Name()] = ptr;
       m_Scene->addItem(ptr);
     }
     m_Loaded = true;
@@ -206,7 +206,7 @@ void VICGraphicView::drawBackground(QPainter *painter, const QRectF &rect) {
 void VICGraphicView::timerEvent(QTimerEvent *e) {
   (void)e;
   std::shared_ptr<Display_Type> msg;
-  auto ret = m_MsgQ->get(msg, false, 0);
+  auto ret = m_MsgQ->Get(msg, false, 0);
   if (true == ret) {
     Display_Type &display = *msg;
     for (int i = 0; i < display.gaugesLen; i++) {
@@ -216,7 +216,7 @@ void VICGraphicView::timerEvent(QTimerEvent *e) {
       auto it = m_MapPointers.find(name);
       if (it != m_MapPointers.end()) {
         auto ptr = it->second;
-        ptr->setDegree(degree);
+        ptr->SetDegree(degree);
       } else {
         LOG(ERROR, "pointer %s is not found\n", name.c_str());
       }
@@ -229,7 +229,7 @@ void VICGraphicView::timerEvent(QTimerEvent *e) {
       auto it = m_MapTelltales.find(name);
       if (it != m_MapTelltales.end()) {
         auto tt = it->second;
-        tt->setOn(on);
+        tt->SetOn(on);
       } else {
         LOG(ERROR, "telltale %s is not found\n", name.c_str());
       }
@@ -244,22 +244,22 @@ UIVIC::UIVIC() : QWidget() {
   auto vbox = new QVBoxLayout();
   auto grid = new QGridLayout();
   grid->addWidget(new QLabel("load json config:"), 0, 0);
-  m_leJson = new QLineEdit();
-  grid->addWidget(m_leJson, 0, 1);
-  m_btnOpenJson = new QPushButton("...");
-  grid->addWidget(m_btnOpenJson, 0, 2);
+  m_LeJson = new QLineEdit();
+  grid->addWidget(m_LeJson, 0, 1);
+  m_BtnOpenJson = new QPushButton("...");
+  grid->addWidget(m_BtnOpenJson, 0, 2);
   vbox->addLayout(grid);
   m_VIC = new VICGraphicView(this);
   vbox->addWidget(m_VIC);
   setLayout(vbox);
 
-  connect(m_btnOpenJson, SIGNAL(clicked()), this, SLOT(on_btnOpenJson_clicked()));
+  connect(m_BtnOpenJson, SIGNAL(clicked()), this, SLOT(on_btnOpenJson_clicked()));
 
   std::string dft = "vic.json";
-  auto r = load(dft);
+  auto r = Load(dft);
   if (r) {
-    m_leJson->setText(tr(dft.c_str()));
-    m_VIC->loadJson(m_Json);
+    m_LeJson->setText(tr(dft.c_str()));
+    m_VIC->LoadJson(m_Json);
   }
 
   LOG(INFO, "starting SOMEIP/SD\n");
@@ -287,7 +287,7 @@ void UIVIC::timerEvent(QTimerEvent *e) {
   m_Start += nTicks * std::chrono::milliseconds(10);
 }
 
-bool UIVIC::load(std::string cfgPath) {
+bool UIVIC::Load(std::string cfgPath) {
   bool ret = true;
 
   FILE *fp = fopen(cfgPath.c_str(), "rb");
@@ -320,20 +320,20 @@ bool UIVIC::load(std::string cfgPath) {
 void UIVIC::on_btnOpenJson_clicked(void) {
   auto fileName = QFileDialog::getOpenFileName(this, "json config", "", "json config (*.json)");
 
-  auto r = load(fileName.toStdString());
+  auto r = Load(fileName.toStdString());
   if (r) {
-    m_leJson->setText(fileName);
-    m_VIC->loadJson(m_Json);
+    m_LeJson->setText(fileName);
+    m_VIC->LoadJson(m_Json);
   }
 }
 
 UIVIC::~UIVIC() {
 }
 
-extern "C" std::string name(void) {
+extern "C" std::string Name(void) {
   return "VIC";
 }
 
-extern "C" QWidget *create(void) {
+extern "C" QWidget *Create(void) {
   return new UIVIC();
 }

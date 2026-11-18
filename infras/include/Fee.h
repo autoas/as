@@ -21,7 +21,6 @@ extern "C" {
 #define FEE_E_INVALID_BLOCK_LEN 0x05
 #define FEE_E_INIT_FAILED 0x09
 
-
 #define FEE_FAULT_TOO_MANY_FULL_BANK 0
 #define FEE_FAULT_NO_BANK_IS_FULL 1
 #define FEE_FAULT_TOO_MANY_BANK_WITH_DATA 2
@@ -34,25 +33,25 @@ extern "C" {
 typedef struct Fee_Config_s Fee_ConfigType;
 
 typedef struct {
-  uint32_t erasedNumber;
-  uint32_t adminFreeAddr;
-  uint32_t dataFreeAddr;
-  uint8_t curWrokingBank;
+  uint32_t ErasedNumber;
+  uint32_t AdminFreeAddr;
+  uint32_t DataFreeAddr;
+  uint8_t CurWorkingBank;
 } Fee_AdminInfoType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Fee_Init(const Fee_ConfigType *ConfigPtr);
-void Fee_SetMode(MemIf_ModeType Mode);
-Std_ReturnType Fee_Read(uint16_t BlockNumber, uint16_t BlockOffset, uint8_t *DataBufferPtr,
-                        uint16_t Length);
-Std_ReturnType Fee_Write(uint16_t BlockNumber, const uint8_t *DataBufferPtr);
+void Fee_Init(const Fee_ConfigType *configPtr);
+void Fee_SetMode(MemIf_ModeType mode);
+Std_ReturnType Fee_Read(uint16_t blockNumber, uint16_t blockOffset, uint8_t *dataBufferPtr,
+                        uint16_t length);
+Std_ReturnType Fee_Write(uint16_t blockNumber, const uint8_t *dataBufferPtr);
 void Fee_Cancel(void);
 MemIf_StatusType Fee_GetStatus(void);
 MemIf_JobResultType Fee_GetJobResult(void);
-Std_ReturnType Fee_InvalidateBlock(uint16_t BlockNumber);
-Std_ReturnType Fee_EraseImmediateBlock(uint16_t BlockNumber);
+Std_ReturnType Fee_InvalidateBlock(uint16_t blockNumber);
+Std_ReturnType Fee_EraseImmediateBlock(uint16_t blockNumber);
 
 void Fee_JobEndNotification(void);
 void Fee_JobErrorNotification(void);

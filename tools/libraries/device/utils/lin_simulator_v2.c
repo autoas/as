@@ -32,41 +32,41 @@
 
 #define LIN_BUS_NODE_MAX 32 /* maximum node on the bus port */
 
-#define in_range(c, lo, up) ((uint8_t)c >= lo && (uint8_t)c <= up)
-#define isprint(c) in_range(c, 0x20, 0x7f)
+#define InRange(c, lo, up) ((uint8_t)c >= lo && (uint8_t)c <= up)
+#define isprint(c) InRange(c, 0x20, 0x7f)
 
-#define LIN_MTU sizeof(Lin_FrameType)
-#define LIN_MAX_DATA_SIZE 64
+#define DEVLIN_MTU sizeof(Dev_LinFrameType)
+#define DEVLIN_MAX_DATA_SIZE 64
 
 #define mLINID(frame) (frame->pid)
 #define mLINDLC(frame) (frame->dlc)
 
-#define LIN_TYPE_INVALID ((uint8_t)'I')
-#define LIN_TYPE_BREAK ((uint8_t)'B')
-#define LIN_TYPE_SYNC ((uint8_t)'S')
-#define LIN_TYPE_HEADER ((uint8_t)'H')
-#define LIN_TYPE_DATA ((uint8_t)'D')
-#define LIN_TYPE_HEADER_AND_DATA ((uint8_t)'F')
+#define DEVLIN_TYPE_INVALID ((uint8_t)'I')
+#define DEVLIN_TYPE_BREAK ((uint8_t)'B')
+#define DEVLIN_TYPE_SYNC ((uint8_t)'S')
+#define DEVLIN_TYPE_HEADER ((uint8_t)'H')
+#define DEVLIN_TYPE_DATA ((uint8_t)'D')
+#define DEVLIN_TYPE_HEADER_AND_DATA ((uint8_t)'F')
 
-#define LIN_TYPE_EXT_HEADER ((uint8_t)'h')
-#define LIN_TYPE_EXT_HEADER_AND_DATA ((uint8_t)'f')
+#define DEVLIN_TYPE_EXT_HEADER ((uint8_t)'h')
+#define DEVLIN_TYPE_EXT_HEADER_AND_DATA ((uint8_t)'f')
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
   uint8_t type;
   uint32_t pid;
   uint8_t dlc;
-  uint8_t data[LIN_MAX_DATA_SIZE];
+  uint8_t data[DEVLIN_MAX_DATA_SIZE];
   uint8_t checksum;
-} Lin_FrameType;
+} Dev_LinFrameType;
 
 struct lin_frame {
-  Lin_FrameType frame;
+  Dev_LinFrameType frame;
   uint8_t uuid[LIN_UUID_LENGTH];
 };
 
 struct Lin_SocketHandleList_s {
   TcpIp_SocketIdType s; /* lin raw socket: listen */
-  Lin_FrameType frame;
+  Dev_LinFrameType frame;
   Std_TimerType timer;
 };
 
@@ -85,7 +85,7 @@ static struct Lin_SocketHandleList_s *socketH = NULL;
 static Std_TimerType timer0;
 static struct Lin_FilterList_s *linFilterH = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
-static bool init_socket(int port) {
+static bool InitSocket(int port) {
   Std_ReturnType ret;
   TcpIp_SocketIdType s;
   TcpIp_SockAddrType ipv4Addr;
@@ -129,13 +129,13 @@ static bool init_socket(int port) {
   socketH = malloc(sizeof(struct Lin_SocketHandleList_s));
   assert(socketH);
   socketH->s = s;
-  socketH->frame.type = LIN_TYPE_INVALID;
+  socketH->frame.type = DEVLIN_TYPE_INVALID;
   Std_TimerStop(&socketH->timer);
 
   return TRUE;
 }
 
-static void log_msg(Lin_FrameType *frame, double rtim) {
+static void LogMsg(Dev_LinFrameType *frame, double rtim) {
   static double preTime = 0.f;
 
   int bOut = FALSE;
@@ -184,12 +184,12 @@ static void log_msg(Lin_FrameType *frame, double rtim) {
   }
 }
 
-static void try_recv(void) {
+static void Dev_TryRecv(void) {
   uint32_t len;
   Std_ReturnType ret;
   struct lin_frame lframe;
   TcpIp_SockAddrType RemoteAddr;
-  Lin_FrameType frame;
+  Dev_LinFrameType frame;
 
   if (false == Std_IsTimerStarted(&timer0)) {
     Std_TimerStart(&timer0);
@@ -200,52 +200,52 @@ static void try_recv(void) {
   if ((E_OK == ret) && (sizeof(lframe) == len)) {
     double rtim = (double)Std_GetTimerElapsedTime(&timer0) / STD_TIMER_ONE_SECOND;
     frame = lframe.frame;
-    if ((frame.type == LIN_TYPE_HEADER) || (frame.type == LIN_TYPE_EXT_HEADER)) {
+    if ((frame.type == DEVLIN_TYPE_HEADER) || (frame.type == DEVLIN_TYPE_EXT_HEADER)) {
       printf("%c: ", (char)frame.type);
-      if (socketH->frame.type != LIN_TYPE_INVALID) {
+      if (socketH->frame.type != DEVLIN_TYPE_INVALID) {
         printf("Lin Error with header: type %c pid=0x%02X\n", (char)socketH->frame.type,
                socketH->frame.pid);
         printf("  %c: ", (char)frame.type);
-        log_msg(&frame, rtim);
+        LogMsg(&frame, rtim);
       } else {
-        memcpy(&socketH->frame, &frame, LIN_MTU);
+        memcpy(&socketH->frame, &frame, DEVLIN_MTU);
       }
       Std_TimerStart(&socketH->timer);
-    } else if (frame.type == LIN_TYPE_DATA) {
-      if ((socketH->frame.type != LIN_TYPE_HEADER) && (frame.type != LIN_TYPE_EXT_HEADER)) {
+    } else if (frame.type == DEVLIN_TYPE_DATA) {
+      if ((socketH->frame.type != DEVLIN_TYPE_HEADER) && (frame.type != DEVLIN_TYPE_EXT_HEADER)) {
         printf("Lin Error with data: type %c pid=0x%02X\n", (char)socketH->frame.type,
                socketH->frame.pid);
         printf("  %c: ", (char)frame.type);
-        log_msg(&frame, rtim);
+        LogMsg(&frame, rtim);
       } else {
-        memcpy(&socketH->frame.dlc, &frame.dlc, LIN_MAX_DATA_SIZE + 2);
-        log_msg(&socketH->frame, rtim);
+        memcpy(&socketH->frame.dlc, &frame.dlc, DEVLIN_MAX_DATA_SIZE + 2);
+        LogMsg(&socketH->frame, rtim);
       }
-      socketH->frame.type = LIN_TYPE_INVALID;
-    } else if ((frame.type == LIN_TYPE_HEADER_AND_DATA) ||
-               (frame.type == LIN_TYPE_EXT_HEADER_AND_DATA)) {
+      socketH->frame.type = DEVLIN_TYPE_INVALID;
+    } else if ((frame.type == DEVLIN_TYPE_HEADER_AND_DATA) ||
+               (frame.type == DEVLIN_TYPE_EXT_HEADER_AND_DATA)) {
       printf("%c: ", (char)frame.type);
-      log_msg(&frame, rtim);
-      socketH->frame.type = LIN_TYPE_INVALID;
+      LogMsg(&frame, rtim);
+      socketH->frame.type = DEVLIN_TYPE_INVALID;
     } else {
       printf("Lin Error: type %c(%02X) is invalid\n", (char)frame.type, frame.type);
     }
   }
 }
 static void schedule(void) {
-  try_recv();
+  Dev_TryRecv();
 
-  if (socketH->frame.type != LIN_TYPE_INVALID) {
+  if (socketH->frame.type != DEVLIN_TYPE_INVALID) {
     double rtim = (double)Std_GetTimerElapsedTime(&socketH->timer) / STD_TIMER_ONE_SECOND;
     if (rtim > 1) {
       printf("Lin Error: timeout type %c pid=0x%02X\n", (char)socketH->frame.type,
              socketH->frame.pid);
-      socketH->frame.type = LIN_TYPE_INVALID;
+      socketH->frame.type = DEVLIN_TYPE_INVALID;
     }
   }
 }
 
-static void arg_filter(char *s) {
+static void ArgFilter(char *s) {
   char *code;
   struct Lin_Filter_s *filter = malloc(sizeof(struct Lin_Filter_s));
   assert(filter);
@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  if (FALSE == init_socket(atoi(argv[1]))) {
+  if (FALSE == InitSocket(atoi(argv[1]))) {
     return -1;
   }
 
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
   argv = argv + 2;
   while (argc >= 2) {
     if (0 == strcmp(argv[0], "-f")) {
-      arg_filter(argv[1]);
+      ArgFilter(argv[1]);
     }
 
     argc = argc - 2;

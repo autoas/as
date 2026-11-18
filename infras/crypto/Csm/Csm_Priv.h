@@ -39,7 +39,7 @@ typedef struct {
   void *AlgorithmContext;
   const uint8_t *AlgorithmKey;
   const Csm_MacGenPrimitiveType *Primitive;
-  uint8_t* MacBuf;
+  uint8_t *MacBuf;
   uint16_t AlgorithmKeyLength; /* Size of the MAC key in bytes */
   Crypto_AlgorithmFamilyType AlgorithmFamily;
   Crypto_AlgorithmModeType AlgorithmMode;
@@ -47,14 +47,14 @@ typedef struct {
 
 typedef struct {
   uint16_t AlgoRef;
-  Crypto_ServiceInfoType serviceType;
+  Crypto_ServiceInfoType ServiceType;
 } Csm_JobConfigType;
 
 struct Csm_Config_s {
   const Csm_JobConfigType *JobConfigs;
   const Csm_MacGenerateConfigType *MacGenerateConfigs;
-  uint16_t numOfJobs;
-  uint16_t numOfMacGen;
+  uint16_t NumOfJobs;
+  uint16_t NumOfMacGen;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

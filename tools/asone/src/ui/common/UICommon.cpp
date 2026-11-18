@@ -14,55 +14,55 @@ namespace common {
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-std::string UIData::Data::decode() {
+std::string UIData::Data::Decode() {
   std::string s;
-  lua_arg_t inArgs[2];
-  lua_arg_t outArgs[4];
+  Lua_ArgType inArgs[2];
+  Lua_ArgType outArgs[4];
 
-  inArgs[0].type = LUA_ARG_TYPE_UINT32_N;
-  inArgs[0].u32N = data;
+  inArgs[0].Type = LUA_ARG_TYPE_UINT32_N;
+  inArgs[0].U32N = Datas;
 
-  inArgs[1].type = LUA_ARG_TYPE_UINT32;
-  inArgs[1].u32 = bitSize;
+  inArgs[1].Type = LUA_ARG_TYPE_UINT32;
+  inArgs[1].U32 = BitSize;
 
-  outArgs[0].type = LUA_ARG_TYPE_BOOL;   /* decoding results */
-  outArgs[1].type = LUA_ARG_TYPE_STRING; /* decoding string */
-  auto r = luaScript->call(lua.c_str(), inArgs, 2, outArgs, 2);
+  outArgs[0].Type = LUA_ARG_TYPE_BOOL;   /* decoding results */
+  outArgs[1].Type = LUA_ARG_TYPE_STRING; /* decoding string */
+  auto r = LuaScript->Call(Lua.c_str(), inArgs, 2, outArgs, 2);
   if (0 == r) {
-    if (outArgs[0].b) {
-      s = outArgs[1].string;
+    if (outArgs[0].Bool) {
+      s = outArgs[1].String;
     }
   }
 
   return s;
 }
 
-std::string UIData::Data::encode(std::string s) {
+std::string UIData::Data::Encode(std::string s) {
   std::string retS = s;
-  lua_arg_t inArgs[2];
-  lua_arg_t outArgs[4];
+  Lua_ArgType inArgs[2];
+  Lua_ArgType outArgs[4];
 
   std::vector<uint32_t> d;
 
-  if (UIData::DisplayType::ASC == displayType) {
-    d = eval("text=" + s);
+  if (UIData::DisplayType::ASC == DisplayType) {
+    d = Eval("text=" + s);
   } else {
-    d = eval("{" + s + "}");
+    d = Eval("{" + s + "}");
   }
 
-  inArgs[0].type = LUA_ARG_TYPE_UINT32_N;
-  inArgs[0].u32N = d;
+  inArgs[0].Type = LUA_ARG_TYPE_UINT32_N;
+  inArgs[0].U32N = d;
 
-  inArgs[1].type = LUA_ARG_TYPE_UINT32;
-  inArgs[1].u32 = bitSize;
+  inArgs[1].Type = LUA_ARG_TYPE_UINT32;
+  inArgs[1].U32 = BitSize;
 
-  outArgs[0].type = LUA_ARG_TYPE_BOOL;   /* encoding results */
-  outArgs[1].type = LUA_ARG_TYPE_STRING; /* encoding string */
-  auto r = luaScript->call(lua.c_str(), inArgs, 2, outArgs, 2);
+  outArgs[0].Type = LUA_ARG_TYPE_BOOL;   /* encoding results */
+  outArgs[1].Type = LUA_ARG_TYPE_STRING; /* encoding string */
+  auto r = LuaScript->Call(Lua.c_str(), inArgs, 2, outArgs, 2);
   if (0 == r) {
-    if (outArgs[0].b) {
-      if (false == outArgs[1].string.empty()) {
-        retS = outArgs[1].string;
+    if (outArgs[0].Bool) {
+      if (false == outArgs[1].String.empty()) {
+        retS = outArgs[1].String;
       };
     }
   }
@@ -70,18 +70,18 @@ std::string UIData::Data::encode(std::string s) {
   return retS;
 }
 
-std::vector<uint32_t> UIData::Data::eval(std::string s) {
+std::vector<uint32_t> UIData::Data::Eval(std::string s) {
   std::vector<uint32_t> res;
-  lua_arg_t inArgs[1];
-  lua_arg_t outArgs[1];
+  Lua_ArgType inArgs[1];
+  Lua_ArgType outArgs[1];
 
-  inArgs[0].type = LUA_ARG_TYPE_STRING;
-  inArgs[0].string = (char *)s.c_str();
+  inArgs[0].Type = LUA_ARG_TYPE_STRING;
+  inArgs[0].String = (char *)s.c_str();
 
-  outArgs[0].type = LUA_ARG_TYPE_UINT32_N;
-  auto r = luaScript->call("eval", inArgs, 1, outArgs, 1);
+  outArgs[0].Type = LUA_ARG_TYPE_UINT32_N;
+  auto r = LuaScript->Call("eval", inArgs, 1, outArgs, 1);
   if (0 == r) {
-    res = outArgs[0].u32N;
+    res = outArgs[0].U32N;
   } else {
     throw std::runtime_error("eval '" + s + "' failed");
   }
@@ -89,37 +89,37 @@ std::vector<uint32_t> UIData::Data::eval(std::string s) {
   return res;
 }
 
-std::string UIData::Data::str() {
+std::string UIData::Data::Str() {
   std::stringstream ss;
   std::string s;
 
-  if (UIData::DataType::UINT_N == dataType) {
-    if (UIData::DisplayType::HEX == displayType) {
-      s = to_hex(data);
-    } else if (UIData::DisplayType::ASC == displayType) {
-      s = to_ascii(data);
+  if (UIData::DataType::UINT_N == DataType) {
+    if (UIData::DisplayType::HEX == DisplayType) {
+      s = ToHex(Datas);
+    } else if (UIData::DisplayType::ASC == DisplayType) {
+      s = ToAscii(Datas);
     } else {
-      s = to_dec(data);
+      s = ToDec(Datas);
     }
-  } else if (UIData::DataType::UINT == dataType) {
-    if (UIData::DisplayType::HEX == displayType) {
-      ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << data[0];
+  } else if (UIData::DataType::UINT == DataType) {
+    if (UIData::DisplayType::HEX == DisplayType) {
+      ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << Datas[0];
       s = ss.str();
     } else {
-      ss << std::dec << data[0];
+      ss << std::dec << Datas[0];
       s = ss.str();
     }
-  } else if (UIData::DataType::UINT_SELECT == dataType) {
-    for (auto &it : selects) {
-      if (data[0] == it.second) {
+  } else if (UIData::DataType::UINT_SELECT == DataType) {
+    for (auto &it : Selects) {
+      if (Datas[0] == it.second) {
         s = it.first;
         break;
       }
     }
   } else { /* UINT_MULTI_SELECT */
     std::vector<std::string> slects;
-    for (auto &it : selects) {
-      if ((data[0] & it.second) == it.second) {
+    for (auto &it : Selects) {
+      if ((Datas[0] & it.second) == it.second) {
         slects.push_back(it.first);
       }
     }
@@ -135,133 +135,133 @@ std::string UIData::Data::str() {
   return s;
 }
 
-std::string UIData::Data::raw() {
-  return to_hex(data);
+std::string UIData::Data::Raw() {
+  return ToHex(Datas);
 }
 
-void UIData::Data::put(BitArray &TxBits) {
-  if (nullptr != ui) {
-    auto s = ui->get();
+void UIData::Data::Put(BitArray &TxBits) {
+  if (nullptr != Ui) {
+    auto s = Ui->Get();
     if (false == s.empty()) {
-      if (false == lua.empty()) {
-        s = encode(s);
+      if (false == Lua.empty()) {
+        s = Encode(s);
       }
-      if (UIData::DisplayType::ASC == displayType) {
-        data = eval("text=" + s);
+      if (UIData::DisplayType::ASC == DisplayType) {
+        Datas = Eval("text=" + s);
       } else {
-        data = eval("{" + s + "}");
+        Datas = Eval("{" + s + "}");
       }
     }
-  } else if (nullptr != uiTable) {
-    uiTable->get();
+  } else if (nullptr != UiTable) {
+    UiTable->Get();
   } else {
-    throw std::runtime_error("no ui for data " + name);
+    throw std::runtime_error("no ui for data " + Name);
   }
 
-  for (auto &v : data) {
-    TxBits.put(v, bitSize);
+  for (auto &v : Datas) {
+    TxBits.Put(v, BitSize);
   }
 }
 
-void UIData::Data::get(BitArray &RxBits) {
-  if (true == optional) {
-    if (0 == RxBits.left()) {
+void UIData::Data::Get(BitArray &RxBits) {
+  if (true == Optional) {
+    if (0 == RxBits.Left()) {
       return;
     }
   }
-  if (nullptr != ui) {
-    for (auto &v : data) {
-      v = RxBits.get(bitSize);
+  if (nullptr != Ui) {
+    for (auto &v : Datas) {
+      v = RxBits.Get(BitSize);
     }
-    auto s = str();
-    if (false == lua.empty()) {
-      auto s2 = decode();
+    auto s = Str();
+    if (false == Lua.empty()) {
+      auto s2 = Decode();
       if (false == s2.empty()) {
         s = s2;
       }
     }
-    ui->put(s);
-  } else if (nullptr != uiTable) {
-    uiTable->put(RxBits);
+    Ui->Put(s);
+  } else if (nullptr != UiTable) {
+    UiTable->Put(RxBits);
   } else {
-    throw std::runtime_error("no ui for data " + name);
+    throw std::runtime_error("no ui for data " + Name);
   }
 }
 
-UIData::UIData(std::shared_ptr<Data> data) : m_Data(data) {
+UIData::UIData(std::shared_ptr<Data> Datas) : m_Data(Datas) {
   auto vbox = new QVBoxLayout();
-  if (DataType::UINT_SELECT == m_Data->dataType) {
-    m_cmbxData = new QComboBox();
-    for (auto &it : m_Data->selects) {
-      m_cmbxData->addItem(tr(it.first.c_str()));
+  if (DataType::UINT_SELECT == m_Data->DataType) {
+    m_CmbxData = new QComboBox();
+    for (auto &it : m_Data->Selects) {
+      m_CmbxData->addItem(tr(it.first.c_str()));
     }
-    m_cmbxData->setCurrentText(tr(m_Data->str().c_str()));
-    m_cmbxData->setToolTip(tr(m_Data->raw().c_str()));
-    vbox->addWidget(m_cmbxData);
-    if (m_Data->readonly) {
-      m_cmbxData->setEnabled(false);
+    m_CmbxData->setCurrentText(tr(m_Data->Str().c_str()));
+    m_CmbxData->setToolTip(tr(m_Data->Raw().c_str()));
+    vbox->addWidget(m_CmbxData);
+    if (m_Data->Readonly) {
+      m_CmbxData->setEnabled(false);
     }
-  } else if (DataType::UINT_MULTI_SELECT == m_Data->dataType) {
-    m_mscbData = new MultiSelectComboBox();
-    for (auto &it : m_Data->selects) {
-      m_mscbData->addItem(tr(it.first.c_str()));
+  } else if (DataType::UINT_MULTI_SELECT == m_Data->DataType) {
+    m_MscbData = new MultiSelectComboBox();
+    for (auto &it : m_Data->Selects) {
+      m_MscbData->addItem(tr(it.first.c_str()));
     }
-    QString qstr = m_Data->str().c_str();
+    QString qstr = m_Data->Str().c_str();
     QStringList qstrList = qstr.split(", ");
-    m_mscbData->setCurrentText(qstrList);
-    m_mscbData->setToolTip(tr(m_Data->raw().c_str()));
-    vbox->addWidget(m_mscbData);
-    if (m_Data->readonly) {
-      m_mscbData->setEnabled(false);
+    m_MscbData->setCurrentText(qstrList);
+    m_MscbData->setToolTip(tr(m_Data->Raw().c_str()));
+    vbox->addWidget(m_MscbData);
+    if (m_Data->Readonly) {
+      m_MscbData->setEnabled(false);
     }
   } else {
-    m_leData = new QLineEdit(tr(m_Data->str().c_str()));
-    if (m_Data->readonly) {
-      m_leData->setReadOnly(true);
-      m_leData->setStyleSheet("background-color:rgba(128,128,128,255)");
+    m_LeData = new QLineEdit(tr(m_Data->Str().c_str()));
+    if (m_Data->Readonly) {
+      m_LeData->setReadOnly(true);
+      m_LeData->setStyleSheet("background-color:rgba(128,128,128,255)");
     }
-    m_leData->setToolTip(tr(m_Data->raw().c_str()));
-    vbox->addWidget(m_leData);
+    m_LeData->setToolTip(tr(m_Data->Raw().c_str()));
+    vbox->addWidget(m_LeData);
   }
   setLayout(vbox);
 }
 
-void UIData::put(std::string s) {
-  if (DataType::UINT_MULTI_SELECT == m_Data->dataType) {
+void UIData::Put(std::string s) {
+  if (DataType::UINT_MULTI_SELECT == m_Data->DataType) {
     QString qstr = s.c_str();
     QStringList qstrList = qstr.split(", ");
-    m_mscbData->setCurrentText(qstrList);
-    m_mscbData->setToolTip(tr(m_Data->raw().c_str()));
-  } else if (DataType::UINT_SELECT == m_Data->dataType) {
-    m_cmbxData->setCurrentText(tr(s.c_str()));
-    m_cmbxData->setToolTip(tr(m_Data->raw().c_str()));
+    m_MscbData->setCurrentText(qstrList);
+    m_MscbData->setToolTip(tr(m_Data->Raw().c_str()));
+  } else if (DataType::UINT_SELECT == m_Data->DataType) {
+    m_CmbxData->setCurrentText(tr(s.c_str()));
+    m_CmbxData->setToolTip(tr(m_Data->Raw().c_str()));
   } else {
-    m_leData->setText(tr(s.c_str()));
-    m_leData->setToolTip(tr(m_Data->raw().c_str()));
+    m_LeData->setText(tr(s.c_str()));
+    m_LeData->setToolTip(tr(m_Data->Raw().c_str()));
   }
 }
 
-std::string UIData::get(void) {
+std::string UIData::Get(void) {
   std::string s;
-  if (DataType::UINT_SELECT == m_Data->dataType) {
-    auto ts = m_cmbxData->currentText().toStdString();
-    for (auto &it : m_Data->selects) {
+  if (DataType::UINT_SELECT == m_Data->DataType) {
+    auto ts = m_CmbxData->currentText().toStdString();
+    for (auto &it : m_Data->Selects) {
       if (ts == it.first) {
         s = std::to_string(it.second);
         break;
       }
     }
-  } else if (DataType::UINT_MULTI_SELECT == m_Data->dataType) {
-    auto qstrList = m_mscbData->currentText();
+  } else if (DataType::UINT_MULTI_SELECT == m_Data->DataType) {
+    auto qstrList = m_MscbData->currentText();
     uint32_t u32 = 0;
-    for (auto &it : m_Data->selects) {
+    for (auto &it : m_Data->Selects) {
       if (true == qstrList.contains(tr(it.first.c_str()))) {
         u32 |= it.second;
       }
     }
     s = std::to_string(u32);
   } else {
-    s = m_leData->text().toStdString();
+    s = m_LeData->text().toStdString();
   }
   return s;
 }
@@ -269,37 +269,37 @@ std::string UIData::get(void) {
 UIData::~UIData() {
 }
 
-UIDataTable::UIDataTable(std::shared_ptr<UIData::Data> data) : m_Data(data) {
+UIDataTable::UIDataTable(std::shared_ptr<UIData::Data> Datas) : m_Data(Datas) {
   QStringList headers;
-  for (auto &d : m_Data->elements) {
-    headers << tr(d->name.c_str());
+  for (auto &d : m_Data->Elements) {
+    headers << tr(d->Name.c_str());
   }
-  setColumnCount(m_Data->elements.size());
+  setColumnCount(m_Data->Elements.size());
   setHorizontalHeaderLabels(headers);
   setMinimumHeight(200);
 }
 
-void UIDataTable::decode(BitArray &ba) {
+void UIDataTable::Decode(BitArray &ba) {
   std::vector<uint32_t> res;
-  lua_arg_t inArgs[1];
-  lua_arg_t outArgs[4];
-  auto data = ba.left_bytes();
+  Lua_ArgType inArgs[1];
+  Lua_ArgType outArgs[4];
+  auto Datas = ba.LeftBytes();
 
-  inArgs[0].type = LUA_ARG_TYPE_UINT8_N;
-  inArgs[0].u8N = data;
+  inArgs[0].Type = LUA_ARG_TYPE_UINT8_N;
+  inArgs[0].U8N = Datas;
 
-  outArgs[0].type = LUA_ARG_TYPE_BOOL;     /* decoding results */
-  outArgs[1].type = LUA_ARG_TYPE_STRING_N; /* decoding headers */
-  outArgs[2].type = LUA_ARG_TYPE_STRING_N; /* decoding values */
-  outArgs[3].type = LUA_ARG_TYPE_UINT32;   /* consumed bits */
-  auto r = m_Data->luaScript->call(m_Data->lua.c_str(), inArgs, 1, outArgs, 4);
+  outArgs[0].Type = LUA_ARG_TYPE_BOOL;     /* decoding results */
+  outArgs[1].Type = LUA_ARG_TYPE_STRING_N; /* decoding headers */
+  outArgs[2].Type = LUA_ARG_TYPE_STRING_N; /* decoding values */
+  outArgs[3].Type = LUA_ARG_TYPE_UINT32;   /* consumed bits */
+  auto r = m_Data->LuaScript->Call(m_Data->Lua.c_str(), inArgs, 1, outArgs, 4);
   if (0 == r) {
-    if (outArgs[0].b) {
-      auto numHeaders = outArgs[1].stringN.size();
+    if (outArgs[0].Bool) {
+      auto numHeaders = outArgs[1].StringN.size();
       clear();
       QStringList headers;
       std::vector<int> widths;
-      for (auto &h : outArgs[1].stringN) {
+      for (auto &h : outArgs[1].StringN) {
         headers << tr(h.c_str());
         widths.push_back(h.size() * 10);
       }
@@ -307,7 +307,7 @@ void UIDataTable::decode(BitArray &ba) {
 
       setHorizontalHeaderLabels(headers);
       size_t idx = 0;
-      for (auto &v : outArgs[2].stringN) {
+      for (auto &v : outArgs[2].StringN) {
         int row = idx / numHeaders;
         int col = idx % numHeaders;
         setRowCount(row + 1);
@@ -325,29 +325,29 @@ void UIDataTable::decode(BitArray &ba) {
       for (int col = 0; col < (int)widths.size(); col++) {
         setColumnWidth(col, widths[col]);
       }
-      ba.drop(outArgs[3].u32);
+      ba.Drop(outArgs[3].U32);
     } else {
-      throw std::runtime_error("Failed to decode table content:" + outArgs[1].stringN[0]);
+      throw std::runtime_error("Failed to decode table content:" + outArgs[1].StringN[0]);
     }
   } else {
-    throw std::runtime_error("Failed to decode table content from [" + to_hex(data) + "]");
+    throw std::runtime_error("Failed to decode table content from [" + ToHex(Datas) + "]");
   }
 }
 
-void UIDataTable::get(void) {
-  lua_arg_t outArgs[3];
+void UIDataTable::Get(void) {
+  Lua_ArgType outArgs[3];
 
-  outArgs[0].type = LUA_ARG_TYPE_UINT32_N; /* get new bytes data */
-  outArgs[1].type = LUA_ARG_TYPE_STRING_N; /* bytes data headers */
-  outArgs[2].type = LUA_ARG_TYPE_STRING_N; /* bytes data values */
-  auto r = m_Data->luaScript->call(m_Data->lua.c_str(), nullptr, 0, outArgs, 3);
+  outArgs[0].Type = LUA_ARG_TYPE_UINT32_N; /* get new bytes data */
+  outArgs[1].Type = LUA_ARG_TYPE_STRING_N; /* bytes data headers */
+  outArgs[2].Type = LUA_ARG_TYPE_STRING_N; /* bytes data values */
+  auto r = m_Data->LuaScript->Call(m_Data->Lua.c_str(), nullptr, 0, outArgs, 3);
   if (0 == r) {
-    m_Data->data = outArgs[0].u32N;
-    auto numHeaders = outArgs[1].stringN.size();
+    m_Data->Datas = outArgs[0].U32N;
+    auto numHeaders = outArgs[1].StringN.size();
     clear();
     QStringList headers;
     std::vector<int> widths;
-    for (auto &h : outArgs[1].stringN) {
+    for (auto &h : outArgs[1].StringN) {
       headers << tr(h.c_str());
       widths.push_back(h.size() * 10);
     }
@@ -355,7 +355,7 @@ void UIDataTable::get(void) {
 
     setHorizontalHeaderLabels(headers);
     size_t idx = 0;
-    for (auto &v : outArgs[2].stringN) {
+    for (auto &v : outArgs[2].StringN) {
       int row = idx / numHeaders;
       int col = idx % numHeaders;
       setRowCount(row + 1);
@@ -374,17 +374,17 @@ void UIDataTable::get(void) {
       setColumnWidth(col, widths[col]);
     }
   } else {
-    throw std::runtime_error("Failed to get table content: " + m_Data->lua);
+    throw std::runtime_error("Failed to get table content: " + m_Data->Lua);
   }
 }
 
-void UIDataTable::put(BitArray &ba) {
-  auto left = ba.left();
-  if (0 == m_Data->bitSize) { /* in this case lua script API must be provided */
-    decode(ba);
-  } else if (0 == (left % m_Data->bitSize)) {
-    auto leftN = left / m_Data->bitSize;
-    auto n = m_Data->size;
+void UIDataTable::Put(BitArray &ba) {
+  auto left = ba.Left();
+  if (0 == m_Data->BitSize) { /* in this case lua script API must be provided */
+    Decode(ba);
+  } else if (0 == (left % m_Data->BitSize)) {
+    auto leftN = left / m_Data->BitSize;
+    auto n = m_Data->Size;
     if (0 == n) {
       n = leftN;
     }
@@ -393,11 +393,11 @@ void UIDataTable::put(BitArray &ba) {
       setRowCount(n);
       for (uint32_t row = 0; row < n; row++) {
         int col = 0;
-        for (auto &data : m_Data->elements) {
-          for (auto &v : data->data) {
-            v = ba.get(data->bitSize);
+        for (auto &Datas : m_Data->Elements) {
+          for (auto &v : Datas->Datas) {
+            v = ba.Get(Datas->BitSize);
           }
-          auto s = data->str();
+          auto s = Datas->Str();
           QTableWidgetItem *newItem = new QTableWidgetItem(tr(s.c_str()));
           newItem->setFlags(newItem->flags() ^ Qt::ItemIsEditable);
           setItem(row, col, newItem);
@@ -405,50 +405,50 @@ void UIDataTable::put(BitArray &ba) {
         }
       }
     } else {
-      throw std::runtime_error("not enough for " + m_Data->name + " expect: " + std::to_string(n) +
+      throw std::runtime_error("not enough for " + m_Data->Name + " expect: " + std::to_string(n) +
                                " left: " + std::to_string(leftN));
     }
   } else {
-    throw std::runtime_error("not bit aligned for " + m_Data->name + " expect: " +
-                             std::to_string(m_Data->bitSize) + " left: " + std::to_string(left));
+    throw std::runtime_error("not bit aligned for " + m_Data->Name + " expect: " +
+                             std::to_string(m_Data->BitSize) + " left: " + std::to_string(left));
   }
 }
 
 UIDataTable::~UIDataTable() {
 }
 
-UIServiceBase::UIServiceBase(std::string name, std::shared_ptr<AsLuaScript> luaScript)
-  : QGroupBox(name.c_str()), m_Name(name), m_Lua(luaScript) {
-  m_reType = std::regex("(U)(\\d+)(Select|Array|MultiSelect|)");
+UIServiceBase::UIServiceBase(std::string Name, std::shared_ptr<AsLuaScript> LuaScript)
+  : QGroupBox(Name.c_str()), m_Name(Name), m_Lua(LuaScript) {
+  m_ReType = std::regex("(U)(\\d+)(Select|Array|MultiSelect|)");
 }
 
 UIServiceBase::~UIServiceBase() {
 }
 
-std::shared_ptr<UIData::Data> UIServiceBase::parseData(json &js) {
-  auto data = std::make_shared<UIData::Data>();
+std::shared_ptr<UIData::Data> UIServiceBase::ParseData(json &js) {
+  auto Datas = std::make_shared<UIData::Data>();
 
-  data->name = js["name"].get<std::string>();
-  data->luaScript = m_Lua;
-  data->lua = get<std::string>(js, "lua", "");
+  Datas->Name = js["Name"].get<std::string>();
+  Datas->LuaScript = m_Lua;
+  Datas->Lua = JsonGet<std::string>(js, "Lua", "");
 
-  auto display = get<std::string>(js, "display", "dec");
+  auto display = JsonGet<std::string>(js, "Display", "dec");
 
   if (display == "asc") {
-    data->displayType = UIData::DisplayType::ASC;
+    Datas->DisplayType = UIData::DisplayType::ASC;
   } else if (display == "hex") {
-    data->displayType = UIData::DisplayType::HEX;
+    Datas->DisplayType = UIData::DisplayType::HEX;
   } else {
-    data->displayType = UIData::DisplayType::DEC;
+    Datas->DisplayType = UIData::DisplayType::DEC;
   }
-  data->readonly = get<bool>(js, "readonly", false);
-  data->optional = get<bool>(js, "optional", false);
-  data->visible = get<bool>(js, "visible", true);
-  data->newline = get<bool>(js, "newline", false);
+  Datas->Readonly = JsonGet<bool>(js, "Readonly", false);
+  Datas->Optional = JsonGet<bool>(js, "Optional", false);
+  Datas->Visible = JsonGet<bool>(js, "Visible", true);
+  Datas->Newline = JsonGet<bool>(js, "Newline", false);
 
-  auto type = js["type"].get<std::string>();
+  auto type = js["Type"].get<std::string>();
   std::smatch match;
-  if (std::regex_search(type, match, m_reType)) {
+  if (std::regex_search(type, match, m_ReType)) {
 #if 0
     std::cout << "matches for '" << type << "'\n";
     std::cout << "Prefix: '" << match.prefix() << "'\n";
@@ -456,107 +456,107 @@ std::shared_ptr<UIData::Data> UIServiceBase::parseData(json &js) {
       std::cout << i << ": " << match[i] << '\n';
     std::cout << "Suffix: '" << match.suffix() << "\'\n\n";
 #endif
-    data->bitSize = toInteger(match[2]);
-    data->bitMask = (uint32_t)((1 << data->bitSize) - 1);
+    Datas->BitSize = ToInteger(match[2]);
+    Datas->BitMask = (uint32_t)((1 << Datas->BitSize) - 1);
     if ("Array" == match[3]) {
-      data->dataType = UIData::DataType::UINT_N;
-      data->size = js["size"].get<uint32_t>();
-      if (js.contains("default")) {
-        data->data = data->eval(js["default"].dump());
+      Datas->DataType = UIData::DataType::UINT_N;
+      Datas->Size = js["Size"].get<uint32_t>();
+      if (js.contains("Default")) {
+        Datas->Datas = Datas->Eval(js["Default"].dump());
       }
-      for (size_t i = data->data.size(); i < data->size; i++) {
-        data->data.push_back(0);
+      for (size_t i = Datas->Datas.size(); i < Datas->Size; i++) {
+        Datas->Datas.push_back(0);
       }
     } else if ("Select" == match[3]) {
-      data->dataType = UIData::DataType::UINT_SELECT;
+      Datas->DataType = UIData::DataType::UINT_SELECT;
       for (auto &select : js["Select"]) {
-        auto name = select["name"].get<std::string>();
-        auto value = get2<uint32_t>(select, "value", 0);
-        data->selects[name] = value;
+        auto Name = select["Name"].get<std::string>();
+        auto value = JsonGetInt<uint32_t>(select, "Value", 0);
+        Datas->Selects[Name] = value;
       }
-      auto v = get2<uint32_t>(js, "default", 0);
-      data->data.push_back(v);
+      auto v = JsonGetInt<uint32_t>(js, "Default", 0);
+      Datas->Datas.push_back(v);
     } else if ("MultiSelect" == match[3]) {
-      data->dataType = UIData::DataType::UINT_MULTI_SELECT;
+      Datas->DataType = UIData::DataType::UINT_MULTI_SELECT;
       for (auto &select : js["Select"]) {
-        auto name = select["name"].get<std::string>();
-        auto value = get2<uint32_t>(select, "value", 0);
-        data->selects[name] = value;
+        auto Name = select["Name"].get<std::string>();
+        auto value = JsonGetInt<uint32_t>(select, "Value", 0);
+        Datas->Selects[Name] = value;
       }
-      auto v = get2<uint32_t>(js, "default", 0);
-      data->data.push_back(v);
+      auto v = JsonGetInt<uint32_t>(js, "Default", 0);
+      Datas->Datas.push_back(v);
     } else {
-      data->dataType = UIData::DataType::UINT;
-      auto v = get2<uint32_t>(js, "default", 0);
-      data->data.push_back(v);
+      Datas->DataType = UIData::DataType::UINT;
+      auto v = JsonGetInt<uint32_t>(js, "Default", 0);
+      Datas->Datas.push_back(v);
     }
   } else {
-    throw std::runtime_error("found invalid type " + type + " for " + data->name);
+    throw std::runtime_error("found invalid type " + type + " for " + Datas->Name);
   }
 
-  LOG(INFO, "  data: %s bit size=%d type=%d display=%d default=%s\n", data->name.c_str(),
-      data->bitSize, data->dataType, data->displayType, data->str().c_str());
-  for (auto &it : data->selects) {
+  LOG(INFO, "  data: %s bit size=%d type=%d display=%d default=%s\n", Datas->Name.c_str(),
+      Datas->BitSize, Datas->DataType, Datas->DisplayType, Datas->Str().c_str());
+  for (auto &it : Datas->Selects) {
     LOG(INFO, "    select %s 0x%x\n", it.first.c_str(), it.second);
   }
-  return data;
+  return Datas;
 }
 
-QVBoxLayout *UIServiceBase::createUI(json &js) {
-  m_SID = get2(js, "SID", 0);
+QVBoxLayout *UIServiceBase::CreateUi(json &js) {
+  m_SID = JsonGetInt(js, "SID", 0);
   if (0 == m_SID) {
     throw std::runtime_error("found invalid SID for " + m_Name);
   }
   LOG(INFO, "transmit datas for %s:\n", m_Name.c_str());
-  if (js.contains("transmit")) {
-    for (auto &djs : js["transmit"]) {
-      if (djs["type"].get<std::string>() == "Table") {
+  if (js.contains("Transmit")) {
+    for (auto &djs : js["Transmit"]) {
+      if (djs["Type"].get<std::string>() == "Table") {
         auto table = std::make_shared<UIData::Data>();
-        table->name = djs["name"].get<std::string>();
-        table->dataType = UIData::DataType::TABLE;
-        table->bitSize = 8;
-        table->readonly = false;
-        table->size = get<uint32_t>(djs, "size", 0);
-        table->luaScript = m_Lua;
-        table->lua = get<std::string>(djs, "lua", "");
-        table->visible = get<bool>(djs, "visible", true);
+        table->Name = djs["Name"].get<std::string>();
+        table->DataType = UIData::DataType::TABLE;
+        table->BitSize = 8;
+        table->Readonly = false;
+        table->Size = JsonGet<uint32_t>(djs, "Size", 0);
+        table->LuaScript = m_Lua;
+        table->Lua = JsonGet<std::string>(djs, "Lua", "");
+        table->Visible = JsonGet<bool>(djs, "Visible", true);
         m_TxDatas.push_back(table);
       } else {
-        auto data = parseData(djs);
-        data->optional = false;
-        m_TxBitSize += data->bitSize * data->size;
-        m_TxDatas.push_back(data);
+        auto Datas = ParseData(djs);
+        Datas->Optional = false;
+        m_TxBitSize += Datas->BitSize * Datas->Size;
+        m_TxDatas.push_back(Datas);
       }
     }
   }
 
   LOG(INFO, "receive datas for %s:\n", m_Name.c_str());
-  if (js.contains("receive")) {
-    for (auto &djs : js["receive"]) {
-      if (djs["type"].get<std::string>() == "Table") {
+  if (js.contains("Receive")) {
+    for (auto &djs : js["Receive"]) {
+      if (djs["Type"].get<std::string>() == "Table") {
         auto table = std::make_shared<UIData::Data>();
-        table->name = djs["name"].get<std::string>();
-        table->dataType = UIData::DataType::TABLE;
-        table->bitSize = 0; /* the baisc element total bit size */
-        table->readonly = true;
-        table->size = get<uint32_t>(djs, "size", 0);
-        table->luaScript = m_Lua;
-        table->lua = get<std::string>(djs, "lua", "");
-        table->visible = get<bool>(djs, "visible", true);
-        for (auto &tjs : djs["datas"]) {
-          auto data = parseData(tjs);
-          data->readonly = true;
-          table->bitSize += data->bitSize * data->size;
-          table->elements.push_back(data);
+        table->Name = djs["Name"].get<std::string>();
+        table->DataType = UIData::DataType::TABLE;
+        table->BitSize = 0; /* the baisc element total bit size */
+        table->Readonly = true;
+        table->Size = JsonGet<uint32_t>(djs, "Size", 0);
+        table->LuaScript = m_Lua;
+        table->Lua = JsonGet<std::string>(djs, "Lua", "");
+        table->Visible = JsonGet<bool>(djs, "Visible", true);
+        for (auto &tjs : djs["Datas"]) {
+          auto Datas = ParseData(tjs);
+          Datas->Readonly = true;
+          table->BitSize += Datas->BitSize * Datas->Size;
+          table->Elements.push_back(Datas);
         }
         m_RxDatas.push_back(table);
       } else {
-        auto data = parseData(djs);
-        data->readonly = true;
-        if (false == data->optional) {
-          m_RxBitSize += data->bitSize * data->size;
+        auto Datas = ParseData(djs);
+        Datas->Readonly = true;
+        if (false == Datas->Optional) {
+          m_RxBitSize += Datas->BitSize * Datas->Size;
         }
-        m_RxDatas.push_back(data);
+        m_RxDatas.push_back(Datas);
       }
     }
   }
@@ -567,19 +567,19 @@ QVBoxLayout *UIServiceBase::createUI(json &js) {
   int col = 0;
   auto grid = new QGridLayout();
   bool hasTxTable = false;
-  for (auto &data : m_TxDatas) {
-    if (UIData::DataType::TABLE == data->dataType) {
+  for (auto &Datas : m_TxDatas) {
+    if (UIData::DataType::TABLE == Datas->DataType) {
       hasTxTable = true;
       continue;
     }
-    data->ui = new UIData(data);
-    if (data->visible) {
-      auto label = data->name + ":";
+    Datas->Ui = new UIData(Datas);
+    if (Datas->Visible) {
+      auto label = Datas->Name + ":";
       grid->addWidget(new QLabel(tr(label.c_str())), row, col);
-      grid->addWidget(data->ui, row, col + 1);
+      grid->addWidget(Datas->Ui, row, col + 1);
       col += 2;
 
-      if ((col >= 8) || (true == data->newline)) {
+      if ((col >= 8) || (true == Datas->Newline)) {
         row += 1;
         col = 0;
       }
@@ -588,11 +588,11 @@ QVBoxLayout *UIServiceBase::createUI(json &js) {
   if (hasTxTable) {
     vbox->addLayout(grid);
 
-    for (auto &data : m_TxDatas) {
-      if (UIData::DataType::TABLE == data->dataType) {
-        auto table = new UIDataTable(data);
-        data->uiTable = table;
-        if (data->visible) {
+    for (auto &Datas : m_TxDatas) {
+      if (UIData::DataType::TABLE == Datas->DataType) {
+        auto table = new UIDataTable(Datas);
+        Datas->UiTable = table;
+        if (Datas->Visible) {
           vbox->addWidget(table);
         }
       }
@@ -601,24 +601,24 @@ QVBoxLayout *UIServiceBase::createUI(json &js) {
     row = 0;
   }
 
-  m_btnEnter = new QPushButton("Enter");
-  m_btnEnter->setMaximumWidth(100);
-  grid->addWidget(m_btnEnter, row, col);
+  m_BtnEnter = new QPushButton("Enter");
+  m_BtnEnter->setMaximumWidth(100);
+  grid->addWidget(m_BtnEnter, row, col);
   row += 1;
   col = 0;
 
-  for (auto &data : m_RxDatas) {
-    if (UIData::DataType::TABLE == data->dataType) {
+  for (auto &Datas : m_RxDatas) {
+    if (UIData::DataType::TABLE == Datas->DataType) {
       continue;
     }
-    data->ui = new UIData(data);
-    if (data->visible) {
-      auto label = data->name + ":";
+    Datas->Ui = new UIData(Datas);
+    if (Datas->Visible) {
+      auto label = Datas->Name + ":";
       grid->addWidget(new QLabel(tr(label.c_str())), row, col);
-      grid->addWidget(data->ui, row, col + 1);
+      grid->addWidget(Datas->Ui, row, col + 1);
       col += 2;
 
-      if ((col >= 8) || (true == data->newline)) {
+      if ((col >= 8) || (true == Datas->Newline)) {
         row += 1;
         col = 0;
       }
@@ -627,11 +627,11 @@ QVBoxLayout *UIServiceBase::createUI(json &js) {
 
   vbox->addLayout(grid);
 
-  for (auto &data : m_RxDatas) {
-    if (UIData::DataType::TABLE == data->dataType) {
-      auto table = new UIDataTable(data);
-      data->uiTable = table;
-      if (data->visible) {
+  for (auto &Datas : m_RxDatas) {
+    if (UIData::DataType::TABLE == Datas->DataType) {
+      auto table = new UIDataTable(Datas);
+      Datas->UiTable = table;
+      if (Datas->Visible) {
         vbox->addWidget(table);
       }
     }

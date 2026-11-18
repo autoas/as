@@ -30,8 +30,8 @@
 #define CANTP_CFG_RX_WFT_MAX 8
 #endif
 
-#ifndef CANTP_LL_DL
-#define CANTP_LL_DL 8
+#ifndef CANTP_LINK_LAYER_DATA_LENGTH
+#define CANTP_LINK_LAYER_DATA_LENGTH 8
 #endif
 
 #ifndef CANTP_CFG_PADDING
@@ -43,8 +43,8 @@
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
-extern void CanIf_CanTpReconfig(uint8_t Channel, CanTp_ParamType *params);
-extern void PduR_CanTpReConfig(uint8_t Channel);
+extern void CanIf_CanTpReconfig(uint8_t channel, CanTp_ParamType *params);
+extern void PduR_CanTpReConfig(uint8_t channel);
 /* ================================ [ DATAS     ] ============================================== */
 static uint8_t u8P2PData[CANTP_MAX_CHANNELS][64];
 static CanTp_ChannelConfigType CanTpChannelConfigs[CANTP_MAX_CHANNELS];
@@ -56,26 +56,26 @@ const CanTp_ConfigType CanTp_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void CanTp_ReConfig(uint8_t Channel, CanTp_ParamType *params) {
-  if (Channel < ARRAY_SIZE(CanTpChannelConfigs)) {
-    CanTpChannelConfigs[Channel].AddressingFormat = CANTP_STANDARD;
-    CanTpChannelConfigs[Channel].CanIfTxPduId = Channel;
-    CanTpChannelConfigs[Channel].PduR_RxPduId = CANTP_MAX_CHANNELS + Channel;
-    CanTpChannelConfigs[Channel].PduR_TxPduId = Channel;
-    CanTpChannelConfigs[Channel].N_As = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As);
-    CanTpChannelConfigs[Channel].N_Bs = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs);
-    CanTpChannelConfigs[Channel].N_Cr = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr);
-    CanTpChannelConfigs[Channel].STmin = params->STmin;
-    CanTpChannelConfigs[Channel].BS = CANTP_CFG_BS;
-    CanTpChannelConfigs[Channel].N_TA = params->N_TA;
+void CanTp_ReConfig(uint8_t channel, CanTp_ParamType *params) {
+  if (channel < ARRAY_SIZE(CanTpChannelConfigs)) {
+    CanTpChannelConfigs[channel].AddressingFormat = CANTP_STANDARD;
+    CanTpChannelConfigs[channel].CanIfTxPduId = channel;
+    CanTpChannelConfigs[channel].PduR_RxPduId = CANTP_MAX_CHANNELS + channel;
+    CanTpChannelConfigs[channel].PduR_TxPduId = channel;
+    CanTpChannelConfigs[channel].N_As = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_As);
+    CanTpChannelConfigs[channel].N_Bs = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Bs);
+    CanTpChannelConfigs[channel].N_Cr = CANTP_CONVERT_MS_TO_MAIN_CYCLES(CANTP_CFG_N_Cr);
+    CanTpChannelConfigs[channel].STmin = params->STmin;
+    CanTpChannelConfigs[channel].BS = CANTP_CFG_BS;
+    CanTpChannelConfigs[channel].N_TA = params->N_TA;
     if (0xFFFF != params->N_TA) {
-      CanTpChannelConfigs[Channel].AddressingFormat = CANTP_EXTENDED;
+      CanTpChannelConfigs[channel].AddressingFormat = CANTP_EXTENDED;
     }
-    CanTpChannelConfigs[Channel].CanTpRxWftMax = CANTP_CFG_RX_WFT_MAX;
-    CanTpChannelConfigs[Channel].padding = CANTP_CFG_PADDING;
-    CanTpChannelConfigs[Channel].data = u8P2PData[Channel];
-    CanTpChannelConfigs[Channel].LL_DL = params->ll_dl;
-    PduR_CanTpReConfig(Channel);
-    CanIf_CanTpReconfig(Channel, params);
+    CanTpChannelConfigs[channel].CanTpRxWftMax = CANTP_CFG_RX_WFT_MAX;
+    CanTpChannelConfigs[channel].Padding = CANTP_CFG_PADDING;
+    CanTpChannelConfigs[channel].Data = u8P2PData[channel];
+    CanTpChannelConfigs[channel].LinkLayerDataLength = params->LinkLayerDataLength;
+    PduR_CanTpReConfig(channel);
+    CanIf_CanTpReconfig(channel, params);
   }
 }

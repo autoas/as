@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2021 Parai Wang <parai@foxmail.com>
  */
-#ifndef DEV_LIB_H
-#define DEV_LIB_H
+#ifndef DEVLIB_H
+#define DEVLIB_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stddef.h>
 #include <stdint.h>
@@ -25,29 +25,29 @@ extern "C" {
 #define DEV_IOCTL_SET_DELAY 2 /* set delay for each operation */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  uint8_t *data;
-  uint16_t len;
-  uint16_t addr;
-  uint16_t flags;
-} dev_i2c_msg_t;
+  uint8_t *Data;
+  uint16_t Len;
+  uint16_t Addr;
+  uint16_t Flags;
+} Dev_I2cMsgType;
 
 typedef struct {
-  uint8_t *src;
-  uint8_t *dst;
-  uint16_t len;
-} dev_spi_msg_t;
+  uint8_t *Src;
+  uint8_t *Dst;
+  uint16_t Len;
+} Dev_SpiMsgType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-int dev_open(const char *device, const char *option);
-int dev_read(int fd, uint8_t *data, size_t size);
-int dev_write(int fd, const uint8_t *data, size_t size);
-int dev_ioctl(int fd, int type, const void *data, size_t size);
-int dev_close(int fd);
-int dev_lock(int fd);
-int dev_unlock(int fd);
+int Dev_Open(const char *device, const char *option);
+int Dev_Read(int fd, uint8_t *data, size_t size);
+int Dev_Write(int fd, const uint8_t *data, size_t size);
+int Dev_IoCtl(int fd, int type, const void *data, size_t size);
+int Dev_Close(int fd);
+int Dev_Lock(int fd);
+int Dev_Unlock(int fd);
 #ifdef __cplusplus
 }
 #endif
-#endif /* DEV_LIB_H */
+#endif /* DEVLIB_H */

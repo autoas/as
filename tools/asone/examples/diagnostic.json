@@ -1,31 +1,31 @@
 {
-  "target": {
-    "protocol": "CAN",
-    "LL_DL": 8,
-    "device": "simulator_v2",
-    "port": 0,
-    "txid": "0x731",
-    "rxid": "0x732",
-    "baudrate": 500000
+  "Target": {
+    "Protocol": "CAN",
+    "LinkLayerDataLength": 8,
+    "Device": "simulator_v2",
+    "Port": 0,
+    "TxId": "0x731",
+    "RxId": "0x732",
+    "Baudrate": 500000
   },
-  "lua": "dcm.lua",
-  "groups": {
+  "Lua": "dcm.lua",
+  "Groups": {
     "General": {
       "SessionControl": {
-        "extend": "0x03",
-        "default": "0x01",
-        "program": "0x02"
+        "Extend": "0x03",
+        "Default": "0x01",
+        "Program": "0x02"
       },
       "SecurityAccess": {
-        "extend": {
-          "level": 1,
-          "python": [
+        "Extend": {
+          "Level": 1,
+          "Python": [
             "def CalculateKey(res):",
             "    seed = (res[2]<<24) + (res[3]<<16) + (res[4]<<8) +(res[5])",
             "    key = (seed^0x78934673)",
             "    return [(key>>24)&0xFF,(key>>16)&0xFF,(key>>8)&0xFF,key&0xFF]"
           ],
-          "lua":[
+          "Lua":[
             "function CalculateKey(res)",
             "    seed = (res[3]<<24) + (res[4]<<16) + (res[5]<<8) +(res[6])",
             "    key = seed ~ 0x78934673",
@@ -36,86 +36,86 @@
       },
       "Services": [
         {
-          "name": "Read Finger Print",
+          "Name": "Read Finger Print",
           "SID": "0x22",
-          "transmit": [
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xF15B", "visible": false }
+          "Transmit": [
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xF15B", "Visible": false }
           ],
-          "receive": [
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xF15B", "visible": false },
-            { "name": "year", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "month", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "day", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "serial", "type": "U8Array", "size": 6, "display": "asc", "default": "text=#byas#" }
+          "Receive": [
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xF15B", "Visible": false },
+            { "Name": "year", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "month", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "day", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "serial", "Type": "U8Array", "Size": 6, "Display": "asc", "Default": "text=#byas#" }
           ]
         },
         {
-          "name": "start Telltales IO Control",
+          "Name": "start Telltales IO Control",
           "SID": "0x2F",
-          "transmit": [
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xE0E0", "visible": false },
-            { "name": "start", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
-            { "name": "telltale0", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale1", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale2", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale3", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale4", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale5", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale6", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale7", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] }
+          "Transmit": [
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xE0E0", "Visible": false },
+            { "Name": "start", "Type": "U8", "Display": "hex", "Default": "0x03", "Visible": false },
+            { "Name": "telltale0", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale1", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale2", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale3", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale4", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale5", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale6", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale7", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] }
           ]
         },
         {
-          "name": "stop Telltales IO Control",
+          "Name": "stop Telltales IO Control",
           "SID": "0x2F",
-          "transmit": [
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xE0E0", "visible": false },
-            { "name": "stop", "type": "U8", "display": "hex", "default": "0x00", "visible": false }
+          "Transmit": [
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xE0E0", "Visible": false },
+            { "Name": "stop", "Type": "U8", "Display": "hex", "Default": "0x00", "Visible": false }
           ]
         }
       ],
       "DataIdentifier" : [
         {
-          "name": "Finger Print",
+          "Name": "Finger Print",
           "ID": "0xF15B",
-          "attribute" : "r",
-          "data" : [
-            { "name": "year", "type": "U16", "display": "dec", "default": 2021 },
-            { "name": "month", "type": "U8", "display": "dec", "default": 6 },
-            { "name": "day", "type": "U8", "display": "dec", "default": 20 },
-            { "name": "serial", "type": "U8Array", "size": 8, "display": "asc", "default": "text=#byas#" }
+          "Attribute" : "r",
+          "Data" : [
+            { "Name": "year", "Type": "U16", "Display": "dec", "Default": 2021 },
+            { "Name": "month", "Type": "U8", "Display": "dec", "Default": 6 },
+            { "Name": "day", "Type": "U8", "Display": "dec", "Default": 20 },
+            { "Name": "serial", "Type": "U8Array", "Size": 8, "Display": "asc", "Default": "text=#byas#" }
           ]
         }
       ],
       "RoutineControl": [
         {
-          "name": "EraseFlash",
+          "Name": "EraseFlash",
           "ID": "0xFF02",
-          "result": true,
-          "stop": true,
-          "data" : [
-            { "name": "MemoryIdentifier", "type": "U8Select", "Select": [
-                            { "name": "FlASH", "value": "0xFF" },
-                            { "name": "EEPROM", "value": "0xEE" }
+          "Result": true,
+          "Stop": true,
+          "Data" : [
+            { "Name": "MemoryIdentifier", "Type": "U8Select", "Select": [
+                            { "Name": "FlASH", "Value": "0xFF" },
+                            { "Name": "EEPROM", "Value": "0xEE" }
                             ] },
-            { "name": "Address", "type": "U32", "display": "dec", "default": 0 },
-            { "name": "Size", "type": "U32", "display": "dec", "default": 0 }
+            { "Name": "Address", "Type": "U32", "Display": "dec", "Default": 0 },
+            { "Name": "Size", "Type": "U32", "Display": "dec", "Default": 0 }
           ]
         }
       ],
       "InputOutputControl" : [
         {
-          "name": "Telltales",
+          "Name": "Telltales",
           "ID": "0xE0E0",
-          "data": [
-            { "name": "telltale0", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale1", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale2", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale3", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale4", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale5", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale6", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] },
-            { "name": "telltale7", "type": "U2Select", "Select": [{ "name": "on", "value": "0x1" }, { "name": "1hz", "value": "0x2" }, { "name": "off", "value": "0x0" }] }
+          "Data": [
+            { "Name": "telltale0", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale1", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale2", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale3", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale4", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale5", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale6", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] },
+            { "Name": "telltale7", "Type": "U2Select", "Select": [{ "Name": "on", "Value": "0x1" }, { "Name": "1hz", "Value": "0x2" }, { "Name": "off", "Value": "0x0" }] }
           ]
         }
       ]
@@ -123,38 +123,38 @@
     "Authentication": {
       "Services":[
         {
-          "name": "Configuration",
+          "Name": "Configuration",
           "SID": "0x29",
-          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x08", "visible": false } ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x08", "visible": false },
-            { "name": "ARP", "type": "U8Select", "display": "hex", "default": "0x00",
-              "Select": [ { "name": "unknown", "value": "0x00" },
-                          { "name": "Authentication with PKI Certificate Exchange", "value": "0x02" },
-                          { "name": "Authentication with ChallengeResponse (ACR) and asymmetric cryptography", "value": "0x03" },
-                          { "name": "Authentication with ChallengeResponse (ACR) and symmetric cryptograph", "value": "0x04" } ] }
+          "Transmit": [ { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x08", "Visible": false } ],
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x08", "Visible": false },
+            { "Name": "ARP", "Type": "U8Select", "Display": "hex", "Default": "0x00",
+              "Select": [ { "Name": "unknown", "Value": "0x00" },
+                          { "Name": "Authentication with PKI Certificate Exchange", "Value": "0x02" },
+                          { "Name": "Authentication with ChallengeResponse (ACR) and asymmetric cryptography", "Value": "0x03" },
+                          { "Name": "Authentication with ChallengeResponse (ACR) and symmetric cryptograph", "Value": "0x04" } ] }
           ]
         },
         {
-          "name": "Send public key certificate to ECU",
+          "Name": "Send public key certificate to ECU",
           "SID": "0x29",
-          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
-                        { "name": "type", "type": "U8", "display": "hex", "default": "0x00", "visible": false },
-                        { "name": "certificate", "type": "Table", "size": 0, "lua": "load_certificate", "readonly": true } ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
-            { "name": "type", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "challenge", "type": "Table", "size": 0, "lua": "decode_challenge" }
+          "Transmit": [ { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x01", "Visible": false },
+                        { "Name": "type", "Type": "U8", "Display": "hex", "Default": "0x00", "Visible": false },
+                        { "Name": "certificate", "Type": "Table", "Size": 0, "Lua": "load_certificate", "Readonly": true } ],
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x01", "Visible": false },
+            { "Name": "type", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "challenge", "Type": "Table", "Size": 0, "Lua": "decode_challenge" }
           ]
         },
         {
-          "name": "Proof of Ownership Tester Certificate",
+          "Name": "Proof of Ownership Tester Certificate",
           "SID": "0x29",
-          "transmit": [ { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
-                        { "name": "proof", "type": "Table", "size": 0, "lua": "sign_challenge", "readonly": true } ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
-            { "name": "type", "type": "U8", "display": "hex", "default": "0x00" }
+          "Transmit": [ { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x03", "Visible": false },
+                        { "Name": "proof", "Type": "Table", "Size": 0, "Lua": "sign_challenge", "Readonly": true } ],
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x03", "Visible": false },
+            { "Name": "type", "Type": "U8", "Display": "hex", "Default": "0x00" }
           ]
         }
       ]
@@ -162,243 +162,243 @@
     "DTC": {
       "Services":[
         {
-          "name": "Report Number Of DTC By Status Mask",
+          "Name": "Report Number Of DTC By Status Mask",
           "SID": "0x19",
-          "transmit": [
-            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x01",
-               "Select": [{ "name": "Primary", "value": "0x01" }, { "name": "Mirror", "value": "0x11" }] },
-            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "Memory Region", "Type": "U8Select", "Display": "hex", "Default": "0x01",
+               "Select": [{ "Name": "Primary", "Value": "0x01" }, { "Name": "Mirror", "Value": "0x11" }] },
+            { "Name": "Status Mask", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x01", "visible": false },
-            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "FormatIdentifier", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "Number", "type": "U16", "display": "hex", "default": 0 }
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x01", "Visible": false },
+            { "Name": "StatusAvailabilityMask", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "FormatIdentifier", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "Number", "Type": "U16", "Display": "hex", "Default": 0 }
           ]
         },
         {
-          "name": "Report DTC By Status Mask",
+          "Name": "Report DTC By Status Mask",
           "SID": "0x19",
-          "transmit": [
-            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x02",
-               "Select": [{ "name": "Primary", "value": "0x02" }, { "name": "Mirror", "value": "0x0F" }] },
-            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "Memory Region", "Type": "U8Select", "Display": "hex", "Default": "0x02",
+               "Select": [{ "Name": "Primary", "Value": "0x02" }, { "Name": "Mirror", "Value": "0x0F" }] },
+            { "Name": "Status Mask", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x02", "visible": false },
-            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_status", "datas": [] }
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x02", "Visible": false },
+            { "Name": "StatusAvailabilityMask", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "records", "Type": "Table", "Size": 0, "Lua": "decode_dtc_number_and_status", "Datas": [] }
           ]
         },
         {
-          "name": "Report Supported DTC",
+          "Name": "Report Supported DTC",
           "SID": "0x19",
-          "transmit": [
-            { "name": "Status Mask", "type": "U8", "display": "hex", "default": "0x0A", "visible": false }
+          "Transmit": [
+            { "Name": "Status Mask", "Type": "U8", "Display": "hex", "Default": "0x0A", "Visible": false }
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x02", "visible": false },
-            { "name": "StatusAvailabilityMask", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_status", "datas": [] }
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x02", "Visible": false },
+            { "Name": "StatusAvailabilityMask", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "records", "Type": "Table", "Size": 0, "Lua": "decode_dtc_number_and_status", "Datas": [] }
           ]
         },
         {
-          "name": "Report DTC Snapshot Identification",
+          "Name": "Report DTC Snapshot Identification",
           "SID": "0x19",
-          "transmit": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false}
+          "Transmit": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x03", "Visible": false}
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x03", "visible": false },
-            { "name": "records", "type": "Table", "size": 0, "lua": "decode_dtc_number_and_record_number", "datas": [] }
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x03", "Visible": false },
+            { "Name": "records", "Type": "Table", "Size": 0, "Lua": "decode_dtc_number_and_record_number", "Datas": [] }
           ]
         },
         {
-          "name": "Report DTC Snapshot Record By DTCNumber",
+          "Name": "Report DTC Snapshot Record By DTCNumber",
           "SID": "0x19",
-          "transmit": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x04", "visible": false},
-            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
-            { "name": "Record Number", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x04", "Visible": false},
+            { "Name": "DTC Number", "Type": "U24", "Display": "hex", "Default": 0 },
+            { "Name": "Record Number", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x04", "visible": false },
-            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
-            { "name": "StatusMask", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "records", "type": "Table", "size": 0, "lua": "decode_snapshot", "datas": []}
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x04", "Visible": false },
+            { "Name": "DTC Number", "Type": "U24", "Display": "hex", "Default": 0 },
+            { "Name": "StatusMask", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "records", "Type": "Table", "Size": 0, "Lua": "decode_snapshot", "Datas": []}
           ]
         },
         {
-          "name": "Report DTC Extended Data Record By DTC Number",
+          "Name": "Report DTC Extended Data Record By DTC Number",
           "SID": "0x19",
-          "transmit": [
-            { "name": "Memory Region", "type": "U8Select", "display": "hex", "default": "0x06",
-               "Select": [{ "name": "Primary", "value": "0x06" }, { "name": "Mirror", "value": "0x10" }] },
-            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
-            { "name": "Record Number", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "Memory Region", "Type": "U8Select", "Display": "hex", "Default": "0x06",
+               "Select": [{ "Name": "Primary", "Value": "0x06" }, { "Name": "Mirror", "Value": "0x10" }] },
+            { "Name": "DTC Number", "Type": "U24", "Display": "hex", "Default": 0 },
+            { "Name": "Record Number", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "fnid", "type": "U8", "display": "hex", "default": "0x06", "visible": false },
-            { "name": "DTC Number", "type": "U24", "display": "hex", "default": 0 },
-            { "name": "StatusMask", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "records", "type": "Table", "size": 0, "lua": "decode_extended_data", "datas": [] }
+          "Receive": [
+            { "Name": "fnid", "Type": "U8", "Display": "hex", "Default": "0x06", "Visible": false },
+            { "Name": "DTC Number", "Type": "U24", "Display": "hex", "Default": 0 },
+            { "Name": "StatusMask", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "records", "Type": "Table", "Size": 0, "Lua": "decode_extended_data", "Datas": [] }
           ]
         }
       ],
       "DTC" : {
-        "path" : "../../app/app/config/Dem.json"
+        "Path" : "../../app/app/config/Dem.json"
       }
     },
     "Bus Mirror": {
       "Services":[
         {
-          "name": "Switch Dest Network",
+          "Name": "Switch Dest Network",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 7, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 3 }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 7, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 3 }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false }
           ]
         },
         {
-          "name": "Start/Stop Source Network",
+          "Name": "Start/Stop Source Network",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 8, "visible": false },
-            { "name": "", "type": "U8Select", "display": "hex", "default": "0x01",
-                          "Select": [ { "name": "stop", "value": "0x00" },
-                                      { "name": "start", "value": "0x01" }] },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 8, "Visible": false },
+            { "Name": "", "Type": "U8Select", "Display": "hex", "Default": "0x01",
+                          "Select": [ { "Name": "stop", "Value": "0x00" },
+                                      { "Name": "start", "Value": "0x01" }] },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false }
           ]
         },
         {
-          "name": "Set Static Filter State",
+          "Name": "Set Static Filter State",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 0, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "isActive", "type": "U8Select", "display": "hex", "default": "0x01",
-              "Select": [ { "name": "false", "value": "0x00" },
-                          { "name": "true", "value": "0x01" }] }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 0, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "isActive", "Type": "U8Select", "Display": "hex", "Default": "0x01",
+              "Select": [ { "Name": "false", "Value": "0x00" },
+                          { "Name": "true", "Value": "0x01" }] }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false }
           ]
         },
         {
-          "name": "Get Static Filter State",
+          "Name": "Get Static Filter State",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 1, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 1, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "isActive", "type": "U8Select", "display": "hex", "default": "0x00",
-                          "Select": [ { "name": "false", "value": "0x00" },
-                                      { "name": "true", "value": "0x01" }] }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "isActive", "Type": "U8Select", "Display": "hex", "Default": "0x00",
+                          "Select": [ { "Name": "false", "Value": "0x00" },
+                                      { "Name": "true", "Value": "0x01" }] }
           ]
         },
         {
-          "name": "Add Can Range Filter",
+          "Name": "Add Can Range Filter",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 2, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "lower", "type": "U32", "display": "hex", "default": 0 },
-            { "name": "upper", "type": "U32", "display": "hex", "default": "0xFFFFFFFF" }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 2, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "lower", "Type": "U32", "Display": "hex", "Default": 0 },
+            { "Name": "upper", "Type": "U32", "Display": "hex", "Default": "0xFFFFFFFF" }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ]
         },
         {
-          "name": "Add Can Mask Filter",
+          "Name": "Add Can Mask Filter",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 3, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "code", "type": "U32", "display": "hex", "default": 0 },
-            { "name": "mask", "type": "U32", "display": "hex", "default": "0xFFFFFFFF" }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 3, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "code", "Type": "U32", "Display": "hex", "Default": 0 },
+            { "Name": "mask", "Type": "U32", "Display": "hex", "Default": "0xFFFFFFFF" }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ]
         },
         {
-          "name": "Add Lin Range Filter",
+          "Name": "Add Lin Range Filter",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 4, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "lower", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "upper", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 4, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "lower", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "upper", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ]
         },
         {
-          "name": "Add Lin Mask Filter",
+          "Name": "Add Lin Mask Filter",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 5, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "code", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "mask", "type": "U8", "display": "hex", "default": "0xFF" }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 5, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "code", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "mask", "Type": "U8", "Display": "hex", "Default": "0xFF" }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ]
         },
         {
-          "name": "Remove Filter",
+          "Name": "Remove Filter",
           "SID": "0x31",
-          "transmit": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false },
-            { "name": "CMD", "type": "U8", "display": "dec", "default": 6, "visible": false },
-            { "name": "network", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "filterId", "type": "U8", "display": "dec", "default": 0 }
+          "Transmit": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false },
+            { "Name": "CMD", "Type": "U8", "Display": "dec", "Default": 6, "Visible": false },
+            { "Name": "network", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "filterId", "Type": "U8", "Display": "dec", "Default": 0 }
           ],
-          "receive": [
-            { "name": "RCMD", "type": "U8", "display": "dec", "default": "0x01", "visible": false },
-            { "name": "ID", "type": "U16", "display": "hex", "default": "0xABBA", "visible": false }
+          "Receive": [
+            { "Name": "RCMD", "Type": "U8", "Display": "dec", "Default": "0x01", "Visible": false },
+            { "Name": "ID", "Type": "U16", "Display": "hex", "Default": "0xABBA", "Visible": false }
           ]
         }
       ]

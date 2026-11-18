@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023-2024 Parai Wang <parai@foxmail.com>
  */
-#ifndef __UIXCP_HPP__
-#define __UIXCP_HPP__
+#ifndef UIXCP_HPP
+#define UIXCP_HPP
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "UICommon.hpp"
 using namespace as::ui ::common;
@@ -41,8 +41,8 @@ private:
   UIXcp *m_Xcp;
   BitArray::Endian m_Endian;
 
-  QPushButton *m_btnRead;
-  QPushButton *m_btnWrite;
+  QPushButton *m_BtnRead;
+  QPushButton *m_BtnWrite;
 };
 
 class Xcp;
@@ -62,13 +62,13 @@ public:
   ~UIXcp();
 
 public:
-  void empty_rx_queue();
-  int transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res);
-  int receive(std::vector<uint8_t> &res);
-  std::shared_ptr<AsLuaScript> luaScript() {
+  void EmptyRxQueue();
+  int Transmit(std::vector<uint8_t> &req, std::vector<uint8_t> &res);
+  int Receive(std::vector<uint8_t> &res);
+  std::shared_ptr<AsLuaScript> LuaScript() {
     return m_Lua;
   }
-  QTreeWidget *tree(void);
+  QTreeWidget *Tree(void);
 
 public slots:
   void on_btnOpenXcpJs_clicked(void);
@@ -80,19 +80,19 @@ private:
   void timerEvent(QTimerEvent *event);
 
 private:
-  bool load(std::string cfgPath, json &js);
-  bool loadUI(void);
-  bool loadScript(void);
+  bool Load(std::string cfgPath, json &js);
+  bool LoadUi(void);
+  bool LoadScript(void);
 
 private:
-  QLineEdit *m_leXcpJs;
-  QPushButton *m_btnOpenXcpJs;
-  QLineEdit *m_leEcuJs;
-  QPushButton *m_btnOpenEcuJs;
-  QPushButton *m_btnStart;
-  QTabWidget *m_tabWidget;
+  QLineEdit *m_LeXcpJs;
+  QPushButton *m_BtnOpenXcpJs;
+  QLineEdit *m_LeEcuJs;
+  QPushButton *m_BtnOpenEcuJs;
+  QPushButton *m_BtnStart;
+  QTabWidget *m_TabWidget;
   QTreeWidget *m_Tree;
-  QComboBox *m_cmbxTarget;
+  QComboBox *m_CmbxTarget;
 
   json m_Json;
 
@@ -106,4 +106,4 @@ private:
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* __UIXCP_HPP__ */
+#endif /* UIXCP_HPP */

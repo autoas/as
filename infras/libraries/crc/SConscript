@@ -80,6 +80,7 @@ class LibraryCrc(Library):
             "%s/src/crc8h2f" % (CWD),
             "%s/src/crc16" % (CWD),
             "%s/src/crc32" % (CWD),
+            "%s/src/crc32p4" % (CWD),
         ]
         self.CPPPATH = ["$INFRAS"]
         self.source = objs

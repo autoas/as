@@ -2,8 +2,8 @@
  * SSAS - Simple Smart Automotive Software
  * Copyright (C) 2023 Parai Wang <parai@foxmail.com>
  */
-#ifndef _STD_TOPIC_H_
-#define _STD_TOPIC_H_
+#ifndef STD_TOPIC_H
+#define STD_TOPIC_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 #ifdef __cplusplus
@@ -33,4 +33,4 @@ void Std_TopicLinPut(int busid, int isRx, uint32_t id, uint32_t dlc, const uint8
 #ifdef __cplusplus
 }
 #endif
-#endif /* _STD_TOPIC_H_ */
+#endif /* STD_TOPIC_H */

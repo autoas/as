@@ -38,32 +38,32 @@ SHELL_REGISTER(lscan, "list can status\n", LsCanFunc);
 #endif
 /* ================================ [ ALIAS     ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void Can_Init(const Can_ConfigType *Config) {
+void Can_Init(const Can_ConfigType *config) {
   int i;
-  const Can_ChannelConfigType *config;
+  const Can_ChannelConfigType *channelConfig;
   for (i = 0; i < CAN_CONFIG->numOfChannels; i++) {
-    config = &CAN_CONFIG->channelConfigs[i];
-    config->context->state = CAN_CS_STOPPED;
-    config->context->trcvMode = CANTRCV_TRCVMODE_SLEEP;
+    channelConfig = &CAN_CONFIG->channelConfigs[i];
+    channelConfig->context->state = CAN_CS_STOPPED;
+    channelConfig->context->trcvMode = CANTRCV_TRCVMODE_SLEEP;
   }
 #ifdef CAN_USE_CTRL_AC_GLOBAL
   CanAc_GlobalInit(CAN_CONFIG);
 #endif
 }
 
-Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType Transition) {
+Std_ReturnType Can_SetControllerMode(uint8_t controller, Can_ControllerStateType transition) {
   Std_ReturnType ret = E_OK;
   const Can_ChannelConfigType *config;
 #ifndef USE_PORT
   int i = 0;
 #endif
-  DET_VALIDATE(Controller < CAN_CONFIG->numOfChannels, 0x03, CAN_E_PARAM_CONTROLLER,
+  DET_VALIDATE(controller < CAN_CONFIG->numOfChannels, 0x03, CAN_E_PARAM_CONTROLLER,
                return E_NOT_OK);
-  DET_VALIDATE((Transition >= CAN_CS_STARTED) && (Transition <= CAN_CS_SLEEP), 0x03,
+  DET_VALIDATE((transition >= CAN_CS_STARTED) && (transition <= CAN_CS_SLEEP), 0x03,
                CAN_E_TRANSITION, return E_NOT_OK);
 
-  config = &CAN_CONFIG->channelConfigs[Controller];
-  switch (Transition) {
+  config = &CAN_CONFIG->channelConfigs[controller];
+  switch (transition) {
   case CAN_CS_STARTED:
     if (CAN_CS_STARTED != config->context->state) {
 #ifndef USE_PORT
@@ -75,40 +75,40 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
           }
         }
         if (E_OK != ret) {
-          ASLOG(CANE, ("[%" PRIu8 "] Failed to set PIN %d mode\n", Controller, i));
+          ASLOG(CANE, ("[%" PRIu8 "] Failed to set PIN %d mode\n", controller, i));
           break;
         }
       }
       if (E_OK == ret) {
 #endif
-        ret = CanAc_Init(Controller, config);
+        ret = CanAc_Init(controller, config);
 #ifndef USE_PORT
       }
 #endif
       if (E_OK == ret) {
         config->context->state = CAN_CS_STARTED;
       } else {
-        ASLOG(CANE, ("[%" PRIu8 "] Failed to start CAN\n", Controller));
+        ASLOG(CANE, ("[%" PRIu8 "] Failed to start CAN\n", controller));
       }
     }
     break;
   case CAN_CS_STOPPED:
     if (CAN_CS_STOPPED != config->context->state) {
-      ret = CanAc_DeInit(Controller, config);
+      ret = CanAc_DeInit(controller, config);
       if (E_OK == ret) {
         config->context->state = CAN_CS_STOPPED;
       } else {
-        ASLOG(CANE, ("[%" PRIu8 "] Failed to stop CAN\n", Controller));
+        ASLOG(CANE, ("[%" PRIu8 "] Failed to stop CAN\n", controller));
       }
     }
     break;
   case CAN_CS_SLEEP:
     if (CAN_CS_SLEEP != config->context->state) {
-      ret = CanAc_SetSleepMode(Controller, config);
+      ret = CanAc_SetSleepMode(controller, config);
       if (E_OK == ret) {
         config->context->state = CAN_CS_SLEEP;
       } else {
-        ASLOG(CANE, ("[%" PRIu8 "] Failed to sleep CAN\n", Controller));
+        ASLOG(CANE, ("[%" PRIu8 "] Failed to sleep CAN\n", controller));
       }
     }
     break;
@@ -120,18 +120,18 @@ Std_ReturnType Can_SetControllerMode(uint8_t Controller, Can_ControllerStateType
   return ret;
 }
 
-Std_ReturnType CanIf_SetTrcvMode(uint8_t TransceiverId, CanTrcv_TrcvModeType TransceiverMode) {
+Std_ReturnType CanIf_SetTrcvMode(uint8_t transceiverId, CanTrcv_TrcvModeType transceiverMode) {
   Std_ReturnType ret = E_OK;
   const Can_ChannelConfigType *config;
 
-  DET_VALIDATE(TransceiverId < CAN_CONFIG->numOfChannels, 0xF1, CAN_E_PARAM_CONTROLLER,
+  DET_VALIDATE(transceiverId < CAN_CONFIG->numOfChannels, 0xF1, CAN_E_PARAM_CONTROLLER,
                return E_NOT_OK);
-  DET_VALIDATE(TransceiverMode <= CANTRCV_TRCVMODE_NORMAL, 0xF1, CAN_E_TRANSITION, return E_NOT_OK);
+  DET_VALIDATE(transceiverMode <= CANTRCV_TRCVMODE_NORMAL, 0xF1, CAN_E_TRANSITION, return E_NOT_OK);
 
-  config = &CAN_CONFIG->channelConfigs[TransceiverId];
+  config = &CAN_CONFIG->channelConfigs[transceiverId];
 #ifndef USE_PORT
   if (config->TrcvPinSTB < config->numOfCtrlPins) {
-    if (CANTRCV_TRCVMODE_NORMAL == TransceiverMode) {
+    if (CANTRCV_TRCVMODE_NORMAL == transceiverMode) {
       ret = CanAc_WritePin(&config->CtrlPins[config->TrcvPinSTB], config->NormalValueOfTrcvPinSTB);
     } else {
       ret = CanAc_WritePin(&config->CtrlPins[config->TrcvPinSTB],
@@ -140,7 +140,7 @@ Std_ReturnType CanIf_SetTrcvMode(uint8_t TransceiverId, CanTrcv_TrcvModeType Tra
   }
 #else
   if (DIO_INVALID_CHANNEL != config->TrcvPinSTB) {
-    if (CANTRCV_TRCVMODE_NORMAL == TransceiverMode) {
+    if (CANTRCV_TRCVMODE_NORMAL == transceiverMode) {
       Dio_WriteChannel(config->TrcvPinSTB, config->NormalValueOfTrcvPinSTB);
     } else {
       Dio_WriteChannel(config->TrcvPinSTB, (~config->NormalValueOfTrcvPinSTB) & STD_HIGH);
@@ -152,37 +152,37 @@ Std_ReturnType CanIf_SetTrcvMode(uint8_t TransceiverId, CanTrcv_TrcvModeType Tra
   }
 
   if (E_OK == ret) {
-    config->context->trcvMode = TransceiverMode;
+    config->context->trcvMode = transceiverMode;
   }
 
   return ret;
 }
 
-Std_ReturnType CanIf_GetTrcvMode(uint8_t TransceiverId, CanTrcv_TrcvModeType *TransceiverModePtr) {
+Std_ReturnType CanIf_GetTrcvMode(uint8_t transceiverId, CanTrcv_TrcvModeType *transceiverModePtr) {
   Std_ReturnType ret = E_OK;
   const Can_ChannelConfigType *config;
 
-  DET_VALIDATE(TransceiverId < CAN_CONFIG->numOfChannels, 0xF2, CAN_E_PARAM_CONTROLLER,
+  DET_VALIDATE(transceiverId < CAN_CONFIG->numOfChannels, 0xF2, CAN_E_PARAM_CONTROLLER,
                return E_NOT_OK);
-  DET_VALIDATE(NULL != TransceiverModePtr, 0xF2, CAN_E_PARAM_POINTER, return E_NOT_OK);
+  DET_VALIDATE(NULL != transceiverModePtr, 0xF2, CAN_E_PARAM_POINTER, return E_NOT_OK);
 
-  config = &CAN_CONFIG->channelConfigs[TransceiverId];
-  *TransceiverModePtr = config->context->trcvMode;
+  config = &CAN_CONFIG->channelConfigs[transceiverId];
+  *transceiverModePtr = config->context->trcvMode;
 
   return ret;
 }
 
-Std_ReturnType Can_GetControllerMode(uint8_t Controller,
-                                     Can_ControllerStateType *ControllerModePtr) {
+Std_ReturnType Can_GetControllerMode(uint8_t controller,
+                                     Can_ControllerStateType *controllerModePtr) {
   Std_ReturnType ret = E_OK;
   const Can_ChannelConfigType *config;
 
-  DET_VALIDATE(Controller < CAN_CONFIG->numOfChannels, 0x12, CAN_E_PARAM_CONTROLLER,
+  DET_VALIDATE(controller < CAN_CONFIG->numOfChannels, 0x12, CAN_E_PARAM_CONTROLLER,
                return E_NOT_OK);
-  DET_VALIDATE(NULL != ControllerModePtr, 0x12, CAN_E_PARAM_POINTER, return E_NOT_OK);
+  DET_VALIDATE(NULL != controllerModePtr, 0x12, CAN_E_PARAM_POINTER, return E_NOT_OK);
 
-  config = &CAN_CONFIG->channelConfigs[Controller];
-  *ControllerModePtr = config->context->state;
+  config = &CAN_CONFIG->channelConfigs[controller];
+  *controllerModePtr = config->context->state;
 
   return ret;
 }

@@ -40,8 +40,8 @@
     frame->data[CAN_MAX_DLEN + 4] = dlc;                                                           \
   } while (0)
 
-#define in_range(c, lo, up) ((uint8_t)c >= lo && (uint8_t)c <= up)
-#define isprint(c) in_range(c, 0x20, 0x7f)
+#define InRange(c, lo, up) ((uint8_t)c >= lo && (uint8_t)c <= up)
+#define isprint(c) InRange(c, 0x20, 0x7f)
 /* ================================ [ TYPES     ] ============================================== */
 /**
  * struct can_frame - basic CAN frame structure
@@ -56,7 +56,7 @@ struct can_frame {
 };
 struct Can_SocketHandle_s {
   TcpIp_SocketIdType s; /* can raw socket: accept */
-  int error_counter;
+  int ErrorCounter;
   STAILQ_ENTRY(Can_SocketHandle_s) entry;
 };
 
@@ -79,7 +79,7 @@ struct Can_FilterList_s {
 static struct Can_SocketHandleList_s *socketH = NULL;
 static struct Can_FilterList_s *canFilterH = NULL;
 /* ================================ [ LOCALS    ] ============================================== */
-static int init_socket(int port) {
+static int InitSocket(int port) {
   Std_ReturnType ercd;
   TcpIp_SocketIdType s;
   uint16_t u16Port;
@@ -115,7 +115,7 @@ static int init_socket(int port) {
   return TRUE;
 }
 
-static void try_accept(void) {
+static void TryAccept(void) {
   struct Can_SocketHandle_s *handle;
   Std_ReturnType ercd;
   TcpIp_SocketIdType s;
@@ -126,19 +126,19 @@ static void try_accept(void) {
     handle = malloc(sizeof(struct Can_SocketHandle_s));
     assert(handle);
     handle->s = s;
-    handle->error_counter = 0;
+    handle->ErrorCounter = 0;
     STAILQ_INSERT_TAIL(&socketH->head, handle, entry);
     printf("can socket %X on-line!\n", s);
   }
 }
 
-static void remove_socket(struct Can_SocketHandle_s *h) {
+static void RemoveSocket(struct Can_SocketHandle_s *h) {
   STAILQ_REMOVE(&socketH->head, h, Can_SocketHandle_s, entry);
   TcpIp_Close(h->s, TRUE);
   free(h);
 }
 
-static void log_msg(struct can_frame *frame, float rtim) {
+static void LogMsg(struct can_frame *frame, float rtim) {
   int bOut = FALSE;
   static float lastTime = -1;
   int nSame = 0;
@@ -213,7 +213,7 @@ static void log_msg(struct can_frame *frame, float rtim) {
     lastTime = rtim;
   }
 }
-static void try_recv_forward(void) {
+static void TryRecvForward(void) {
   uint32_t len;
   Std_ReturnType ercd;
   struct can_frame frame;
@@ -232,24 +232,24 @@ static void try_recv_forward(void) {
       std_time_t elapsedTime = Std_GetTimerElapsedTime(&timer);
       float rtim = elapsedTime / 1000000.0;
 
-      log_msg(&frame, rtim);
-      h->error_counter = 0;
+      LogMsg(&frame, rtim);
+      h->ErrorCounter = 0;
 
       STAILQ_FOREACH(h2, &socketH->head, entry) {
         if (h != h2) {
           ercd = TcpIp_Send(h2->s, (uint8_t *)&frame, CAN_MTU);
           if (E_OK != ercd) {
             printf("send failed with error: %d, remove this node %X!\n", ercd, h2->s);
-            remove_socket(h2);
+            RemoveSocket(h2);
             break;
           }
         }
       }
     } else if (E_OK != ercd) {
-      h->error_counter++;
-      if (h->error_counter > 10) {
+      h->ErrorCounter++;
+      if (h->ErrorCounter > 10) {
         printf("recv failed with error: %d, remove this node %X!\n", ercd, h->s);
-        remove_socket(h);
+        RemoveSocket(h);
         break;
       }
     }
@@ -265,7 +265,7 @@ static void staus_monitor(void) {
       ercd = TcpIp_IsTcpStatusOK(h->s);
       if (E_OK != ercd) {
         printf("can socket %X off-line!\n", h->s);
-        remove_socket(h);
+        RemoveSocket(h);
         break;
       }
     }
@@ -273,12 +273,12 @@ static void staus_monitor(void) {
 }
 
 static void schedule(void) {
-  try_accept();
+  TryAccept();
   staus_monitor();
-  try_recv_forward();
+  TryRecvForward();
 }
 
-static void arg_filter(char *s) {
+static void ArgFilter(char *s) {
   char *code;
   struct Can_Filter_s *filter = malloc(sizeof(struct Can_Filter_s));
   assert(filter);
@@ -309,7 +309,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  if (FALSE == init_socket(atoi(argv[1]))) {
+  if (FALSE == InitSocket(atoi(argv[1]))) {
     return -1;
   }
 
@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
   argv = argv + 2;
   while (argc >= 2) {
     if (0 == strcmp(argv[0], "-f")) {
-      arg_filter(argv[1]);
+      ArgFilter(argv[1]);
     }
 
     argc = argc - 2;

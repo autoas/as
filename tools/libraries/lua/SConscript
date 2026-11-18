@@ -20,21 +20,30 @@ class LibraryLUA(Library):
         pkg = GetLuaPackage()
         self.include = ["%s/include" % (CWD), pkg]
         self.CPPPATH = ["$INFRAS"]
-        self.LIBS = ["Utils", "CanLib"]
+        self.LIBS = ["Utils", "CanL"]
         luaObjs = PkgGlob(pkg, ["*.c"])
         SrcRemove(luaObjs, ["lua.c", "onelua.c"])
         self.source = objs + luaObjs
         if IsBuildForMSVC():
             pass
         else:
-            if os.getenv("LUA_WITH_ASN1X509", "NO") == "YES":
+            # The crypto and x509 bindings are ON by default: a LUA library built
+            # without them still links, but every script that calls
+            # require("crypto") / require("x509") fails at run time
+            # (lua_pcall -> LUA_ERRRUN, "create lua state failed: error = 2").
+            # Opt out explicitly with LUA_WITH_CRYPTO=NO / LUA_WITH_ASN1X509=NO.
+            if os.getenv("LUA_WITH_ASN1X509", "YES") != "NO":
                 self.LIBS += ["ASN1X509"]
-                self.CPPDEFINES = ["USE_ASN1X509"]
+                self.CPPDEFINES += ["USE_ASN1X509"]
                 self.source += objsAsn1x509
-            if os.getenv("LUA_WITH_CRYPTO", "NO") == "YES":
+            else:
+                print("LUA: x509 bindings disabled (LUA_WITH_ASN1X509=NO)")
+            if os.getenv("LUA_WITH_CRYPTO", "YES") != "NO":
                 self.LIBS += ["CryptoIf"]
-                self.CPPDEFINES = ["USE_CRYPTOIF"]
+                self.CPPDEFINES += ["USE_CRYPTOIF"]
                 self.source += objsCrypto
+            else:
+                print("LUA: crypto bindings disabled (LUA_WITH_CRYPTO=NO)")
 
 
 @register_application

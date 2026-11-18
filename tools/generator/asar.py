@@ -80,15 +80,15 @@ def apply_platform_types(workspace: ar_workspace.Workspace):
 def GetArrayInfo(workspace, dataElemType):
     arrayInfo = {}
     for subElem in dataElemType.sub_elements:
-        arrayInfo["size"] = subElem.array_size
+        arrayInfo["Size"] = subElem.array_size
         for variant in subElem.sw_data_def_props:
             if isinstance(variant, ar_element.SwDataDefPropsConditional):
                 if variant.base_type_ref is not None:
                     base_type = workspace.find(variant.base_type_ref)
-                    arrayInfo["type"] = base_type
+                    arrayInfo["Type"] = base_type
                 elif variant.impl_data_type_ref is not None:
                     impl_data_type = workspace.find(variant.impl_data_type_ref)
-                    arrayInfo["type"] = impl_data_type
+                    arrayInfo["Type"] = impl_data_type
                 else:
                     raise
     return arrayInfo
@@ -124,8 +124,8 @@ def GenRteTypeDef(workspace, elem, H, typeDefs, typeSkip):
                 raise
     elif elem.category == "ARRAY":
         arrayInfo = GetArrayInfo(workspace, elem)
-        base_type = arrayInfo["type"]
-        array_size = arrayInfo["size"]
+        base_type = arrayInfo["Type"]
+        array_size = arrayInfo["Size"]
         if base_type.name not in typeDefs:
             typeSkip.append(elem)
             return
@@ -165,7 +165,7 @@ def GetPortDataElement_T(workspace, port, ImplementationDataTypes):
                 ImplementationDataTypes.append(dataElemType)
             if dataElemType.category == "ARRAY":
                 arrayInfo = GetArrayInfo(workspace, dataElemType)
-                dtype = arrayInfo["type"]
+                dtype = arrayInfo["Type"]
                 if isinstance(dtype, ar_element.ImplementationDataType):
                     if dtype not in ImplementationDataTypes:
                         ImplementationDataTypes.append(dtype)

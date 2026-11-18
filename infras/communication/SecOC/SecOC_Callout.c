@@ -17,20 +17,20 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType SecOC_GetTxFreshness(uint16_t SecOCFreshnessValueID, uint8_t *SecOCFreshnessValue,
-                                    uint32_t *SecOCFreshnessValueLength) {
+Std_ReturnType SecOC_GetTxFreshness(uint16_t secOCFreshnessValueID, uint8_t *secOCFreshnessValue,
+                                    uint32_t *secOCFreshnessValueLength) {
   Std_ReturnType ret;
   const SecOC_FreshnessValueType *FrVal;
   const SecOC_ConfigType *config = SecOC_GetConfig();
   DET_VALIDATE(NULL != config, 0x52, SECOC_E_UNINIT, return E_NOT_OK);
-  DET_VALIDATE(SecOCFreshnessValueID < config->numFrVals, 0x52, SECOC_E_PARAM_POINTER,
+  DET_VALIDATE(secOCFreshnessValueID < config->NumFrVals, 0x52, SECOC_E_PARAM_POINTER,
                return E_NOT_OK);
-  DET_VALIDATE((NULL != SecOCFreshnessValue) && (NULL != SecOCFreshnessValueLength), 0x52,
+  DET_VALIDATE((NULL != secOCFreshnessValue) && (NULL != secOCFreshnessValueLength), 0x52,
                SECOC_E_PARAM_POINTER, return E_NOT_OK);
 
-  FrVal = &config->FrVals[SecOCFreshnessValueID];
-  DET_VALIDATE(*SecOCFreshnessValueLength >= FrVal->length, 0x52, SECOC_E_PARAM_POINTER,
+  FrVal = &config->FrVals[secOCFreshnessValueID];
+  DET_VALIDATE(*secOCFreshnessValueLength >= FrVal->Length, 0x52, SECOC_E_PARAM_POINTER,
                return E_NOT_OK);
-  ret = FrVal->GetFreshnessFnc(SecOCFreshnessValue, SecOCFreshnessValueLength);
+  ret = FrVal->GetFreshnessFnc(secOCFreshnessValue, secOCFreshnessValueLength);
   return ret;
 }

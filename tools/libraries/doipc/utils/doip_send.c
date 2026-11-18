@@ -44,8 +44,8 @@ int main(int argc, char *argv[]) {
   const char *ip = "224.244.224.245";
   const char *casPem = NULL;
   int port = 13400;
-  doip_client_t *client;
-  doip_node_t *node;
+  DoIp_ClientType *client;
+  DoIp_NodeType *node;
   uint16_t sa = 0xbeef;
   uint8_t at = 0x00;
   uint16_t ta = 0xdead;
@@ -96,17 +96,17 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  client = doip_create_client(ip, port, casPem);
+  client = DoIp_CreateClient(ip, port, casPem);
 
   if (NULL == client) {
     printf("Failed to clreate doip client <%s:%d>\n", ip, port);
     return -2;
   }
 
-  r = doip_await_vehicle_announcement(client, &node, 1, 100);
+  r = DoIp_AwaitVehicleAnnouncement(client, &node, 1, 100);
 
   if (r <= 0) {
-    node = doip_request(client);
+    node = DoIp_Request(client);
     if (NULL == node) {
       r = -1;
       printf("target is not reachable\n");
@@ -123,14 +123,14 @@ int main(int argc, char *argv[]) {
     vlog("  EID: ", node->EID, 6);
     vlog("  GID: ", node->GID, 6);
     printf("  LA: %X\n", node->LA);
-    r = doip_connect(node);
+    r = DoIp_Connect(node);
     if (0 != r) {
       printf("connect failed\n");
     }
   }
 
   if (0 == r) {
-    r = doip_activate(node, sa, at, NULL, 0);
+    r = DoIp_Activate(node, sa, at, NULL, 0);
     if (0 != r) {
       printf("activate failed\n");
     }
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
       printf("%02X ", data[i]);
     }
     printf("\n");
-    r = doip_transmit(node, ta, data, length, data, sizeof(data));
+    r = DoIp_Transmit(node, ta, data, length, data, sizeof(data));
 
     if (r > 0) {
       printf("RX: ");
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  doip_destory_client(client);
+  DoIp_DestroyClient(client);
 
   return r;
 }

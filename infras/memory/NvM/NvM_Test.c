@@ -22,8 +22,8 @@ extern void EcuM_MemoryService(void);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, uint8_t *dataOut,
-                             uint16_t *currentDataLength, Dcm_NegativeResponseCodeType *ErrorCode) {
+Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType opStatus, uint8_t *dataOut,
+                             uint16_t *currentDataLength, Dcm_NegativeResponseCodeType *errorCode) {
   Std_ReturnType ret;
   uint8_t cmd = dataIn[0];
   NvM_BlockIdType BlockId = ((uint16_t)dataIn[1] << 8) + dataIn[2];
@@ -43,16 +43,16 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
     ret = E_OK;
   }
   if (E_OK != ret) {
-    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
   } else if (0 == cmd) { /* write NvM block */
     if ((length + 3) == *currentDataLength) {
-      if (DCM_INITIAL == OpStatus) {
+      if (DCM_INITIAL == opStatus) {
         memcpy(pNvmData, &dataIn[3], length);
         ret = NvM_WriteBlock(BlockId, pNvmData);
         if (E_OK == ret) {
-          *ErrorCode = DCM_E_RESPONSE_PENDING;
+          *errorCode = DCM_E_RESPONSE_PENDING;
         } else {
-          *ErrorCode = DCM_E_GENERAL_REJECT;
+          *errorCode = DCM_E_GENERAL_REJECT;
         }
       } else {
         ret = NvM_GetErrorStatus(BlockId, &result);
@@ -61,17 +61,17 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
             memcpy(dataOut, dataIn, length + 3);
             *currentDataLength = length + 3;
           } else if (NVM_REQ_PENDING == result) {
-            *ErrorCode = DCM_E_RESPONSE_PENDING;
+            *errorCode = DCM_E_RESPONSE_PENDING;
           } else {
-            *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
+            *errorCode = DCM_E_CONDITIONS_NOT_CORRECT;
           }
         } else {
-          *ErrorCode = DCM_E_GENERAL_REJECT;
+          *errorCode = DCM_E_GENERAL_REJECT;
         }
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (4 == cmd) { /* abnormal write NvM block */
     if ((length + 7) == *currentDataLength) {
@@ -80,7 +80,7 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
       memcpy(pNvmData, &dataIn[7], length);
       ret = NvM_WriteBlock(BlockId, pNvmData);
       if (E_OK != ret) {
-        *ErrorCode = DCM_E_GENERAL_REJECT;
+        *errorCode = DCM_E_GENERAL_REJECT;
       }
       while ((nLoops > 0) && (E_OK == ret)) {
         nLoops--;
@@ -101,7 +101,7 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
       }
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
   } else if (1 == cmd) { /* read NvM block */
     memcpy(dataOut, pNvmData, length);
@@ -109,23 +109,23 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
   } else if (2 == cmd) { /* Get Fee status */
 #ifdef USE_FEE
     Fee_GetAdminInfo(&adminInfo);
-    dataOut[0] = adminInfo.curWrokingBank;
-    dataOut[1] = (adminInfo.adminFreeAddr >> 24) & 0xFF;
-    dataOut[2] = (adminInfo.adminFreeAddr >> 16) & 0xFF;
-    dataOut[3] = (adminInfo.adminFreeAddr >> 8) & 0xFF;
-    dataOut[4] = adminInfo.adminFreeAddr & 0xFF;
-    dataOut[5] = (adminInfo.dataFreeAddr >> 24) & 0xFF;
-    dataOut[6] = (adminInfo.dataFreeAddr >> 16) & 0xFF;
-    dataOut[7] = (adminInfo.dataFreeAddr >> 8) & 0xFF;
-    dataOut[8] = adminInfo.dataFreeAddr & 0xFF;
-    dataOut[9] = (adminInfo.erasedNumber >> 24) & 0xFF;
-    dataOut[10] = (adminInfo.erasedNumber >> 16) & 0xFF;
-    dataOut[11] = (adminInfo.erasedNumber >> 8) & 0xFF;
-    dataOut[12] = adminInfo.erasedNumber & 0xFF;
+    dataOut[0] = adminInfo.CurWorkingBank;
+    dataOut[1] = (adminInfo.AdminFreeAddr >> 24) & 0xFF;
+    dataOut[2] = (adminInfo.AdminFreeAddr >> 16) & 0xFF;
+    dataOut[3] = (adminInfo.AdminFreeAddr >> 8) & 0xFF;
+    dataOut[4] = adminInfo.AdminFreeAddr & 0xFF;
+    dataOut[5] = (adminInfo.DataFreeAddr >> 24) & 0xFF;
+    dataOut[6] = (adminInfo.DataFreeAddr >> 16) & 0xFF;
+    dataOut[7] = (adminInfo.DataFreeAddr >> 8) & 0xFF;
+    dataOut[8] = adminInfo.DataFreeAddr & 0xFF;
+    dataOut[9] = (adminInfo.ErasedNumber >> 24) & 0xFF;
+    dataOut[10] = (adminInfo.ErasedNumber >> 16) & 0xFF;
+    dataOut[11] = (adminInfo.ErasedNumber >> 8) & 0xFF;
+    dataOut[12] = adminInfo.ErasedNumber & 0xFF;
     *currentDataLength = 13;
 #else
     ret = E_NOT_OK;
-    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
 #endif
   } else if (3 == cmd) { /* Dump Fee */
 #if defined(USE_FEE)
@@ -145,28 +145,28 @@ Std_ReturnType NvM_TestStart(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, u
       if (E_OK == ret) {
         *currentDataLength = (uint16_t)size;
       } else {
-        *ErrorCode = DCM_E_CONDITIONS_NOT_CORRECT;
+        *errorCode = DCM_E_CONDITIONS_NOT_CORRECT;
       }
 #endif
 
     } else {
       ret = E_NOT_OK;
-      *ErrorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
+      *errorCode = DCM_E_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT;
     }
 #else
     ret = E_NOT_OK;
-    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
 #endif
   } else {
     ret = E_NOT_OK;
-    *ErrorCode = DCM_E_REQUEST_OUT_OF_RANGE;
+    *errorCode = DCM_E_REQUEST_OUT_OF_RANGE;
   }
   return ret;
 }
 
-Std_ReturnType NvM_TestGetResult(const uint8_t *dataIn, Dcm_OpStatusType OpStatus, uint8_t *dataOut,
+Std_ReturnType NvM_TestGetResult(const uint8_t *dataIn, Dcm_OpStatusType opStatus, uint8_t *dataOut,
                                  uint16_t *currentDataLength,
-                                 Dcm_NegativeResponseCodeType *ErrorCode) {
+                                 Dcm_NegativeResponseCodeType *errorCode) {
   MemIf_StatusType status = NvM_GetStatus();
   dataOut[0] = status;
   *currentDataLength = 1;

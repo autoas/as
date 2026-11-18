@@ -3,8 +3,8 @@
  * Copyright (C) 2022 Parai Wang <parai@foxmail.com>
  *
  */
-#ifndef _ODX_H_
-#define _ODX_H_
+#ifndef ODX_H
+#define ODX_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include <stdint.h>
 #ifdef __cplusplus
@@ -13,28 +13,28 @@ extern "C" {
 /* ================================ [ MACROS    ] ============================================== */
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  char *name;
-  uint8_t *data;
-  size_t size;
-} odx_block_t;
+  char *Name;
+  uint8_t *Data;
+  size_t Size;
+} Odx_BlockType;
 
 typedef struct {
-  char *name;
-  odx_block_t **blocks;
-  size_t numOfBlocks;
-} odx_mem_t;
+  char *Name;
+  Odx_BlockType **Blocks;
+  size_t NumOfBlocks;
+} Odx_MemType;
 
 typedef struct {
-  odx_mem_t **mems;
-  size_t numOfMems;
-} odx_t;
+  Odx_MemType **Mems;
+  size_t NumOfMems;
+} Odx_Type;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-odx_t *odx_open(const char *path);
-void odx_close(odx_t *odx);
+Odx_Type *Odx_Open(const char *path);
+void Odx_Close(Odx_Type *odx);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _ODX_H_ */
+#endif /* ODX_H */

@@ -20,47 +20,47 @@
 #define SPI_RESPONSE_SHIFT
 /* ================================ [ TYPES     ] ============================================== */
 typedef struct {
-  int fd;
-  std::mutex mutex;
-  uint32_t pid;
-  uint8_t rLen;
-  uint8_t data[3 + LIN_MAX_DATA_SIZE + 1 + 1];
-} Lin_SPIBusType;
+  int Fd;
+  std::mutex Mutex;
+  uint32_t Pid;
+  uint8_t RLen;
+  uint8_t Data[3 + DEVLIN_MAX_DATA_SIZE + 1 + 1];
+} Dev_LinSpiBusType;
 /* ================================ [ DECLARES  ] ============================================== */
-static int spi_open(Lin_DeviceType *dev, const char *option);
-static int spi_write(Lin_DeviceType *dev, Lin_FrameType *frame);
-static int spi_read(Lin_DeviceType *dev, Lin_FrameType *frame);
-static void spi_close(Lin_DeviceType *dev);
-static int spi_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size);
+static int Dev_SpiOpen(Dev_LinDeviceType *dev, const char *option);
+static int Dev_SpiWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static int Dev_SpiRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame);
+static void Dev_SpiClose(Dev_LinDeviceType *dev);
+static int Dev_SpiIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size);
 /* ================================ [ DATAS     ] ============================================== */
-extern "C" const Lin_DeviceOpsType lin_spi_ops = {
-  .name = "spi/",
-  .open = spi_open,
-  .close = spi_close,
-  .write = spi_write,
-  .read = spi_read,
-  .ioctl = spi_ioctl,
+extern "C" const Dev_LinDeviceOpsType Dev_LinSpiOps = {
+  .Name = "spi/",
+  .Open = Dev_SpiOpen,
+  .Close = Dev_SpiClose,
+  .Write = Dev_SpiWrite,
+  .Read = Dev_SpiRead,
+  .IoCtl = Dev_SpiIoctl,
 };
 /* ================================ [ LOCALS    ] ============================================== */
-static int spi_open(Lin_DeviceType *dev, const char *option) {
+static int Dev_SpiOpen(Dev_LinDeviceType *dev, const char *option) {
   int r = 0;
-  Lin_SPIBusType *bus;
-  const char *device = &dev->name[8];
+  Dev_LinSpiBusType *bus;
+  const char *device = &dev->Name[8];
   int fd;
 
-  fd = dev_open(device, option);
+  fd = Dev_Open(device, option);
 
   if (fd >= 0) {
-    bus = new Lin_SPIBusType;
+    bus = new Dev_LinSpiBusType;
     if (bus != NULL) {
-      bus->fd = fd;
-      bus->rLen = 0;
+      bus->Fd = fd;
+      bus->RLen = 0;
     } else {
       r = -__LINE__;
     }
 
     if (0 == r) {
-      dev->param = (void *)bus;
+      dev->Param = (void *)bus;
     } else {
       delete bus;
     }
@@ -71,7 +71,7 @@ static int spi_open(Lin_DeviceType *dev, const char *option) {
   return r;
 }
 
-static uint8_t spi_checksum(uint8_t *data, size_t len) {
+static uint8_t Dev_SpiChecksum(uint8_t *data, size_t len) {
   size_t i;
   uint8_t checksum = 0;
 
@@ -82,95 +82,95 @@ static uint8_t spi_checksum(uint8_t *data, size_t len) {
   return ~checksum;
 }
 
-static int spi_write(Lin_DeviceType *dev, Lin_FrameType *frame) {
-  int r = LIN_MTU;
-  Lin_SPIBusType *bus = (Lin_SPIBusType *)dev->param;
-  dev_spi_msg_t msgs[2];
-  uint8_t *data = bus->data;
+static int Dev_SpiWrite(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
+  int r = DEVLIN_MTU;
+  Dev_LinSpiBusType *bus = (Dev_LinSpiBusType *)dev->Param;
+  Dev_SpiMsgType msgs[2];
+  uint8_t *data = bus->Data;
   uint8_t checksum;
-  uint16_t id = (uint16_t)frame->pid;
+  uint16_t id = (uint16_t)frame->Pid;
 #if AS_LOG_SPI > 0
   int i;
   char startTs[64];
   Std_GetDateTime(startTs, sizeof(startTs));
 #endif
 
-  if ((LIN_TYPE_HEADER == frame->type) || (LIN_TYPE_HEADER_AND_DATA == frame->type)) {
+  if ((DEVLIN_TYPE_HEADER == frame->Type) || (DEVLIN_TYPE_HEADER_AND_DATA == frame->Type)) {
     id &= 0x3F;
   }
 
   data[0] = (id >> 8) & 0xFF;
   data[1] = id & 0xFF;
-  data[2] = frame->dlc;
+  data[2] = frame->Dlc;
 
-  assert(frame->dlc <= LIN_MAX_DATA_SIZE);
+  assert(frame->Dlc <= DEVLIN_MAX_DATA_SIZE);
 
-  switch (frame->type) {
-  case LIN_TYPE_HEADER:
+  switch (frame->Type) {
+  case DEVLIN_TYPE_HEADER:
     /* intention no break */
-  case LIN_TYPE_EXT_HEADER: /* when write header, this is a RX frame */
-    msgs[0].src = data;
-    msgs[0].dst = NULL;
-    msgs[0].len = 3;
-    msgs[1].src = NULL;
-    msgs[1].dst = (uint8_t *)&data[3];
-    msgs[1].len = frame->dlc + 1;
+  case DEVLIN_TYPE_EXT_HEADER: /* when write header, this is a RX frame */
+    msgs[0].Src = data;
+    msgs[0].Dst = NULL;
+    msgs[0].Len = 3;
+    msgs[1].Src = NULL;
+    msgs[1].Dst = (uint8_t *)&data[3];
+    msgs[1].Len = frame->Dlc + 1;
 #ifdef SPI_RESPONSE_SHIFT
-    data[3 + frame->dlc + 1] = 0xFF;
-    msgs[1].len += 1;
+    data[3 + frame->Dlc + 1] = 0xFF;
+    msgs[1].Len += 1;
 #endif
-    r = dev_ioctl(bus->fd, DEV_IOCTL_TRANSFER, msgs, sizeof(dev_spi_msg_t) * 2);
+    r = Dev_IoCtl(bus->Fd, DEV_IOCTL_TRANSFER, msgs, sizeof(Dev_SpiMsgType) * 2);
     if (0 == r) {
 #ifdef SPI_RESPONSE_SHIFT
-      memmove(&data[3], &data[4], frame->dlc + 1);
+      memmove(&data[3], &data[4], frame->Dlc + 1);
 #endif
 #if AS_LOG_SPI > 0
-      PRINTF("lin_spi(%d) read frameId=0x%X data=[", bus->fd, id);
-      for (i = 0; i < frame->dlc; i++) {
+      PRINTF("lin_spi(%d) read frameId=0x%X data=[", bus->Fd, id);
+      for (i = 0; i < frame->Dlc; i++) {
         PRINTF("%02X ", data[3 + i]);
       }
-      PRINTF("] checksum=%02X @ %s\n", data[3 + frame->dlc], startTs);
+      PRINTF("] checksum=%02X @ %s\n", data[3 + frame->Dlc], startTs);
 #endif
 
-      checksum = spi_checksum(data, 3 + frame->dlc);
-      if (checksum != data[3 + frame->dlc]) {
+      checksum = Dev_SpiChecksum(data, 3 + frame->Dlc);
+      if (checksum != data[3 + frame->Dlc]) {
         ASLOG(ERROR, ("LIN SPI get frame data with invalid checksum for frameId 0x%X\n", id));
         r = -__LINE__;
       } else {
-        memmove(data, &data[3], frame->dlc);
+        memmove(data, &data[3], frame->Dlc);
       }
-      std::lock_guard<std::mutex> lg(bus->mutex);
-      if (bus->rLen > 0) {
+      std::lock_guard<std::mutex> lg(bus->Mutex);
+      if (bus->RLen > 0) {
         ASLOG(ERROR, ("LIN SPI Fatal error as rx frame for frameId 0x%X "
                       "not read out by upper layer\n",
                       id));
       }
-      bus->pid = frame->pid;
-      bus->rLen = frame->dlc;
+      bus->Pid = frame->Pid;
+      bus->RLen = frame->Dlc;
     } else {
       ASLOG(ERROR, ("LIN SPI failed to send header for frameId 0x%X\n", id));
     }
 
     break;
-  case LIN_TYPE_HEADER_AND_DATA:
+  case DEVLIN_TYPE_HEADER_AND_DATA:
     /* intention no break */
-  case LIN_TYPE_EXT_HEADER_AND_DATA:
-    memcpy(&data[3], frame->data, frame->dlc);
-    data[3 + frame->dlc] = spi_checksum(data, 3 + frame->dlc);
-    msgs[0].src = data;
-    msgs[0].dst = NULL;
-    msgs[0].len = 3;
-    msgs[1].src = &data[3];
-    msgs[1].dst = NULL;
-    msgs[1].len = frame->dlc + 1;
+  case DEVLIN_TYPE_EXT_HEADER_AND_DATA:
+    memcpy(&data[3], frame->Data, frame->Dlc);
+    data[3 + frame->Dlc] = Dev_SpiChecksum(data, 3 + frame->Dlc);
+    msgs[0].Src = data;
+    msgs[0].Dst = NULL;
+    msgs[0].Len = 3;
+    msgs[1].Src = &data[3];
+    msgs[1].Dst = NULL;
+    msgs[1].Len = frame->Dlc + 1;
 #if AS_LOG_SPI > 0
-    PRINTF("lin_spi(%d) write frameId=0x%X data=[", bus->fd, id);
-    for (i = 0; i < frame->dlc; i++) {
-      PRINTF("%02X ", frame->data[i]);
+    PRINTF("lin_spi(%d) write frameId=0x%X data=[", bus->Fd, id);
+    for (i = 0; i < frame->Dlc; i++) {
+      PRINTF("%02X ", frame->Data[i]);
     }
-    PRINTF("] checksum=%02X @ %s\n", data[3 + frame->dlc], startTs);
+    PRINTF("] checksum=%02X @ %s\n", data[3 + frame->Dlc], startTs);
 #endif
-    r = dev_ioctl(bus->fd, DEV_IOCTL_TRANSFER, msgs, sizeof(dev_spi_msg_t) * 2);
+    r = Dev_IoCtl(bus->Fd, DEV_IOCTL_TRANSFER, msgs, sizeof(Dev_SpiMsgType) * 2);
     if (0 != r) {
       ASLOG(ERROR, ("LIN SPI failed to send frame for frameId 0x%X\n", id));
     }
@@ -181,41 +181,41 @@ static int spi_write(Lin_DeviceType *dev, Lin_FrameType *frame) {
   }
 
   if (0 == r) {
-    r = LIN_MTU;
+    r = DEVLIN_MTU;
   }
 
   return r;
 }
 
-static void Lin_Checksum(Lin_FrameType *frame) {
+static void Lin_Checksum(Dev_LinFrameType *frame) {
   uint8_t checksum = 0;
   int i;
 
-  /* default use enhanced checksum, so lin_read must with enhanced = true */
-  checksum += (frame->pid >> 8) & 0xFF;
-  checksum += frame->pid & 0xFF;
+  /* default use enhanced checksum, so LinL_Read must with enhanced = true */
+  checksum += (frame->Pid >> 8) & 0xFF;
+  checksum += frame->Pid & 0xFF;
 
-  for (i = 0; i < frame->dlc; i++) {
-    checksum += frame->data[i];
+  for (i = 0; i < frame->Dlc; i++) {
+    checksum += frame->Data[i];
   }
   checksum = ~checksum;
 
-  frame->checksum = checksum;
+  frame->Checksum = checksum;
 }
 
-static int spi_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
+static int Dev_SpiRead(Dev_LinDeviceType *dev, Dev_LinFrameType *frame) {
   int r = 0;
-  Lin_SPIBusType *bus = (Lin_SPIBusType *)dev->param;
+  Dev_LinSpiBusType *bus = (Dev_LinSpiBusType *)dev->Param;
 
-  std::lock_guard<std::mutex> lg(bus->mutex);
-  if (bus->rLen > 0) {
-    frame->type = LIN_TYPE_DATA;
-    frame->dlc = bus->rLen;
-    frame->pid = bus->pid;
-    memcpy(frame->data, bus->data, bus->rLen);
-    bus->rLen = 0;
+  std::lock_guard<std::mutex> lg(bus->Mutex);
+  if (bus->RLen > 0) {
+    frame->Type = DEVLIN_TYPE_DATA;
+    frame->Dlc = bus->RLen;
+    frame->Pid = bus->Pid;
+    memcpy(frame->Data, bus->Data, bus->RLen);
+    bus->RLen = 0;
     Lin_Checksum(frame);
-    r = LIN_MTU;
+    r = DEVLIN_MTU;
   } else {
     r = -__LINE__;
   }
@@ -223,17 +223,17 @@ static int spi_read(Lin_DeviceType *dev, Lin_FrameType *frame) {
   return r;
 }
 
-static void spi_close(Lin_DeviceType *dev) {
-  Lin_SPIBusType *bus = (Lin_SPIBusType *)dev->param;
+static void Dev_SpiClose(Dev_LinDeviceType *dev) {
+  Dev_LinSpiBusType *bus = (Dev_LinSpiBusType *)dev->Param;
 
-  dev_close(bus->fd);
+  Dev_Close(bus->Fd);
   delete bus;
 }
 
-static int spi_ioctl(Lin_DeviceType *dev, int type, const void *data, size_t size) {
+static int Dev_SpiIoctl(Dev_LinDeviceType *dev, int type, const void *data, size_t size) {
   int r = -EINVAL;
-  Lin_SPIBusType *bus = (Lin_SPIBusType *)dev->param;
-  r = dev_ioctl(bus->fd, type, data, size);
+  Dev_LinSpiBusType *bus = (Dev_LinSpiBusType *)dev->Param;
+  r = Dev_IoCtl(bus->Fd, type, data, size);
   return r;
 }
 /* ================================ [ FUNCTIONS ] ============================================== */

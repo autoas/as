@@ -13,8 +13,8 @@
 #define LINIF_TIMEOUT_US 5000
 #endif
 
-#ifndef LINTP_LL_DL
-#define LINTP_LL_DL 8
+#ifndef LINTP_LINK_LAYER_DATA_LENGTH
+#define LINTP_LINK_LAYER_DATA_LENGTH 8
 #endif
 /* ================================ [ TYPES     ] ============================================== */
 /* ================================ [ DECLARES  ] ============================================== */
@@ -57,19 +57,19 @@ const LinIf_ConfigType LinIf_Config = {
 };
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void LinIf_ReConfig(uint8_t Channel, uint8_t ll_dl, uint32_t rxid, uint32_t txid) {
-  if (Channel < ARRAY_SIZE(LinIf_ChannelCfgs)) {
+void LinIf_ReConfig(uint8_t channel, uint8_t linkLayerDataLength, uint32_t rxid, uint32_t txid) {
+  if (channel < ARRAY_SIZE(LinIf_ChannelCfgs)) {
     entrysDiagRequest->id = txid;
-    entrysDiagRequest->dlc = ll_dl;
+    entrysDiagRequest->dlc = linkLayerDataLength;
     entrysDiagResponse->id = rxid;
-    entrysDiagResponse->dlc = ll_dl;
+    entrysDiagResponse->dlc = linkLayerDataLength;
   }
 }
 
-uint32_t LinIf_CanTpGetTxId(uint8_t Channel) {
+uint32_t LinIf_CanTpGetTxId(uint8_t channel) {
   return entrysDiagRequest->id;
 }
 
-uint32_t LinIf_CanTpGetRxId(uint8_t Channel) {
+uint32_t LinIf_CanTpGetRxId(uint8_t channel) {
   return entrysDiagResponse->id;
 }

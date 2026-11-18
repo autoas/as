@@ -9,10 +9,10 @@ __all__ = ["Gen", "get_messages"]
 
 
 def gen_rx_sig_cfg(sig, C):
-    if "group" in sig:
+    if "Group" in sig:
         return
-    C.write("static Com_SignalRxContextType Com_SignalRxContext_%s;\n" % (sig["name"]))
-    C.write("static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n" % (sig["name"]))
+    C.write("static Com_SignalRxContextType Com_SignalRxContext_%s;\n" % (sig["Name"]))
+    C.write("static const Com_SignalRxConfigType Com_SignalRxConfig_%s = {\n" % (sig["Name"]))
     InvalidNotification = sig.get("InvalidNotification", "NULL")
     RxNotification = sig.get("RxNotification", "NULL")
     RxTOut = sig.get("RxTOut", "NULL")
@@ -20,7 +20,7 @@ def gen_rx_sig_cfg(sig, C):
     Timeout = sig.get("Timeout", 0)
     DataInvalidAction = sig.get("DataInvalidAction", "NOTIFY")
     RxDataTimeoutAction = sig.get("RxDataTimeoutAction", "NONE")
-    C.write("  &Com_SignalRxContext_%s,\n" % (sig["name"]))
+    C.write("  &Com_SignalRxContext_%s,\n" % (sig["Name"]))
     C.write("  #ifdef COM_USE_SIGNAL_RX_INVALID_NOTIFICATION\n")
     C.write("  %s, /* InvalidNotification */\n" % (InvalidNotification))
     C.write("  #endif\n")
@@ -32,7 +32,7 @@ def gen_rx_sig_cfg(sig, C):
     C.write("  #endif\n")
     if "SUBSTITUTE" == RxDataTimeoutAction:
         t0, t1, nBytes = get_signal_info(sig)
-        C.write("  %s%s_TimeoutSubstitutionValue,\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["name"]))
+        C.write("  %s%s_TimeoutSubstitutionValue,\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["Name"]))
     else:
         C.write("  NULL, /* TimeoutSubstitutionValue */\n")
     C.write("  %s, /* FirstTimeout */\n" % (FirstTimeout))
@@ -43,9 +43,9 @@ def gen_rx_sig_cfg(sig, C):
 
 
 def gen_tx_sig_cfg(sig, C):
-    if "group" in sig:
+    if "Group" in sig:
         return
-    C.write("static const Com_SignalTxConfigType Com_SignalTxConfig_%s = {\n" % (sig["name"]))
+    C.write("static const Com_SignalTxConfigType Com_SignalTxConfig_%s = {\n" % (sig["Name"]))
     ErrorNotification = sig.get("ErrorNotification", "NULL")
     TxNotification = sig.get("TxNotification", "NULL")
     C.write("  #ifdef COM_USE_SIGNAL_TX_ERROR_NOTIFICATION\n")
@@ -61,37 +61,37 @@ def gen_tx_sig_cfg(sig, C):
 
 
 def get_signal_info(sig):
-    if sig.get("isGroup", False):
-        return "UINT8N", "uint8_t", int(sig["size"] / 8)
-    if sig["size"] <= 8:
+    if sig.get("IsGroup", False):
+        return "UINT8N", "uint8_t", int(sig["Size"] / 8)
+    if sig["Size"] <= 8:
         t = "INT8"
         t1 = "int8_t"
-    elif sig["size"] <= 16:
+    elif sig["Size"] <= 16:
         t = "INT16"
         t1 = "int16_t"
-    elif sig["size"] <= 32:
+    elif sig["Size"] <= 32:
         t = "INT32"
         t1 = "int32_t"
     else:
         t = "INT8N"
         t1 = "int8_t"
-    if sig.get("sign", "+") == "+":
+    if sig.get("Sign", "+") == "+":
         t = "U%s" % (t)
         t1 = "u%s" % (t1)
     else:
         t = "S%s" % (t)
-    return t, t1, int((sig["size"] + 7) / 8)
+    return t, t1, int((sig["Size"] + 7) / 8)
 
 
 def get_signal(msg, name):
-    for sig in msg["signals"]:
-        if sig["name"] == name:
+    for sig in msg["Signals"]:
+        if sig["Name"] == name:
             return sig
-    raise Exception("sinal %s not found in msg %s" % (name, msg["name"]))
+    raise Exception("sinal %s not found in msg %s" % (name, msg["Name"]))
 
 
 def gen_signal_init_value(sig, C):
-    if sig.get("isGroup", False):
+    if sig.get("IsGroup", False):
         return
     t0, t1, nBytes = get_signal_info(sig)
     if t0 in ["UINT8N", "SINT8N"]:
@@ -102,86 +102,86 @@ def gen_signal_init_value(sig, C):
             values = [values]
         for x in values:
             cstr += "0x%x, " % (x)
-        C.write("static const %s %s_InitialValue[%s] = { %s };\n" % (t1, sig["name"], nBytes, cstr))
+        C.write("static const %s %s_InitialValue[%s] = { %s };\n" % (t1, sig["Name"], nBytes, cstr))
     else:
         InitialValue = sig.get("InitialValue", 0)
-        C.write("static const %s %s_InitialValue = %s;\n" % (t1, sig["name"], InitialValue))
+        C.write("static const %s %s_InitialValue = %s;\n" % (t1, sig["Name"], InitialValue))
 
 
 def gen_signal_timeout_value(sig, C):
     if "SUBSTITUTE" != sig.get("RxDataTimeoutAction", "NONE"):
         return
-    if "group" not in sig:
+    if "Group" not in sig:
         t0, t1, nBytes = get_signal_info(sig)
         if t0 in ["UINT8N", "SINT8N"]:
             TimeoutSubstitutionValue = sig.get("TimeoutSubstitutionValue", "[0]")
             cstr = ""
             for x in eval(TimeoutSubstitutionValue):
                 cstr += "0x%x, " % (x)
-            C.write("static const %s %s_TimeoutSubstitutionValue[%s] = { %s };\n" % (t1, sig["name"], nBytes, cstr))
+            C.write("static const %s %s_TimeoutSubstitutionValue[%s] = { %s };\n" % (t1, sig["Name"], nBytes, cstr))
         else:
             TimeoutSubstitutionValue = sig.get("TimeoutSubstitutionValue", 0)
-            C.write("static const %s %s_TimeoutSubstitutionValue = %s;\n" % (t1, sig["name"], TimeoutSubstitutionValue))
+            C.write("static const %s %s_TimeoutSubstitutionValue = %s;\n" % (t1, sig["Name"], TimeoutSubstitutionValue))
 
 
 def gen_sig(network, sig, msg, C, isTx):
-    if msg["name"].startswith(network["name"]):
-        name = toMacro(msg["name"])
+    if msg["Name"].startswith(network["Name"]):
+        name = toMacro(msg["Name"])
     else:
-        name = toPduSymbol((network["name"], msg["name"]))
+        name = toPduSymbol((network["Name"], msg["Name"]))
     C.write("  {\n")
     C.write("#ifdef USE_SHELL\n")
-    C.write('    "%s",\n' % (sig["name"]))
+    C.write('    "%s",\n' % (sig["Name"]))
     C.write("#endif\n")
-    if "group" in sig:
-        gsig = get_signal(msg, sig["group"])
-        offset = int(gsig["start"] / 8)
-        C.write("    &Com_GrpsData_%s[%s], /* ptr */\n" % (sig["group"], int(sig["start"] / 8) - offset))
+    if "Group" in sig:
+        gsig = get_signal(msg, sig["Group"])
+        offset = int(gsig["Start"] / 8)
+        C.write("    &Com_GrpsData_%s[%s], /* Ptr */\n" % (sig["Group"], int(sig["Start"] / 8) - offset))
     else:
-        C.write("    &Com_PduData_%s[%s], /* ptr */\n" % (msg["name"], int(sig["start"] / 8)))
+        C.write("    &Com_PduData_%s[%s], /* Ptr */\n" % (msg["Name"], int(sig["Start"] / 8)))
     t0, t1, nBytes = get_signal_info(sig)
-    if sig.get("isGroup", False):
-        C.write("    Com_GrpsData_%s, /* shadowPtr */\n" % (sig["name"]))
+    if sig.get("IsGroup", False):
+        C.write("    Com_GrpsData_%s, /* Ptr */\n" % (sig["Name"]))
     else:
-        C.write("    %s%s_InitialValue, /* initPtr */\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["name"]))
+        C.write("    %s%s_InitialValue, /* InitPtr */\n" % ("" if t0 in ["UINT8N", "SINT8N"] else "&", sig["Name"]))
     C.write("#ifdef COM_USE_SIGNAL_CONFIG\n")
-    if "group" in sig:
-        C.write("    NULL, /* rxConfig */\n")
-        C.write("    NULL, /* txConfig */\n")
+    if "Group" in sig:
+        C.write("    NULL, /* RxConfig */\n")
+        C.write("    NULL, /* TxConfig */\n")
     elif isTx:
-        C.write("    NULL, /* rxConfig */\n")
-        C.write("    &Com_SignalTxConfig_%s, /* txConfig */\n" % (sig["name"]))
+        C.write("    NULL, /* RxConfig */\n")
+        C.write("    &Com_SignalTxConfig_%s, /* TxConfig */\n" % (sig["Name"]))
     else:
-        C.write("    &Com_SignalRxConfig_%s, /* rxConfig */\n" % (sig["name"]))
-        C.write("    NULL, /* txConfig */\n")
+        C.write("    &Com_SignalRxConfig_%s, /* RxConfig */\n" % (sig["Name"]))
+        C.write("    NULL, /* TxConfig */\n")
     C.write("#endif\n")
-    C.write("    COM_%sID_%s, /* HandleId */\n" % ("G" if sig.get("isGroup", False) else "S", sig["name"]))
+    C.write("    COM_%sID_%s, /* HandleId */\n" % ("G" if sig.get("IsGroup", False) else "S", sig["Name"]))
     C.write("    COM_%s, /* PduId */\n" % (name))
-    C.write("    %s, /* BitPosition */\n" % (sig["start"] & 7))
-    C.write("    %s, /* BitSize */\n" % (sig["size"]))
+    C.write("    %s, /* BitPosition */\n" % (sig["Start"] & 7))
+    C.write("    %s, /* BitSize */\n" % (sig["Size"]))
     C.write("#ifdef COM_USE_SIGNAL_UPDATE_BIT\n")
     UpdateBit = sig.get("UpdateBit", "COM_UPDATE_BIT_NOT_USED")
     if type(UpdateBit) is int:
-        assert UpdateBit > sig["start"]
-        UpdateBit = UpdateBit - int(sig["start"] / 8) * 8
+        assert UpdateBit > sig["Start"]
+        UpdateBit = UpdateBit - int(sig["Start"] / 8) * 8
     C.write("    %s, /* UpdateBit */\n" % (UpdateBit))
     C.write("#endif\n")
-    if sig.get("dyn", False):
+    if sig.get("Dyn", False):
         t0 = "UINT8_DYN"
-    C.write("    COM_%s, /* type */\n" % (t0))
-    C.write("    COM_%s_ENDIAN, /* Endianness */\n" % (sig["endian"].upper()))
-    C.write("    %s,\n" % (str(sig.get("isGroup", False)).upper()))
+    C.write("    COM_%s, /* Type */\n" % (t0))
+    C.write("    COM_%s_ENDIAN, /* Endianness */\n" % (sig["Endian"].upper()))
+    C.write("    %s,\n" % (str(sig.get("IsGroup", False)).upper()))
     C.write("  },\n")
 
 
 def gen_rx_msg_cfg(network, msg, C):
-    C.write("static const Com_IPduRxConfigType Com_IPduRxConfig_%s = {\n" % (msg["name"]))
+    C.write("static const Com_IPduRxConfigType Com_IPduRxConfig_%s = {\n" % (msg["Name"]))
     RxIpduCallout = msg.get("RxIpduCallout", "NULL")
     RxNotification = msg.get("RxNotification", "NULL")
     RxTOut = msg.get("RxTOut", "NULL")
     FirstTimeout = msg.get("FirstTimeout", 0)
     Timeout = msg.get("Timeout", 0)
-    C.write("  &Com_IPduRxContext_%s,\n" % (msg["name"]))
+    C.write("  &Com_IPduRxContext_%s,\n" % (msg["Name"]))
     C.write("  #ifdef COM_USE_RX_NOTIFICATION\n")
     C.write("  %s, /* RxNotification */\n" % (RxNotification))
     C.write("  #endif\n")
@@ -197,20 +197,20 @@ def gen_rx_msg_cfg(network, msg, C):
 
 
 def gen_tx_msg_cfg(network, msg, C):
-    if msg["name"].startswith(network["name"]):
-        name = toMacro(msg["name"])
+    if msg["Name"].startswith(network["Name"]):
+        name = toMacro(msg["Name"])
     else:
-        name = toPduSymbol((network["name"], msg["name"]))
-    C.write("static const Com_IPduTxConfigType Com_IPduTxConfig_%s = {\n" % (msg["name"]))
+        name = toPduSymbol((network["Name"], msg["Name"]))
+    C.write("static const Com_IPduTxConfigType Com_IPduTxConfig_%s = {\n" % (msg["Name"]))
     ErrorNotification = msg.get("ErrorNotification", "NULL")
     TxNotification = msg.get("TxNotification", "NULL")
     TxIpduCallout = msg.get("TxIpduCallout", "NULL")
     FirstTime = msg.get("FirstTime", 0)
     CycleTime = msg.get("CycleTime", 0)
-    if network["network"] in ["LIN"]:
+    if network["Network"] in ["LIN"]:
         C.write("  NULL,\n")
     else:
-        C.write("  &Com_IPduTxContext_%s,\n" % (msg["name"]))
+        C.write("  &Com_IPduTxContext_%s,\n" % (msg["Name"]))
     C.write("  #ifdef COM_USE_TX_ERROR_NOTIFICATION\n")
     C.write("  %s, /* ErrorNotification */\n" % (ErrorNotification))
     C.write("  #endif\n")
@@ -223,7 +223,7 @@ def gen_tx_msg_cfg(network, msg, C):
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* FirstTime */\n" % (FirstTime))
     C.write("  COM_CONVERT_MS_TO_MAIN_CYCLES(%su), /* CycleTime */\n" % (CycleTime))
     C.write("#ifdef USE_PDUR\n")
-    if msg.get("trigger", False) or network["network"] in ["LIN"]:
+    if msg.get("Trigger", False) or network["Network"] in ["LIN"]:
         C.write("  (PduIdType)-1 /* trigger transmit */,\n")
     else:
         C.write("  PDUR_%s,\n" % (name.upper()))
@@ -234,30 +234,30 @@ def gen_tx_msg_cfg(network, msg, C):
 
 
 def gen_msg(msg, C, network):
-    isTx = msg["node"] == network["me"]
+    isTx = msg["Node"] == network["Me"]
     C.write("  {\n")
     C.write("#ifdef USE_SHELL\n")
-    C.write('    "%s",\n' % (msg["name"]))
+    C.write('    "%s",\n' % (msg["Name"]))
     C.write("#endif\n")
-    C.write("    Com_PduData_%s, /* ptr */\n" % (msg["name"]))
-    dynLen = msg["signals"][-1].get("dyn", False)
+    C.write("    Com_PduData_%s, /* Ptr */\n" % (msg["Name"]))
+    dynLen = msg["Signals"][-1].get("Dyn", False)
     if dynLen:
-        C.write("    &%s_dynLen, /* dynLen */\n" % (msg["name"]))
+        C.write("    &%s_dynLen, /* DynLen */\n" % (msg["Name"]))
     else:
-        C.write("    NULL, /* dynLen */\n")
-    C.write("    Com_IPduSignals_%s, /* signals */\n" % (msg["name"]))
+        C.write("    NULL, /* DynLen */\n")
+    C.write("    Com_IPduSignals_%s, /* Signals */\n" % (msg["Name"]))
     if isTx:
-        C.write("    NULL, /* rxConfig */\n")
-        # if network["network"] in ["LIN"]:
-        #     C.write("    NULL, /* txConfig */\n")
+        C.write("    NULL, /* RxConfig */\n")
+        # if network["Network"] in ["LIN"]:
+        #     C.write("    NULL, /* TxConfig */\n")
         # else:
-        C.write("    &Com_IPduTxConfig_%s, /* txConfig */\n" % (msg["name"]))
+        C.write("    &Com_IPduTxConfig_%s, /* TxConfig */\n" % (msg["Name"]))
     else:
-        C.write("    &Com_IPduRxConfig_%s, /* rxConfig */\n" % (msg["name"]))
-        C.write("    NULL, /* txConfig */\n")
-    C.write("    Com_IPdu%s_GroupRefMask,\n" % (msg["name"]))
-    C.write("    sizeof(Com_PduData_%s), /* length */\n" % (msg["name"]))
-    C.write("    ARRAY_SIZE(Com_IPduSignals_%s), /* numOfSignals */\n" % (msg["name"]))
+        C.write("    &Com_IPduRxConfig_%s, /* RxConfig */\n" % (msg["Name"]))
+        C.write("    NULL, /* TxConfig */\n")
+    C.write("    Com_IPdu%s_GroupRefMask,\n" % (msg["Name"]))
+    C.write("    sizeof(Com_PduData_%s), /* Length */\n" % (msg["Name"]))
+    C.write("    ARRAY_SIZE(Com_IPduSignals_%s), /* NumOfSignals */\n" % (msg["Name"]))
     C.write("  },\n")
 
 
@@ -277,24 +277,24 @@ def Gen_Com(cfg, dir):
     H.write("#define COM_CONVERT_MS_TO_MAIN_CYCLES(x) \\\n")
     H.write("  ((x + COM_MAIN_FUNCTION_PERIOD - 1u) / COM_MAIN_FUNCTION_PERIOD)\n\n")
     NTs = []
-    for network in cfg["networks"]:
-        if network["network"] not in NTs:
-            NTs.append(network["network"])
+    for network in cfg["Networks"]:
+        if network["Network"] not in NTs:
+            NTs.append(network["Network"])
     for nt in NTs:
         H.write("#define COM_USE_%s\n" % (nt))
     H.write("#define COM_USE_SIGNAL_CONFIG\n")
     H.write("#define COM_USE_SIGNAL_UPDATE_BIT\n")
     H.write("\n")
-    for network in cfg["networks"]:
-        H.write("#define COM_RX_FOR_%s(id, PduInfoPtr) \\\n" % (network["name"]))
+    for network in cfg["Networks"]:
+        H.write("#define COM_RX_FOR_%s(id, PduInfoPtr) \\\n" % (network["Name"]))
         IF = "if"
-        for msg in network["messages"]:
-            if msg["node"] != network["me"]:
-                if msg["name"].startswith(network["name"]):
-                    name = toMacro(msg["name"])
+        for msg in network["Messages"]:
+            if msg["Node"] != network["Me"]:
+                if msg["Name"].startswith(network["Name"]):
+                    name = toMacro(msg["Name"])
                 else:
-                    name = toPduSymbol((network["name"], msg["name"]))
-                H.write("  %s (0x%X == id) { \\\n" % (IF, msg["id"]))
+                    name = toPduSymbol((network["Name"], msg["Name"]))
+                H.write("  %s (0x%X == id) { \\\n" % (IF, msg["Id"]))
                 H.write("    Com_RxIndication(COM_%s, PduInfoPtr); \\\n" % (name.upper()))
                 H.write("  }")
                 IF = "else if"
@@ -303,24 +303,24 @@ def Gen_Com(cfg, dir):
     H.write("#define COM_ECUC_PDUID_OFFSET 0\n")
     H.write("#endif\n\n")
     last_end = "COM_ECUC_PDUID_OFFSET"
-    for idx, network in enumerate(cfg["networks"]):
+    for idx, network in enumerate(cfg["Networks"]):
         H.write("/* NOTE: manually modify to fix it to the right HTH */\n")
-        H.write("#define COM_ECUC_%s_PDUID_MIN %s\n" % (network["name"], last_end))
-        H.write("#define COM_ECUC_%s_PDUID_MAX %s + %s\n" % (network["name"], last_end, len(network["messages"])))
-        last_end = "COM_ECUC_%s_PDUID_MAX" % (network["name"])
-        H.write("#define COM_TX_FOR_%s(TxPduId, dlPdu, PduInfoPtr, ret) \\\n" % (network["name"]))
+        H.write("#define COM_ECUC_%s_PDUID_MIN %s\n" % (network["Name"], last_end))
+        H.write("#define COM_ECUC_%s_PDUID_MAX %s + %s\n" % (network["Name"], last_end, len(network["Messages"])))
+        last_end = "COM_ECUC_%s_PDUID_MAX" % (network["Name"])
+        H.write("#define COM_TX_FOR_%s(TxPduId, dlPdu, PduInfoPtr, ret) \\\n" % (network["Name"]))
         IF = "if"
-        for msg in network["messages"]:
-            if msg["node"] == network["me"]:
-                if msg["name"].startswith(network["name"]):
-                    name = toMacro(msg["name"])
+        for msg in network["Messages"]:
+            if msg["Node"] == network["Me"]:
+                if msg["Name"].startswith(network["Name"]):
+                    name = toMacro(msg["Name"])
                 else:
-                    name = toPduSymbol((network["name"], msg["name"]))
+                    name = toPduSymbol((network["Name"], msg["Name"]))
                 H.write("  %s ((COM_%s+COM_ECUC_PDUID_OFFSET) == TxPduId) { \\\n" % (IF, name.upper()))
-                if network["network"] == "CAN":
-                    H.write("    dlPdu.id = 0x%X; \\\n" % (msg["id"]))
+                if network["Network"] == "CAN":
+                    H.write("    dlPdu.id = 0x%X; \\\n" % (msg["Id"]))
                     H.write("    ret = Can_Write(%s, &dlPdu); \\\n" % (idx))
-                elif network["network"] == "LIN":
+                elif network["Network"] == "LIN":
                     pass
                 else:
                     raise
@@ -328,45 +328,45 @@ def Gen_Com(cfg, dir):
                 IF = "else if"
         H.write("\n\n")
     PDU_ID = 0
-    for network in cfg["networks"]:
-        H.write("/* messages for network %s */\n" % (network["name"]))
-        for msg in network["messages"]:
-            if msg["name"].startswith(network["name"]):
-                name = toMacro(msg["name"])
+    for network in cfg["Networks"]:
+        H.write("/* messages for network %s */\n" % (network["Name"]))
+        for msg in network["Messages"]:
+            if msg["Name"].startswith(network["Name"]):
+                name = toMacro(msg["Name"])
             else:
-                name = toPduSymbol((network["name"], msg["name"]))
+                name = toPduSymbol((network["Name"], msg["Name"]))
             H.write("#define COM_%s %s\n" % (name.upper(), PDU_ID))
             PDU_ID += 1
         H.write("\n")
     SIG_ID = 0
-    for network in cfg["networks"]:
-        H.write("/* signals for network %s */\n" % (network["name"]))
-        for msg in network["messages"]:
+    for network in cfg["Networks"]:
+        H.write("/* signals for network %s */\n" % (network["Name"]))
+        for msg in network["Messages"]:
             H.write(
                 "/* signals for network %s message %s: id=0x%x dlc=%d, dir=%s */\n"
-                % (network["name"], msg["name"], msg["id"], msg["dlc"], "TX" if msg["node"] == network["me"] else "RX")
+                % (network["Name"], msg["Name"], msg["Id"], msg["Dlc"], "TX" if msg["Node"] == network["Me"] else "RX")
             )
-            for sig in msg["signals"]:
+            for sig in msg["Signals"]:
                 H.write(
                     "#define COM_%sID_%s %s /* %s %s@%s */\n"
                     % (
-                        "G" if sig.get("isGroup", False) else "S",
-                        sig["name"],
+                        "G" if sig.get("IsGroup", False) else "S",
+                        sig["Name"],
                         SIG_ID,
-                        sig["endian"],
-                        sig["size"],
-                        sig["start"],
+                        sig["Endian"],
+                        sig["Size"],
+                        sig["Start"],
                     )
                 )
                 SIG_ID += 1
             H.write("\n")
         H.write("\n")
     H.write("/* NOTE: manually modify to create more groups */\n")
-    for id, network in enumerate(cfg["networks"]):
-        H.write("#define COM_GROUP_ID_%s %s\n" % (network["name"], id))
-        for msg in network["messages"]:
-            H.write("#define Com_IPdu%s_GroupRefMask (1<<COM_GROUP_ID_%s)\n" % (msg["name"], network["name"]))
-    H.write("\n#define COM_GROUP_ID_MAX %s\n" % (len(cfg["networks"])))
+    for id, network in enumerate(cfg["Networks"]):
+        H.write("#define COM_GROUP_ID_%s %s\n" % (network["Name"], id))
+        for msg in network["Messages"]:
+            H.write("#define Com_IPdu%s_GroupRefMask (1<<COM_GROUP_ID_%s)\n" % (msg["Name"], network["Name"]))
+    H.write("\n#define COM_GROUP_ID_MAX %s\n" % (len(cfg["Networks"])))
     H.write("\n#define COM_USE_MAIN_FAST\n\n")
     bHasTxErrorNotification = False
     bHasTxNotification = False
@@ -379,9 +379,9 @@ def Gen_Com(cfg, dir):
     bHasSignalRxInvalidNotification = False
     bHasSignalRxRxNotification = False
     bHasSignalRxRxTOut = False
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            if msg["node"] == network["me"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            if msg["Node"] == network["Me"]:
                 ErrorNotification = msg.get("ErrorNotification", "NULL")
                 TxNotification = msg.get("TxNotification", "NULL")
                 TxIpduCallout = msg.get("TxIpduCallout", "NULL")
@@ -391,7 +391,7 @@ def Gen_Com(cfg, dir):
                     bHasTxNotification = True
                 if TxIpduCallout != "NULL":
                     bHasTxIpduCallout = True
-                for sig in msg["signals"]:
+                for sig in msg["Signals"]:
                     ErrorNotification = sig.get("ErrorNotification", "NULL")
                     TxNotification = sig.get("TxNotification", "NULL")
                     if ErrorNotification != "NULL":
@@ -408,7 +408,7 @@ def Gen_Com(cfg, dir):
                     bHasRxTOut = True
                 if RxIpduCallout != "NULL":
                     bHasRxIpduCallout = True
-                for sig in msg["signals"]:
+                for sig in msg["Signals"]:
                     InvalidNotification = sig.get("InvalidNotification", "NULL")
                     RxNotification = sig.get("RxNotification", "NULL")
                     RxTOut = sig.get("RxTOut", "NULL")
@@ -461,9 +461,9 @@ def Gen_Com(cfg, dir):
     C.write("/* ================================ [ MACROS    ] ============================================== */\n")
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            if msg["node"] == network["me"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            if msg["Node"] == network["Me"]:
                 ErrorNotification = msg.get("ErrorNotification", "NULL")
                 TxNotification = msg.get("TxNotification", "NULL")
                 TxIpduCallout = msg.get("TxIpduCallout", "NULL")
@@ -473,7 +473,7 @@ def Gen_Com(cfg, dir):
                     C.write("extern void %s(void);\n" % (TxNotification))
                 if TxIpduCallout != "NULL":
                     C.write("extern boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr);\n" % (TxIpduCallout))
-                for sig in msg["signals"]:
+                for sig in msg["Signals"]:
                     ErrorNotification = sig.get("ErrorNotification", "NULL")
                     TxNotification = sig.get("TxNotification", "NULL")
                     if ErrorNotification != "NULL":
@@ -490,7 +490,7 @@ def Gen_Com(cfg, dir):
                     C.write("extern void %s(void);\n" % (RxTOut))
                 if RxIpduCallout != "NULL":
                     C.write("extern boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr);\n" % (RxIpduCallout))
-                for sig in msg["signals"]:
+                for sig in msg["Signals"]:
                     InvalidNotification = sig.get("InvalidNotification", "NULL")
                     RxNotification = sig.get("RxNotification", "NULL")
                     RxTOut = sig.get("RxTOut", "NULL")
@@ -501,72 +501,72 @@ def Gen_Com(cfg, dir):
                     if RxTOut != "NULL":
                         C.write("extern void %s(void);\n" % (RxTOut))
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            for sig in msg["signals"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            for sig in msg["Signals"]:
                 gen_signal_init_value(sig, C)
-                if msg["node"] != network["me"]:  # isRx
+                if msg["Node"] != network["Me"]:  # isRx
                     gen_signal_timeout_value(sig, C)
     C.write("\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            C.write("static uint8_t Com_PduData_%s[%s];\n" % (msg["name"], msg["dlc"]))
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            C.write("static uint8_t Com_PduData_%s[%s];\n" % (msg["Name"], msg["Dlc"]))
             groups = []
-            for sig in msg["signals"]:
-                if "group" in sig:
-                    if sig["group"] not in groups:
-                        groups.append(sig["group"])
-            for sig in msg["signals"]:
-                if sig["name"] in groups:
-                    C.write("static uint8_t Com_GrpsData_%s[%s];\n" % (sig["name"], int(sig["size"] / 8)))
+            for sig in msg["Signals"]:
+                if "Group" in sig:
+                    if sig["Group"] not in groups:
+                        groups.append(sig["Group"])
+            for sig in msg["Signals"]:
+                if sig["Name"] in groups:
+                    C.write("static uint8_t Com_GrpsData_%s[%s];\n" % (sig["Name"], int(sig["Size"] / 8)))
 
     C.write("\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            dynLen = msg["signals"][-1].get("dyn", False)
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            dynLen = msg["Signals"][-1].get("Dyn", False)
             if dynLen:
-                C.write("static Com_DataLengthType %s_dynLen = %s;\n" % (msg["name"], msg["dlc"]))
-            if msg["node"] == network["me"]:
-                if network["network"] in ["LIN"]:
+                C.write("static Com_DataLengthType %s_dynLen = %s;\n" % (msg["Name"], msg["Dlc"]))
+            if msg["Node"] == network["Me"]:
+                if network["Network"] in ["LIN"]:
                     continue
-                C.write("static Com_IPduTxContextType Com_IPduTxContext_%s;\n" % (msg["name"]))
+                C.write("static Com_IPduTxContextType Com_IPduTxContext_%s;\n" % (msg["Name"]))
             else:
-                C.write("static Com_IPduRxContextType Com_IPduRxContext_%s;\n" % (msg["name"]))
+                C.write("static Com_IPduRxContextType Com_IPduRxContext_%s;\n" % (msg["Name"]))
     C.write("\n")
     C.write("#ifdef COM_USE_SIGNAL_CONFIG\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
             gen_cfg = gen_rx_sig_cfg
-            if msg["node"] == network["me"]:  # is Tx message
+            if msg["Node"] == network["Me"]:  # is Tx message
                 gen_cfg = gen_tx_sig_cfg
-            for sig in msg["signals"]:
+            for sig in msg["Signals"]:
                 gen_cfg(sig, C)
     C.write("#endif /* COM_USE_SIGNAL_CONFIG */\n")
     C.write("static const Com_SignalConfigType Com_SignalConfigs[] = {\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            for sig in msg["signals"]:
-                gen_sig(network, sig, msg, C, msg["node"] == network["me"])
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            for sig in msg["Signals"]:
+                gen_sig(network, sig, msg, C, msg["Node"] == network["Me"])
     C.write("};\n\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            C.write("static const Com_SignalConfigType* Com_IPduSignals_%s[] = {\n" % (msg["name"]))
-            for sig in msg["signals"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            C.write("static const Com_SignalConfigType* Com_IPduSignals_%s[] = {\n" % (msg["Name"]))
+            for sig in msg["Signals"]:
                 C.write(
-                    "  &Com_SignalConfigs[COM_%sID_%s],\n" % ("G" if sig.get("isGroup", False) else "S", sig["name"])
+                    "  &Com_SignalConfigs[COM_%sID_%s],\n" % ("G" if sig.get("IsGroup", False) else "S", sig["Name"])
                 )
             C.write("};\n\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
             gen_cfg = gen_rx_msg_cfg
-            if msg["node"] == network["me"]:  # is Tx message
+            if msg["Node"] == network["Me"]:  # is Tx message
                 gen_cfg = gen_tx_msg_cfg
-                # if network["network"] in ["LIN"]:
+                # if network["Network"] in ["LIN"]:
                 #     continue
             gen_cfg(network, msg, C)
     C.write("static const Com_IPduConfigType Com_IPduConfigs[] = {\n")
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
             gen_msg(msg, C, network)
     C.write("};\n\n")
     C.write("static Com_GlobalContextType Com_GlobalContext;\n")
@@ -576,20 +576,20 @@ def Gen_Com(cfg, dir):
     C.write("  &Com_GlobalContext,\n")
     C.write("  ARRAY_SIZE(Com_IPduConfigs),\n")
     C.write("  ARRAY_SIZE(Com_SignalConfigs),\n")
-    C.write("  %s /* numOfGroups */,\n" % (len(cfg["networks"])))
+    C.write("  %s /* NumOfGroups */,\n" % (len(cfg["Networks"])))
     C.write("};\n\n")
     C.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     C.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
     C.write("#ifdef USE_E2E\n")
     C.write('#include "E2E.h"\n')
     C.write('#include "E2E_Cfg.h"\n')
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
             if "E2E" not in msg:
                 continue
-            name = msg["E2E"]["name"]
-            profile = msg["E2E"]["profile"]
-            if msg["node"] == network["me"]:
+            name = msg["E2E"]["Name"]
+            profile = msg["E2E"]["Profile"]
+            if msg["Node"] == network["Me"]:
                 TxIpduCallout = msg.get("TxIpduCallout", "NULL")
                 if TxIpduCallout != "NULL":
                     C.write("boolean %s(PduIdType PduId, const PduInfoType *PduInfoPtr) {\n" % (TxIpduCallout))
@@ -624,87 +624,93 @@ def get_messages(path):
 
 def get_signals(signalNames, network):
     signals = []
-    for msg in network["messages"]:
-        for sig in msg["signals"]:
-            if sig["name"] in signalNames:
+    for msg in network["Messages"]:
+        for sig in msg["Signals"]:
+            if sig["Name"] in signalNames:
                 signals.append(sig)
     return signals
 
 
 def handle_groups(network):
-    if "groups" not in network:
+    if "Groups" not in network:
         return
-    for group in network["groups"]:
-        for groupName, signalNames in group.items():
+    for group in network["Groups"]:
+        if "Name" in group:
+            # { "Name": "SystemTime", "Signals": ["year", ...] }
+            items = [(group["Name"], group.get("Signals", []))]
+        else:
+            # legacy form: { "SystemTime": ["year", ...] }
+            items = group.items()
+        for groupName, signalNames in items:
             signals = get_signals(signalNames, network)
             for sig in signals:
-                sig["group"] = groupName
-    del network["groups"]
+                sig["Group"] = groupName
+    del network["Groups"]
 
 
 def add_group_signal(msg):
     _bebm = []
-    for i in range(msg["dlc"]):
+    for i in range(msg["Dlc"]):
         for j in range(8):
             _bebm.append(i * 8 + 7 - j)
     group_signals = {}
-    for sig in msg["signals"]:
-        if "group" in sig:
-            if sig["group"] not in group_signals:
+    for sig in msg["Signals"]:
+        if "Group" in sig:
+            if sig["Group"] not in group_signals:
                 gsig = {
-                    "name": sig["group"],
-                    "endian": sig["endian"],
-                    "start": sig["start"],
-                    "size": sig["size"],
-                    "isGroup": True,
+                    "Name": sig["Group"],
+                    "Endian": sig["Endian"],
+                    "Start": sig["Start"],
+                    "Size": sig["Size"],
+                    "IsGroup": True,
                 }
-                group_signals[sig["group"]] = gsig
+                group_signals[sig["Group"]] = gsig
             else:
                 # group signal must be UINT8N
-                gsig = group_signals[sig["group"]]
-                if gsig["endian"] == "big":
-                    index1 = _bebm.index(sig["start"])
-                    index2 = _bebm.index(gsig["start"])
+                gsig = group_signals[sig["Group"]]
+                if gsig["Endian"] == "big":
+                    index1 = _bebm.index(sig["Start"])
+                    index2 = _bebm.index(gsig["Start"])
                     start = min(index1, index2)
-                    lsbIndex1 = ((sig["start"] ^ 0x7) + sig["size"] - 1) ^ 7
-                    lsbIndex2 = ((gsig["start"] ^ 0x7) + gsig["size"] - 1) ^ 7
+                    lsbIndex1 = ((sig["Start"] ^ 0x7) + sig["Size"] - 1) ^ 7
+                    lsbIndex2 = ((gsig["Start"] ^ 0x7) + gsig["Size"] - 1) ^ 7
                     index1 = _bebm.index(lsbIndex1)
                     index2 = _bebm.index(lsbIndex2)
                     end = max(index1, index2)
                     start = int(start / 8) * 8
                     end = end | 0x07
-                    gsig["start"] = _bebm[start]
-                    gsig["size"] = end - start + 1
+                    gsig["Start"] = _bebm[start]
+                    gsig["Size"] = end - start + 1
                 else:
-                    start = min(sig["start"], gsig["start"])
-                    end = max(gsig["start"] + gsig["size"], gsig["start"] + gsig["size"])
+                    start = min(sig["Start"], gsig["Start"])
+                    end = max(gsig["Start"] + gsig["Size"], gsig["Start"] + gsig["Size"])
                     start = int(start / 8) * 8
                     end = end | 0x07
-                    gsig["start"] = start
-                    gsig["size"] = end - start + 1
-    msg["signals"].extend([sig for _, sig in group_signals.items()])
+                    gsig["Start"] = start
+                    gsig["Size"] = end - start + 1
+    msg["Signals"].extend([sig for _, sig in group_signals.items()])
 
 
 def post(cfg, e2eCfg={}):
-    for network in cfg["networks"]:
-        trigger = network.get("trigger", [])
-        for msg in network["messages"]:
-            if msg["name"] in trigger:
-                msg["trigger"] = True
-            if any("group" in sig for sig in msg["signals"]):
+    for network in cfg["Networks"]:
+        trigger = network.get("Trigger", [])
+        for msg in network["Messages"]:
+            if msg["Name"] in trigger:
+                msg["Trigger"] = True
+            if any("Group" in sig for sig in msg["Signals"]):
                 add_group_signal(msg)
         E2E = network.get("E2E", [])
         for e2e in E2E:
-            for msg in network["messages"]:
-                if msg["name"] == e2e["name"]:
-                    if msg["node"] == network["me"]:
+            for msg in network["Messages"]:
+                if msg["Name"] == e2e["Name"]:
+                    if msg["Node"] == network["Me"]:
                         typ = "Protect"
                     else:
                         typ = "Check"
-                    name, profile = e2e["name"], e2e["profile"]
+                    name, profile = e2e["Name"], e2e["Profile"]
                     ecfg = None
                     for ec in e2eCfg.get("%s%s" % (typ, profile), []):
-                        if name == ec["name"]:
+                        if name == ec["Name"]:
                             ecfg = ec
                     if ecfg == None:
                         raise Exception("E2E profile %s %s for %s is not configured" % (typ, profile, name))
@@ -715,107 +721,107 @@ def post(cfg, e2eCfg={}):
                             e2e[key] = value
                     msg["E2E"] = e2e
     # make sure TX fist then RX
-    for network in cfg["networks"]:
+    for network in cfg["Networks"]:
         txmsgs, rxmsgs = [], []
-        for msg in network["messages"]:
-            msg["id"] = toNum(msg["id"])
-            if msg["node"] == network["me"]:
-                if "TX" not in toMacro(msg["name"]):
-                    msg["name"] += "_TX"
+        for msg in network["Messages"]:
+            msg["Id"] = toNum(msg["Id"])
+            if msg["Node"] == network["Me"]:
+                if "TX" not in toMacro(msg["Name"]):
+                    msg["Name"] += "_TX"
                 txmsgs.append(msg)
             else:
-                if "RX" not in toMacro(msg["name"]):
-                    msg["name"] += "_RX"
+                if "RX" not in toMacro(msg["Name"]):
+                    msg["Name"] += "_RX"
                 rxmsgs.append(msg)
-        network["messages"] = txmsgs + rxmsgs
+        network["Messages"] = txmsgs + rxmsgs
     messages = {}
     # post process to ensure message has unique name
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            if msg["name"] not in messages:
-                messages[msg["name"]] = [(network, msg)]
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            if msg["Name"] not in messages:
+                messages[msg["Name"]] = [(network, msg)]
             else:
-                messages[msg["name"]].append((network, msg))
+                messages[msg["Name"]].append((network, msg))
     for msgName, L in messages.items():
         if len(L) > 1:
             for network, msg in L:
-                msg["name"] = "_".join([network["name"], msg["name"]])
+                msg["Name"] = "_".join([network["Name"], msg["Name"]])
     # post process to ensure signal has unique name
     signals = {}
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            for sig in msg["signals"]:
-                if sig["name"] not in signals:
-                    signals[sig["name"]] = [(network, msg, sig)]
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            for sig in msg["Signals"]:
+                if sig["Name"] not in signals:
+                    signals[sig["Name"]] = [(network, msg, sig)]
                 else:
-                    signals[sig["name"]].append((network, msg, sig))
+                    signals[sig["Name"]].append((network, msg, sig))
     for sigName, L in signals.items():
         if len(L) > 1:
             sigNames = []
             bAddNetworkName = False
             for network, msg, sig in L:
-                sig["name"] = "_".join([msg["name"], sig["name"]])
-                if sig["name"] not in sigNames:
-                    sigNames.append(sig["name"])
+                sig["Name"] = "_".join([msg["Name"], sig["Name"]])
+                if sig["Name"] not in sigNames:
+                    sigNames.append(sig["Name"])
                 else:
                     bAddNetworkName = True
             if bAddNetworkName:
                 for network, msg, sig in L:
-                    sig["name"] = "_".join([network["name"], sig["name"]])
+                    sig["Name"] = "_".join([network["Name"], sig["Name"]])
     # auto adjust timeout_factor
-    for network in cfg["networks"]:
-        if "timeout_factor" in network:
-            for msg in network["messages"]:
-                if msg["node"] == network["me"]:
+    for network in cfg["Networks"]:
+        if "TimeoutFactor" in network:
+            for msg in network["Messages"]:
+                if msg["Node"] == network["Me"]:
                     continue  # do nothing for TxMsg
                 if "CycleTime" in msg and "Timeout" not in msg:
-                    msg["Timeout"] = network["timeout_factor"] * msg["CycleTime"]
+                    msg["Timeout"] = network["TimeoutFactor"] * msg["CycleTime"]
     # auto add message/signal rx and timeout notification
-    for network in cfg["networks"]:
-        enabledTOut = network.get("enable_message_rx_timeout_notification", False)
-        enabledRx = network.get("enable_message_rx_notification", False)
-        enabledSigTOut = network.get("enable_signal_rx_timeout_notification", False)
-        enabledSigRx = network.get("enable_signal_rx_notification", False)
-        for msg in network["messages"]:
-            if msg["node"] == network["me"]:
+    for network in cfg["Networks"]:
+        enabledTOut = network.get("EnableMessageRxTimeoutNotification", False)
+        enabledRx = network.get("EnableMessageRxNotification", False)
+        enabledSigTOut = network.get("EnableSignalRxTimeoutNotification", False)
+        enabledSigRx = network.get("EnableSignalRxNotification", False)
+        for msg in network["Messages"]:
+            if msg["Node"] == network["Me"]:
                 continue  # do nothing for TxMsg
             CycleTime = msg.get("CycleTime", 0)
             if enabledTOut and "RxTOut" not in msg and 0 != CycleTime:
-                msg["RxTOut"] = "%s_RxTimeout" % (msg["name"])
-                if network["name"] not in msg["name"]:
-                    msg["RxTOut"] = "%s_%s" % (network["name"], msg["RxTOut"])
+                msg["RxTOut"] = "%s_RxTimeout" % (msg["Name"])
+                if network["Name"] not in msg["Name"]:
+                    msg["RxTOut"] = "%s_%s" % (network["Name"], msg["RxTOut"])
             if enabledRx and "RxNotification" not in msg:
-                msg["RxNotification"] = "%s_RxNotification" % (msg["name"])
-                if network["name"] not in msg["name"]:
-                    msg["RxNotification"] = "%s_%s" % (network["name"], msg["RxNotification"])
-            for signal in msg["signals"]:
+                msg["RxNotification"] = "%s_RxNotification" % (msg["Name"])
+                if network["Name"] not in msg["Name"]:
+                    msg["RxNotification"] = "%s_%s" % (network["Name"], msg["RxNotification"])
+            for signal in msg["Signals"]:
                 if enabledSigTOut and "RxTOut" not in signal and 0 != CycleTime:
-                    signal["RxTOut"] = "%s_RxTimeout" % (signal["name"])
-                    if msg["name"] not in signal["name"]:
-                        signal["RxTOut"] = "%s_%s" % (msg["name"], signal["RxTOut"])
-                    if network["name"] not in signal["name"]:
-                        signal["RxTOut"] = "%s_%s" % (network["name"], signal["RxTOut"])
+                    signal["RxTOut"] = "%s_RxTimeout" % (signal["Name"])
+                    if msg["Name"] not in signal["Name"]:
+                        signal["RxTOut"] = "%s_%s" % (msg["Name"], signal["RxTOut"])
+                    if network["Name"] not in signal["Name"]:
+                        signal["RxTOut"] = "%s_%s" % (network["Name"], signal["RxTOut"])
                 if enabledSigRx and "RxNotification" not in signal:
-                    signal["RxNotification"] = "%s_RxNotification" % (signal["name"])
-                    if msg["name"] not in signal["name"]:
-                        signal["RxNotification"] = "%s_%s" % (msg["name"], signal["RxNotification"])
-                    if network["name"] not in signal["name"]:
-                        signal["RxNotification"] = "%s_%s" % (network["name"], signal["RxNotification"])
+                    signal["RxNotification"] = "%s_RxNotification" % (signal["Name"])
+                    if msg["Name"] not in signal["Name"]:
+                        signal["RxNotification"] = "%s_%s" % (msg["Name"], signal["RxNotification"])
+                    if network["Name"] not in signal["Name"]:
+                        signal["RxNotification"] = "%s_%s" % (network["Name"], signal["RxNotification"])
     # auto add message tx callout
-    for network in cfg["networks"]:
-        enabledTxCallout = network.get("enable_message_tx_callout", False)
-        enabledRxCallout = network.get("enable_message_rx_callout", False)
-        for msg in network["messages"]:
-            if msg["node"] != network["me"]:
+    for network in cfg["Networks"]:
+        enabledTxCallout = network.get("EnableMessageTxCallout", False)
+        enabledRxCallout = network.get("EnableMessageRxCallout", False)
+        for msg in network["Messages"]:
+            if msg["Node"] != network["Me"]:
                 if enabledRxCallout and "RxIpduCallout" not in msg:
-                    msg["RxIpduCallout"] = "%s_RxIpduCallout" % (msg["name"])
-                    if network["name"] not in msg["name"]:
-                        msg["RxIpduCallout"] = "%s_%s" % (network["name"], msg["RxIpduCallout"])
+                    msg["RxIpduCallout"] = "%s_RxIpduCallout" % (msg["Name"])
+                    if network["Name"] not in msg["Name"]:
+                        msg["RxIpduCallout"] = "%s_%s" % (network["Name"], msg["RxIpduCallout"])
             else:
                 if enabledTxCallout and "TxIpduCallout" not in msg:
-                    msg["TxIpduCallout"] = "%s_TxIpduCallout" % (msg["name"])
-                    if network["name"] not in msg["name"]:
-                        msg["TxIpduCallout"] = "%s_%s" % (network["name"], msg["TxIpduCallout"])
+                    msg["TxIpduCallout"] = "%s_TxIpduCallout" % (msg["Name"])
+                    if network["Name"] not in msg["Name"]:
+                        msg["TxIpduCallout"] = "%s_%s" % (network["Name"], msg["TxIpduCallout"])
 
 
 def ldf2dbc(ldfPath, dbcPath):
@@ -834,33 +840,33 @@ def extract(cfg, dir):
                 raise Exception("File %s not exists" % (path))
         with open(path) as f:
             e2eCfg = json.load(f)
-    cfg_ = {"class": "Com", "networks": []}
-    for network in cfg["networks"]:
-        if "ldf" in network:
-            path = network["ldf"]
+    cfg_ = {"Class": "Com", "Networks": []}
+    for network in cfg["Networks"]:
+        if "Ldf" in network:
+            path = network["Ldf"]
             if not os.path.isfile(path):
                 path = os.path.abspath(os.path.join(dir, "..", path))
             if not os.path.isfile(path):
                 raise Exception("File %s not exists" % (path))
             dbc = os.path.join(dir, os.path.basename(path)[:-4] + ".dbc")
             ldf2dbc(path, dbc)
-            del network["ldf"]
-            network["dbc"] = dbc
-        if "dbc" in network:
+            del network["Ldf"]
+            network["Dbc"] = dbc
+        if "Dbc" in network:
             network_ = dict(network)
-            if "messages" not in network:
-                network_["messages"] = []
-            path = network["dbc"]
-            del network_["dbc"]
+            if "Messages" not in network:
+                network_["Messages"] = []
+            path = network["Dbc"]
+            del network_["Dbc"]
             if not os.path.isfile(path):
                 path = os.path.abspath(os.path.join(dir, "..", path))
             if not os.path.isfile(path):
                 raise Exception("File %s not exists" % (path))
-            network_["messages"].extend(get_messages(path))
+            network_["Messages"].extend(get_messages(path))
             handle_groups(network_)
-            cfg_["networks"].append(network_)
+            cfg_["Networks"].append(network_)
         else:
-            cfg_["networks"].append(network)
+            cfg_["Networks"].append(network)
     post(cfg_, e2eCfg)
     with open("%s/Com.json" % (dir), "w") as f:
         json.dump(cfg_, f, indent=2)
@@ -872,10 +878,10 @@ def GenRTE(cfg, dir):
     fp.write("from generator import asar\n\n")
     fp.write('NAMESPACE = "Default"\n\n')
     sigL = []
-    for network in cfg["networks"]:
-        for msg in network["messages"]:
-            for sig in msg["signals"]:
-                if sig.get("isGroup", False):
+    for network in cfg["Networks"]:
+        for msg in network["Messages"]:
+            for sig in msg["Signals"]:
+                if sig.get("IsGroup", False):
                     continue
                 t0, t1, nBytes = get_signal_info(sig)
                 sig[".type"] = t0
@@ -887,17 +893,17 @@ def GenRTE(cfg, dir):
                 sig[".init"] = InitialValue
                 sigL.append(sig)
     for sig in sigL:
-        fp.write("{0}_IV = asar.factory.ConstantTemplate('{0}_IV', NAMESPACE, {1})\n".format(sig["name"], sig[".init"]))
+        fp.write("{0}_IV = asar.factory.ConstantTemplate('{0}_IV', NAMESPACE, {1})\n".format(sig["Name"], sig[".init"]))
     fp.write("\n")
     for sig in sigL:
         fp.write(
             "{0}_I = asar.factory.SenderReceiverInterfaceTemplate('{0}_I', NAMESPACE, asar.platform.ImplementationTypes.{1})\n".format(
-                sig["name"], sig[".type"].lower()
+                sig["Name"], sig[".type"].lower()
             )
         )
     fp.write("COM_D = []\n")
     for sig in sigL:
-        fp.write("COM_D.append('{0}')\n" .format (sig["name"]))
+        fp.write("COM_D.append('{0}')\n" .format (sig["Name"]))
     fp.close()
 
 

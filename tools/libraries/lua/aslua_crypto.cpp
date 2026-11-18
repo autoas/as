@@ -13,7 +13,7 @@
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
-static int crypto_keygen(lua_State *L) {
+static int LuaCrypto_Keygen(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (1 == n) {
     int isnum;
@@ -62,7 +62,7 @@ static int crypto_keygen(lua_State *L) {
   return 2;
 }
 
-static int crypto_sign(lua_State *L) {
+static int LuaCrypto_Sign(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (2 == n) {
     int r = 0;
@@ -80,7 +80,7 @@ static int crypto_sign(lua_State *L) {
 
     std::vector<uint8_t> data;
     lua_pushvalue(L, 2);
-    lua_arg_type_t dtype = LUA_ARG_TYPE_UINT8_N;
+    Lua_ArgTypeType dtype = LUA_ARG_TYPE_UINT8_N;
     if (lua_isstring(L, -1)) {
       dtype = LUA_ARG_TYPE_STRING;
     }
@@ -127,7 +127,7 @@ static int crypto_sign(lua_State *L) {
   return 1;
 }
 
-static int crypto_verify(lua_State *L) {
+static int LuaCrypto_Verify(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (3 == n) {
     int r = 0;
@@ -145,7 +145,7 @@ static int crypto_verify(lua_State *L) {
 
     std::vector<uint8_t> data;
     lua_pushvalue(L, 2);
-    lua_arg_type_t dtype = LUA_ARG_TYPE_UINT8_N;
+    Lua_ArgTypeType dtype = LUA_ARG_TYPE_UINT8_N;
     if (lua_isstring(L, -1)) {
       dtype = LUA_ARG_TYPE_STRING;
     }
@@ -197,7 +197,7 @@ static int crypto_verify(lua_State *L) {
   return 1;
 }
 
-static int crypto_encrypt(lua_State *L) {
+static int LuaCrypto_Encrypt(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (2 == n) {
     int r = 0;
@@ -215,7 +215,7 @@ static int crypto_encrypt(lua_State *L) {
 
     std::vector<uint8_t> data;
     lua_pushvalue(L, 2);
-    lua_arg_type_t dtype = LUA_ARG_TYPE_UINT8_N;
+    Lua_ArgTypeType dtype = LUA_ARG_TYPE_UINT8_N;
     if (lua_isstring(L, -1)) {
       dtype = LUA_ARG_TYPE_STRING;
     }
@@ -263,7 +263,7 @@ static int crypto_encrypt(lua_State *L) {
   return 1;
 }
 
-static int crypto_decrypt(lua_State *L) {
+static int LuaCrypto_Decrypt(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (2 == n) {
     int r = 0;
@@ -281,7 +281,7 @@ static int crypto_decrypt(lua_State *L) {
 
     std::vector<uint8_t> data;
     lua_pushvalue(L, 2);
-    lua_arg_type_t dtype = LUA_ARG_TYPE_UINT8_N;
+    Lua_ArgTypeType dtype = LUA_ARG_TYPE_UINT8_N;
     if (lua_isstring(L, -1)) {
       dtype = LUA_ARG_TYPE_STRING;
     }
@@ -329,7 +329,7 @@ static int crypto_decrypt(lua_State *L) {
   return 1;
 }
 
-static int crypto_base64_encode(lua_State *L) {
+static int LuaCrypto_Base64Encode(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (1 == n) {
     int r = 0;
@@ -363,7 +363,7 @@ static int crypto_base64_encode(lua_State *L) {
   return 1;
 }
 
-static int crypto_base64_decode(lua_State *L) {
+static int LuaCrypto_Base64Decode(lua_State *L) {
   int n = lua_gettop(L); /* number of arguments */
   if (1 == n) {
     size_t len = 0;
@@ -394,19 +394,19 @@ static int crypto_base64_decode(lua_State *L) {
   return 1;
 }
 
-static const luaL_Reg s_LuaCryptoInferfaces[] = {
-  {"keygen", crypto_keygen},
-  {"sign", crypto_sign},
-  {"verify", crypto_verify},
-  {"encrypt", crypto_encrypt},
-  {"decrypt", crypto_decrypt},
-  {"base64_encode", crypto_base64_encode},
-  {"base64_decode", crypto_base64_decode},
+static const luaL_Reg s_LuaCryptoInterfaces[] = {
+  {"keygen", LuaCrypto_Keygen},
+  {"sign", LuaCrypto_Sign},
+  {"verify", LuaCrypto_Verify},
+  {"encrypt", LuaCrypto_Encrypt},
+  {"decrypt", LuaCrypto_Decrypt},
+  {"base64_encode", LuaCrypto_Base64Encode},
+  {"base64_decode", LuaCrypto_Base64Decode},
   {nullptr, nullptr},
 };
 /* ================================ [ FUNCTIONS ] ============================================== */
 int lua_create_crypto(lua_State *L) {
-  luaL_newlib(L, s_LuaCryptoInferfaces);
+  luaL_newlib(L, s_LuaCryptoInterfaces);
   return 1;
 }
 #endif

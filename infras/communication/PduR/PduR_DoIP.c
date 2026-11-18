@@ -25,9 +25,9 @@ void PduR_DoIPGwTxConfirmation(PduIdType id, Std_ReturnType result) {
 }
 
 BufReq_ReturnType PduR_DoIPGwStartOfReception(PduIdType id, const PduInfoType *info,
-                                              PduLengthType TpSduLength,
+                                              PduLengthType tpSduLength,
                                               PduLengthType *bufferSizePtr) {
-  return PduR_GwStartOfReception(id, info, TpSduLength, bufferSizePtr);
+  return PduR_GwStartOfReception(id, info, tpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_DoIPGwCopyRxData(PduIdType id, const PduInfoType *info,
@@ -53,9 +53,9 @@ void PduR_DoIPTxConfirmation(PduIdType id, Std_ReturnType result) {
 }
 
 BufReq_ReturnType PduR_DoIPStartOfReception(PduIdType id, const PduInfoType *info,
-                                            PduLengthType TpSduLength,
+                                            PduLengthType tpSduLength,
                                             PduLengthType *bufferSizePtr) {
-  return PduR_StartOfReception(id, info, TpSduLength, bufferSizePtr);
+  return PduR_StartOfReception(id, info, tpSduLength, bufferSizePtr);
 }
 
 BufReq_ReturnType PduR_DoIPCopyRxData(PduIdType id, const PduInfoType *info,

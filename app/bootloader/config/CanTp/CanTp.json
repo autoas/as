@@ -1,14 +1,14 @@
 {
-  "class": "CanTp",
-  "channels": [
+  "Class": "CanTp",
+  "Channels": [
     {
-      "name": "P2P",
-      "LL_DL": 64
+      "Name": "P2P",
+      "LinkLayerDataLength": 64
     },
     {
-      "name": "P2A",
+      "Name": "P2A",
       "ComType": "FUNCTIONAL",
-      "LL_DL": 64
+      "LinkLayerDataLength": 64
     }
   ]
 }

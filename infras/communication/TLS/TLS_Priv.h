@@ -28,24 +28,24 @@
 typedef uint8_t TLS_ServerStateType;
 
 typedef struct {
-  uint8_t *data; /* data allocated to recive a packet */
-  mbedtls_entropy_context entropy;
-  mbedtls_ctr_drbg_context ctr_drbg;
-  mbedtls_ssl_context ssl;
-  mbedtls_ssl_config conf;
-  mbedtls_x509_crt srvcert;
-  mbedtls_pk_context pkey;
+  uint8_t *Data; /* data allocated to recive a packet */
+  mbedtls_entropy_context Entropy;
+  mbedtls_ctr_drbg_context Ctr_drbg;
+  mbedtls_ssl_context Ssl;
+  mbedtls_ssl_config Conf;
+  mbedtls_x509_crt Srvcert;
+  mbedtls_pk_context Pkey;
 #if defined(MBEDTLS_SSL_CACHE_C)
-  mbedtls_ssl_cache_context cache;
+  mbedtls_ssl_cache_context Cache;
 #endif
-  TLS_ServerStateType state;
-  PduLengthType length; /* length of the whole packet size */
-  PduLengthType offset;
+  TLS_ServerStateType State;
+  PduLengthType Length; /* length of the whole packet size */
+  PduLengthType Offset;
 } TLS_ServerContextType;
 
 typedef struct {
-  TLS_ServerContextType *context;
-  const char *name;
+  TLS_ServerContextType *Context;
+  const char *Name;
   const SoAd_InterfaceType *IF;
   const SoAd_SoConModeChgNotificationFncType SoConModeChgNotification;
   const uint8_t *ServerCerts;
@@ -57,19 +57,19 @@ typedef struct {
   SoAd_SoConIdType SoConId;
   PduIdType TxPduId;  /* SoAd TxPduId */
   PduIdType RxPduId;  /* upper layer RxPduId */
-  uint16_t headerLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
+  uint16_t HeaderLen; /* the length of the header of certain protocol such as DoIP and SOMEIP/SD */
 } TLS_ServerConfigType;
 
 typedef struct {
-  uint16_t idx;    /* index to server or client */
-  boolean bServer; /* server or cleint */
+  uint16_t Idx;   /* index to server or client */
+  boolean Server; /* server or cleint */
 } TLS_TxPduIdType;
 
 struct TLS_Config_s {
-  const TLS_ServerConfigType *servers;
+  const TLS_ServerConfigType *Servers;
   const TLS_TxPduIdType *TxPduIds;
-  uint16_t numOfServers;
-  uint16_t numOfTxPduIds;
+  uint16_t NumOfServers;
+  uint16_t NumOfTxPduIds;
 };
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

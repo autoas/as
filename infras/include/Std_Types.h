@@ -96,11 +96,11 @@ typedef double float64;
 
 /* @SWS_Std_00015 */
 typedef struct {
-  uint16_t vendorID;
-  uint16_t moduleID;
-  uint8_t sw_major_version;
-  uint8_t sw_minor_version;
-  uint8_t sw_patch_version;
+  uint16_t VendorId;
+  uint16_t ModuleId;
+  uint8_t SwMajorVersion;
+  uint8_t SwMinorVersion;
+  uint8_t SwPatchVersion;
 } Std_VersionInfoType;
 /* ================================ [ DECLARES  ] ============================================== */
 /* ================================ [ DATAS     ] ============================================== */

@@ -10,11 +10,11 @@ __all__ = ["Gen"]
 
 
 def Gen_Trace(cfg, dir):
-    area = cfg["area"]
+    area = cfg["Area"]
     H = open("%s/Trace%s_Cfg.h" % (dir, area), "w")
     GenHeader(H)
-    H.write("#ifndef __STD_TRACE_%s_CFG_H\n" % (area.upper()))
-    H.write("#define __STD_TRACE_%s_CFG_H\n" % (area.upper()))
+    H.write("#ifndef STD_TRACE_%s_CFG_H\n" % (area.upper()))
+    H.write("#define STD_TRACE_%s_CFG_H\n" % (area.upper()))
     H.write("/* ================================ [ INCLUDES  ] ============================================== */\n")
     H.write('#include "Std_Timer.h"\n')
     H.write('#include "Std_Trace.h"\n')
@@ -22,13 +22,13 @@ def Gen_Trace(cfg, dir):
     H.write("#ifndef TRE_%s_TIMER\n" % (area.upper()))
     H.write("#define TRE_%s_TIMER Std_GetTime()\n" % (area.upper()))
     H.write("#endif\n\n")
-    for index, ev in enumerate(cfg["events"]):
+    for index, ev in enumerate(cfg["Events"]):
         H.write("#define TRE_%s_%s %s\n" % (area.upper(), toMacro(ev), index))
-    H.write("#define TRE_%s_MAX %s\n\n" % (area.upper(), len(cfg["events"])))
+    H.write("#define TRE_%s_MAX %s\n\n" % (area.upper(), len(cfg["Events"])))
     # let's support maximum 4096 events
     nBits = None
     for i in range(1, 13):
-        if (1 << i) > len(cfg["events"]):
+        if (1 << i) > len(cfg["Events"]):
             nBits = i
             break
     if nBits is None:
@@ -55,7 +55,7 @@ def Gen_Trace(cfg, dir):
     H.write("/* ================================ [ DATAS     ] ============================================== */\n")
     H.write("/* ================================ [ LOCALS    ] ============================================== */\n")
     H.write("/* ================================ [ FUNCTIONS ] ============================================== */\n")
-    H.write("#endif /*__STD_TRACE_%s_CFG_H */\n" % (area.upper()))
+    H.write("#endif /*STD_TRACE_%s_CFG_H */\n" % (area.upper()))
     H.close()
 
     C = open("%s/Trace%s_Cfg.c" % (dir, area), "w")
@@ -69,7 +69,7 @@ def Gen_Trace(cfg, dir):
     C.write("/* ================================ [ TYPES     ] ============================================== */\n")
     C.write("/* ================================ [ DECLARES  ] ============================================== */\n")
     C.write("/* ================================ [ DATAS     ] ============================================== */\n")
-    C.write("RB_DECLARE(TraceArea%s, Std_TraceEventType, %s);\n" % (area, cfg.get("size", 1024)))
+    C.write("RB_DECLARE(TraceArea%s, Std_TraceEventType, %s);\n" % (area, cfg.get("Size", 1024)))
     C.write("const Std_TraceAreaType Std_TraceArea_%s = {\n" % (area.upper()))
     C.write("  &rb_TraceArea%s,\n" % (area))
     C.write("};\n\n")
@@ -88,13 +88,13 @@ def Gen_Trace(cfg, dir):
 def extract(cfg, dir):
     cfg_ = {}
     for k, v in cfg.items():
-        if k not in ["durations"]:
+        if k not in ["Durations"]:
             cfg_[k] = v
-    if "events" not in cfg_:
-        cfg_["events"] = []
-    for dur in cfg.get("durations", []):
-        cfg_["events"].append("%s_B" % (dur))
-        cfg_["events"].append("%s_E" % (dur))
+    if "Events" not in cfg_:
+        cfg_["Events"] = []
+    for dur in cfg.get("Durations", []):
+        cfg_["Events"].append("%s_B" % (dur))
+        cfg_["Events"].append("%s_E" % (dur))
     with open("%s/Trace.json" % (dir), "w") as f:
         json.dump(cfg_, f, indent=2)
     return cfg_
@@ -107,4 +107,4 @@ def Gen(cfg):
         cfg = json.load(f)
     cfg_ = extract(cfg, dir)
     Gen_Trace(cfg_, dir)
-    return {"StdTrace": ["%s/Trace%s_Cfg.c" % (dir, cfg["area"])]}
+    return {"StdTrace": ["%s/Trace%s_Cfg.c" % (dir, cfg["Area"])]}

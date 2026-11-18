@@ -14,10 +14,10 @@
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-void PduR_CanIfRxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr) {
-  PduR_RxIndication(RxPduId, PduInfoPtr);
+void PduR_CanIfRxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr) {
+  PduR_RxIndication(rxPduId, pduInfoPtr);
 }
 
-void PduR_CanIfTxConfirmation(PduIdType TxPduId, Std_ReturnType result) {
-  PduR_TxConfirmation(TxPduId, result);
+void PduR_CanIfTxConfirmation(PduIdType txPduId, Std_ReturnType result) {
+  PduR_TxConfirmation(txPduId, result);
 }

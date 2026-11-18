@@ -69,7 +69,7 @@ def p_valList(p):
 
 def p_val(p):
     """val : VAL_ INTEGER ID values SEMI EOL"""
-    p[0] = {"id": p[2], "name": p[3], "values": p[4]}
+    p[0] = {"Id": p[2], "Name": p[3], "values": p[4]}
 
 def p_values(p):
     """values : values DIGIT STR
@@ -102,12 +102,12 @@ def p_botxbuList(p):
 
 def p_botxbu(p):
     """botxbu : BO_TX_BU_ INTEGER COLON idsList SEMI EOL"""
-    p[0] = {"id": p[2], "tx_bu_list": p[4]}
+    p[0] = {"Id": p[2], "tx_bu_list": p[4]}
 
 
 def p_version(p):
     """version : VERSION STR END"""
-    p[0] = {"version": p[2]}
+    p[0] = {"Version": p[2]}
 
 
 def p_ns(p):
@@ -130,22 +130,22 @@ def p_boList(p):
     | bo"""
     if len(p) == 2:
         if not p[0]:
-            p[0] = {"messages": []}
-        p[0]["messages"].append(p[1])
+            p[0] = {"Messages": []}
+        p[0]["Messages"].append(p[1])
     elif len(p) == 3:
         p[0] = p[1]
         if not p[0]:
-            p[0] = {"messages": []}
-        p[0]["messages"].append(p[2])
+            p[0] = {"Messages": []}
+        p[0]["Messages"].append(p[2])
 
 
 def p_bo(p):
     """bo : BO_ digit ID COLON digit ID EOL sgList END
     |  BO_ digit ID COLON digit ID END"""
     if len(p) == 8:
-        p[0] = {"id": p[2], "name": p[3], "dlc": p[5], "node": p[6], "signals": []}
+        p[0] = {"Id": p[2], "Name": p[3], "Dlc": p[5], "Node": p[6], "Signals": []}
     else:
-        p[0] = {"id": p[2], "name": p[3], "dlc": p[5], "node": p[6], "signals": p[8]}
+        p[0] = {"Id": p[2], "Name": p[3], "Dlc": p[5], "Node": p[6], "Signals": p[8]}
 
 
 def p_evList(p):
@@ -317,17 +317,17 @@ def p_sg(p):
     |   SG_ ID COLON digit OR digit AT digit MINUS LPAREN digit COMMA digit RPAREN LBK digit OR digit RBK STR idList EOL
     """
     p[0] = {
-        "name": p[2],
-        "start": p[4],
-        "size": p[6],
-        "endian": "big" if p[8] == 0 else "little",
-        "sign": p[9],
-        "factor": p[11],
-        "offset": p[13],
-        "min": p[16],
-        "max": p[18],
-        "unit": p[20],
-        "node": p[21],
+        "Name": p[2],
+        "Start": p[4],
+        "Size": p[6],
+        "Endian": "big" if p[8] == 0 else "little",
+        "Sign": p[9],
+        "Factor": p[11],
+        "Offset": p[13],
+        "Min": p[16],
+        "Max": p[18],
+        "Unit": p[20],
+        "Node": p[21],
     }
 
 

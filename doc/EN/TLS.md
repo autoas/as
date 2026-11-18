@@ -49,18 +49,18 @@ Real example from [app/app/config/Net/TLS.json](../../app/app/config/Net/TLS.jso
 
 ```json
 {
-  "class": "TLS",
-  "servers": [
+  "Class": "TLS",
+  "Servers": [
     {
-      "name": "DOIP_TCP",
+      "Name": "DOIP_TCP",
       "ServerCerts": "Cert/TLS0_ServerCerts.pem",
       "CasCerts": "Cert/TLS0_CasCerts.pem",
       "ServerKey": "Cert/TLS0_ServerKey.pem",
       "MaxSize": 512,
-      "up": "DoIP",
+      "Up": "DoIP",
       "SoConId": "DOIP_TCP_APT",
       "RxPduId": "DOIP_RX_PID_TCP",
-      "repeat": 3
+      "Repeat": 3
     }
   ]
 }
@@ -70,21 +70,21 @@ Real example from [app/app/config/Net/TLS.json](../../app/app/config/Net/TLS.jso
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `name` | string | yes | - | Logical server name, used to build the macro `TLS_SERVER_<name>` |
-| `up` | string | yes | - | Upper protocol module: `DoIP`, `SD` or `SOMEIP`. For these three the generator sets the de-framing header length to 8 bytes |
+| `Name` | string | yes | - | Logical server name, used to build the macro `TLS_SERVER_<name>` |
+| `Up` | string | yes | - | Upper protocol module: `DoIP`, `SD` or `SOMEIP`. For these three the generator sets the de-framing header length to 8 bytes |
 | `SoConId` | string | yes | - | SoAd socket this server is bound to. The generator expands it to `SOAD_SOCKID_<SoConId>` and `SOAD_TX_PID_<SoConId>` |
 | `RxPduId` | string | yes | - | Upper-layer receive PDU id, expanded as written (for example the DoIP `DOIP_RX_PID_TCP`) |
 | `ServerCerts` | string | yes | - | PEM file holding the server certificate chain |
 | `CasCerts` | string | yes | - | PEM file holding all trusted CA certificates concatenated together |
 | `ServerKey` | string | yes | - | PEM file holding the server private key |
-| `repeat` | integer | no | 1 | Creates several server contexts sharing one configuration. Generated names get a numeric suffix (`<name>0`, `<name>1`, ...) to match repeated SoAd sockets |
+| `Repeat` | integer | no | 1 | Creates several server contexts sharing one configuration. Generated names get a numeric suffix (`<name>0`, `<name>1`, ...) to match repeated SoAd sockets |
 | `MaxSize` | integer | no | 512 | Maximum size hint kept in the generated configuration |
 
 ### 2.2 Top-Level Parameters
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `servers` | array | - | TLS server list |
+| `Servers` | array | - | TLS server list |
 | `UsePostBuildConfig` | bool | `false` | When true, emits `#define TLS_USE_PB_CONFIG` so the configuration pointer passed to `TLS_Init()` is used at runtime |
 
 ### 2.3 Certificates
@@ -103,7 +103,7 @@ The generator produces `TLS_Cfg.h` and `TLS_Cfg.c` in the `GEN/` directory.
 
 ### 3.1 Macros (TLS_Cfg.h)
 
-For each server (and for each instance when `repeat` is used):
+For each server (and for each instance when `Repeat` is used):
 
 ```c
 #define TLS_SERVER_DOIP_TCP0 0u
@@ -115,7 +115,7 @@ Other generated macros:
 
 | Macro | Description |
 | --- | --- |
-| `TLS_HEADER_MAX_LEN` | Maximum de-framing header length. Set to 8 when any server has `up` of `DoIP`/`SD`/`SOMEIP`, otherwise 1 |
+| `TLS_HEADER_MAX_LEN` | Maximum de-framing header length. Set to 8 when any server has `Up` of `DoIP`/`SD`/`SOMEIP`, otherwise 1 |
 | `TLS_CONVERT_MS_TO_MAIN_CYCLES(x)` | Converts milliseconds to calls of `TLS_MainFunction`, using the application-provided `TLS_MAIN_FUNCTION_PERIOD` |
 | `TLS_USE_PB_CONFIG` | Emitted only when `UsePostBuildConfig` is true |
 

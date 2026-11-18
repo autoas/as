@@ -13,54 +13,54 @@ extern int lua_create_x509(lua_State *L);
 /* ================================ [ DATAS     ] ============================================== */
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
-bool lua_arg_s::get(std::string key, std::string &value) {
+bool Lua_ArgType::Get(std::string key, std::string &value) {
   bool r = false;
-  if (LUA_ARG_TYPE_TABLE_STRING_MAP == type) {
-    auto it = stringMap.find(key);
-    if ((it != stringMap.end()) && (LUA_ARG_TYPE_STRING == it->second.type)) {
-      value = it->second.string;
+  if (LUA_ARG_TYPE_TABLE_STRING_MAP == Type) {
+    auto it = StringMap.find(key);
+    if ((it != StringMap.end()) && (LUA_ARG_TYPE_STRING == it->second.Type)) {
+      value = it->second.String;
       r = true;
     }
   }
   return r;
 }
 
-bool lua_arg_s::get(std::string key, float &value) {
+bool Lua_ArgType::Get(std::string key, float &value) {
   bool r = false;
-  if (LUA_ARG_TYPE_TABLE_STRING_MAP == type) {
-    auto it = stringMap.find(key);
-    if ((it != stringMap.end()) && (LUA_ARG_TYPE_FLOAT == it->second.type)) {
-      value = it->second.f;
+  if (LUA_ARG_TYPE_TABLE_STRING_MAP == Type) {
+    auto it = StringMap.find(key);
+    if ((it != StringMap.end()) && (LUA_ARG_TYPE_FLOAT == it->second.Type)) {
+      value = it->second.Float;
       r = true;
     }
   }
   return r;
 }
 
-bool lua_arg_s::get(std::string key, bool &value) {
+bool Lua_ArgType::Get(std::string key, bool &value) {
   bool r = false;
-  if (LUA_ARG_TYPE_TABLE_STRING_MAP == type) {
-    auto it = stringMap.find(key);
-    if ((it != stringMap.end()) && (LUA_ARG_TYPE_BOOL == it->second.type)) {
-      value = it->second.f;
+  if (LUA_ARG_TYPE_TABLE_STRING_MAP == Type) {
+    auto it = StringMap.find(key);
+    if ((it != StringMap.end()) && (LUA_ARG_TYPE_BOOL == it->second.Type)) {
+      value = it->second.Float;
       r = true;
     }
   }
   return r;
 }
 
-bool lua_arg_s::get(std::string key, std::vector<lua_arg_t> &args) {
+bool Lua_ArgType::Get(std::string key, std::vector<Lua_ArgType> &args) {
   bool r = false;
-  if (LUA_ARG_TYPE_TABLE_STRING_MAP == type) {
-    auto it = stringMap.find(key);
-    if ((it != stringMap.end()) && (LUA_ARG_TYPE_TABLE_STRING_MAP == it->second.type)) {
-      for (size_t i = 0; i < it->second.stringMap.size(); i++) {
-        auto it2 = it->second.stringMap.find(std::to_string(i + 1));
-        if (it2 != it->second.stringMap.end()) {
+  if (LUA_ARG_TYPE_TABLE_STRING_MAP == Type) {
+    auto it = StringMap.find(key);
+    if ((it != StringMap.end()) && (LUA_ARG_TYPE_TABLE_STRING_MAP == it->second.Type)) {
+      for (size_t i = 0; i < it->second.StringMap.size(); i++) {
+        auto it2 = it->second.StringMap.find(std::to_string(i + 1));
+        if (it2 != it->second.StringMap.end()) {
           args.push_back(it2->second);
         }
       }
-      if ((args.size() == it->second.stringMap.size()) && (args.size() > 0)) {
+      if ((args.size() == it->second.StringMap.size()) && (args.size() > 0)) {
         r = true;
       }
     }
@@ -83,12 +83,12 @@ AsLuaScript::AsLuaScript(std::string scriptFile, std::vector<Library> libraries)
     char *eol = (char *)scripts.data();
     eol[size] = 0;
     fclose(fp);
-    load(scripts.data(), libraries);
+    Load(scripts.data(), libraries);
   }
 }
 
 AsLuaScript::AsLuaScript(const char *scripts, std::vector<Library> libraries) {
-  load(scripts, libraries);
+  Load(scripts, libraries);
 }
 
 extern "C" void luaL_openAsBuiltlibs(lua_State *L) {
@@ -105,14 +105,14 @@ extern "C" void luaL_openAsBuiltlibs(lua_State *L) {
   lua_pop(L, 1); /* remove lib */
 }
 
-void AsLuaScript::load(const char *scripts, std::vector<Library> libraries) {
+void AsLuaScript::Load(const char *scripts, std::vector<Library> libraries) {
   lua_State *L;
   int r = 0;
   L = luaL_newstate();
   if (NULL != L) {
     luaL_openlibs(L);
     for (auto lib : libraries) {
-      luaL_requiref(L, lib.name.c_str(), lib.createLibFnc, 1);
+      luaL_requiref(L, lib.name.c_str(), lib.CreateLibFnc, 1);
       lua_pop(L, 1); /* remove lib */
       ASLOG(LUAI, ("load library: %s\n", lib.name.c_str()));
     }
@@ -142,12 +142,12 @@ void AsLuaScript::load(const char *scripts, std::vector<Library> libraries) {
   m_Context = L;
 }
 
-int AsLuaScript::call(std::string api, std::vector<lua_arg_t> &inputs,
-                      std::vector<lua_arg_t> &outputs) {
-  return call(api, inputs.data(), inputs.size(), outputs.data(), outputs.size());
+int AsLuaScript::Call(std::string api, std::vector<Lua_ArgType> &inputs,
+                      std::vector<Lua_ArgType> &outputs) {
+  return Call(api, inputs.data(), inputs.size(), outputs.data(), outputs.size());
 }
 
-bool AsLuaScript::hasApi(std::string api) {
+bool AsLuaScript::HasApi(std::string api) {
   bool has = false;
   int r = 0;
   lua_State *L = (lua_State *)m_Context;
@@ -165,7 +165,7 @@ bool AsLuaScript::hasApi(std::string api) {
   return has;
 }
 
-int AsLuaScript::call(std::string api, const lua_arg_t *inputs, int numIn, lua_arg_t *outputs,
+int AsLuaScript::Call(std::string api, const Lua_ArgType *inputs, int numIn, Lua_ArgType *outputs,
                       int numOut) {
   int r = 0;
   int i, n;
@@ -187,60 +187,60 @@ int AsLuaScript::call(std::string api, const lua_arg_t *inputs, int numIn, lua_a
   }
 
   for (i = 0; (0 == r) && (i < numIn); i++) {
-    switch (inputs[i].type) {
+    switch (inputs[i].Type) {
     case LUA_ARG_TYPE_STRING:
-      ASLOG(LUAI, ("push arg %d: %s\n", (int)i, inputs[i].string.c_str()));
-      s = lua_pushstring(L, inputs[i].string.c_str());
+      ASLOG(LUAI, ("push arg %d: %s\n", (int)i, inputs[i].String.c_str()));
+      s = lua_pushstring(L, inputs[i].String.c_str());
       if (NULL == s) {
-        ASLOG(LUAE, ("failed to push arg %d: %s\n", (int)i, inputs[i].string.c_str()));
+        ASLOG(LUAE, ("failed to push arg %d: %s\n", (int)i, inputs[i].String.c_str()));
         r = -EIO;
       }
       break;
 
-      PUSH_BOOL(i, inputs[i].b);
+      PUSH_BOOL(i, inputs[i].Bool);
 
-      PUSH_FLOAT(FLOAT, i, inputs[i].f);
-      PUSH_FLOAT(DOUBLE, i, inputs[i].d);
+      PUSH_FLOAT(FLOAT, i, inputs[i].Float);
+      PUSH_FLOAT(DOUBLE, i, inputs[i].Double);
 
-      PUSH_BASIC(SINT8, i, inputs[i].s8);
-      PUSH_BASIC(SINT16, i, inputs[i].s16);
-      PUSH_BASIC(SINT32, i, inputs[i].s32);
-      PUSH_BASIC(SINT64, i, inputs[i].s64);
+      PUSH_BASIC(SINT8, i, inputs[i].S8);
+      PUSH_BASIC(SINT16, i, inputs[i].S16);
+      PUSH_BASIC(SINT32, i, inputs[i].S32);
+      PUSH_BASIC(SINT64, i, inputs[i].S64);
 
-      PUSH_BASIC(UINT8, i, inputs[i].u8);
-      PUSH_BASIC(UINT16, i, inputs[i].u16);
-      PUSH_BASIC(UINT32, i, inputs[i].u32);
-      PUSH_BASIC(UINT64, i, inputs[i].u64);
+      PUSH_BASIC(UINT8, i, inputs[i].U8);
+      PUSH_BASIC(UINT16, i, inputs[i].U16);
+      PUSH_BASIC(UINT32, i, inputs[i].U32);
+      PUSH_BASIC(UINT64, i, inputs[i].U64);
 
-      PUSH_ARRAY(SINT8_N, i, inputs[i].s8N);
-      PUSH_ARRAY(SINT16_N, i, inputs[i].s16N);
-      PUSH_ARRAY(SINT32_N, i, inputs[i].s32N);
-      PUSH_ARRAY(SINT64_N, i, inputs[i].s64N);
+      PUSH_ARRAY(SINT8_N, i, inputs[i].S8N);
+      PUSH_ARRAY(SINT16_N, i, inputs[i].S16N);
+      PUSH_ARRAY(SINT32_N, i, inputs[i].S32N);
+      PUSH_ARRAY(SINT64_N, i, inputs[i].S64N);
 
-      PUSH_ARRAY(UINT8_N, i, inputs[i].u8N);
-      PUSH_ARRAY(UINT16_N, i, inputs[i].u16N);
-      PUSH_ARRAY(UINT32_N, i, inputs[i].u32N);
-      PUSH_ARRAY(UINT64_N, i, inputs[i].u64N);
+      PUSH_ARRAY(UINT8_N, i, inputs[i].U8N);
+      PUSH_ARRAY(UINT16_N, i, inputs[i].U16N);
+      PUSH_ARRAY(UINT32_N, i, inputs[i].U32N);
+      PUSH_ARRAY(UINT64_N, i, inputs[i].U64N);
 
-      PUSH_ARRAY_FLOAT(FLOAT_N, i, inputs[i].fN);
-      PUSH_ARRAY_FLOAT(DOUBLE_N, i, inputs[i].dN);
+      PUSH_ARRAY_FLOAT(FLOAT_N, i, inputs[i].FN);
+      PUSH_ARRAY_FLOAT(DOUBLE_N, i, inputs[i].DN);
 
-      PUSH_ARRAY_STRING(i, inputs[i].stringN);
+      PUSH_ARRAY_STRING(i, inputs[i].StringN);
 
-      PUSH_TABLE_BASIC(STRING_SINT8, i, inputs[i].stringSint8Map);
-      PUSH_TABLE_BASIC(STRING_SINT16, i, inputs[i].stringSint16Map);
-      PUSH_TABLE_BASIC(STRING_SINT32, i, inputs[i].stringSint32Map);
-      PUSH_TABLE_BASIC(STRING_SINT64, i, inputs[i].stringSint64Map);
+      PUSH_TABLE_BASIC(STRING_SINT8, i, inputs[i].StringSint8Map);
+      PUSH_TABLE_BASIC(STRING_SINT16, i, inputs[i].StringSint16Map);
+      PUSH_TABLE_BASIC(STRING_SINT32, i, inputs[i].StringSint32Map);
+      PUSH_TABLE_BASIC(STRING_SINT64, i, inputs[i].StringSint64Map);
 
-      PUSH_TABLE_BASIC(STRING_UINT8, i, inputs[i].stringUint8Map);
-      PUSH_TABLE_BASIC(STRING_UINT16, i, inputs[i].stringUint16Map);
-      PUSH_TABLE_BASIC(STRING_UINT32, i, inputs[i].stringUint32Map);
-      PUSH_TABLE_BASIC(STRING_UINT64, i, inputs[i].stringUint64Map);
+      PUSH_TABLE_BASIC(STRING_UINT8, i, inputs[i].StringUint8Map);
+      PUSH_TABLE_BASIC(STRING_UINT16, i, inputs[i].StringUint16Map);
+      PUSH_TABLE_BASIC(STRING_UINT32, i, inputs[i].StringUint32Map);
+      PUSH_TABLE_BASIC(STRING_UINT64, i, inputs[i].StringUint64Map);
 
-      PUSH_TABLE_FLOAT(STRING_FLOAT, i, inputs[i].stringFloatMap);
-      PUSH_TABLE_FLOAT(STRING_DOUBLE, i, inputs[i].stringDoubleMap);
+      PUSH_TABLE_FLOAT(STRING_FLOAT, i, inputs[i].StringFloatMap);
+      PUSH_TABLE_FLOAT(STRING_DOUBLE, i, inputs[i].StringDoubleMap);
     default:
-      ASLOG(LUAE, ("invalid type %d for input arg %d\n", inputs[i].type, (int)i));
+      ASLOG(LUAE, ("invalid type %d for input arg %d\n", inputs[i].Type, (int)i));
       r = -EINVAL;
       break;
     }
@@ -254,62 +254,62 @@ int AsLuaScript::call(std::string api, const lua_arg_t *inputs, int numIn, lua_a
   }
 
   for (i = numOut - 1; (0 == r) && (i >= 0); i--) {
-    switch (outputs[i].type) {
+    switch (outputs[i].Type) {
     case LUA_ARG_TYPE_STRING:
       s = lua_tostring(L, -1);
       if (NULL == s) {
         ASLOG(LUAE, ("failed to pop string arg %d\n", (int)i));
       } else {
         ASLOG(LUAI, ("pop arg %d: %s\n", (int)i, s));
-        outputs[i].string = s;
+        outputs[i].String = s;
       }
       lua_pop(L, 1);
       break;
 
-      POP_BOOL(i, outputs[i].b);
+      POP_BOOL(i, outputs[i].Bool);
 
-      POP_FLOAT(FLOAT, i, outputs[i].f, float);
-      POP_FLOAT(DOUBLE, i, outputs[i].d, double);
+      POP_FLOAT(FLOAT, i, outputs[i].Float, float);
+      POP_FLOAT(DOUBLE, i, outputs[i].Double, double);
 
-      POP_BASIC(SINT8, i, outputs[i].s8, int8_t);
-      POP_BASIC(SINT16, i, outputs[i].s16, int16_t);
-      POP_BASIC(SINT32, i, outputs[i].s32, int32_t);
-      POP_BASIC(SINT64, i, outputs[i].s64, int64_t);
+      POP_BASIC(SINT8, i, outputs[i].S8, int8_t);
+      POP_BASIC(SINT16, i, outputs[i].S16, int16_t);
+      POP_BASIC(SINT32, i, outputs[i].S32, int32_t);
+      POP_BASIC(SINT64, i, outputs[i].S64, int64_t);
 
-      POP_BASIC(UINT8, i, outputs[i].u8, uint8_t);
-      POP_BASIC(UINT16, i, outputs[i].u16, uint16_t);
-      POP_BASIC(UINT32, i, outputs[i].u32, uint32_t);
-      POP_BASIC(UINT64, i, outputs[i].u64, uint64_t);
+      POP_BASIC(UINT8, i, outputs[i].U8, uint8_t);
+      POP_BASIC(UINT16, i, outputs[i].U16, uint16_t);
+      POP_BASIC(UINT32, i, outputs[i].U32, uint32_t);
+      POP_BASIC(UINT64, i, outputs[i].U64, uint64_t);
 
-      POP_ARRAY(SINT8_N, i, outputs[i].s8N, int8_t);
-      POP_ARRAY(SINT16_N, i, outputs[i].s16N, int16_t);
-      POP_ARRAY(SINT32_N, i, outputs[i].s32N, int32_t);
-      POP_ARRAY(SINT64_N, i, outputs[i].s64N, int64_t);
+      POP_ARRAY(SINT8_N, i, outputs[i].S8N, int8_t);
+      POP_ARRAY(SINT16_N, i, outputs[i].S16N, int16_t);
+      POP_ARRAY(SINT32_N, i, outputs[i].S32N, int32_t);
+      POP_ARRAY(SINT64_N, i, outputs[i].S64N, int64_t);
 
-      POP_ARRAY(UINT8_N, i, outputs[i].u8N, uint8_t);
-      POP_ARRAY(UINT16_N, i, outputs[i].u16N, uint16_t);
-      POP_ARRAY(UINT32_N, i, outputs[i].u32N, uint32_t);
-      POP_ARRAY(UINT64_N, i, outputs[i].u64N, uint64_t);
+      POP_ARRAY(UINT8_N, i, outputs[i].U8N, uint8_t);
+      POP_ARRAY(UINT16_N, i, outputs[i].U16N, uint16_t);
+      POP_ARRAY(UINT32_N, i, outputs[i].U32N, uint32_t);
+      POP_ARRAY(UINT64_N, i, outputs[i].U64N, uint64_t);
 
-      POP_ARRAY_FLOAT(FLOAT_N, i, outputs[i].fN, float);
-      POP_ARRAY_FLOAT(DOUBLE_N, i, outputs[i].dN, double);
+      POP_ARRAY_FLOAT(FLOAT_N, i, outputs[i].FN, float);
+      POP_ARRAY_FLOAT(DOUBLE_N, i, outputs[i].DN, double);
 
-      POP_ARRAY_STRING(i, outputs[i].stringN);
+      POP_ARRAY_STRING(i, outputs[i].StringN);
 
-      POP_TABLE_BASIC(STRING_SINT8, i, outputs[i].stringSint8Map, int8_t);
-      POP_TABLE_BASIC(STRING_SINT16, i, outputs[i].stringSint16Map, int16_t);
-      POP_TABLE_BASIC(STRING_SINT32, i, outputs[i].stringSint32Map, int32_t);
-      POP_TABLE_BASIC(STRING_SINT64, i, outputs[i].stringSint64Map, int64_t);
+      POP_TABLE_BASIC(STRING_SINT8, i, outputs[i].StringSint8Map, int8_t);
+      POP_TABLE_BASIC(STRING_SINT16, i, outputs[i].StringSint16Map, int16_t);
+      POP_TABLE_BASIC(STRING_SINT32, i, outputs[i].StringSint32Map, int32_t);
+      POP_TABLE_BASIC(STRING_SINT64, i, outputs[i].StringSint64Map, int64_t);
 
-      POP_TABLE_BASIC(STRING_UINT8, i, outputs[i].stringUint8Map, uint8_t);
-      POP_TABLE_BASIC(STRING_UINT16, i, outputs[i].stringUint16Map, uint16_t);
-      POP_TABLE_BASIC(STRING_UINT32, i, outputs[i].stringUint32Map, uint32_t);
-      POP_TABLE_BASIC(STRING_UINT64, i, outputs[i].stringUint64Map, uint64_t);
+      POP_TABLE_BASIC(STRING_UINT8, i, outputs[i].StringUint8Map, uint8_t);
+      POP_TABLE_BASIC(STRING_UINT16, i, outputs[i].StringUint16Map, uint16_t);
+      POP_TABLE_BASIC(STRING_UINT32, i, outputs[i].StringUint32Map, uint32_t);
+      POP_TABLE_BASIC(STRING_UINT64, i, outputs[i].StringUint64Map, uint64_t);
 
-      POP_TABLE_FLOAT(STRING_FLOAT, i, outputs[i].stringFloatMap, float);
-      POP_TABLE_FLOAT(STRING_DOUBLE, i, outputs[i].stringDoubleMap, double);
+      POP_TABLE_FLOAT(STRING_FLOAT, i, outputs[i].StringFloatMap, float);
+      POP_TABLE_FLOAT(STRING_DOUBLE, i, outputs[i].StringDoubleMap, double);
     default:
-      ASLOG(LUAE, ("invalid type %d for output arg %d\n", outputs[i].type, (int)i));
+      ASLOG(LUAE, ("invalid type %d for output arg %d\n", outputs[i].Type, (int)i));
       r = -EINVAL;
       break;
     }
@@ -325,37 +325,37 @@ AsLuaScript::~AsLuaScript() {
 }
 
 /* http://www.lua.org/pil/25.2.html */
-int aslua_call(const char *scripts, const char *api, const lua_arg_t *inputs, int numIn,
-               lua_arg_t *outputs, int numOut) {
+int AsLua_Call(const char *scripts, const char *api, const Lua_ArgType *inputs, int numIn,
+               Lua_ArgType *outputs, int numOut) {
   try {
     AsLuaScript lua(scripts);
-    return lua.call(std::string(api), inputs, numIn, outputs, numOut);
+    return lua.Call(std::string(api), inputs, numIn, outputs, numOut);
   } catch (const std::exception &e) {
     return -1;
   }
 }
 
-int aslua_parse(lua_State *L, int index, lua_arg_t &arg) {
+int AsLua_Parse(lua_State *L, int index, Lua_ArgType &arg) {
   int r = 0;
   ASLOG(LUAI, ("parse at index = %d begin\n", index));
   switch (lua_type(L, index)) {
   case LUA_TBOOLEAN:
-    arg.type = LUA_ARG_TYPE_BOOL;
-    arg.b = lua_toboolean(L, index);
-    ASLOG(LUAI, ("  parse as bool %s\n", arg.b ? "true" : "false"));
+    arg.Type = LUA_ARG_TYPE_BOOL;
+    arg.Bool = lua_toboolean(L, index);
+    ASLOG(LUAI, ("  parse as bool %s\n", arg.Bool ? "true" : "false"));
     break;
   case LUA_TNUMBER:
-    arg.type = LUA_ARG_TYPE_FLOAT;
-    arg.f = lua_tonumber(L, index);
-    ASLOG(LUAI, ("  parse as float %f\n", arg.f));
+    arg.Type = LUA_ARG_TYPE_FLOAT;
+    arg.Float = lua_tonumber(L, index);
+    ASLOG(LUAI, ("  parse as float %f\n", arg.Float));
     break;
   case LUA_TSTRING:
-    arg.type = LUA_ARG_TYPE_STRING;
-    arg.string = lua_tostring(L, index);
-    ASLOG(LUAI, ("  parse as string %s\n", arg.string.c_str()));
+    arg.Type = LUA_ARG_TYPE_STRING;
+    arg.String = lua_tostring(L, index);
+    ASLOG(LUAI, ("  parse as string %s\n", arg.String.c_str()));
     break;
   case LUA_TTABLE:
-    arg.type = LUA_ARG_TYPE_TABLE_STRING_MAP;
+    arg.Type = LUA_ARG_TYPE_TABLE_STRING_MAP;
     lua_pushvalue(L, index);
     lua_pushnil(L); /* push key */
     while ((0 == r) && (0 != lua_next(L, -2))) {
@@ -365,27 +365,27 @@ int aslua_parse(lua_State *L, int index, lua_arg_t &arg) {
       if (lua_isstring(L, -1)) {
         const char *key = lua_tostring(L, -1);
         if (key != nullptr) {
-          lua_arg_t a;
+          Lua_ArgType a;
           switch (lua_type(L, -2)) {
           case LUA_TBOOLEAN:
-            a.type = LUA_ARG_TYPE_BOOL;
-            a.b = lua_toboolean(L, -2);
-            ASLOG(LUAI, ("  parse table %s: %s\n", key, a.b ? "true" : "false"));
+            a.Type = LUA_ARG_TYPE_BOOL;
+            a.Bool = lua_toboolean(L, -2);
+            ASLOG(LUAI, ("  parse table %s: %s\n", key, a.Bool ? "true" : "false"));
             break;
           case LUA_TNUMBER:
-            a.type = LUA_ARG_TYPE_FLOAT;
-            a.f = lua_tonumber(L, -2);
-            ASLOG(LUAI, ("  parse table %s: %f\n", key, a.f));
+            a.Type = LUA_ARG_TYPE_FLOAT;
+            a.Float = lua_tonumber(L, -2);
+            ASLOG(LUAI, ("  parse table %s: %f\n", key, a.Float));
             break;
           case LUA_TSTRING:
-            a.type = LUA_ARG_TYPE_STRING;
-            a.string = lua_tostring(L, -2);
-            ASLOG(LUAI, ("  parse table %s: %s\n", key, a.string.c_str()));
+            a.Type = LUA_ARG_TYPE_STRING;
+            a.String = lua_tostring(L, -2);
+            ASLOG(LUAI, ("  parse table %s: %s\n", key, a.String.c_str()));
             break;
           case LUA_TTABLE:
             ASLOG(LUAI, ("  parse nested table for %s\n", key));
-            a.type = LUA_ARG_TYPE_TABLE_STRING_MAP;
-            r = aslua_parse(L, -2, a);
+            a.Type = LUA_ARG_TYPE_TABLE_STRING_MAP;
+            r = AsLua_Parse(L, -2, a);
             break;
           default:
             ASLOG(LUAE, ("  type %d not supported\n", lua_type(L, -1)));
@@ -393,7 +393,7 @@ int aslua_parse(lua_State *L, int index, lua_arg_t &arg) {
             break;
           }
           if (0 == r) {
-            arg.stringMap[std::string(key)] = a;
+            arg.StringMap[std::string(key)] = a;
           }
         } else {
           ASLOG(LUAE, ("key is not string, OoM\n"));

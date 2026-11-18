@@ -41,7 +41,7 @@ static std_time_t lGTP = 0;
 #endif
 /* ================================ [ LOCALS    ] ============================================== */
 #if defined(_WIN32)
-static void __std_timer_deinit(void) {
+static void Std_TimerDeinit(void) {
   TIMECAPS xTimeCaps;
 
   if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
@@ -51,11 +51,11 @@ static void __std_timer_deinit(void) {
   }
 }
 
-INITIALIZER(__std_timer_init) {
+INITIALIZER(Std_TimerCtor) {
   TIMECAPS xTimeCaps;
   if (timeGetDevCaps(&xTimeCaps, sizeof(xTimeCaps)) == MMSYSERR_NOERROR) {
     timeBeginPeriod(xTimeCaps.wPeriodMin);
-    atexit(__std_timer_deinit);
+    atexit(Std_TimerDeinit);
   }
 
 #ifdef USE_STBM_DFT

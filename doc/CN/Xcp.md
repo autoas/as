@@ -5,258 +5,289 @@ category: AUTOSAR
 comments: true
 ---
 
-# Xcp 模块配置说明
+# Xcp - 通用测量与标定协议（从站）
 
-AUTOSAR [XCP](https://www.asam.net/standards/detail/xcp/) 模块是 ECU 上的 XCP **从站**——PC 端工具 [`UIXcp`](./UIXcp.md) 的对端。它通过单一传输层（目前仅 CAN，见第 6 节）对外暴露内存传输地址（MTA）、标定下载、编程刷写以及事件驱动的 DAQ，并遵循 *Specification of Module XCP AUTOSAR CP R23-11*。
+> **一句话概括：** Xcp 是 ECU 上的 XCP **从站**——PC 端工具 [`UIXcp`](UIXcp.md)
+> （INCA、CANape 等）的对端：通过 CAN 对外暴露 MTA（内存传输地址）、标定下载、
+> Flash 编程与事件驱动的 DAQ 测量，并受 seed-and-key 资源锁保护。
 
-配置由 [Xcp.py](../../tools/generator/Xcp.py) 消费：它读取 [`Xcp.json`](../../app/app/config/Xcp/Xcp.json) 并生成 `GEN/Xcp_Cfg.c` / `GEN/Xcp_Cfg.h`，包含服务表、DAQ 布局以及各服务的配置结构指针。`app/platform/<cpl>/<app>/config/Xcp/Xcp.json` 下的每个平台变体都通过同一份配置由构建系统生成。
+| 项目 | 值 |
+| --- | --- |
+| 模块代码 | `infras/communication/Xcp`（API：`infras/include/Xcp.h`） |
+| 所处层次 | 与诊断栈平级：直接挂在 [CanIf](CanIf.md) 上（固定 PDU id），**不经** PduR 路由 |
+| 配置文件 | `app/app/config/Xcp/Xcp.json` |
+| 代码生成器 | `tools/generator/Xcp.py` -> `GEN/Xcp_Cfg.c` / `GEN/Xcp_Cfg.h` |
+| 规范依据 | ASAM XCP 1.5 / AUTOSAR CP R23-11 XCP（从站侧） |
+| 主机对端 | [`UIXcp`](UIXcp.md) PC 工具 |
+| 示例 | `scons --app=CanApp` + `CanSend` / `CanDump`（第 6 节） |
+
+**目录**
+
+1. [模块用途](#1-模块用途)
+2. [在协议栈中的位置](#2-在协议栈中的位置)
+3. [配置](#3-配置)
+4. [运行时行为](#4-运行时行为)
+5. [公开 API](#5-公开-api)
+6. [构建与运行示例](#6-构建与运行示例)
+7. [关键注意事项](#7-关键注意事项)
+8. [问题排查](#8-问题排查)
+9. [已知限制与代码评审发现](#9-已知限制与代码评审发现)
+10. [相关文档](#10-相关文档)
+
+---
+
+## 1. 模块用途
+
+* **测量（DAQ）** —— 按事件通道（如"每 100 ms"）周期采样 RAM/Flash 地址，
+  打包成 DTO 推上总线，无需任何请求。
+* **标定（CAL/PAG）** —— 通过 MTA 指针读写任意内存（`Upload`/`ShortUpload`、
+  `Download`），典型对象是 ECU 参数。
+* **Flash 编程（PGM）** —— `ProgramStart`/`ProgramClear`/`Program` 钩子供
+  bootloader 集成。
+* **保护** —— 所有资源上锁，主站通过 `GetSeed`/`Unlock` 解锁；`Connect`
+  上报本构建支持哪些资源。
+
+实现遵循 ASAM XCP 协议层语义：命令/响应核心、pending（多帧）服务，以及由
+JSON 生成的按服务用户回调表。
+
+---
+
+## 2. 在协议栈中的位置
 
 ```mermaid
 flowchart LR
   subgraph Host["PC 侧"]
     MCP["UIXcp / INCA / CANape"]
   end
-  subgraph Bus["CAN"]
-    FRM["XCP 帧"]
+  subgraph Bus["CAN 总线"]
+    FRM["XCP 帧 0x7A0 / 0x7B0"]
   end
   subgraph ECU["ECU 侧（本模块）"]
-    CANIF["CanIf"] --> XCP["Xcp 从站"]
-    XCP --> DAQ["DAQ 列表（静态 + 动态）"]
-    XCP --> MTA["MTA（RAM/FLASH）"]
-    XCP --> CBK["用户回调：App_XcpGetSeed、App_CompareKey 等"]
+    CANIF["CanIf"] --> XCP["<b>Xcp 从站</b>"]
+    XCP --> DAQ["DAQ 列表<br/>(静态 + 动态)"]
+    XCP --> MTA["MTA (RAM / FLASH)"]
+    XCP --> CBK["用户回调<br/>App_XcpGetSeed, App_CompareKey, ..."]
   end
-  MCP <-->|XCP on CAN| FRM <--> CANIF
+  MCP <-->|"XCP on CAN"| FRM <--> CANIF
 ```
 
-## 1. 配置示例
+与诊断服务不同，XCP **不经过** PduR/Dcm：CanIf 把两个固定 PDU 直接路由进
+模块：
 
-仓库自带的配置文件位于 [app/app/config/Xcp/Xcp.json](../../app/app/config/Xcp/Xcp.json)：
+| PDU | 方向 | 默认 CAN ID | `Up` |
+| --- | --- | --- | --- |
+| `CANIF_XCP_ON_CAN_RX` | 主站 -> 从站 | `0x7A0` | `Xcp` |
+| `CANIF_XCP_ON_CAN_TX` | 从站 -> 主站 | `0x7B0` | `Xcp` |
+
+应用的 `CanIf.json` 中这两个 PDU 的名称必须正好是 `XCP_ON_CAN_RX` /
+`XCP_ON_CAN_TX`——生成器把发送 PDU id 硬编码为 `CANIF_XCP_ON_CAN_TX`。
+
+---
+
+## 3. 配置
+
+`Xcp.json`（[app/app/config/Xcp/Xcp.json](../../app/app/config/Xcp/Xcp.json)）
+有三个块，各管从站的一部分：
+
+| 块 | 控制 |
+| --- | --- |
+| `EventChannels` | 周期性 DAQ 事件通道 |
+| `DaqList` | 预配置的静态 DAQ 列表与动态 DAQ 池大小 |
+| `Services` | 从站接受哪些 XCP 命令、各自调用哪个用户 API |
+
+另有两个标量键：`PacketPoolSize`（默认 `8`，宏 `XCP_PACKET_POOL_SIZE`，
+`#ifndef` 可覆盖）与 `MainFunctionPeriod`（默认 `10` ms）。注意
+`UsePostBuildConfig` 在本模块默认为 **true**（其他模块默认 false），但生成的
+`XCP_USE_PB_CONFIG` 宏 `Xcp.c` 从不读取——见第 9 节。
+
+### 3.1 事件通道
 
 ```json
-{
-  "class": "Xcp",
-  "EventChannels": [
-    {"name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
-    {"name": "500ms", "TimeCycle": 500 },
-    {"name": "1s",    "TimeCycle": 1000 }
-  ],
-  "DaqList": {
-    "StaticDaqList": [
-      { "name": "Daq0", "ODTs": [
-          { "name": "ODT0", "Entries": [
-              { "Address": 0, "Length": 1 },
-              { "Address": 10, "Length": 1 },
-              { "Address": 20, "Length": 1 }
-          ]},
-          { "name": "ODT1", "Entries": [
-              { "Address": 30, "Length": 1 },
-              { "Address": 40, "Length": 1 },
-              { "Address": 50, "Length": 1 }
-          ]}
-      ]}
-    ],
-    "DynamicDaqList": { "DaqPoolSize": 2, "OdtPoolSize": 16, "OdtEntryPoolSize": 128 }
-  },
-  "services": [
-    { "name": "Connect",      "id": "0xFF", "API": "App_XcpGetConnectPermission" },
-    { "name": "GetStatus",    "id": "0xFD" },
-    { "name": "GetSeed",      "id": "0xF8", "API": "App_XcpGetSeed" },
-    { "name": "Unlock",       "id": "0xF7", "API": "App_CompareKey" },
-    { "name": "SetMTA",       "id": "0xF6" },
-    { "name": "Upload",       "id": "0xF5" },
-    { "name": "ShortUpload",  "id": "0xF4" },
-    { "name": "Download",     "id": "0xF0" },
-    { "name": "DownloadNext", "id": "0xEF" },
-    { "name": "ProgramStart",   "id": "0xD2", "API": "Xcp_GetProgramStartPermission" },
-    { "name": "ProgramClear",   "id": "0xD1" },
-    { "name": "Program",        "id": "0xD0" },
-    { "name": "ProgramNext",    "id": "0xCA" },
-    { "name": "FreeDAQ",        "id": "0xD6" },
-    { "name": "AllocDAQ",       "id": "0xD5" },
-    { "name": "AllocODT",       "id": "0xD4" },
-    { "name": "DAQ_ALLOC_ODT_ENTRY", "id": "0xD3" },
-    { "name": "ClearDAQList",   "id": "0xE3" },
-    { "name": "SetDAQPtr",      "id": "0xE2" },
-    { "name": "WriteDAQ",       "id": "0xE1" },
-    { "name": "ReadDAQ",        "id": "0xDB" },
-    { "name": "SetDAQListMode", "id": "0xE0" },
-    { "name": "StartStopDAQList", "id": "0xDE" },
-    { "name": "StartStopSynch",   "id": "0xDD" },
-    { "name": "GetDAQProcessorInfo", "id": "0xDA" },
-    { "name": "GetDAQResolutionInfo","id": "0xD9" },
-    { "name": "GetDAQListInfo",     "id": "0xD8" },
-    { "name": "GetDAQEventInfo",    "id": "0xD7" },
-    { "name": "ProgramReset",  "id": "0xCF", "delay": "100", "API": "Xcp_GetProgramResetPermission" },
-    { "name": "Disconnect",    "id": "0xFE", "API": "App_XcpDisconnecNotification" }
-  ]
-}
+"EventChannels": [
+  {"Name": "100ms", "TimeCycle": 100, "MaxDaqList": 8 },
+  {"Name": "500ms", "TimeCycle": 500 },
+  {"Name": "1s",    "TimeCycle": 1000 }
+]
 ```
 
-三个顶层块控制从站的三个不同部分：
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `Name` | 是 | 通道标签 |
+| `TimeCycle` | 是 | 周期（毫秒），换算为 `Xcp_MainFunction` 周期数（向上取整） |
+| `MaxDaqList` | 否 | 为对齐规范保留，但**未被使用**（`Xcp_Priv.h` 中已注释） |
 
-| 块                | 作用                                                              |
-| ----------------- | ----------------------------------------------------------------- |
-| `EventChannels`   | 周期型 DAQ 事件通道（`TimeCycle` 以 ms 计，见第 2 节）            |
-| `DaqList`         | 预配置的 DAQ 列表以及动态 DAQ 池的大小                            |
-| `services`        | 从站接受的 XCP 命令，以及每条命令调用的用户 API                    |
+### 3.2 DAQ 列表
 
-## 2. 事件通道
+两种共存：
 
-每个条目定义一条**事件通道**，周期性地触发其下挂的所有 DAQ 列表。JSON 中的 `TimeCycle` 单位为毫秒；生成器通过 `XCP_CONVERT_MS_TO_MAIN_CYCLES(TimeCycle)`（向上取整）转换为 `Xcp_MainFunction` 节拍数。`Xcp_MainFunction` 自身的周期来自 JSON 键 `MainFunctionPeriod`（默认 `10` ms），生成器把它写成 `XCP_MAIN_FUNCTION_PERIOD`。
+**静态**（`DaqList.StaticDaqList[]`）——编译期生成，全部 `const`：
 
-| 字段        | 是否必填 | 含义                                                                  |
-| ----------- | -------- | --------------------------------------------------------------------- |
-| `name`      | 是       | 通道名，仅作为标签                                                    |
-| `TimeCycle` | 是       | 周期（ms），会被换算成主函数节拍数                                     |
-| `MaxDaqList`| 否       | 仅为对齐规范保留，当前**未被消费**：该字段在 `Xcp_Priv.h` 中已被注释掉，生成器也不读取 |
+| ODT 条目字段 | 含义 |
+| --- | --- |
+| `Address` | 采样的绝对地址 |
+| `Length` | 字节数 |
+| `BitOffset` | 可选，默认 `0xFF`（整字节） |
+| `Extension` | 地址空间：`MEMORY`（默认）或 `FLASH`（`XCP_MTA_EXT_<name>`） |
 
-事件通道的处理在 `Xcp_MainFunction_Daq()` 中完成。当某条通道的定时器到期时，所有挂在其下的 DAQ 列表按顺序采样，每个 ODT 打包成一个 DTO 经 `CANIF_XCP_ON_CAN_TX` 通道通过 `CanIf_Transmit` 发出。
+静态 DAQ 占据列表索引 `0 .. numOfStaticDaqList-1`，不能被 `AllocDAQ` 重新
+分配。
 
-## 3. DAQ 列表
+**动态**（`DaqList.DynamicDaqList`）——主站在运行期通过 `AllocDAQ` /
+`AllocODT` / `AllocODTEntry` / `SetDAQPtr` / `WriteDAQ` 分配的 RAM 池：
 
-DAQ 列表是从站向主站发布测量数据的机制。本从站同时支持两类：
+| 字段 | 含义 |
+| --- | --- |
+| `DaqPoolSize` | 静态列表之外的额外 DAQ 列表数 |
+| `OdtPoolSize` | 所有动态列表共享的 ODT 总数 |
+| `OdtEntryPoolSize` | 所有动态 ODT 共享的条目总数 |
 
-### 3.1 静态 DAQ 列表（`DaqList.StaticDaqList[]`）
+### 3.3 服务
 
-由 JSON 在编译期构建——ODT 与 ODT 条目均为 `const`，运行时无需分配：
+`Services[]` 是命令表。每条成为一个 `Xcp_ServiceType` 行；**`Name` 字段仅作
+显示**——生成器一切从 `Id` 经 `ServiceMap` 推导：
 
-```json
-{ "name": "Daq0", "ODTs": [
-    { "name": "ODT0", "Entries": [
-        { "Address": 0, "Length": 1 },
-        { "Address": 10, "Length": 1 }
-    ]}
-]}
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `Name` | 是 | 仅显示用 |
+| `Id` | 是 | XCP PID（如 `"0xFF"` Connect） |
+| `API` | 否 | 用户回调名（见 3.4） |
+| `Delay` | 否 | 仅 `ProgramReset`：复位前等待的毫秒数 |
+| `maxBs`/`STmin`/`queSz` | 否 | 仅 `ProgramStart`：编程模式通信参数 |
+
+`preprocess()` 会拒绝未知 PID（并列出支持的 PID）与重复 PID，随后**按 PID
+排序**——运行期的 `Xcp_FindService()` 二分查找依赖有序。`Connect` 上报的
+资源位图由列出的命令组自动推导。
+
+### 3.4 用户回调
+
+`API` 已设置的服务经 `GEN/Xcp_Cfg.c` 中的按服务配置结构体调用用户函数；实现
+位于 [app/app/src/xcp_user.c](../../app/app/src/xcp_user.c)：
+
+| 服务 | 回调签名 |
+| --- | --- |
+| `Connect` | `App_XcpGetConnectPermission(mode, *nrc)` |
+| `Disconnect` | `App_XcpDisconnecNotification(void)` |
+| `GetSeed` | `App_XcpGetSeed(mode, resource, *seed, *seedLen, *nrc)` |
+| `Unlock` | `App_CompareKey(*key, keyLen, *nrc)` |
+| `ProgramStart` | `Xcp_GetProgramStartPermission(opStatus, *nrc)` |
+| `ProgramReset` | `Xcp_GetProgramStartPermission(opStatus, *nrc)` |
+
+自带的 `xcp_user.c` 实现了演示级 seed/key（`seed ^ 0x78934673`）并无条件接受
+编程操作——量产前请替换。
+
+### 3.5 受保护的资源
+
+| 资源 | 位 | 门控 |
+| --- | --- | --- |
+| `XCP_RES_CALPAG` | `0x01` | `Download`、`DownloadNext`（整个 `CAL_`/`PAG_` 组） |
+| `XCP_RES_DAQ` | `0x04` | 所有 `DAQ_*` 服务 |
+| `XCP_RES_STIM` | `0x08` | STIM（未使用） |
+| `XCP_RES_PGM` | `0x10` | `Program*` 服务 |
+
+`Xcp_Init` 后**所有**资源上锁（`lockedResource = XCP_RES_MASK`）；`Unlock`
+按 key 匹配结果清位，`Disconnect` 重新全部上锁。资源仍处于锁定时收到命令
+返回 NRC `0x25 Access locked`。
+
+---
+
+## 4. 运行时行为
+
+### 4.1 命令执行
+
+每个收到的帧进入 STAILQ 数据包池队列；主函数**每个周期处理一条命令**：
+
+```mermaid
+stateDiagram-v2
+    IDLE --> DISPATCH: Xcp_RxIndication 入队一帧
+    DISPATCH --> RUNNING: Xcp_FindService 命中且资源检查通过
+    DISPATCH --> REPLY_ERR: 未知 PID (0x08) 或资源锁定 (0x25)
+    RUNNING --> REPLY_OK: dsp 返回 E_OK, 一帧响应
+    RUNNING --> PENDING: dsp 返回 XCP_E_PENDING (多帧服务)
+    PENDING --> PENDING: 下一周期继续同一服务
+    PENDING --> REPLY_OK: 连续帧发送完毕
+    REPLY_OK --> IDLE: 释放请求包
+    REPLY_ERR --> IDLE: 发送带 NRC 的 ERR 包
 ```
 
-| ODT 条目的字段 | 含义                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------- |
-| `Address`      | 要采样的绝对地址（主站可通过 `GetDAQEventInfo` 等命令读回）                            |
-| `Length`        | 字节数                                                                                |
-| `BitOffset`   | 可选，默认 `0xFF`（按整字节采样）；否则按比特粒度采样                                  |
-| `Extension`   | 地址空间：`MEMORY`（默认）或 `FLASH`                                                  |
+响应帧同样进入数据包池，由 `Xcp_MainFunction_Response()` 经
+`CanIf_Transmit` 排空——总线忙时该帧留到下个周期重试。
 
-生成器为每个 DAQ 列表生成一个 `Xcp_OdtEntryType[]`、一个 `Xcp_OdtType[]` 和一个 `Xcp_DaqListType`，均为 `const`。静态 DAQ 不允许通过 `AllocDAQ` 重新分配——其编号固定为 `0..numOfStaticDaqList - 1`。
+多帧服务（如 255 字节的 `SHORT_UPLOAD`，每帧仅 7 字节负载）会把请求包保持在
+队列头部并返回 `XCP_E_PENDING` 直到完成——每个主循环周期发一帧：
 
-### 3.2 动态 DAQ 列表（`DaqList.DynamicDaqList`）
+```mermaid
+sequenceDiagram
+    participant M as 主站 (UIXcp)
+    participant C as CanIf
+    participant X as Xcp 从站
 
-一块运行时内存池，主站可通过 `AllocDAQ` / `AllocODT` / `AllocODTEntry` / `SetDAQPtr` / `WriteDAQ` 自由切分。仅配置大小：
-
-| 字段                | 含义                                            |
-| ------------------- | ----------------------------------------------- |
-| `DaqPoolSize`       | 静态 DAQ 之外的额外 DAQ 列表数                  |
-| `OdtPoolSize`       | 所有动态 DAQ 列表可用的 ODT 总数                |
-| `OdtEntryPoolSize`  | 所有动态 ODT 可用的 ODT 条目总数                |
-
-生成器生成 `Xcp_DynDaq0..N`、`Xcp_DynOdts[M]`、`Xcp_DynOdtEntries[K]`，都是普通的（非 `const`）RAM；从站在运行时对它们进行分配/回收。对受影响 DAQ 列表调用 `ClearDAQList` 会把对应的动态条目一次性释放。
-
-## 4. 服务
-
-`services[]` 就是从站的命令表。每个条目对应 `Xcp_Services[]` 中的一行 `Xcp_ServiceType`：
-
-```c
-{
-  Xcp_Dsp<Name>,                 /* 对应的实现，位于 Xcp_DspStd.c / Xcp_DspCal.c 等 */
-  (const void *)&Xcp_<Name>Config,/* 服务的私有配置（无 API 时为 NULL） */
-  XCP_PID_CMD_<GROUP>_<NAME>,    /* XCP PID，如 XCP_PID_CMD_STD_CONNECT */
-  /* resource */ XCP_RES_<...>,  /* 该命令所需的受保护资源 */
-}
+    M->>C: 0x7A0 FF 00 (CONNECT)
+    C->>X: Xcp_CanIfRxIndication -> 入队
+    Note over X: MainFunction: 分发, App_XcpGetConnectPermission
+    X-->>M: 0x7B0 FF 15 00 08 00 08 01 01
+    M->>C: 0x7A0 F5 .. (UPLOAD / F4 SHORT_UPLOAD, N=255)
+    loop 直到 255 字节全部送出
+        Note over X: dsp 返回 XCP_E_PENDING,<br/>每 10 ms 一帧 7 字节连续帧
+        X-->>M: 0x7B0 FF <7 字节>
+    end
+    Note over M: 丢弃每帧开头的 0xFF, 拼接其余字节
 ```
 
-| 字段                 | 是否必填 | 含义                                                                                                |
-| -------------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `name`               | 是       | 仅作显示用，生成器并不读取；`Xcp_Dsp<Name>`、`XCP_PID_CMD_<GROUP>_<NAME>` 与资源位都由 `id` 经 Xcp.py 中的 `ServiceMap` 推导 |
-| `id`                 | 是       | XCP PID，如 `"0xFF"` 表示 `Connect`；支持十进制或十六进制                                          |
-| `API`                | 否       | 需要用户回调的服务填此项（见第 5 节）                                                                |
-| `delay`              | 否       | 仅 `ProgramReset` 使用：接受请求后等待多少毫秒再真正执行 `Xcp_PerformReset()`                       |
-| `maxBs`/`STmin`/`queSz` | 否    | 仅 `ProgramStart` 使用：编程模式下的通信参数                                                          |
+### 4.2 DAQ
 
-生成器使用的前缀（`STD_`、`CAL_`、`DAQ_`、`PGM_`）取自 [`ServiceMap`](../../tools/generator/Xcp.py#L87) 中该 PID 对应规范名的前四个字符——JSON 条目的 `name` 字段并不参与（另见 [Xcp_Priv.h](../../infras/communication/Xcp/Xcp_Priv.h#L17) 中的 PID 列表）。PID 不在 `ServiceMap` 中会直接导致生成失败。
+`Xcp_MainFunction_Daq()` 由 `Xcp_MainFunction` 调用，
+`Xcp_MainFunction_DaqWrite()` 由 `Xcp_MainFunction_Write` 调用（两者都在 EcuM
+主函数表）。事件通道定时器到期时，该通道上每个已启动的 DAQ 列表按 ODT 顺序
+采样，每个 ODT 产出一个 DTO 排队发送到 `CANIF_XCP_ON_CAN_TX`。不支持 DAQ
+时间戳与 `PID_OFF`——每个 DTO 以 ODT 的 PID 字节开头。
 
-### 4.1 受保护的资源
+### 4.3 调度方式
 
-每个服务都被其所触及的资源守护。`Connect` 把从站持有的资源集合通过 `RESOURCE` 字段上报（例如 `0x15` = `CALPAG|DAQ|PGM`）；主站必须先对该资源执行 `GetSeed` + `Unlock`，后续访问该资源的命令才会被接受。`Disconnect` 后所有资源重新加锁。
+`Xcp_Init` 由 EcuM 调用（`EcuM_DriverInitListOne`）；`Xcp_MainFunction` 与
+`Xcp_MainFunction_Write` 位于 EcuM 主函数表（`EcuM_Cfg.c`，`USE_XCP` 守卫）。
+全模块单线程；唯一的 ISR 入口是 `Xcp_CanIfRxIndication`（临界区内仅做拷贝
+入池）——但注意池耗尽时它会在 ISR 里直接发 `Xcp_TxError`（见第 9 节）。
 
-| 资源                | 位    | 守护的命令                                                                                |
-| ------------------- | ----- | ----------------------------------------------------------------------------------------- |
-| `XCP_RES_CALPAG`    | `0x01` | `Download`、`DownloadNext`——生成器把 `CAL_` 与 `PAG_` 两组都归到这里                          |
-| `XCP_RES_DAQ`       | `0x04` | 所有 `DAQ_*` 命令                                                                          |
-| `XCP_RES_PGM`       | `0x10` | `ProgramStart`、`ProgramClear`、`Program`、`ProgramNext`、`ProgramReset`                  |
-| `XCP_RES_STIM`      | `0x08` | DAQ STIM（本从站未使用）                                                                  |
+---
 
-只要当前 `lockedResource` 中仍带有该服务所需的位，`Xcp_MainFunction_Request()` 就返回 `0x25 = Access locked`。`Connect` 上报的资源集合由生成器中的 `get_resource(cfg)` 推导——它取自 `services[]` 列表，无须手工声明。
+## 5. 公开 API
 
-## 5. 用户回调
+| 函数 | 用途 |
+| --- | --- |
+| `Xcp_Init(config)` | 复位上下文、初始化数据包池、锁定全部资源 |
+| `Xcp_CanIfRxIndication(RxPduId, PduInfo)` | CanIf RX 钩子（校验 `RxPduId == XCP_ON_CAN_CHL`） |
+| `Xcp_CanIfTxConfirmation(TxPduId, result)` | 空占位 |
+| `Xcp_RxIndication(channel, PduInfo)` | 供其他传输层使用的通用入口 |
+| `Xcp_MainFunction` / `Xcp_MainFunction_Write` | 请求/响应/事件 + DAQ 处理 |
+| `Xcp_HasFreePacket` / `Xcp_AllocPacket` / `Xcp_FreePacket` | 数据包池辅助 |
+| `Xcp_GetU32` / `Xcp_SetU32` / `Xcp_GetU16` / `Xcp_SetU16` | 各 DSP 模块使用的端序安全访问器 |
+| `Xcp_GetVersionInfo(info)` | 4.0.0 |
 
-凡是 JSON 中设置了 `API` 的服务，都会通过 `Xcp_Cfg.c` 里的 per-service 配置结构调用用户函数。应用的集成点在 [app/app/src/xcp_user.c](../../app/app/src/xcp_user.c)，各平台变体都在该文件中实现这些回调。
+其余（MTA、CAL、DAQ、PGM）均为内部实现，分布在 `Xcp_DspStd.c`（标准命令）、
+`Xcp_DspCal.c`（CAL/PAG）、`Xcp_DspDaq.c`（DAQ）、`Xcp_DspPgm.c`（PGM）与
+`Xcp_Mta.c`（内存访问）。
 
-| 服务           | `API` 回调签名                                                                                                              | 调用方                              |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `Connect`      | `Std_ReturnType App_XcpGetConnectPermission(uint8_t mode, Xcp_NegativeResponseCodeType *nrc)`                            | `Xcp_DspConnect`                    |
-| `Disconnect`   | `Std_ReturnType App_XcpDisconnecNotification(void)`                                                                       | `Xcp_DspDisconnect`                 |
-| `GetSeed`      | `Std_ReturnType App_XcpGetSeed(uint8_t mode, uint8_t resource, uint8_t *seed, uint16_t *seedLen, Xcp_NegativeResponseCodeType *nrc)` | `Xcp_DspGetSeed`                    |
-| `Unlock`       | `Std_ReturnType App_CompareKey(uint8_t *key, uint16_t keyLen, Xcp_NegativeResponseCodeType *nrc)`                        | `Xcp_DspUnlock`                     |
-| `ProgramStart` | `Std_ReturnType Xcp_GetProgramStartPermission(Xcp_OpStatusType opStatus, Xcp_NegativeResponseCodeType *nrc)`              | `Xcp_DspProgramStart`               |
-| `ProgramReset` | `Std_ReturnType Xcp_GetProgramResetPermission(Xcp_OpStatusType opStatus, Xcp_NegativeResponseCodeType *nrc)`             | `Xcp_DspProgramReset`（在 `delay` ms 之后） |
+---
 
-未列入的服务没有用户回调，`Xcp_Priv.h` 中也没有为其声明用户 API——这些服务要么不需要任何外部数据（`GetStatus`、`SetMTA`、`Upload`、`ShortUpload`、`Download` 以及 DAQ list/info 系列命令），要么直接调用上层（`Program`、`ProgramNext`、`ProgramClear` —— 见 [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c)）。
+## 6. 构建与运行示例
 
-仓库自带的 `xcp_user.c` 实现了一个最小的 seed & key 方案（`lXcpSeed ^ 0x78934673`），并且无条件接受 `ProgramReset` / `ProgramStart`。请按自己的安全策略改写这六个回调：`GetConnectPermission`、`GetSeed`、`CompareKey`、`DisconnecNotification`，以及两个编程回调。
-
-## 6. 传输层
-
-本从站目前**仅支持 XCP on CAN**。接收侧通过 `Xcp_CanIfRxIndication()` 接入，仅校验 `RxPduId == XCP_ON_CAN_CHL`（`0`），在连接未建立时丢弃除 `0xFF CONNECT` 之外的所有命令。发送侧通过 `CanIf_Transmit(CANIF_XCP_ON_CAN_TX, &PduInfo)` 发出；[Xcp.c](../../infras/communication/Xcp/Xcp.c#L28) 中那块由 `XCP_PACKET_POOL_SIZE`（JSON 键 `PacketPoolSize`，默认 `8`）定尺寸的槽位池既存放收到的命令，也在总线拥塞时充当发送缓冲——见 [Xcp.c](../../infras/communication/Xcp/Xcp.c#L61) 中的 `Xcp_TxResponse()` 与 `Xcp_TxError()`。
-
-传输层 PDU ID 取自应用的 `CanIf.json` 配置：
-
-| PDU ID                  | 方向        | 默认 CAN ID |
-| ----------------------- | ----------- | ----------- |
-| `CANIF_XCP_ON_CAN_RX`   | 主站 → 从站 | `0x7A0`     |
-| `CANIF_XCP_ON_CAN_TX`   | 从站 → 主站 | `0x7B0`     |
-
-从站一帧的最大长度固定为 `XCP_PATCKET_MAX_SIZE = 8` 字节，因此总线的 `LL_DL` 必须为 `8`（与 PC 工具 [`xcp.json`](../../tools/asone/examples/xcp.json) 中的 `target.LL_DL` 默认值一致）。[`Xcp.h`](../../infras/include/Xcp.h#L13) 中虽声明了 `FlexRay` / `Ethernet` 通道 ID，但并未实现。
-
-## 7. 生成器
-
-[Xcp.py](../../tools/generator/Xcp.py) 读取 `Xcp.json`，生成 `GEN/Xcp_Cfg.h` 与 `GEN/Xcp_Cfg.c`：
-
-1. `preprocess()` 把每个 `id` 转换为数值，拒绝不在 `ServiceMap` 中的 PID 以及重复的 PID，并按 PID 排序，这样 `Xcp_FindService()` 就能在运行时二分查找服务表。
-2. 头文件定义 `XCP_PACKET_POOL_SIZE`（JSON 键 `PacketPoolSize`，默认 `8`）、`XCP_MAIN_FUNCTION_PERIOD`（JSON 键 `MainFunctionPeriod`，默认 `10` ms），并为每个服务生成一条 `XCP_USE_SERVICE_<GROUP>_<NAME>` 宏——源文件通过这些宏按需编译对应的实现。两个宏都带 `#ifndef` 保护，编译期 define 仍可覆盖。
-3. C 文件声明每个 `API` 回调为 `extern`，实例化每个服务的配置结构（`Xcp_<Name>Config`）、静态 DAQ 的 ODT、动态 DAQ 池、`Xcp_Services[]` 表，最后是 `Xcp_GetConfig()` 返回的根配置 `Xcp_Config`。
-4. `get_resource(cfg)` 遍历 `services[]`，把所有命令触及到的资源组取并，写入 `Xcp_Config.resource`——这就是 `Connect` 向主站上报的资源位图。
-
-构建系统在 `Xcp.json` 发生变更时重新生成上述两个文件；唯一手写的就是 `xcp_user.c`（用户回调）以及位于 [infras/communication/Xcp](../../infras/communication/Xcp/) 下的从站源文件。
-
-## 8. 局限
-
-- 当前传输层**仅支持 CAN**。`XCP_ON_FLEXRAY_CHL` 与 `XCP_ON_ETHERNET_CHL` 只是预留 ID，从站实际只注册了 `Xcp_CanIfRxIndication`。
-- 单帧最大长度为 `XCP_PATCKET_MAX_SIZE = 8`，因此总线 `LL_DL` 必须为 `8`；不支持超大帧分段。
-- DAQ 时间戳和 `PID_OFF` 暂未支持，`DAQ_LIST_MODE_TIMESTAMP` / `DAQ_LIST_MODE_PID_OFF` 位会被忽略。
-- 暂未实现 `STIM`（主站 → 从站的 DAQ）。从站只接受 DAQ 方向。
-- `Xcp_MtaRead/Write` 在真实目标上接受 `MTA_EXT_MEMORY` 与 `MTA_EXT_FLASH`；在 `linux` / `_WIN32` 主机构建中读写体被桩化（`#if defined(linux) || defined(_WIN32)`），见 [Xcp_Mta.c](../../infras/communication/Xcp/Xcp_Mta.c)。在真实目标上刷写仍需在 [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c) 中自行扩展 `Program*` 实现。
-- 从站单通道、单连接。`Xcp_RxIndication()` 中的 `0x10 ERR_CMD_BUSY` 分支只在“命令来自非当前活动通道”时触发；CAN 上通道恒为 `XCP_ON_CAN_CHL`，因此该分支当前不可达，是为后续更多传输层预留的。
-- 在途帧数超过 `XCP_PACKET_POOL_SIZE` 时会上报 `0x33 ERR_RESOURCE_TEMPORARY_NOT_ACCESSIBLE`；若在高负载下出现，用 `Xcp.json` 的 `PacketPoolSize` 属性调大（或用编译期 define `-DXCP_PACKET_POOL_SIZE=N`），不要去改生成的 `Xcp_Cfg.h`。
-
-## 9. 用 CanSend 验证从站
-
-主机版 `CanApp` 默认就打开了 XCP（`app/app/SConscript` 已注册 `config/Xcp/Xcp.json`），因此不需要任何硬件即可验证从站：`CanApp` 跑在 `simulator_v2` 虚拟总线上（一个 UDP 组播组），PC 工具 `CanSend` / `CanDump` 加入同一总线即可，三者都跑在本机。
-
-先构建三个目标：
+主机版 `CanApp` 已启用 XCP，无需硬件即可验证——`CanApp`、`CanSend`、`CanDump`
+都在 `simulator_v2` 虚拟总线上通信：
 
 ```bash
-scons --app=CanApp      # XCP 从站      -> build\nt\GCC\CanApp\CanApp.exe
-scons --app=CanSend     # 请求注入工具，安装到 build\nt\GCC\one
-scons --app=CanDump     # 报文抓取工具，安装到 build\nt\GCC\one
+scons --app=CanApp      # XCP 从站 -> build\nt\GCC\CanApp\CanApp.exe
+scons --app=CanSend     # 请求注入器, 安装到 build\nt\GCC\one
+scons --app=CanDump     # 帧跟踪器,     安装到 build\nt\GCC\one
 ```
 
-启动从站与抓包工具（两个终端）：
+两个终端分别启动从站与跟踪器：
 
 ```bash
 build\nt\GCC\CanApp\CanApp.exe
 build\nt\GCC\one\CanDump.exe -d simulator_v2 -p 0 -f 700#700
 ```
 
-再在第三个终端里执行下面任意一条——每一行都是完整命令，直接复制即可运行：
+第三个终端执行下面任意命令——每行是一条完整的 XCP 命令：
 
 ```bash
 build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v FF00
@@ -264,33 +295,105 @@ build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v F440000000000000
 build\nt\GCC\one\CanSend.exe -d simulator_v2 -p 0 -i 7A0 -v F4FF000000000000
 ```
 
-`CanDump -f <Mask>#<Code>` 只保留满足 `(canid & Mask) == (Code & Mask)` 的报文，所以 `-f 700#700` 把抓包范围限制在 XCP 的 `0x7A0`（请求）与 `0x7B0`（应答）两个 ID 上，滤掉同一条总线上的其他流量；去掉该选项即可查看全部报文。
-
-`CanSend` 以十六进制直接发送 CTO 负载（`-i` 为 CAN ID，`-v` 为数据）。`CanDump` 会把整个数据数组打印出来，因此末尾的 `55` 只是显示填充，不属于请求本身。上面三条命令与下表各行一一对应：
+`CanDump -f <Mask>#<Code>` 只显示满足 `(canid & Mask) == (Code & Mask)` 的帧，
+即只看 XCP 对 `0x7A0`/`0x7B0`。
 
 | 请求 | `-v` 负载 | `0x7B0` 上的应答 |
-| ---- | --------- | ---------------- |
+| --- | --- | --- |
 | `CONNECT` | `FF00` | `FF 15 00 08 00 08 01 01` |
-| `SHORT_UPLOAD`，64 字节 | `F440000000000000` | 1 次请求，10 帧，64 字节 |
-| `SHORT_UPLOAD`，255 字节 | `F4FF000000000000` | 1 次请求，37 帧，255 字节 |
+| `SHORT_UPLOAD`, 64 字节 | `F440000000000000` | 1 请求, 10 帧 |
+| `SHORT_UPLOAD`, 255 字节 | `F4FF000000000000` | 1 请求, 37 帧 |
 
-`CONNECT` 的应答依次是：`FF`（肯定应答）、`15`（`resource` = `CALPAG|DAQ|PGM`）、`00`（`COMM_MODE_BASIC`）、`08`（`MAX_CTO`）、`00 08`（`MAX_DTO`）、`01 01`（协议层/传输层版本号）。
+`CONNECT` 应答含义：`FF` 肯定响应、`15` = 资源 `CALPAG|DAQ|PGM`、`00`
+COMM_MODE_BASIC、`08` MAX_CTO、`00 08` MAX_DTO、`01 01` 协议/传输层版本。
+`SHORT_UPLOAD` 请求为 `F4 | Number | 保留 | Ext | Addr32(小端)`；`Ext 0` =
+`MTA_EXT_MEMORY`。连续帧每 `XCP_MAIN_FUNCTION_PERIOD`（10 ms）一帧；主站丢弃
+每帧开头的 `0xFF` 后拼接（见 [UIXcp.cpp](../../tools/asone/src/ui/UIXcp.cpp)
+的 `UIMeasure::on_btnRead_clicked()`）。
 
-`SHORT_UPLOAD` 请求固定为 8 字节：`F4 | Number | reserved | Extension | Address（32 位小端）`。其中 `Number` 为要读取的字节数，`Extension` 为 `0` 时选择 `MTA_EXT_MEMORY`。
+> 主机版上 `Xcp_MtaRead()` 是桩实现（`linux`/`_WIN32`），上传的字节是残留
+> 缓冲内容——上述步骤验证的是时序而非数据。真实数据请在目标构建（如 QEMU
+> `VersatilepbCanApp`）上验证；地址来自 map 文件或 `tools/utils/readelf.py`。
 
-一次请求最多可以要 255 字节，但单个 CTO 帧只能携带 `XCP_PATCKET_MAX_SIZE - 1` = 7 个数据字节。因此只要还有剩余字节，`Xcp_DspShortUpload()` 就返回 `XCP_E_PENDING`，`Xcp_MainFunction_Request()` 每次被调用只发一帧应答，并把该请求包留在 `rxPackets` 队首直到发完。由于 `Xcp_MainFunction()` 由 `MainTask_10ms()` → `EcuM_BswService()` → `EcuM_DriverMainList[]` 驱动，续帧的节奏就是每 10 ms 一帧（`XCP_MAIN_FUNCTION_PERIOD`）：
+---
 
-```text
-2026-10-16 21:49:57 7A0 dlc=08 data=[F4,40,00,00,00,00,00,00]  <- 1 次请求，读 64 字节
-2026-10-16 21:49:57 7B0 dlc=08 data=[FF,80,3F,FE,E2,F6,7F,00]  <- 第 1 帧（共 10 帧）
-2026-10-16 21:49:57 7B0 dlc=08 data=[FF,80,3F,FE,E2,F6,7F,00]  <- 再过 10 ms
-...
-2026-10-16 21:49:57 7B0 dlc=02 data=[FF,80]                    <- 第 10 帧，最后一个字节
-```
+## 7. 关键注意事项
 
-每一帧应答都以 `XCP_PID_RES`（`0xFF`）开头；主站会丢掉每帧的第一个字节，把其余字节拼接起来，见 [UIXcp.cpp](../../tools/asone/src/ui/UIXcp.cpp#L362) 中的 `UIMeasure::on_btnRead_clicked()`。`CanSend` 只负责注入请求，所以要与 `CanDump` 配合才能同时看到两个方向。
+* **XCP 绕过 PduR 与 Dcm。** CanIf 中两个 PDU 必须命名
+  `XCP_ON_CAN_RX` / `XCP_ON_CAN_TX`；PduR 无需任何配置。
+* **服务表在生成期按 PID 排序**、运行期二分查找——不要手改 `GEN/Xcp_Cfg.c`。
+* **`Services[].name` 只是装饰。** 一切由 PID 决定；`ServiceMap` 中不存在的
+  PID 会使构建失败并列出支持的 PID。
+* **每个主循环周期只处理一条命令**（默认 10 ms）。批量上传以每周期一帧的
+  速度继续——255 字节上传约需 0.4 秒。DAQ 在同一个主函数中运行。
+* **初始化后所有资源都是锁定的。** 连 `Download` 都要先
+  `CONNECT -> GetSeed -> Unlock`；NRC `0x25` 就是忘了这一步。
+* **数据包池 RX/TX 共用**（`PacketPoolSize`，默认 8）。DAQ 繁忙加挂起的
+  上传可能耗尽池；症状是 NRC `0x33 resource temporarily not accessible`。
+* **只支持 8 字节帧。** `XCP_PATCKET_MAX_SIZE = 8`（注意宏名拼写错误就是把
+  PACKET 写成 PATCKET）把 CTO/DTO 限制在 7 字节负载；总线 `LinkLayerDataLength` 必须为 8。
+* **`UsePostBuildConfig` 是无效配置**（生成了但 `Xcp.c` 从不读取）。
+* **单连接、单通道。** 来自其他"通道"的第二个 CONNECT 得到 NRC
+  `0x10 CMD_BUSY`；CAN 上本来就只有通道 0。
 
-> 用主机构建验证时有两点需要注意：
->
-> - `Xcp_MtaRead()` 在 `linux` / `_WIN32` 上是空实现（见第 8 节），因此应答里的数据是缓冲区残留而不是 `Address` 处的真实内存。上面的步骤验证的是请求/应答的时序与分帧，而不是数据内容。要验证真实数据，请改用目标构建（例如 QEMU 的 `VersatilepbCanApp`），地址取自 map 文件或由 `tools/utils/readelf.py` 导出的 JSON。
-> - 如果日志里出现 `Abort pending service F4`（来自 [Xcp.c](../../infras/communication/Xcp/Xcp.c#L177)），说明某一续帧的 `Xcp_TxResponse()` 失败了。最常见的原因是 CAN 驱动的发送主函数从未被调度：`Can_MainFunction_Write` 位于 `EcuM_DriverMainFastList` 中且被 `#ifdef USE_CAN` 包着，所以某个平台若漏定义 `USE_CAN`，就会在第一帧之后卡住。
+---
+
+## 8. 问题排查
+
+| 现象 | 可能原因 |
+| --- | --- |
+| `0x7B0` 上完全无响应 | `CanIf.json` 缺少/拼错 `XCP_ON_CAN_TX` PDU，或 CAN 发送主函数未被调度（平台构建漏了 `USE_CAN`，见下） |
+| `0x25 Access locked` | 先执行该资源的 `GetSeed` + `Unlock` |
+| `0x33 Resource temporarily not accessible` | 数据包池耗尽——调大 `PacketPoolSize`（JSON 或 `-DXCP_PACKET_POOL_SIZE=N`） |
+| `0x08 Command unknown` | PID 不在 `Xcp.json` 的 `Services[]` 中 |
+| 日志出现 `Abort pending service F4` | 某个连续帧的 `Xcp_TxResponse()` 失败——通常是 `Can_MainFunction_Write` 没跑，平台构建忘了 `USE_CAN` |
+| 上传中途响应帧停止 | 同上；另外检查 TX 队列是否被 DAQ 流量挤占 |
+| DAQ 没有数据 | DAQ 列表未启动（`START_STOP_DAQ_LIST`），或事件通道 `TimeCycle` 相对 `MainFunctionPeriod` 取整为 0 个周期 |
+| 主机版上传的数据是乱码 | 预期行为——`Xcp_MtaRead` 在 `linux`/`_WIN32` 是桩；请在目标构建上验证 |
+
+---
+
+## 9. 已知限制与代码评审发现
+
+### 9.1 功能限制
+
+* **仅支持 CAN 传输。** `XCP_ON_FLEXRAY_CHL` / `XCP_ON_ETHERNET_CHL` 已声明
+  但未实现；没有 XCP-on-Ethernet/TCP。
+* **8 字节 PDU。** 不支持 CAN FD（`XCP_PATCKET_MAX_SIZE = 8`），无分段。
+* **无 DAQ 时间戳 / PID_OFF / STIM。** 模式位被接受但忽略；STIM（主站 -> 从站
+  DAQ）不存在。
+* **单连接。** `activeChannel` 概念存在，但 CAN 只有通道 0。
+* **主机版 MTA 是桩**（`Xcp_Mta.c`），`linux`/`_WIN32` 上测量返回残留数据；
+  刷写需要按目标定制 `Xcp_DspPgm.c` 集成。
+
+### 9.2 代码评审发现
+
+| # | 位置 | 发现 |
+| --- | --- | --- |
+| 1 | `Xcp.c:345-366` | `Xcp_RxIndication` 出错时**直接**调用 `Xcp_TxError(channel, nrc)`——而它运行在 CanIf RX 上下文（可能是 ISR）。`Xcp_TxError` 会分配池包（`mp_alloc`，有保护）并调用 `CanIf_Transmit`，即错误响应从中断上下文发送；对不允许 ISR 中发送的驱动这是一个潜在竞态。 |
+| 2 | `Xcp.c:33-53` | `Xcp_FindService` 先计算 `h = numOfServices - 1` 并解引用 `config->services[0]`，没有任何空表检查；不带 `Services[]` 的 `Xcp.json` 会导致下溢与越界读（与 `LinIf_HeaderIndication` 同一模式）。 |
+| 3 | `Xcp.c:160-166` | 某服务仍处 `PENDING` 时来了**另一条**命令，代码打 "Fatal memory error"、中止挂起服务并开始新命令。对可能长时间挂起的 `Program*` 序列，交错的命令会静默破坏编程会话，而不是应答 `CMD_BUSY`。 |
+| 4 | `Xcp.c:210-231` | `Xcp_MainFunction_Response` 没有超时/队列深度控制：若 `CanIf_Transmit` 永不成功（总线关闭），TX 包持续累积直至池耗尽，进而连带阻塞 RX 命令（`no free packet`）。 |
+| 5 | `Xcp.c:419-421` | `Xcp_MainFunction_Write`（DAQ 写）与 `Xcp_MainFunction_Daq`（采样）被拆成两个入口，但 `EcuM_Cfg.c:176` 中两者都在同一张主函数表——拆分没有带来并行性，只是一个命名陷阱。 |
+| 6 | `Xcp_Priv.h:102-103` | `XCP_PATCKET_MAX_SIZE`——宏名把 "PACKET" 拼成了 "PATCKET"，并扩散到所有 DSP 文件；重命名只是外观问题，但 grep 的集成者一定会被绊一下。 |
+| 7 | `Xcp.py:340` | `UsePostBuildConfig` 默认 **true**（其他模块默认 false），而生成的 `XCP_USE_PB_CONFIG` 宏从未被 `Xcp.c` 引用（`Xcp_Init` 无条件忽略 `ConfigPtr`）。误导性的死配置。 |
+| 8 | `Xcp.py:299-316` | `preprocess()` 原地排序 `cfg["services"]`；JSON 本身不回写，因此 `GEN/Xcp_Cfg.c` 的顺序与 JSON 顺序不同——对比生成产物时会意外。 |
+| 9 | `Xcp_DspDaq.c`（888 行） | DAQ 的每列表状态是普通 RAM 结构，无校验和保护；主站通过 `WriteDAQ` 可把 ODT 条目指向任意地址，采样时每周期读取——对标定工具这是设计使然，但与 `App_CompareKey` 一起纳入安全评审时值得注意。 |
+| 10 | `Xcp.c:124-207` | `resData[XCP_PATCKET_MAX_SIZE]` 是 8 字节栈缓冲，`resMaxDataLen = 7`；任何 DSP 函数写更长响应都没有超出 `resMaxDataLen` 约定之外的溢出检测——新增 DSP 命令若不遵守约定会静默栈溢出。 |
+
+---
+
+## 10. 相关文档
+
+* [UIXcp](UIXcp.md) —— PC 端 XCP 主站工具（Qt），另有独立文档
+* [CanIf](CanIf.md) —— 传输 PDU（`XCP_ON_CAN_RX` / `XCP_ON_CAN_TX`）
+* [CanApp / virtual-can-env](virtual-can-env.md) —— 示例使用的虚拟总线
+* 代码：[Xcp.c](../../infras/communication/Xcp/Xcp.c)、
+  [Xcp_DspStd.c](../../infras/communication/Xcp/Xcp_DspStd.c)、
+  [Xcp_DspDaq.c](../../infras/communication/Xcp/Xcp_DspDaq.c)、
+  [Xcp_DspCal.c](../../infras/communication/Xcp/Xcp_DspCal.c)、
+  [Xcp_DspPgm.c](../../infras/communication/Xcp/Xcp_DspPgm.c)、
+  [Xcp_Mta.c](../../infras/communication/Xcp/Xcp_Mta.c)、
+  [Xcp.h](../../infras/include/Xcp.h)、
+  [Xcp.py](../../tools/generator/Xcp.py)
+* ASAM XCP Part 1-5；AUTOSAR CP R23-11 Specification of XCP

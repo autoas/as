@@ -43,19 +43,19 @@ v2 与 CAN 仿真器 v2 一样，采用 **UDP 组播**（组播地址 `224.244.2
 无论 v1/v2 仿真器，还是真实硬件桥接，节点都通过统一的 linlib 访问 LIN 总线，头文件为 [linlib.h](../../tools/libraries/Lin/include/linlib.h)：
 
 ```c
-typedef uint32_t lin_id_t;
+typedef uint32_t LinL_IdType;
 
-int  lin_open(const char *device_name, uint32_t port, uint32_t baudrate);
-bool lin_write(int busid, lin_id_t id, uint8_t dlc, const uint8_t *data, bool enhanced);
-bool lin_read(int busid, lin_id_t id, uint8_t dlc, uint8_t *data, bool enhanced,
+int  LinL_Open(const char *device_name, uint32_t port, uint32_t baudrate);
+bool LinL_Write(int busid, LinL_IdType id, uint8_t dlc, const uint8_t *data, bool enhanced);
+bool LinL_Read(int busid, LinL_IdType id, uint8_t dlc, uint8_t *data, bool enhanced,
               int timeout /* ms */);
-bool lin_close(int busid);
+bool LinL_Close(int busid);
 ```
 
 使用约定（这是与 canlib 最大的不同）：
 
-* `lin_read()` 用于主节点轮询：它先向总线发送指定 ID 的**帧头**，然后在 `timeout` 毫秒内等待从节点的响应数据，并自动校验 checksum；
-* `lin_write()` 用于携带数据的一帧（例如主节点请求帧 MRF）：帧头与数据一次性发出；
+* `LinL_Read()` 用于主节点轮询：它先向总线发送指定 ID 的**帧头**，然后在 `timeout` 毫秒内等待从节点的响应数据，并自动校验 checksum；
+* `LinL_Write()` 用于携带数据的一帧（例如主节点请求帧 MRF）：帧头与数据一次性发出；
 * ID 小于等于 `0x3F` 时库自动计算 PID 的两位奇偶校验位；直接传入大于 `0x3F` 的值则视为已带校验的 PID/扩展 ID；
 * `enhanced` 选择增强/经典校验和；
 * 内部线上帧用类型字符区分：`H` 帧头、`D` 数据、`F` 帧头+数据（扩展 ID 对应小写 `h`/`f`）。

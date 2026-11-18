@@ -64,9 +64,9 @@ typedef struct Sd_EventHandlerSubscriber_s {
   uint32_t TTL;
 
   /* subscriber response port */
-  uint16_t port;
+  uint16_t Port;
   uint16_t TxPduId;
-  uint8_t flags;
+  uint8_t Flags;
 } Sd_EventHandlerSubscriberType;
 
 /* @SWS_SD_91002 */
@@ -80,40 +80,40 @@ typedef STAILQ_HEAD(Sd_EventSubHead, Sd_EventHandlerSubscriber_s) Sd_EventHandle
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_SD_00119 */
-void Sd_Init(const Sd_ConfigType *ConfigPtr);
+void Sd_Init(const Sd_ConfigType *configPtr);
 
 /* @SWS_SD_00496 */
-Std_ReturnType Sd_ServerServiceSetState(uint16_t SdServerServiceHandleId,
-                                        Sd_ServerServiceSetStateType ServerServiceState);
+Std_ReturnType Sd_ServerServiceSetState(uint16_t sdServerServiceHandleId,
+                                        Sd_ServerServiceSetStateType serverServiceState);
 
 /* @SWS_SD_00409 */
-Std_ReturnType Sd_ClientServiceSetState(uint16_t ClientServiceHandleId,
-                                        Sd_ClientServiceSetStateType ClientServiceState);
+Std_ReturnType Sd_ClientServiceSetState(uint16_t clientServiceHandleId,
+                                        Sd_ClientServiceSetStateType clientServiceState);
 
 /* @SWS_SD_00560 */
 Std_ReturnType
-Sd_ConsumedEventGroupSetState(uint16_t SdConsumedEventGroupHandleId,
-                              Sd_ConsumedEventGroupSetStateType ConsumedEventGroupState);
+Sd_ConsumedEventGroupSetState(uint16_t sdConsumedEventGroupHandleId,
+                              Sd_ConsumedEventGroupSetStateType consumedEventGroupState);
 
 Std_ReturnType Sd_ConsumedEventGroupGetState(
-  uint16_t SdConsumedEventGroupHandleId,
-  Sd_ConsumedEventGroupCurrentStateType *ConsumedEventGroupCurrentState);
+  uint16_t sdConsumedEventGroupHandleId,
+  Sd_ConsumedEventGroupCurrentStateType *consumedEventGroupCurrentState);
 
 /* @SWS_SD_91002 */
-void Sd_SoConModeChg(SoAd_SoConIdType SoConId, SoAd_SoConModeType Mode);
+void Sd_SoConModeChg(SoAd_SoConIdType soConId, SoAd_SoConModeType mode);
 
 /* @SWS_SD_00129 */
-void Sd_RxIndication(PduIdType RxPduId, const PduInfoType *PduInfoPtr);
+void Sd_RxIndication(PduIdType rxPduId, const PduInfoType *pduInfoPtr);
 
 /* @SWS_SD_00130 */
 void Sd_MainFunction(void);
 
-Std_ReturnType Sd_GetProviderAddr(uint16_t ClientServiceHandleId, TcpIp_SockAddrType *RemoteAddr);
-Std_ReturnType Sd_GetSubscribers(uint16_t EventHandlerId, Sd_EventHandlerSubscriberListType **list);
-void Sd_RemoveSubscriber(uint16_t EventHandlerId, PduIdType TxPduId);
-void Sd_NotifyServiceOffline(uint16_t SdServerServiceHandleId);
+Std_ReturnType Sd_GetProviderAddr(uint16_t clientServiceHandleId, TcpIp_SockAddrType *remoteAddr);
+Std_ReturnType Sd_GetSubscribers(uint16_t eventHandlerId, Sd_EventHandlerSubscriberListType **list);
+void Sd_RemoveSubscriber(uint16_t eventHandlerId, PduIdType txPduId);
+void Sd_NotifyServiceOffline(uint16_t sdServerServiceHandleId);
 
-Std_ReturnType Sd_HeaderIndication(PduIdType RxPduId, const PduInfoType *info,
+Std_ReturnType Sd_HeaderIndication(PduIdType rxPduId, const PduInfoType *info,
                                    PduLengthType *payloadLength);
 
 /* @SWS_Sd_00124 */

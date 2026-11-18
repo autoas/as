@@ -4,8 +4,8 @@
  *
  * ref: Specification of EEPROM Driver AUTOSAR CP Release 4.4.0
  */
-#ifndef _EEP_PRIV_H
-#define _EEP_PRIV_H
+#ifndef EEP_PRIV_H
+#define EEP_PRIV_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "Std_Types.h"
 /* ================================ [ MACROS    ] ============================================== */
@@ -49,4 +49,4 @@
 #include "Fls.h"
 #include "../Fls/Fls_Priv.h"
 /* ================================ [ FUNCTIONS ] ============================================== */
-#endif /* _EEP_PRIV_H */
+#endif /* EEP_PRIV_H */

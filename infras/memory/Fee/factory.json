@@ -1,11 +1,11 @@
 {
-  "class": "Factory",
-  "name": "Fee",
-  "events": ["End", "Error"],
-  "machines": [
+  "Class": "Factory",
+  "Name": "Fee",
+  "Events": ["End", "Error"],
+  "Machines": [
     {
-      "name" : "Init",
-      "nodes" : [
+      "Name" : "Init",
+      "Nodes" : [
         "ReadBankAdmin",
         "BlankCheckInfo",
         "BlankCheckBlock",
@@ -17,23 +17,23 @@
       ]
     },
     {
-      "name" : "Read",
-      "nodes" : [
+      "Name" : "Read",
+      "Nodes" : [
         "ReadData",
         "SearchNext"
       ]
     },
     {
-      "name" : "Write",
-      "nodes" : [
+      "Name" : "Write",
+      "Nodes" : [
         "WriteCheckDataChanged",
         "WriteAdmin",
         "WriteData"
       ]
     },
     {
-      "name" : "Backup",
-      "nodes" : [
+      "Name" : "Backup",
+      "Nodes" : [
         "ReadAdmin",
         "CheckBankStatus",
         "EnsureFull",

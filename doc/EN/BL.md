@@ -1,17 +1,29 @@
+---
 layout: post
 title: AUTOSAR Bootloader (BL) Configuration
 category: AUTOSAR
 comments: true
+---
 
 # Configuration Notes for AUTOSAR Bootloader (BL) Module
+
+> **In one sentence**: BL is the SSAS bootloader: it validates and (on request) programs/switches applications in flash, driven over UDS (Dcm) by the Loader PC tool, with CRC-based signature verification (V1/V2/V3 formats), optional A/B partition management and metadata.
+
+| | |
+| --- | --- |
+| Module | `infras/diagnostic/BL` + `app/bootloader/config/BL/BL.json` |
+| Configuration | `BL.json` → `tools/generator/BL.py` → `GEN/BL_Cfg.c/.h` |
+| Upstream | Dcm flashing routines `0xFF00/0xFF01/0xFF02` (see Dcm doc) |
+| PC tool | `Loader` (`tools/libraries/loader`, signed S-record handling in `tools/libraries/srec`) |
+| Demos | `CanBL` (CAN, host), `DoIPBL` / `VersatilepbDoIPBL` (DoIP), see BL-DoIP / BL-DoIP-QEMU |
 
 ## Table of Contents
 
 1. [Example Configuration](#1-example-configuration)
-2. [General Configuration (`general` Section)](#2-general-configuration-general-section)
+2. [General Configuration (`General` Section)](#2-general-configuration-general-section)
    - [General Configuration Parameters](#general-configuration)
    - [Notes on Required Values](#notes-on-required-values)
-3. [Memory Layout (`memory` Section)](#3-memory-layout-memory-section)
+3. [Memory Layout (`Memory` Section)](#3-memory-layout-memory-section)
    - [Memory Region Attributes](#memory-region-attributes)
    - [Defined Regions](#defined-regions)
 4. [Code Generation](#4-code-generation)
@@ -40,9 +52,9 @@ For a complete example, see:\
 
 This JSON file defines both general configurations and physical memory layout, which are consumed by the `BL.py` generator to produce `BL_Cfg.h` and `BL_Cfg.c`.
 
-## 2. General Configuration (`general` Section)
+## 2. General Configuration (`General` Section)
 
-The `general` section controls compile-time features and communication settings. All entries map directly to C preprocessor macros in `BL_Cfg.h`.
+The `General` section controls compile-time features and communication settings. All entries map directly to C preprocessor macros in `BL_Cfg.h`.
 
 ### General Configuration
 
@@ -91,17 +103,17 @@ The `general` section controls compile-time features and communication settings.
 - **Optional**: Can be omitted; sensible defaults are used.
 - **Conditional**: Only needed when the referenced feature(s) are enabled.
 
-## 3. Memory Layout (`memory` Section)
+## 3. Memory Layout (`Memory` Section)
 
-The `memory` section defines physical address ranges and attributes for bootloader components. Each flash bank is described with three key properties: `address`, `size`, and `sectorSize`.
+The `Memory` section defines physical address ranges and attributes for bootloader components. Each flash bank is described with three key properties: `Address`, `Size`, and `SectorSize`.
 
 ### Memory Region Attributes
 
 | Attribute    | Type       | Description                                                                                                                                                                                           |
 | ------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `address`    | hex string | Start address of the memory region (e.g., `"0xA0040000"`). Must be aligned to flash page/sector boundaries.                                                                                           |
-| `size`       | string     | Size of the region in bytes. May be a decimal number, hex literal (e.g., `"0x10000"`), or arithmetic expression (e.g., `"0xA0300000-0xA0040000"`). The generator evaluates expressions at build time. |
-| `sectorSize` | integer    | Erase granularity of the flash device in bytes (e.g., `2048`). Used internally for erase/write alignment and validation.                                                                              |
+| `Address`    | hex string | Start address of the memory region (e.g., `"0xA0040000"`). Must be aligned to flash page/sector boundaries.                                                                                           |
+| `Size`       | string     | Size of the region in bytes. May be a decimal number, hex literal (e.g., `"0x10000"`), or arithmetic expression (e.g., `"0xA0300000-0xA0040000"`). The generator evaluates expressions at build time. |
+| `SectorSize` | integer    | Erase granularity of the flash device in bytes (e.g., `2048`). Used internally for erase/write alignment and validation.                                                                              |
 
 ### Defined Regions
 
@@ -116,13 +128,13 @@ The `memory` section defines physical address ranges and attributes for bootload
 > When `BL_USE_META` is enabled, metadata structures (fingerprint, meta, info, valid flag, backup) are placed in the **last 2 sectors** (generally) of each application region (`FlashA`/`FlashB`). The usable application space ends at `(region_end - 2 sectors)` to reserve space for these structures.
 >
 > ? **Sector Alignment**:\
-> All flash operations respect `sectorSize`. The generator assumes that `address` and `size` are multiples of `sectorSize`.
+> All flash operations respect `SectorSize`. The generator assumes that `Address` and `Size` are multiples of `SectorSize`.
 
 ## 4. Code Generation
 
 The `BL.py` script reads `BL.json` and generates:
 
-- `GEN/BL_Cfg.h`: Contains all macros from the `general` section.
+- `GEN/BL_Cfg.h`: Contains all macros from the `General` section.
 - `GEN/BL_Cfg.c`: Defines memory layout arrays (`blMemoryListA`, `blMemoryListB`) and global symbol addresses (e.g., `blAppMetaAddrA`).
 
 ***
@@ -219,7 +231,7 @@ The bootloader's `bl_core.c` implements signature verification through the follo
 - Uses chained CRC calculation for better integrity
 - Enables the `BL_USE_APP_INFO_V2` feature
 
-### 5.7 BL_USE_APP_INFO vs BL_USE_APP_INFO_V2
+### 5.6 BL_USE_APP_INFO vs BL_USE_APP_INFO_V2
 
 The bootloader supports two configuration flags that determine how application metadata is handled:
 

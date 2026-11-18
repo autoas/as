@@ -26,21 +26,21 @@ def Gen_Mirror(cfg, dir):
     if len(SourceNetworkCans) > 0:
         H.write("#define MIRROR_USE_SOURCE_CAN\n")
     for network in SourceNetworkCans:
-        H.write("#define MIRROR_SRC_NT_CAN_%s %su\n" % (toMacro(network["name"]), idx))
+        H.write("#define MIRROR_SRC_NT_CAN_%s %su\n" % (toMacro(network["Name"]), idx))
         idx += 1
     SourceNetworkLins = cfg.get("SourceNetworkLin", [])
     H.write("\n/* Source Network LIN IDs */\n")
     if len(SourceNetworkLins) > 0:
         H.write("#define MIRROR_USE_SOURCE_LIN\n")
     for network in SourceNetworkLins:
-        H.write("#define MIRROR_SRC_NT_LIN_%s %su\n" % (toMacro(network["name"]), idx))
+        H.write("#define MIRROR_SRC_NT_LIN_%s %su\n" % (toMacro(network["Name"]), idx))
         idx += 1
     DestNetworkCans = cfg.get("DestNetworkCan", [])
     H.write("\n/* Dest Network CAN IDs */\n")
     if len(DestNetworkCans) > 0:
         H.write("#define MIRROR_USE_DEST_CAN\n")
     for network in DestNetworkCans:
-        H.write("#define MIRROR_DST_NT_CAN_%s %su\n" % (toMacro(network["name"]), idx))
+        H.write("#define MIRROR_DST_NT_CAN_%s %su\n" % (toMacro(network["Name"]), idx))
         H.write("#define MIRROR_%s %su\n" % (toMacro(network["TxPduId"]), idx))
         idx += 1
     DestNetworkIps = cfg.get("DestNetworkIp", [])
@@ -48,7 +48,7 @@ def Gen_Mirror(cfg, dir):
     if len(DestNetworkIps) > 0:
         H.write("#define MIRROR_USE_DEST_IP\n")
     for network in DestNetworkIps:
-        H.write("#define MIRROR_DST_NT_IP_%s %su\n" % (toMacro(network["name"]), idx))
+        H.write("#define MIRROR_DST_NT_IP_%s %su\n" % (toMacro(network["Name"]), idx))
         idx += 1
     H.write("\n%s#define MIRROR_USE_PB_CONFIG\n\n" % ("" if cfg.get("UsePostBuildConfig", False) else "// "))
     H.write("/* ================================ [ TYPES     ] ============================================== */\n")
@@ -67,7 +67,9 @@ def Gen_Mirror(cfg, dir):
     C.write('#include "Mirror_Priv.h"\n')
 
     if len(DestNetworkIps) > 0:
+        C.write("#ifdef USE_SOAD\n")
         C.write('#include "SoAd_Cfg.h"\n')
+        C.write("#endif\n")
     if len(DestNetworkCans) > 0:
         C.write("#ifdef USE_PDUR\n")
         C.write('#include "PduR_Cfg.h"\n')
@@ -81,14 +83,14 @@ def Gen_Mirror(cfg, dir):
         MaxDynamicFilters = network.get("MaxDynamicFilters", 128)
         if len(staticFilters) > 0:
             C.write(
-                "static const Mirror_SourceCanFilterType Mirror_SourceCanStaticFilters_%s[]={\n" % (network["name"])
+                "static const Mirror_SourceCanFilterType Mirror_SourceCanStaticFilters_%s[]={\n" % (network["Name"])
             )
             for ft in staticFilters:
                 C.write("  {\n")
-                if ft["type"] == "range":
-                    C.write("    { { %s, %s } }, MIRROR_SOURCE_CAN_FILTER_RANGE\n" % (ft["lower"], ft["upper"]))
-                elif ft["type"] == "mask":
-                    C.write("    { { %s, %s } }, MIRROR_SOURCE_CAN_FILTER_MASK\n" % (ft["code"], ft["mask"]))
+                if ft["Type"] == "Range":
+                    C.write("    { { %s, %s } }, MIRROR_SOURCE_CAN_FILTER_RANGE\n" % (ft["Lower"], ft["Upper"]))
+                elif ft["Type"] == "Mask":
+                    C.write("    { { %s, %s } }, MIRROR_SOURCE_CAN_FILTER_MASK\n" % (ft["Code"], ft["Mask"]))
                 else:
                     raise
                 C.write("  },\n")
@@ -96,17 +98,17 @@ def Gen_Mirror(cfg, dir):
         if MaxDynamicFilters > 0:
             C.write(
                 "static Mirror_SourceCanFilterType Mirror_SourceCanDynamicFilters_%s[%s];\n\n"
-                % (network["name"], MaxDynamicFilters)
+                % (network["Name"], MaxDynamicFilters)
             )
         C.write(
             "static boolean Mirror_SourceNetworkCanFilterStatus_%s[%s];\n\n"
-            % (network["name"], MaxDynamicFilters + len(staticFilters))
+            % (network["Name"], MaxDynamicFilters + len(staticFilters))
         )
         SingleIdMappings = network.get("SingleIdMappings", [])
         if len(SingleIdMappings) > 0:
             C.write(
                 "static const Mirror_SourceCanSingleIdMappingType Mirror_SourceCanSingleIdMappings_%s[] = {\n"
-                % (network["name"])
+                % (network["Name"])
             )
             for sim in SingleIdMappings:
                 C.write("  {\n")
@@ -118,7 +120,7 @@ def Gen_Mirror(cfg, dir):
         if len(MaskBasedIdMappings) > 0:
             C.write(
                 "static const Mirror_SourceCanMaskBasedIdMappingType Mirror_SourceCanMaskBasedIdMappings_%s[] = {\n"
-                % (network["name"])
+                % (network["Name"])
             )
             for mim in MaskBasedIdMappings:
                 C.write("  {\n")
@@ -140,23 +142,23 @@ def Gen_Mirror(cfg, dir):
             MaskBasedIdMappings = network.get("MaskBasedIdMappings", [])
             C.write("  {\n")
             if len(staticFilters) > 0:
-                C.write("    Mirror_SourceCanStaticFilters_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceCanStaticFilters_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* StaticFilters */\n")
             if MaxDynamicFilters > 0:
-                C.write("    Mirror_SourceCanDynamicFilters_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceCanDynamicFilters_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* DynamicFilters */\n")
             C.write("    &Mirror_SourceNetworkCanContexts[%s],\n" % (idx))
             if len(MaskBasedIdMappings) > 0:
-                C.write("    Mirror_SourceCanMaskBasedIdMappings_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceCanMaskBasedIdMappings_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* MaskBasedIdMappings */\n")
             if len(SingleIdMappings) > 0:
-                C.write("    Mirror_SourceCanSingleIdMappings_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceCanSingleIdMappings_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* SingleIdMappings */\n")
-            C.write("    Mirror_SourceNetworkCanFilterStatus_%s,\n" % (network["name"]))
+            C.write("    Mirror_SourceNetworkCanFilterStatus_%s,\n" % (network["Name"]))
             C.write("    %su, /* NumMaskBasedIdMappings */\n" % (len(MaskBasedIdMappings)))
             C.write("    %su, /* NumSingleIdMappings */\n" % (len(SingleIdMappings)))
             C.write("    %su, /* NumStaticFilters */\n" % (len(staticFilters)))
@@ -170,14 +172,14 @@ def Gen_Mirror(cfg, dir):
         MaxDynamicFilters = network.get("MaxDynamicFilters", 32)
         if len(staticFilters) > 0:
             C.write(
-                "static const Mirror_SourceLinFilterType Mirror_SourceLinStaticFilters_%s[]={\n" % (network["name"])
+                "static const Mirror_SourceLinFilterType Mirror_SourceLinStaticFilters_%s[]={\n" % (network["Name"])
             )
             for ft in staticFilters:
                 C.write("  {\n")
-                if ft["type"] == "range":
-                    C.write("    { { %s, %s } }, MIRROR_SOURCE_LIN_FILTER_RANGE\n" % (ft["lower"], ft["upper"]))
-                elif ft["type"] == "mask":
-                    C.write("    { { %s, %s } }, MIRROR_SOURCE_LIN_FILTER_MASK\n" % (ft["code"], ft["mask"]))
+                if ft["Type"] == "Range":
+                    C.write("    { { %s, %s } }, MIRROR_SOURCE_LIN_FILTER_RANGE\n" % (ft["Lower"], ft["Upper"]))
+                elif ft["Type"] == "Mask":
+                    C.write("    { { %s, %s } }, MIRROR_SOURCE_LIN_FILTER_MASK\n" % (ft["Code"], ft["Mask"]))
                 else:
                     raise
                 C.write("  },\n")
@@ -185,17 +187,17 @@ def Gen_Mirror(cfg, dir):
         if MaxDynamicFilters > 0:
             C.write(
                 "static Mirror_SourceLinFilterType Mirror_SourceLinDynamicFilters_%s[%s];\n\n"
-                % (network["name"], MaxDynamicFilters)
+                % (network["Name"], MaxDynamicFilters)
             )
         C.write(
             "static boolean Mirror_SourceNetworkLinFilterStatus_%s[%s];\n\n"
-            % (network["name"], MaxDynamicFilters + len(staticFilters))
+            % (network["Name"], MaxDynamicFilters + len(staticFilters))
         )
         SourceLinToCanIdMappings = network.get("SourceLinToCanIdMappings", [])
         if len(SourceLinToCanIdMappings) > 0:
             C.write(
                 "static const Mirror_SourceLinToCanIdMappingType Mirror_SourceLinToCanIdMapping_%s[] = {\n"
-                % (network["name"])
+                % (network["Name"])
             )
             for sim in SourceLinToCanIdMappings:
                 C.write("  {\n")
@@ -215,19 +217,19 @@ def Gen_Mirror(cfg, dir):
             SourceLinToCanIdMappings = network.get("SourceLinToCanIdMappings", [])
             C.write("  {\n")
             if len(staticFilters) > 0:
-                C.write("    Mirror_SourceLinStaticFilters_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceLinStaticFilters_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* StaticFilters */\n")
             if MaxDynamicFilters > 0:
-                C.write("    Mirror_SourceLinDynamicFilters_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceLinDynamicFilters_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* DynamicFilters */\n")
             C.write("    &Mirror_SourceNetworkLinContexts[%s],\n" % (idx))
             if len(SourceLinToCanIdMappings) > 0:
-                C.write("    Mirror_SourceLinToCanIdMapping_%s,\n" % (network["name"]))
+                C.write("    Mirror_SourceLinToCanIdMapping_%s,\n" % (network["Name"]))
             else:
                 C.write("    NULL, /* SourceLinToCanIdMappings */\n")
-            C.write("    Mirror_SourceNetworkLinFilterStatus_%s,\n" % (network["name"]))
+            C.write("    Mirror_SourceNetworkLinFilterStatus_%s,\n" % (network["Name"]))
             C.write("    %su, /* SourceLinToCanBaseId */\n" % (network.get("SourceLinToCanBaseId", 0)))
             C.write("    %su, /* NumSourceLinToCanIdMappings */\n" % (len(SourceLinToCanIdMappings)))
             C.write("    %su, /* NumStaticFilters */\n" % (len(staticFilters)))
@@ -248,19 +250,19 @@ def Gen_Mirror(cfg, dir):
         # must be power of 2
         assert (DestQueueSize > 0) and ((DestQueueSize & (DestQueueSize - 1)) == 0)
         C.write(
-            "static Mirror_DataElementType NtCanRingBufferDataElements%s[%s];\n\n" % (network["name"], DestQueueSize)
+            "static Mirror_DataElementType NtCanRingBufferDataElements%s[%s];\n\n" % (network["Name"], DestQueueSize)
         )
-        C.write("static const Mirror_RingBufferType NtCanRingBuffer%s = {\n" % (network["name"]))
+        C.write("static const Mirror_RingBufferType NtCanRingBuffer%s = {\n" % (network["Name"]))
         C.write("  &Mirror_DestNetworkCanRingBufferContexts[%s],\n" % (idx))
-        C.write("  NtCanRingBufferDataElements%s,\n" % (network["name"]))
-        C.write("  ARRAY_SIZE(NtCanRingBufferDataElements%s),\n" % (network["name"]))
+        C.write("  NtCanRingBufferDataElements%s,\n" % (network["Name"]))
+        C.write("  ARRAY_SIZE(NtCanRingBufferDataElements%s),\n" % (network["Name"]))
         C.write("};\n\n")
     if len(DestNetworkCans) > 0:
         C.write("static const Mirror_DestNetworkCanType Mirror_DestNetworkCans[] = {")
         for idx, network in enumerate(DestNetworkCans):
             C.write("  {\n")
             C.write("    &Mirror_DestNetworkCanContexts[%s],\n" % (idx))
-            C.write("    &NtCanRingBuffer%s,\n" % (network["name"]))
+            C.write("    &NtCanRingBuffer%s,\n" % (network["Name"]))
             C.write("    %s, /* MirrorStatusCanId */\n" % (network.get("MirrorStatusCanId", "0xFFFFFFFFul")))
             C.write("    #ifdef USE_PDUR\n")
             C.write("    PDUR_%s, /* TxPduId */\n" % (network["TxPduId"]))
@@ -277,14 +279,14 @@ def Gen_Mirror(cfg, dir):
         # must be power of 2
         assert (DestQueueSize > 0) and ((DestQueueSize & (DestQueueSize - 1)) == 0)
         C.write(
-            "static uint8_t NtIpRingDestBufferData%s[%s][%s];\n\n" % (network["name"], DestQueueSize, DestBufferSize)
+            "static uint8_t NtIpRingDestBufferData%s[%s][%s];\n\n" % (network["Name"], DestQueueSize, DestBufferSize)
         )
-        C.write("static uint16_t NtIpRingDestBufferOffset%s[%s];\n\n" % (network["name"], DestQueueSize))
-        C.write("static const Mirror_DestBufferType Mirror_DestBuffers%s[] = {\n" % (network["name"]))
+        C.write("static uint16_t NtIpRingDestBufferOffset%s[%s];\n\n" % (network["Name"], DestQueueSize))
+        C.write("static const Mirror_DestBufferType Mirror_DestBuffers%s[] = {\n" % (network["Name"]))
         for i in range(DestQueueSize):
             C.write("  {\n")
-            C.write("    NtIpRingDestBufferData%s[%s],\n" % (network["name"], i))
-            C.write("    &NtIpRingDestBufferOffset%s[%s],\n" % (network["name"], i))
+            C.write("    NtIpRingDestBufferData%s[%s],\n" % (network["Name"], i))
+            C.write("    &NtIpRingDestBufferOffset%s[%s],\n" % (network["Name"], i))
             C.write("    %s,\n" % (DestBufferSize))
             C.write("  },\n")
         C.write("};\n\n")
@@ -293,12 +295,16 @@ def Gen_Mirror(cfg, dir):
         for idx, network in enumerate(DestNetworkIps):
             C.write("  {\n")
             C.write("    &Mirror_DestNetworkIpContexts[%s],\n" % (idx))
-            C.write("    Mirror_DestBuffers%s,\n" % (network["name"]))
+            C.write("    Mirror_DestBuffers%s,\n" % (network["Name"]))
             C.write(
                 "    MIRROR_CONVERT_MS_TO_MAIN_CYCLES(%su), /* MirrorDestTransmissionDeadline */\n"
                 % (network.get("MirrorDestTransmissionDeadline", 655))
             )
+            C.write("#ifdef USE_SOAD\n")
             C.write("    %s, /* TxPduId */\n" % (network["SoAd"]))
+            C.write("#else\n")
+            C.write("    0u, /* TxPduId (SoAd not used) */\n")
+            C.write("#endif\n")
             C.write("    %su, /* NumDestBuffers */\n" % (network.get("DestQueueSize", 2)))
             C.write("  }\n")
         C.write("};\n\n")
@@ -316,7 +322,7 @@ def Gen_Mirror(cfg, dir):
                 network, idx = CanCtrlIdToNetworkMaps[ControllerId]
                 C.write(
                     "  %su, /* ControllerId = %s -> MIRROR_SRC_NT_CAN_%s */\n"
-                    % (idx, ControllerId, toMacro(network["name"]))
+                    % (idx, ControllerId, toMacro(network["Name"]))
                 )
             else:
                 C.write("  MIRROR_INVALID_NETWORK,\n")
@@ -335,7 +341,7 @@ def Gen_Mirror(cfg, dir):
                 network, idx = LinCtrlIdToNetworkMaps[ControllerId]
                 C.write(
                     "  %su, /* ControllerId = %s -> MIRROR_SRC_NT_LIN_%s */\n"
-                    % (idx, ControllerId, toMacro(network["name"]))
+                    % (idx, ControllerId, toMacro(network["Name"]))
                 )
             else:
                 C.write("  MIRROR_INVALID_NETWORK,\n")
@@ -343,22 +349,22 @@ def Gen_Mirror(cfg, dir):
     C.write("const Mirror_ComMChannelMapType Mirror_ComChannelMaps[] = {\n")
     for idx, network in enumerate(SourceNetworkCans):
         C.write("  {\n")
-        C.write("    /* MIRROR_SRC_NT_CAN_%s */ %su,\n" % (toMacro(network["name"]), idx))
+        C.write("    /* MIRROR_SRC_NT_CAN_%s */ %su,\n" % (toMacro(network["Name"]), idx))
         C.write("    MIRROR_NT_CAN,\n")
         C.write("  },\n")
     for idx, network in enumerate(SourceNetworkLins):
         C.write("  {\n")
-        C.write("    /* MIRROR_SRC_NT_LIN_%s */ %su,\n" % (toMacro(network["name"]), idx))
+        C.write("    /* MIRROR_SRC_NT_LIN_%s */ %su,\n" % (toMacro(network["Name"]), idx))
         C.write("    MIRROR_NT_LIN,\n")
         C.write("  },\n")
     for idx, network in enumerate(DestNetworkCans):
         C.write("  {\n")
-        C.write("    /* MIRROR_DST_NT_CAN_%s */ %su,\n" % (toMacro(network["name"]), idx))
+        C.write("    /* MIRROR_DST_NT_CAN_%s */ %su,\n" % (toMacro(network["Name"]), idx))
         C.write("    MIRROR_NT_CAN|MIRROR_NT_DEST,\n")
         C.write("  },\n")
     for idx, network in enumerate(DestNetworkIps):
         C.write("  {\n")
-        C.write("    /* MIRROR_DST_NT_IP_%s */ %su,\n" % (toMacro(network["name"]), idx))
+        C.write("    /* MIRROR_DST_NT_IP_%s */ %su,\n" % (toMacro(network["Name"]), idx))
         C.write("    MIRROR_NT_ETHERNET|MIRROR_NT_DEST,\n")
         C.write("  },\n")
     C.write("};\n\n")

@@ -1,27 +1,31 @@
 {
-  "class": "PduR",
-  "routines": [
+  "Class": "PduR",
+  "Routines": [
     {
-      "name": "P2P_RX",
-      "from": "DoIP",
-      "to": "Dcm"
+      "Name": "P2P_RX",
+      "From": "DoIP",
+      "To": "Dcm"
     },
     {
-      "name": "P2P_TX",
-      "from": "Dcm",
-      "to": "DoIP"
+      "Name": "P2P_TX",
+      "From": "Dcm",
+      "To": "DoIP"
     },
     {
-      "name": "CAN_BL_RX",
-      "from": "DoIP",
-      "to": "CanTp",
-      "DestBufferSize": 4096
+      "Name": "CAN_BL_RX",
+      "From": "DoIP",
+      "To": "CanTp",
+      "DestBufferSize": 4096,
+      "UseDestBuffer": true,
+      "DestBufferType": "private"
     },
     {
-      "name": "CAN_BL_TX",
-      "from": "CanTp",
-      "to": "DoIP",
-      "DestBufferSize": 4096
+      "Name": "CAN_BL_TX",
+      "From": "CanTp",
+      "To": "DoIP",
+      "DestBufferSize": 4096,
+      "UseDestBuffer": true,
+      "DestBufferType": "private"
     }
   ]
 }

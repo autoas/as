@@ -1,208 +1,208 @@
 {
-    "target": {
-      "protocol": "CAN",
-      "LL_DL": 8,
-      "device": "simulator_v2",
-      "port": 0,
-      "txid": "0x7A0",
-      "rxid": "0x7B0",
-      "baudrate": 500000
+    "Target": {
+      "Protocol": "CAN",
+      "LinkLayerDataLength": 8,
+      "Device": "simulator_v2",
+      "Port": 0,
+      "TxId": "0x7A0",
+      "RxId": "0x7B0",
+      "Baudrate": 500000
     },
-    "lua": "xcp.lua",
-    "groups": {
+    "Lua": "xcp.lua",
+    "Groups": {
       "General": {
         "Services": [
           {
-            "name": "Connect",
+            "Name": "Connect",
             "SID": "0xFF",
-            "transmit": [
-                { "name": "Mode", "type": "U8Select", "Select": [{ "name": "Normal", "value": "0x00" }, { "name": "User Defined", "value": "0x01" }] }
+            "Transmit": [
+                { "Name": "Mode", "Type": "U8Select", "Select": [{ "Name": "Normal", "Value": "0x00" }, { "Name": "User Defined", "Value": "0x01" }] }
             ],
-            "receive": [
-              { "name": "RESOURCE", "type": "U8", "display": "hex", "default": 0, "lua": "decode_xcp_res" },
-              { "name": "COMM_MODE_BASIC", "type": "U8", "display": "hex", "default": 0, "newline": true },
-              { "name": "MAX_CTO", "type": "U8", "display": "hex", "default": 0 },
-              { "name": "MAX_DTO", "type": "U16", "display": "hex", "default": 0, "newline": true },
-              { "name": "XCP Protocol Layer Version Number", "type": "U16", "display": "hex", "default": 0 }
+            "Receive": [
+              { "Name": "RESOURCE", "Type": "U8", "Display": "hex", "Default": 0, "Lua": "decode_xcp_res" },
+              { "Name": "COMM_MODE_BASIC", "Type": "U8", "Display": "hex", "Default": 0, "Newline": true },
+              { "Name": "MAX_CTO", "Type": "U8", "Display": "hex", "Default": 0 },
+              { "Name": "MAX_DTO", "Type": "U16", "Display": "hex", "Default": 0, "Newline": true },
+              { "Name": "XCP Protocol Layer Version Number", "Type": "U16", "Display": "hex", "Default": 0 }
             ]
           },
           {
-            "name": "GetStatus",
+            "Name": "GetStatus",
             "SID": "0xFD",
-            "transmit": [],
-            "receive": [
-              { "name": "Session", "type": "U8", "display": "hex", "default": 0 },
-              { "name": "Protect", "type": "U8", "display": "hex", "default": 0, "lua": "decode_xcp_res", "newline": true },
-              { "name": "Reserved", "type": "U8", "display": "hex", "default": 0 },
-              { "name": "Session Configuration ID", "type": "U16", "display": "hex", "default": 0 }
+            "Transmit": [],
+            "Receive": [
+              { "Name": "Session", "Type": "U8", "Display": "hex", "Default": 0 },
+              { "Name": "Protect", "Type": "U8", "Display": "hex", "Default": 0, "Lua": "decode_xcp_res", "Newline": true },
+              { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": 0 },
+              { "Name": "Session Configuration ID", "Type": "U16", "Display": "hex", "Default": 0 }
             ]
           },
           {
-            "name": "GetSeed",
+            "Name": "GetSeed",
             "SID": "0xF8",
-            "transmit": [
-                { "name": "Mode", "type": "U8Select", "lua": "record_seed_mode", "Select": [{ "name": "First Part Of Seed", "value": "0x00" }, { "name": "Second Part Of Seed", "value": "0x01" }] },
-                { "name": "Resource", "type": "U8MultiSelect", "lua": "record_seed_resource", "default": "0x1D", 
-                    "Select": [{ "name": "CALPAG", "value": "0x01" }, { "name": "DAQ", "value": "0x04" },
-                               { "name": "STIM", "value": "0x08" }, { "name": "PGM", "value": "0x10" }] }
+            "Transmit": [
+                { "Name": "Mode", "Type": "U8Select", "Lua": "record_seed_mode", "Select": [{ "Name": "First Part Of Seed", "Value": "0x00" }, { "Name": "Second Part Of Seed", "Value": "0x01" }] },
+                { "Name": "Resource", "Type": "U8MultiSelect", "Lua": "record_seed_resource", "Default": "0x1D", 
+                    "Select": [{ "Name": "CALPAG", "Value": "0x01" }, { "Name": "DAQ", "Value": "0x04" },
+                               { "Name": "STIM", "Value": "0x08" }, { "Name": "PGM", "Value": "0x10" }] }
             ],
-            "receive": [
-              { "name": "seeds", "type": "Table", "size": 0, "lua": "record_seeds", "datas": [], "visible": false}
+            "Receive": [
+              { "Name": "seeds", "Type": "Table", "Size": 0, "Lua": "record_seeds", "Datas": [], "Visible": false}
             ]
           },
           {
-            "name": "Unlock",
+            "Name": "Unlock",
             "SID": "0xF7",
-            "transmit": [
-              { "name": "keys", "type": "Table", "size": 0, "lua": "calculate_keys", "readonly": true, "visible": false }
+            "Transmit": [
+              { "Name": "keys", "Type": "Table", "Size": 0, "Lua": "calculate_keys", "Readonly": true, "Visible": false }
             ],
-            "receive": [
-              { "name": "Protect", "type": "U8", "display": "hex", "default": 0, "lua": "decode_xcp_res" }
+            "Receive": [
+              { "Name": "Protect", "Type": "U8", "Display": "hex", "Default": 0, "Lua": "decode_xcp_res" }
             ]
           },
-          { "name": "Disconnect", "SID": "0xFE", "transmit": [], "receive": [] }
+          { "Name": "Disconnect", "SID": "0xFE", "Transmit": [], "Receive": [] }
         ]
       },
       "MTA": {
         "Services": [
           {
-            "name": "SetMTA",
+            "Name": "SetMTA",
             "SID": "0xF6",
-            "transmit": [
-              { "name": "Reserved", "type": "U16", "display": "hex", "default": 0 },
-              { "name": "Extension", "type": "U8Select", "default": 0, 
-                  "Select": [{ "name": "MEMORY", "value": 0 }, { "name": "FLASH", "value": 1 },
-                             { "name": "DIO_PORT", "value": 2 }, { "name": "DIO_CHANNEL", "value": 3 }] },
-              { "name": "Address", "type": "U32", "display": "hex", "default": 0 }
+            "Transmit": [
+              { "Name": "Reserved", "Type": "U16", "Display": "hex", "Default": 0 },
+              { "Name": "Extension", "Type": "U8Select", "Default": 0, 
+                  "Select": [{ "Name": "MEMORY", "Value": 0 }, { "Name": "FLASH", "Value": 1 },
+                             { "Name": "DIO_PORT", "Value": 2 }, { "Name": "DIO_CHANNEL", "Value": 3 }] },
+              { "Name": "Address", "Type": "U32", "Display": "hex", "Default": 0 }
             ],
-            "receive": []
+            "Receive": []
           },
           {
-            "name": "Download",
+            "Name": "Download",
             "SID": "0xF0",
-            "transmit": [
-              { "name": "Data", "type": "U8Array", "size": 0, "display": "hex", "lua": "prepare_download", "default": "[0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77]" }
+            "Transmit": [
+              { "Name": "Data", "Type": "U8Array", "Size": 0, "Display": "hex", "Lua": "prepare_download", "Default": "[0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77]" }
             ],
-            "receive": [
-              { "name": "Data", "type": "Table", "size": 0, "lua": "download_next", "datas": [], "visible": false }
+            "Receive": [
+              { "Name": "Data", "Type": "Table", "Size": 0, "Lua": "download_next", "Datas": [], "Visible": false }
             ]
           },
           {
-            "name": "Upload",
+            "Name": "Upload",
             "SID": "0xF5",
-            "transmit": [
-              { "name": "Length", "type": "U8", "display": "dec", "lua": "record_upload_length", "default": 32 }
+            "Transmit": [
+              { "Name": "Length", "Type": "U8", "Display": "dec", "Lua": "record_upload_length", "Default": 32 }
             ],
-            "receive": [
-              { "name": "Data", "type": "Table", "size": 0, "lua": "decode_upload_data", "datas": [] }
+            "Receive": [
+              { "Name": "Data", "Type": "Table", "Size": 0, "Lua": "decode_upload_data", "Datas": [] }
             ]
           },
           {
-            "name": "ShortUpload",
+            "Name": "ShortUpload",
             "SID": "0xF4",
-            "transmit": [
-              { "name": "Length", "type": "U8", "display": "dec", "lua": "record_upload_length", "default": 32 },
-              { "name": "Reserved", "type": "U8", "display": "hex", "default": 0 },
-              { "name": "Extension", "type": "U8Select", "default": 0, 
-                  "Select": [{ "name": "MEMORY", "value": 0 }, { "name": "FLASH", "value": 1 },
-                             { "name": "DIO_PORT", "value": 2 }, { "name": "DIO_CHANNEL", "value": 3 }] },
-              { "name": "Address", "type": "U32", "display": "hex", "default": 0 }
+            "Transmit": [
+              { "Name": "Length", "Type": "U8", "Display": "dec", "Lua": "record_upload_length", "Default": 32 },
+              { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": 0 },
+              { "Name": "Extension", "Type": "U8Select", "Default": 0, 
+                  "Select": [{ "Name": "MEMORY", "Value": 0 }, { "Name": "FLASH", "Value": 1 },
+                             { "Name": "DIO_PORT", "Value": 2 }, { "Name": "DIO_CHANNEL", "Value": 3 }] },
+              { "Name": "Address", "Type": "U32", "Display": "hex", "Default": 0 }
             ],
-            "receive": [
-              { "name": "Data", "type": "Table", "size": 0, "lua": "decode_upload_data", "datas": [] }
+            "Receive": [
+              { "Name": "Data", "Type": "Table", "Size": 0, "Lua": "decode_upload_data", "Datas": [] }
             ]
           }
         ]
       },
       "PGM": {
         "Services": [
-          { "name": "ProgramStart", "SID": "0xD2", "transmit": [], "receive": [
-            { "name": "Reserved", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "COMM_MODE_PGM", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "MAX_CTO_PGM", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "MAX_BS_PGM", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "MIN_ST_PGM", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "QUEUE_SIZE", "type": "U8", "display": "dec", "default": 0 }
+          { "Name": "ProgramStart", "SID": "0xD2", "Transmit": [], "Receive": [
+            { "Name": "Reserved", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "COMM_MODE_PGM", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "MAX_CTO_PGM", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "MAX_BS_PGM", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "MIN_ST_PGM", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "QUEUE_SIZE", "Type": "U8", "Display": "dec", "Default": 0 }
           ] },
-          { "name": "ProgramClear", "SID": "0xD1", "transmit": [
-            { "name": "Access Mode", "type": "U8Select", "display": "hex", "default": 0, 
-              "Select": [{ "name": "Absolute", "value": 0 }, { "name": "Functional", "value": 1 }] },
-            { "name": "Reserved", "type": "U16", "display": "dec", "default": 0 },
-            { "name": "Range", "type": "U32", "display": "hex",  "default": 0 }
-          ], "receive": [] },
+          { "Name": "ProgramClear", "SID": "0xD1", "Transmit": [
+            { "Name": "Access Mode", "Type": "U8Select", "Display": "hex", "Default": 0, 
+              "Select": [{ "Name": "Absolute", "Value": 0 }, { "Name": "Functional", "Value": 1 }] },
+            { "Name": "Reserved", "Type": "U16", "Display": "dec", "Default": 0 },
+            { "Name": "Range", "Type": "U32", "Display": "hex",  "Default": 0 }
+          ], "Receive": [] },
           {
-            "name": "Program",
+            "Name": "Program",
             "SID": "0xD0",
-            "transmit": [
-              { "name": "Data", "type": "U8Array", "size": 0, "display": "hex", "lua": "prepare_program", "default": "[0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77]" }
+            "Transmit": [
+              { "Name": "Data", "Type": "U8Array", "Size": 0, "Display": "hex", "Lua": "prepare_program", "Default": "[0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77]" }
             ],
-            "receive": [
-              { "name": "Data", "type": "Table", "size": 0, "lua": "program_next", "datas": [], "visible": false }
+            "Receive": [
+              { "Name": "Data", "Type": "Table", "Size": 0, "Lua": "program_next", "Datas": [], "Visible": false }
             ]
           },
-          { "name": "ProgramReset", "SID": "0xCF", "transmit": [], "receive": [] }
+          { "Name": "ProgramReset", "SID": "0xCF", "Transmit": [], "Receive": [] }
           
         ]
       },
       "DAQ": {
         "Services": [
-          { "name": "FreeDAQ", "SID": "0xD6", "transmit": [], "receive": [] },
-          { "name": "AllocDAQ", "SID": "0xD5", "transmit": [
-            { "name": "Reserved", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "DAQ Count", "type": "U16", "display": "dec", "default": 1 }], "receive": [] },
-          { "name": "AllocODT", "SID": "0xD4", "transmit": [
-            { "name": "Reserved", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "DAQList Number", "type": "U16", "display": "dec", "default": 1 },
-            { "name": "ODT Count", "type": "U8", "display": "dec", "default": 1 }], "receive": [] },
-          { "name": "AllocODTEntry", "SID": "0xD3", "transmit": [
-            { "name": "Reserved", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "DAQList Number", "type": "U16", "display": "dec", "default": 1 },
-            { "name": "ODT Number", "type": "U8", "display": "dec", "default": 1 },
-            { "name": "ODT Entry Count", "type": "U8", "display": "dec", "default": 1 }], "receive": [] },
-          { "name": "ClearDAQList", "SID": "0xE3", "transmit": [
-            { "name": "Reserved", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "DAQList Number", "type": "U16", "display": "dec", "default": 0 }], "receive": [] },
-          { "name": "SetDAQPtr", "SID": "0xE2", "transmit": [
-            { "name": "Reserved", "type": "U8", "display": "hex", "default": "0x00" },
-            { "name": "DAQList Number", "type": "U16", "display": "dec", "default": 0 },
-            { "name": "ODT Number", "type": "U8", "display": "hex", "default": 0 },
-            { "name": "ODT Entry", "type": "U8", "display": "dec", "default": 0 }], "receive": [] },
-          { "name": "WriteDAQ", "SID": "0xE1", "transmit": [
-            { "name": "Bit Offset", "type": "U8", "display": "dec", "default": "0xFF" },
-            { "name": "Length", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "Extension", "type": "U8Select", "default": 0, 
-                  "Select": [{ "name": "MEMORY", "value": 0 }, { "name": "FLASH", "value": 1 },
-                             { "name": "DIO_PORT", "value": 2 }, { "name": "DIO_CHANNEL", "value": 3 }] },
-            { "name": "Address", "type": "U32", "display": "hex", "default": 0 }], "receive": [] },
-          { "name": "ReadDAQ", "SID": "0xDB", "transmit": [], "receive": [
-            { "name": "Bit Offset", "type": "U8", "display": "dec", "default": "0x00" },
-            { "name": "Length", "type": "U8", "display": "dec", "default": 0 },
-            { "name": "Extension", "type": "U8Select", "default": 0, 
-                  "Select": [{ "name": "MEMORY", "value": 0 }, { "name": "FLASH", "value": 1 },
-                             { "name": "DIO_PORT", "value": 2 }, { "name": "DIO_CHANNEL", "value": 3 }] },
-            { "name": "Address", "type": "U32", "display": "hex", "default": 0 }] },
-          { "name": "SetDAQListMode", "SID": "0xE0", "transmit": [
-            { "name": "Mode", "type": "U8MultiSelect", "default": "0x00", 
-                    "Select": [{ "name": "DIRECTION(Master -> Slave)", "value": "0x02" },
-                               { "name": "TIMESTAMP", "value": "0x10" },
-                               { "name": "PID_OFF", "value": "0x20" }] },
-            { "name": "DAQList Number", "type": "U16", "display": "hex", "default": 0 },
-            { "name": "Event Channel", "type": "U16", "display": "hex", "default": 0 },
-            { "name": "Rate Prescaler", "type": "U8", "display": "dec", "default": 1 },
-            { "name": "Priority", "type": "U8", "display": "dec",  "default": 0 }], "receive": [] },
-          { "name": "StartStopDAQList", "SID": "0xDE", 
-            "transmit": [
-              { "name": "Mode", "type": "U8Select", "default": 0, 
-                      "Select": [{ "name": "Stop", "value": 0 },
-                                 { "name": "Start", "value": 1 },
-                                 { "name": "Select", "value": 2 }] },
-              { "name": "DAQList Number", "type": "U16", "display": "hex", "default": 1 }],
-            "receive": [{ "name": "First PID", "type": "U8", "display": "hex", "optional": true, "default": 0 }] },
-          { "name": "DAQStartStopSynch", "SID": "0xDD", "transmit": [
-              { "name": "Mode", "type": "U8Select", "default": 0, 
-                      "Select": [{ "name": "Stop", "value": 0 },
-                                 { "name": "Start", "value": 1 },
-                                 { "name": "Select", "value": 2 }] }], "receive": [] }
+          { "Name": "FreeDAQ", "SID": "0xD6", "Transmit": [], "Receive": [] },
+          { "Name": "AllocDAQ", "SID": "0xD5", "Transmit": [
+            { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "DAQ Count", "Type": "U16", "Display": "dec", "Default": 1 }], "Receive": [] },
+          { "Name": "AllocODT", "SID": "0xD4", "Transmit": [
+            { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "DAQList Number", "Type": "U16", "Display": "dec", "Default": 1 },
+            { "Name": "ODT Count", "Type": "U8", "Display": "dec", "Default": 1 }], "Receive": [] },
+          { "Name": "AllocODTEntry", "SID": "0xD3", "Transmit": [
+            { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "DAQList Number", "Type": "U16", "Display": "dec", "Default": 1 },
+            { "Name": "ODT Number", "Type": "U8", "Display": "dec", "Default": 1 },
+            { "Name": "ODT Entry Count", "Type": "U8", "Display": "dec", "Default": 1 }], "Receive": [] },
+          { "Name": "ClearDAQList", "SID": "0xE3", "Transmit": [
+            { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "DAQList Number", "Type": "U16", "Display": "dec", "Default": 0 }], "Receive": [] },
+          { "Name": "SetDAQPtr", "SID": "0xE2", "Transmit": [
+            { "Name": "Reserved", "Type": "U8", "Display": "hex", "Default": "0x00" },
+            { "Name": "DAQList Number", "Type": "U16", "Display": "dec", "Default": 0 },
+            { "Name": "ODT Number", "Type": "U8", "Display": "hex", "Default": 0 },
+            { "Name": "ODT Entry", "Type": "U8", "Display": "dec", "Default": 0 }], "Receive": [] },
+          { "Name": "WriteDAQ", "SID": "0xE1", "Transmit": [
+            { "Name": "Bit Offset", "Type": "U8", "Display": "dec", "Default": "0xFF" },
+            { "Name": "Length", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "Extension", "Type": "U8Select", "Default": 0, 
+                  "Select": [{ "Name": "MEMORY", "Value": 0 }, { "Name": "FLASH", "Value": 1 },
+                             { "Name": "DIO_PORT", "Value": 2 }, { "Name": "DIO_CHANNEL", "Value": 3 }] },
+            { "Name": "Address", "Type": "U32", "Display": "hex", "Default": 0 }], "Receive": [] },
+          { "Name": "ReadDAQ", "SID": "0xDB", "Transmit": [], "Receive": [
+            { "Name": "Bit Offset", "Type": "U8", "Display": "dec", "Default": "0x00" },
+            { "Name": "Length", "Type": "U8", "Display": "dec", "Default": 0 },
+            { "Name": "Extension", "Type": "U8Select", "Default": 0, 
+                  "Select": [{ "Name": "MEMORY", "Value": 0 }, { "Name": "FLASH", "Value": 1 },
+                             { "Name": "DIO_PORT", "Value": 2 }, { "Name": "DIO_CHANNEL", "Value": 3 }] },
+            { "Name": "Address", "Type": "U32", "Display": "hex", "Default": 0 }] },
+          { "Name": "SetDAQListMode", "SID": "0xE0", "Transmit": [
+            { "Name": "Mode", "Type": "U8MultiSelect", "Default": "0x00", 
+                    "Select": [{ "Name": "DIRECTION(Master -> Slave)", "Value": "0x02" },
+                               { "Name": "TIMESTAMP", "Value": "0x10" },
+                               { "Name": "PID_OFF", "Value": "0x20" }] },
+            { "Name": "DAQList Number", "Type": "U16", "Display": "hex", "Default": 0 },
+            { "Name": "Event Channel", "Type": "U16", "Display": "hex", "Default": 0 },
+            { "Name": "Rate Prescaler", "Type": "U8", "Display": "dec", "Default": 1 },
+            { "Name": "Priority", "Type": "U8", "Display": "dec",  "Default": 0 }], "Receive": [] },
+          { "Name": "StartStopDAQList", "SID": "0xDE", 
+            "Transmit": [
+              { "Name": "Mode", "Type": "U8Select", "Default": 0, 
+                      "Select": [{ "Name": "Stop", "Value": 0 },
+                                 { "Name": "Start", "Value": 1 },
+                                 { "Name": "Select", "Value": 2 }] },
+              { "Name": "DAQList Number", "Type": "U16", "Display": "hex", "Default": 1 }],
+            "Receive": [{ "Name": "First PID", "Type": "U8", "Display": "hex", "Optional": true, "Default": 0 }] },
+          { "Name": "DAQStartStopSynch", "SID": "0xDD", "Transmit": [
+              { "Name": "Mode", "Type": "U8Select", "Default": 0, 
+                      "Select": [{ "Name": "Stop", "Value": 0 },
+                                 { "Name": "Start", "Value": 1 },
+                                 { "Name": "Select", "Value": 2 }] }], "Receive": [] }
         ]
       }
    }

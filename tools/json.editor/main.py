@@ -606,7 +606,7 @@ class AIValidationDialog(QMainWindow):
 
         if hasattr(mainWindow, "reload"):
             for cfg in config:
-                module_class = cfg.get("class")
+                module_class = cfg.get("Class")
                 if module_class:
                     mainWindow.reload(module_class, cfg)
 
@@ -641,7 +641,7 @@ class AIValidationDialog(QMainWindow):
 
         if hasattr(mainWindow, "reload"):
             for cfg in config:
-                module_class = cfg.get("class")
+                module_class = cfg.get("Class")
                 if module_class:
                     mainWindow.reload(module_class, cfg)
 
@@ -833,7 +833,7 @@ class AIValidationDialog(QMainWindow):
                 return
 
             moduleName = path[0]
-            module = next((m for m in config if m.get("class") == moduleName), None)
+            module = next((m for m in config if m.get("Class") == moduleName), None)
             if not module:
                 return
 
@@ -869,14 +869,14 @@ class AIValidationDialog(QMainWindow):
             moduleName = path[0]
 
             if len(path) == 1:
-                existing_module = next((m for m in config if m.get("class") == moduleName), None)
+                existing_module = next((m for m in config if m.get("Class") == moduleName), None)
                 if existing_module:
                     existing_module.update(value)
                 else:
-                    if isinstance(value, dict) and "class" in value:
+                    if isinstance(value, dict) and "Class" in value:
                         config.append(value)
             else:
-                module = next((m for m in config if m.get("class") == moduleName), None)
+                module = next((m for m in config if m.get("Class") == moduleName), None)
                 if not module:
                     return
 
@@ -1025,7 +1025,7 @@ class JsonEditor(QMainWindow):
                 if type(cfg) == list:
                     c = None
                     for x in cfg:
-                        if x["name"] == u:
+                        if x["Name"] == u:
                             c = x
                     if c != None:
                         cfg = c
@@ -1049,7 +1049,7 @@ class JsonEditor(QMainWindow):
             cfg = json.load(f)
             for m in cfg:
                 for schema in self.schema:
-                    if m["class"] == schema["title"]:
+                    if m["Class"] == schema["title"]:
                         schema["__init__"] = m
         self.jsonFile = jsonFile
         self.modules.clear()
@@ -1063,25 +1063,25 @@ class JsonEditor(QMainWindow):
     def UpdateEcuCByCanIf(self, cfg):
         ecuc = self.find("EcuC")
         if ecuc == None:
-            ecuc = {"class": "EcuC", "Pdus": []}
-        pdusMap = [x["name"] for x in ecuc["Pdus"]]
-        for network in cfg["networks"]:
+            ecuc = {"Class": "EcuC", "Pdus": []}
+        pdusMap = [x["Name"] for x in ecuc["Pdus"]]
+        for network in cfg["Networks"]:
             for pdu in network.get("RxPdus", []) + network.get("TxPdus", []):
-                if pdu["name"] not in pdusMap:
-                    pdusMap.append(pdu["name"])
-                    ecuc["Pdus"].append({"name": pdu["name"], "size": pdu.get("dlc", 8) * 8})
-        self.reload(ecuc["class"], ecuc)
+                if pdu["Name"] not in pdusMap:
+                    pdusMap.append(pdu["Name"])
+                    ecuc["Pdus"].append({"Name": pdu["Name"], "Size": pdu.get("Dlc", 8) * 8})
+        self.reload(ecuc["Class"], ecuc)
 
     def UpdateEcuCByPduR(self, cfg):
         ecuc = self.find("EcuC")
         if ecuc == None:
-            ecuc = {"class": "EcuC", "Pdus": []}
-        pdusMap = [x["name"] for x in ecuc["Pdus"]]
-        for rt in cfg["routines"]:
-            if rt["name"] not in pdusMap:
-                pdusMap.append(rt["name"])
-                ecuc["Pdus"].append({"name": rt["name"], "size": 64})
-        self.reload(ecuc["class"], ecuc)
+            ecuc = {"Class": "EcuC", "Pdus": []}
+        pdusMap = [x["Name"] for x in ecuc["Pdus"]]
+        for rt in cfg["Routines"]:
+            if rt["Name"] not in pdusMap:
+                pdusMap.append(rt["Name"])
+                ecuc["Pdus"].append({"Name": rt["Name"], "Size": 64})
+        self.reload(ecuc["Class"], ecuc)
 
     def mLoad(self, jsonFile=None):
         if type(jsonFile) is not str:
@@ -1096,15 +1096,15 @@ class JsonEditor(QMainWindow):
         with open(jsonFile) as f:
             cfg = json.load(f)
             if type(cfg) == dict:
-                self.cfgMap[cfg["class"]] = jsonFile
+                self.cfgMap[cfg["Class"]] = jsonFile
                 cfg = [cfg]
             for m in cfg:
                 for schema in self.schema:
-                    if m["class"] == schema["title"]:
-                        self.reload(m["class"], m)
-                if m["class"] == "CanIf":
+                    if m["Class"] == schema["title"]:
+                        self.reload(m["Class"], m)
+                if m["Class"] == "CanIf":
                     self.UpdateEcuCByCanIf(m)
-                if m["class"] == "PduR":
+                if m["Class"] == "PduR":
                     self.UpdateEcuCByPduR(m)
             self.jsonFile = jsonFile
 

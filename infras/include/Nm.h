@@ -4,8 +4,8 @@
  *
  * ref:  Specification of NetworkManagement Interface AUTOSAR CP Release 4.4.0
  */
-#ifndef _NM_H
-#define _NM_H
+#ifndef NM_H
+#define NM_H
 /* ================================ [ INCLUDES  ] ============================================== */
 #include "ComStack_Types.h"
 #include "NmStack_Types.h"
@@ -21,22 +21,22 @@ typedef struct Nm_Config_s Nm_ConfigType;
 /* ================================ [ LOCALS    ] ============================================== */
 /* ================================ [ FUNCTIONS ] ============================================== */
 /* @SWS_Nm_00030 */
-void Nm_Init(const Nm_ConfigType *ConfigPtr);
+void Nm_Init(const Nm_ConfigType *configPtr);
 
 /* @SWS_Nm_00031 */
-Std_ReturnType Nm_PassiveStartUp(NetworkHandleType NetworkHandle);
+Std_ReturnType Nm_PassiveStartUp(NetworkHandleType networkHandle);
 
 /* @SWS_Nm_00032 */
-Std_ReturnType Nm_NetworkRequest(NetworkHandleType NetworkHandle);
+Std_ReturnType Nm_NetworkRequest(NetworkHandleType networkHandle);
 
 /* @SWS_Nm_00046 */
-Std_ReturnType Nm_NetworkRelease(NetworkHandleType NetworkHandle);
+Std_ReturnType Nm_NetworkRelease(NetworkHandleType networkHandle);
 
 /* @SWS_Nm_00033 */
-Std_ReturnType Nm_DisableCommunication(NetworkHandleType NetworkHandle);
+Std_ReturnType Nm_DisableCommunication(NetworkHandleType networkHandle);
 
 /* @SWS_Nm_00034 */
-Std_ReturnType Nm_EnableCommunication(NetworkHandleType NetworkHandle);
+Std_ReturnType Nm_EnableCommunication(NetworkHandleType networkHandle);
 
 /* @SWS_Nm_00043] */
 Std_ReturnType Nm_GetState(NetworkHandleType nmNetworkHandle, Nm_StateType *nmStatePtr,
@@ -84,4 +84,4 @@ void Nm_CarWakeUpIndication(NetworkHandleType nmChannelHandle);
 
 /* @SWS_Nm_00044 */
 void Nm_GetVersionInfo(Std_VersionInfoType *versionInfo);
-#endif /* _NM_H */
+#endif /* NM_H */

@@ -1,5 +1,5 @@
 {
-    "class": "CanNm",
+    "Class": "CanNm",
     "RemoteSleepIndEnabled": true,
     "CoordinatorSyncSupport": true,
     "GlobalPnSupport": false,
@@ -7,9 +7,9 @@
     "ComUserDataSupport": true,
     "PassiveStartupRepeatEnabled": true,
     "RequestBitAutoSet": true,
-    "networks": [
+    "Networks": [
       {
-        "name": "CANNM0",
+        "Name": "CANNM0",
         "ImmediateNmCycleTime": 100,
         "MsgCycleOffset": 10,
         "MsgCycleTime": 1000,
@@ -39,7 +39,7 @@
         "CarWakeUpFilterNodeId": "0x33"
       },
       {
-        "name": "CANNM1",
+        "Name": "CANNM1",
         "ImmediateNmCycleTime": 100,
         "MsgCycleOffset": 10,
         "MsgCycleTime": 1000,

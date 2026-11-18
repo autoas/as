@@ -68,7 +68,7 @@ extern "C" void FlsAc_Stop(void) {
 #endif
     lStoped = TRUE;
     lJobType = FLS_AC_JOB_NONE;
-    lSem.post();
+    lSem.Post();
     if (lThread.joinable()) {
       lThread.join();
     }
@@ -83,7 +83,7 @@ static void _fls_engine(void *arg) {
   uint8_t u8V;
   boolean conditionOk;
   while (FALSE == lStoped) {
-    lSem.wait();
+    lSem.Wait();
     std::lock_guard<std::mutex> lck(lMutex);
     switch (lJobType) {
     case FLS_AC_JOB_ERASE:
@@ -97,7 +97,9 @@ static void _fls_engine(void *arg) {
 #endif
         g_FlsAcMirror[lAddress + i] = EraseMask;
       }
+#ifndef FLS_AC_RAM_ONLY
       fflush(lFls);
+#endif
       lJobStatus = FLS_AC_JOB_DONE;
       break;
     case FLS_AC_JOB_WRITE:
@@ -191,7 +193,7 @@ Std_ReturnType Fls_AcErase(Fls_AddressType address, Fls_LengthType length) {
       lLength = length;
       lJobType = FLS_AC_JOB_ERASE;
       lJobStatus = FLS_AC_JOB_ONGOING;
-      lSem.post();
+      lSem.Post();
       r = E_FLS_PENDING;
       break;
     case FLS_AC_JOB_ERASE:
@@ -225,7 +227,7 @@ Std_ReturnType Fls_AcWrite(Fls_AddressType address, const uint8_t *data, Fls_Len
       lLength = length;
       lJobType = FLS_AC_JOB_WRITE;
       lJobStatus = FLS_AC_JOB_ONGOING;
-      lSem.post();
+      lSem.Post();
       r = E_FLS_PENDING;
       break;
     case FLS_AC_JOB_WRITE:

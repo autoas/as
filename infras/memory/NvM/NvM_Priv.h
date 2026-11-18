@@ -70,15 +70,15 @@ typedef struct {
 
 struct NvM_Config_s {
   P2CONST(NvM_BlockDescriptorType, AUTOMATIC, NVM_CONST) Blocks;
-  uint16_t numOfBlocks;
+  uint16_t NumOfBlocks;
   /* If NVM builtin Job Queue is FULL, use this masks to request read/write */
-  uint16_t *readMasks;
-  uint16_t *writeMasks;
+  uint16_t *ReadMasks;
+  uint16_t *WriteMasks;
 #ifdef NVM_BLOCK_USE_STATUS
-  NvM_RequestResultType *blockStatus;
+  NvM_RequestResultType *BlockStatus;
 #endif
 #ifdef NVM_BLOCK_USE_CRC
-  uint8_t *workingArea;
+  uint8_t *WorkingArea;
 #endif
 };
 /* ================================ [ DECLARES  ] ============================================== */

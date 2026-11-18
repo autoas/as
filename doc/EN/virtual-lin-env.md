@@ -43,19 +43,19 @@ The simulator source is [lin_simulator_v2.c](../../tools/libraries/device/utils/
 Regardless of whether the v1 or v2 simulator, or a real hardware bridge is used, every node accesses the LIN bus through the common linlib; the header is [linlib.h](../../tools/libraries/Lin/include/linlib.h):
 
 ```c
-typedef uint32_t lin_id_t;
+typedef uint32_t LinL_IdType;
 
-int  lin_open(const char *device_name, uint32_t port, uint32_t baudrate);
-bool lin_write(int busid, lin_id_t id, uint8_t dlc, const uint8_t *data, bool enhanced);
-bool lin_read(int busid, lin_id_t id, uint8_t dlc, uint8_t *data, bool enhanced,
+int  LinL_Open(const char *device_name, uint32_t port, uint32_t baudrate);
+bool LinL_Write(int busid, LinL_IdType id, uint8_t dlc, const uint8_t *data, bool enhanced);
+bool LinL_Read(int busid, LinL_IdType id, uint8_t dlc, uint8_t *data, bool enhanced,
               int timeout /* ms */);
-bool lin_close(int busid);
+bool LinL_Close(int busid);
 ```
 
 Usage conventions (this is the biggest difference from canlib):
 
-* `lin_read()` is the master polling call: it first sends the **header** for the given ID onto the bus, then waits up to `timeout` milliseconds for the slave response and verifies the checksum automatically;
-* `lin_write()` is used for a frame that carries data (e.g. the master request frame MRF): header and data are sent together;
+* `LinL_Read()` is the master polling call: it first sends the **header** for the given ID onto the bus, then waits up to `timeout` milliseconds for the slave response and verifies the checksum automatically;
+* `LinL_Write()` is used for a frame that carries data (e.g. the master request frame MRF): header and data are sent together;
 * for an ID no larger than `0x3F`, the two PID parity bits are computed by the library; passing a value larger than `0x3F` is treated as a PID that already carries parity / an extended ID;
 * `enhanced` selects the enhanced vs. classic checksum;
 * internally, wire frames are distinguished by type characters: `H` header, `D` data, `F` header plus data (extended IDs use the lowercase `h`/`f`).

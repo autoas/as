@@ -1,55 +1,57 @@
 {
-  "class": "CanIf",
+  "Class": "CanIf",
   "RxPacketPoolSize": 8,
   "RxPacketDataSize": 64,
   "TxPacketPoolSize": 8,
   "TxPacketDataSize": 64,
-  "networks": [
+  "Networks": [
     {
-      "name": "CAN0",
-      "me": "AS",
-      "dbc": "CAN0.dbc",
+      "Name": "CAN0",
+      "Me": "AS",
+      "Dbc": "CAN0.dbc",
       "RxPdus": [
-        { "name": "P2P_RX", "id": "0x731", "hoh": 0, "up": "CanTp" },
-        { "name": "P2A_RX", "id": "0x7DF", "hoh": 0, "up": "CanTp" },
-        { "name": "OSEKNM0_RX", "id": "0x400", "mask": "0x700", "hoh": 0, "up": "OsekNm" },
-        { "name": "CANNM0_RX", "id": "0x500", "mask": "0x700", "hoh": 0, "up": "CanNm" },
-        { "name": "CANTSYN_RX", "id": "0x100", "hoh": 0, "up": "CanTSyn" },
-        { "name": "XCP_ON_CAN_RX", "id": "0x7A0", "hoh": 0, "up": "Xcp" },
-        { "name": "FW_CAN0_SECOC_MSG1_RX", "-name": "FW_CAN0_SECOC_MSG0_RX", "id": "0x89", "hoh": 0, "up": "SecOC", "-up": "CanTp" }
+        { "Name": "P2P_RX", "Id": "0x731", "Hoh": 0, "Up": "CanTp" },
+        { "Name": "P2A_RX", "Id": "0x7DF", "Hoh": 0, "Up": "CanTp" },
+        { "Name": "OSEKNM0_RX", "Id": "0x400", "Mask": "0x700", "Hoh": 0, "Up": "OsekNm", "UseMask": true },
+        { "Name": "CANNM0_RX", "Id": "0x500", "Mask": "0x700", "Hoh": 0, "Up": "CanNm", "UseMask": true },
+        { "Name": "CANTSYN_RX", "Id": "0x100", "Hoh": 0, "Up": "CanTSyn" },
+        { "Name": "XCP_ON_CAN_RX", "Id": "0x7A0", "Hoh": 0, "Up": "Xcp" },
+        { "Name": "FW_CAN0_SECOC_MSG1_RX", "Id": "0x89", "Hoh": 0, "Up": "SecOC" }
       ],
       "TxPdus": [
-        { "name": "P2P_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
-        { "name": "P2A_TX", "id": "0x732", "hoh": 0, "up": "CanTp" },
-        { "name": "OSEKNM0_TX", "id": "0x400", "dynamic": true, "hoh": 0, "up": "OsekNm" },
-        { "name": "CANNM0_TX", "id": "0x500", "dynamic": true, "hoh": 0, "up": "CanNm" },
-        { "name": "CANTSYN_TX", "id": "0x100", "hoh": 0, "up": "CanTSyn" },
-        { "name": "XCP_ON_CAN_TX", "id": "0x7B0", "hoh": 0, "up": "Xcp" },
-        { "name": "FW_CAN0_SECOC_MSG0_TX", "id": "0x99", "hoh": 0, "up": "SecOC", "-up": "CanTp" }
+        { "Name": "P2P_TX", "Id": "0x732", "Hoh": 0, "Up": "CanTp" },
+        { "Name": "P2A_TX", "Id": "0x732", "Hoh": 0, "Up": "CanTp" },
+        { "Name": "OSEKNM0_TX", "Id": "0x400", "Dynamic": true, "Hoh": 0, "Up": "OsekNm" },
+        { "Name": "CANNM0_TX", "Id": "0x500", "Dynamic": true, "Hoh": 0, "Up": "CanNm" },
+        { "Name": "CANTSYN_TX", "Id": "0x100", "Hoh": 0, "Up": "CanTSyn" },
+        { "Name": "XCP_ON_CAN_TX", "Id": "0x7B0", "Hoh": 0, "Up": "Xcp" },
+        { "Name": "FW_CAN0_SECOC_MSG0_TX", "Id": "0x99", "Hoh": 0, "Up": "SecOC" }
       ],
-      "ignore": ["CanNmUserData"],
-      "E2E": [ "RxMsgAbsInfo", "TxMsgTime" ]
+      "Ignore": ["CanNmUserData"],
+      "E2E": [ "RxMsgAbsInfo", "TxMsgTime" ],
+      "UseDbc": true
     },
     {
-      "name": "CAN1",
-      "me": "AS",
-      "dbc": "CAN0.dbc",
+      "Name": "CAN1",
+      "Me": "AS",
+      "Dbc": "CAN0.dbc",
       "RxPdus": [
-        { "name": "P2A_FW_RX", "id": "0x7EF", "hoh": 1, "up": "CanTp" },
-        { "name": "CANNM1_RX", "id": "0x500", "mask": "0x700", "hoh": 1, "up": "CanNm" }
+        { "Name": "P2A_FW_RX", "Id": "0x7EF", "Hoh": 1, "Up": "CanTp" },
+        { "Name": "CANNM1_RX", "Id": "0x500", "Mask": "0x700", "Hoh": 1, "Up": "CanNm", "UseMask": true }
       ],
       "TxPdus": [
-        { "name": "P2A_FW_TX", "id": "0x742", "hoh": 1, "up": "CanTp" },
-        { "name": "CANNM1_TX", "id": "0x500", "dynamic": true, "hoh": 1, "up": "CanNm" }
+        { "Name": "P2A_FW_TX", "Id": "0x742", "Hoh": 1, "Up": "CanTp" },
+        { "Name": "CANNM1_TX", "Id": "0x500", "Dynamic": true, "Hoh": 1, "Up": "CanNm" }
       ],
-      "ignore": ["CanNmUserData"]
+      "Ignore": ["CanNmUserData"],
+      "UseDbc": true
     },
     {
-      "name": "CAN2",
-      "me": "AS",
+      "Name": "CAN2",
+      "Me": "AS",
       "RxPdus": [],
       "TxPdus": [
-        { "name": "MIRROR_TX", "id": "0x300", "dynamic": true, "hoh": 2, "up": "PduR" }
+        { "Name": "MIRROR_TX", "Id": "0x300", "Dynamic": true, "Hoh": 2, "Up": "PduR" }
       ]
     }
   ]
